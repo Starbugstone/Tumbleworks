@@ -90,18 +90,16 @@ export function marbleMaterial(color: Color): THREE.MeshPhysicalMaterial {
 export function glassMaterial(color: Color): THREE.MeshPhysicalMaterial {
   const palette = COLORS[color];
   return new THREE.MeshPhysicalMaterial({
-    color: new THREE.Color(palette.light).lerp(new THREE.Color(0xffffff), 0.45),
+    color: new THREE.Color(palette.light).lerp(new THREE.Color(0xffffff), 0.7),
     transmission: 1,
-    thickness: 0.7,
-    ior: 1.5,
-    roughness: 0.03,
+    thickness: 0.28,
+    ior: 1.35,
+    roughness: 0.02,
     metalness: 0,
-    attenuationColor: new THREE.Color(palette.base),
-    attenuationDistance: 0.85,
     specularIntensity: 1,
     clearcoat: 1,
     clearcoatRoughness: 0.02,
-    envMapIntensity: 3,
+    envMapIntensity: 2.4,
   });
 }
 
@@ -110,8 +108,8 @@ export function twistMaterial(color: Color): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({
     color: palette.hex,
     emissive: palette.hex,
-    emissiveIntensity: 0.28,
-    roughness: 0.42,
+    emissiveIntensity: 0.55,
+    roughness: 0.35,
     side: THREE.DoubleSide,
   });
 }
@@ -120,7 +118,7 @@ export function twistMaterial(color: Color): THREE.MeshStandardMaterial {
 export function twistGeometry(radius: number): THREE.BufferGeometry {
   const positions: number[] = [];
   const steps = 14;
-  const vanes = 3;
+  const vanes = 4;
   const turns = 2.1;
   for (let vane = 0; vane < vanes; vane++) {
     const start = (vane / vanes) * Math.PI * 2;

@@ -1,60 +1,63 @@
 # Marble sort POC plan
 
-Agreed with GPT-6.1 Sol (xhigh) over three rounds on 2026-10-30. The POC is now built on this plan; "Changes while building" lists where it moved on.
+## Where this stands
+
+The first build followed the plan below as originally agreed: Phaser, 2D sprites and no physics. It passed its tests and was rejected the first time it was played: "I was expecting something a lot more visually appealing and also some physics, that's what people want, to see the marbles fall and that they had a physical interaction and see real life reactions on the screen."
+
+That is the plan's own failure test for appeal, so the renderer and the "no physics" decision were replaced. The puzzle design survived unchanged. The 2D build is in git history at commit `fe49016`.
 
 ## The idea, in short
 
 One browser game, one campaign, three rulesets: tube, tray and conveyor. They can share marbles, sound, undo and progress, but each ruleset needs its own rules, level checks and tutorial. That makes this roughly three small games behind one front end, so the first thing to prove is that the riskiest of them is worth playing.
 
-## Changes while building
-
-- **Screen:** logical width is fixed at 720, but height grows up to 1620 on phones taller than 9:16, so the header and buttons can spread out. The game layout itself still occupies 720×1280.
-- **Lap time:** 2.4 seconds, to reduce waiting between deliveries. There is no fast-forward: speeding up marbles that can't deliver would look busy without making progress.
-- **Pouring:** released marbles wait in their tray and pour through the funnel one at a time, so no separate waiting rail exists.
-- **Delivery pacing:** the simulation delivers instantly, and the view shows it at a readable pace. Marbles wait in the chute until the box is free, and a box only celebrates after its third marble lands. This never changes an outcome.
-- **Blocked taps:** a blocked tap while the belt can still drain gets neutral feedback, not the error sound. The alarm is saved for real jams and for refusals that waiting won't fix.
-- **Level access:** level 2 is locked until level 1 is won.
-- **Video capture:** `scripts/capture-video.mjs` advances the game frame by frame, so videos are smooth on machines without a GPU.
-
 ## What the POC builds
 
-**The conveyor, not the tube level.** The conveyor is the hook of the games being copied and the only ruleset with timing, a limited buffer and a watch-it-resolve payoff. Tube sorting is the cheapest to build, but it would pass without testing any of that.
+**The conveyor, not the tube level.** The conveyor is the hook of the games being copied and the only ruleset with timing, a limited buffer and a watch-it-resolve payoff. `docs/research/mixed-campaign-plan.json` still lists a tube level first, and campaign order is decided after the POC.
 
-This changes build order only. `research/mixed-campaign-plan.json` still lists a tube level first, and campaign order is decided after the POC.
+## The machine
+
+Top to bottom, as a toy on a wooden table:
+
+1. **Trays** hold packets of 6 marbles. Tapping one tips it, and marbles roll off one at a time.
+2. **A clear funnel** catches them. They really fall, bounce and knock into each other.
+3. **A powered raceway** carries them round in a calm, orderly line. They're steered to the middle and don't bounce, because playtesting found a lively belt slowed the game down. The liveliness belongs to the fall.
+4. **A selector at the front** kicks a marble matching the active box through a one-way door. Others ride on. If a marble for the next box is about to arrive during a box change, the belt pauses briefly so it doesn't lose a whole lap.
+5. **A short chute** drops it into the box.
+6. **A box** shows a light per marble, then leaves as the next arrives.
 
 ## Tools
 
 | Need | Choice |
 | --- | --- |
-| Engine | Phaser 4.2.1, pinned |
-| Language and build | TypeScript, Vite |
-| Rules tests | Vitest |
-| End-to-end test | One Playwright journey |
-| Physics | None. Motion is authored; the simulation decides outcomes |
-| Marble art | Radial-gradient textures generated at boot, plus a contact shadow and upright colour-blind symbols |
-| Screen | 720×1280 logical size, `Scale.FIT` |
-| Save | `localStorage`, completion only |
+| Rendering | Three.js 0.187, fixed perspective camera, clear glass marbles |
+| Physics | Rapier 3D 0.21, running at a fixed 60 ticks per second |
+| Language and build | TypeScript, Vite, in a Docker dev server |
+| Tests | Vitest for rules and headless physics, one Playwright journey |
+| Art | Generated in code: no image or audio files |
+| Save | `localStorage`, completion and mute only |
 
-Left out on purpose: plugin framework, level generator, level editor, asset pipeline.
+Left out on purpose: bloom and other post-processing, level generator, level editor, asset pipeline.
 
-This overrides the research brief's Three.js recommendation. The toy look matters, but real 3D is only needed for changing reflections, visible sphere rotation or dimensional machinery. Solid glossy marbles with a fixed highlight don't show rotation, so sprites should hold up. The spike below tests that.
+## Physics decides when, rules decide what
+
+The rules (`src/sim/rules.ts`) are pure code: which release is allowed, how much of the belt is used, which box is active, and what counts as a win or a jam. Physics only reports events such as "this marble reached the gate", and the rules answer.
+
+This is safe because with one receiver queue the outcome depends only on which packets were released, not when. That's what the order-independence test checks, with 500 randomised schedules per level. It relies on every marble eventually arriving, which the rules can't promise, so the physics soak test checks it separately.
 
 ## Rules
 
-- Tap an exposed supply packet to release it. Its whole size reserves belt capacity at once.
-- Marbles enter through one gate and circulate. At the delivery gate, a marble that matches the front box delivers; anything else keeps going.
-- A filled box leaves immediately and the next one becomes active.
-- **Win:** supplies, belt and receiver queue are all empty.
-- **Jam:** no packet fits, and no marble on the belt or waiting to enter can ever deliver. A full belt that can still drain is not a jam.
-- **Blocked tap:** rejected, never queued. Show "Needs 6 free spaces" with waiting feedback.
-- **On a jam:** Undo is live immediately and the belt keeps moving. The explanation appears once waiting marbles have entered, about a second at most, so the cause is on screen when it's described.
-- **Undo:** restores a full snapshot from before the last accepted release.
+- Tap a tray to release its packet. Its whole size reserves belt space at once.
+- A marble leaves the belt only when it's the active box's colour, and at most 3 are ever reserved per box.
+- **Win:** supplies, belt and boxes all done.
+- **Jam:** no packet fits, nothing on the belt matches the active box, and nothing is mid-delivery. A full belt that can still drain is not a jam.
+- **Blocked tap:** refused, never queued. Neutral feedback if the belt can still drain, an alarm if not.
+- **Undo:** restores a full snapshot of the rules and the physics world from before the last accepted release, with a brief flash.
 
 ## Levels
 
 Supplies are listed front first. Each packet is 6 marbles, each box holds 3, and the belt holds 12.
 
-### Board 1: the first level
+### Level 1
 
 ```text
 Supply A: Blue ×6 → Red ×6
@@ -68,17 +71,11 @@ Boxes:    R, R, B, B, G, G
 | A, B | Jam: blue and green fill the belt, and red can't get on |
 | B, A | Jam: same reason |
 
-How it plays:
+The first tap of the first attempt is locked to A, with a hint. There's no further direction after that.
 
-1. The player sees the full supply stacks, box queue, belt direction arrows and an occupancy counter.
-2. The first tap of the first attempt is locked to A: "Release blue to uncover red."
-3. Blue circulates with nowhere to go, and red is now exposed. From here there is no more direction.
-4. Tapping red drains the belt in a chain of deliveries, red first and then the waiting blue. Green finishes the level.
-5. Tapping green instead jams the belt. The game explains why and highlights Undo.
+### Level 2
 
-### Board 2: does it hold up as a game?
-
-Data only, no new code. Shown after the first win, with no guidance.
+Shown after the first win, with no guidance. It has 13 winning and 13 jamming tap orders, and every opening can still win.
 
 ```text
 Supply A: Red ×6 → Blue ×6
@@ -87,49 +84,34 @@ Supply C: Green ×6
 Boxes:    R, R, Y, Y, B, B, R, R, G, G
 ```
 
-This has 13 winning and 13 jamming tap orders, and every opening can still win. The counts show coverage, not difficulty.
+## Keeping marbles moving
 
-## Architecture
+Physics can strand a marble, and a stranded marble must never turn into a false jam. So:
 
-- Rules and simulation are pure TypeScript with no Phaser import. Phaser only draws the state and sends taps.
-- Integer ticks with a specified order within each tick. Tween callbacks never decide anything.
-- The belt loop has 24 sampling positions. These are not visible slots; capacity stays 12.
-- One entry gate with a first-in, first-out queue, one delivery gate, one receiver lane. Capacity includes marbles waiting to enter.
-
-With one lane, the outcome depends only on which packets were released, not when. Boxes are identical and in a fixed order, and free space in real time never exceeds free space in fully settled play. So a simple settled solver can vouch for the real-time game.
+- **Prevention comes first:** marbles pour one at a time, the funnel's outlet is wide, and clear walls contain them.
+- **The door is one-way by marble:** a collision filter lets only kicked marbles through, so a nudged marble can't escape. Kicked marbles also pass through belt traffic, so a neighbour can't bat them back.
+- **Rescue is the last resort:** a shove if a marble makes no forward progress for 2 seconds, then a teleport. Both are counted.
+- **The soak test fails on any teleport** and on more than one shove in a run.
 
 ## Tests
 
-- **Vitest:** rules, plus a small enumerator that drives the real rules module and asserts both boards' full tap trees.
-- **Property test:** random tap timing, compared after draining on box progress and leftover counts, must match settled play.
-- **Playwright:** jam → undo → win → reload still shows completion.
-
-## Build order
-
-1. **Half-day spike, before any gameplay.** On a real phone with Phaser 4.2.1: 12 occupied belt positions plus supply and box visuals, rapid taps, resize, and motion at actual size.
-2. Rules, simulation and tests, with no rendering.
-3. Board 1 rendered and playable, with guidance, undo and jam explanation.
-4. Sound and motion polish.
-5. Board 2 and saved completion.
-
-**Fallback rules for the spike:**
-
-- Move to Phaser 3 only after reproducing a defect specific to 4 and showing the same harness passes on 3.
-- Move to Three.js only if the look fails in a way that needs depth, lighting or geometry sprites can't provide. Weak colours or animation don't justify changing engine.
+- **Rules:** 29 tests, including both levels' full tap trees and the order-independence property.
+- **Physics soak:** both levels with varied tap timing and undo. The latest run at `SOAK_RUNS=30` covered 540 games with 0 teleports and 11 shoves. Level 1's winning order took 17-20 seconds and level 2's 22-30.
+- **Pace:** a brisk player must win level 1 in under 21 seconds and level 2 in under 30.
+- **Browser:** jam → undo → win → reload still shows completion, plus a jam on level 2 and a refused tap.
 
 ## The verdict
 
 The POC fails if any of these is true:
 
-- Players can't explain a jam after board 1.
-- Travel around the belt feels like dead time.
-- The look misses the toy appeal.
+- Players can't explain a jam after level 1.
+- Riding the belt feels like waiting rather than watching.
+- It doesn't look and feel like a physical toy that's worth watching.
 
 It proves nothing about the tube and tray rulesets or the shared shell. Those wait for a second ruleset.
 
-## What has and hasn't been checked
+## What hasn't been checked
 
-- **Checked:** both boards' tap trees, by two separate enumerators. Re-run with `python3 -I docs/research/conveyor_board_check.py`. It uses the settled model, not game code.
-- **Checked by Sol only:** 1,000 randomly timed runs per board on three boards through a throwaway 24-position tick model, with zero mismatches against settled play. This supports the one-lane argument; the real simulation still has to pass the property test.
-- **Now tested in code:** both boards' full tap trees through the real simulation, 500 random-timing runs per board, and three browser journeys. Run them with the commands in the README.
-- **Not checked:** Phaser 4 on a phone, whether the sprites look right at phone size, how the sound feels, and whether any of this is fun. These need a person with a phone.
+- **Frame rate on a real phone.** All testing so far used a software renderer on a PC, which says nothing about phone speed. Graphics step down automatically if frames take too long: first resolution, then clear glass. That fallback hasn't been run on a phone either.
+- **Sound.** It's synthesised and has never been heard by the person writing it.
+- **Whether it's fun.** That needs people playing it.

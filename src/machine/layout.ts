@@ -5,7 +5,7 @@
  * Top to bottom: tipping trays, a clear funnel, a powered raceway, a chute, and the boxes.
  */
 export const MARBLE_RADIUS = 0.5;
-export const GRAVITY = 26;
+export const GRAVITY = 34;
 export const TICK_SECONDS = 1 / 60;
 
 export const RACEWAY = {
@@ -18,20 +18,32 @@ export const RACEWAY = {
   wallThickness: 0.14,
   wallHeight: 1.8,
   /** Target tangential speed of the powered floor. */
-  speed: 11,
+  speed: 12,
   /** How hard the drive can push, as an acceleration. Collisions can still slow a marble down. */
-  driveAcceleration: 50,
+  driveAcceleration: 40,
+  /** Marbles are steered back to the middle of the channel, so the belt reads as an orderly line. */
+  centering: 7,
+  centeringAcceleration: 85,
+  /** Pulls a marble back down if it hops, so the bounce belongs to the fall and not the ride. */
+  downforce: 45,
+  /** How bouncy a marble is once it's on the belt or leaving it. */
+  calmRestitution: 0.08,
+  /** How hard the belt stops when it pauses for a box change. */
+  brakeAcceleration: 75,
 } as const;
 
 export const GATE = {
   /** Marbles are checked as they cross this x on the front straight, travelling toward -x. */
-  checkX: 0.72,
-  doorHalf: 1.15,
-  kickOutward: 7,
-  kickUp: 0.9,
+  checkX: 1.0,
+  doorHalf: 1.65,
+  kickOutward: 8,
+  kickUp: 0.4,
   kickAlong: -1.2,
   /** How long the kicker arm and door are drawn open. The door only ever lets a kicked marble through. */
   openSeconds: 0.26,
+  /** How far before the selector a waiting marble makes the belt pause. Stopping from full speed takes about 1. */
+  brakeDistance: 2.2,
+  brakeLimitSeconds: 1.5,
 } as const;
 
 const raceFrontZ = RACEWAY.centerZ + RACEWAY.radius;
@@ -42,11 +54,7 @@ export const CHUTE = {
   topY: RACEWAY.floorY - 0.02,
   bottomZ: OUTER_FRONT_Z + 1.25,
   bottomY: 1.45,
-  halfWidth: 1.22,
-  /** A gate at the chute's end holds marbles back while the boxes change over. */
-  gateHeight: 2.9,
-  /** Far enough up the chute that marbles waiting here are clear of the moving boxes. */
-  gateZ: OUTER_FRONT_Z + 0.9,
+  halfWidth: 1.68,
 } as const;
 
 export const BOX = {
@@ -63,11 +71,11 @@ export const BOX = {
   parkedX: 30,
   exitX: -9.5,
   /** How long a full box sits still before leaving, once its marbles have stopped bouncing. */
-  holdSeconds: 0.22,
+  holdSeconds: 0.06,
   /** Leave anyway after this long, in case something is still rocking. */
-  settleLimitSeconds: 1,
-  settledSpeed: 1.1,
-  swapSeconds: 0.38,
+  settleLimitSeconds: 0.28,
+  settledSpeed: 1.6,
+  swapSeconds: 0.24,
 } as const;
 
 /** The tray pivots on its front bottom edge, so its marbles spill toward the funnel. */
@@ -85,12 +93,12 @@ export const TRAY = {
   tipAngle: 0.72,
   tipSeconds: 0.5,
   /** The tilt angle's progress at which the first marble is let go, then one more per gap. */
-  firstMarbleSeconds: 0.25,
-  marbleGapSeconds: 0.14,
+  firstMarbleSeconds: 0.18,
+  marbleGapSeconds: 0.11,
   /** After the last marble is let go, give it this long to roll out, then leave. */
-  pourSeconds: 0.9,
-  leaveSeconds: 0.25,
-  slideSeconds: 0.28,
+  pourSeconds: 0.8,
+  leaveSeconds: 0.22,
+  slideSeconds: 0.26,
   slots: [
     { x: -1.12, z: -0.72 },
     { x: 0, z: -0.72 },

@@ -94,8 +94,9 @@ interface Control {
   endingReported: boolean;
   /** Seconds left to wait for the last marble to stop bouncing before the hold starts counting. */
   settleLimit: number;
-  /** The last box only tells the rules it has gone once it really has, because that's the win. */
-  swapOwed: boolean;
+  /** The belt is pausing so a marble for the next box doesn't miss it and ride a whole lap. */
+  braking: boolean;
+  brakeTime: number;
 }
 
 interface Saved {
@@ -110,9 +111,13 @@ const BOX_REST_Y = 0;
 const GROUP_MARBLE = 0x0001;
 const GROUP_KICKED = 0x0002;
 const GROUP_DOOR = 0x0004;
+const GROUP_LANDED = 0x0008;
 const groups = (membership: number, filter: number): number => (membership << 16) | filter;
 const MARBLE_GROUPS = groups(GROUP_MARBLE, 0xffff);
-const KICKED_GROUPS = groups(GROUP_KICKED, 0xffff);
+// A kicked marble passes through belt traffic, since a neighbour riding alongside would just bat it
+// back. It still hits everything else, including marbles already in the box.
+const KICKED_GROUPS = groups(GROUP_KICKED, 0xffff & ~GROUP_MARBLE);
+const LANDED_GROUPS = groups(GROUP_LANDED, 0xffff);
 const DOOR_GROUPS = groups(GROUP_DOOR, GROUP_MARBLE);
 const MARBLE_DENSITY = 1 / ((4 / 3) * Math.PI * MARBLE_RADIUS ** 3);
 const onBeltHeight = RACEWAY.floorY + MARBLE_RADIUS + 0.2;
@@ -128,7 +133,6 @@ export class Machine {
   private readonly trayHandles = new Map<number, number>();
   private readonly boxHandles: number[] = [];
   private readonly events: MachineEvent[] = [];
-  private gateCollider = -1;
   /** The most recent rescue, for diagnosing transport faults. */
   lastRecovery = '';
 
@@ -149,7 +153,8 @@ export class Machine {
       recoveries: { nudges: 0, teleports: 0 },
       endingReported: false,
       settleLimit: 0,
-      swapOwed: false,
+      braking: false,
+      brakeTime: 0,
     };
     this.buildStatics();
     this.buildBoxes();
@@ -284,14 +289,6 @@ export class Machine {
         body,
       );
     }
-    this.gateCollider = this.world.createCollider(
-      RAPIER.ColliderDesc.cuboid(CHUTE.halfWidth, CHUTE.gateHeight / 2, 0.05)
-        .setTranslation(0, CHUTE.bottomY + CHUTE.gateHeight / 2, CHUTE.gateZ)
-        .setFriction(0.08)
-        .setRestitution(0.3),
-      body,
-    ).handle;
-
     // A board behind the box stops a fast marble overshooting.
     this.world.createCollider(
       RAPIER.ColliderDesc.cuboid(BOX.halfWidth + 0.5, 1.6, 0.06)
@@ -449,10 +446,6 @@ export class Machine {
     return this.control.paddle;
   }
 
-  get chuteGateClosed(): boolean {
-    return this.control.hold > 0 || this.control.swap > 0;
-  }
-
   /** How many marbles have landed in this box. */
   boxFill(boxIndex: number): number {
     return this.rules.state.marbles.filter((entry) => entry.status === 'in-box' && entry.boxIndex === boxIndex).length;
@@ -554,10 +547,6 @@ export class Machine {
       this.events.push({ type: 'boxFull', boxIndex: event.boxIndex });
       this.control.hold = BOX.holdSeconds;
       this.control.settleLimit = BOX.settleLimitSeconds;
-      // The selector moves straight on to the next colour, so matching marbles don't have to wait
-      // a whole lap. They queue behind the chute's gate until the next box is in place.
-      if (event.boxIndex + 1 < this.board.boxes.length) this.rules.boxSwapped();
-      else this.control.swapOwed = true;
     }
   }
 
@@ -684,10 +673,6 @@ export class Machine {
   private updateBoxes(): void {
     const dt = TICK_SECONDS;
     const control = this.control;
-    const gateClosed = control.hold > 0 || control.swap > 0;
-    const gate = this.world.getCollider(this.gateCollider);
-    if (gate.isEnabled() !== gateClosed) gate.setEnabled(gateClosed);
-
     if (control.hold > 0) {
       control.settleLimit -= dt;
       // The last marble gets to finish bouncing before anything moves.
@@ -707,10 +692,7 @@ export class Machine {
         control.activeBox += 1;
         if (control.activeBox + 1 < control.boxX.length) control.boxX[control.activeBox + 1] = BOX.nextX;
         this.events.push({ type: 'boxSwapped' });
-        if (control.swapOwed) {
-          control.swapOwed = false;
-          this.rules.boxSwapped();
-        }
+        this.rules.boxSwapped();
       }
     }
 
@@ -758,8 +740,33 @@ export class Machine {
     control.paddle = Math.max(control.paddle - TICK_SECONDS * 6, 0);
   }
 
+  /**
+   * While the active box can't take more, a marble for the next box would ride straight past the
+   * selector and lose a whole lap. So the belt pauses until the next box is ready.
+   */
+  private updateBrake(): void {
+    const { rules, board } = this;
+    const reserved = rules.state.marbles.filter((entry) => entry.boxIndex === rules.activeBox).length;
+    const waiting = rules.activeColor !== null && reserved >= board.boxSize;
+    const upcoming = waiting ? board.boxes[rules.activeBox + 1] : undefined;
+    let braking = false;
+    if (upcoming !== undefined) {
+      const gate = nearestOnTrack(GATE.checkX, RACEWAY.centerZ + RACEWAY.radius).distance;
+      for (const entry of rules.state.marbles) {
+        if (entry.status !== 'on-belt' || entry.color !== upcoming) continue;
+        const t = this.marbleBody(entry.id).translation();
+        const ahead = (gate - nearestOnTrack(t.x, t.z).distance + TRACK_LENGTH) % TRACK_LENGTH;
+        if (ahead < GATE.brakeDistance) braking = true;
+      }
+    }
+    // Waiting is never allowed to turn into a stoppage.
+    this.control.brakeTime = waiting && braking ? this.control.brakeTime + TICK_SECONDS : waiting ? this.control.brakeTime : 0;
+    this.control.braking = braking && this.control.brakeTime < GATE.brakeLimitSeconds;
+  }
+
   private updateMarbles(): void {
     const dt = TICK_SECONDS;
+    this.updateBrake();
     for (const marble of this.control.marbles) {
       if (!marble || marble.carriedBy) continue;
       const entry = this.rules.state.marbles[marble.id];
@@ -773,6 +780,7 @@ export class Machine {
         // Below the funnel's neck it's in the channel, even if it's riding on top of other marbles.
         if (t.y < FUNNEL.neckY - MARBLE_RADIUS && Math.abs(near.lateral) < RACEWAY.channelHalf) {
           this.rules.entered(marble.id);
+          body.collider(0).setRestitution(RACEWAY.calmRestitution);
           marble.lastDistance = near.distance;
           marble.stalled = 0;
         } else if (marble.transit > 8) {
@@ -794,8 +802,6 @@ export class Machine {
 
       if (entry.status === 'dropping') {
         marble.transit += dt;
-        // Waiting behind the chute's gate is not a fault.
-        if (this.chuteGateClosed) marble.transit = Math.min(marble.transit, 1);
         // A kicked marble that got knocked back into the channel just rides round and tries again.
         if (t.z < OUTER_FRONT_Z - MARBLE_RADIUS * 0.5 && t.y > RACEWAY.floorY && marble.transit > 0.5) {
           // Riding round isn't being lost, so it doesn't count toward the time limit.
@@ -807,9 +813,9 @@ export class Machine {
         const inside =
           Math.abs(t.x - boxX) < BOX.halfWidth && Math.abs(t.z - BOX.z) < BOX.halfDepth && t.y < BOX.height + MARBLE_RADIUS * 1.6;
         marble.settling = inside ? marble.settling + dt : 0;
-        if (marble.settling > 0.14) {
+        if (marble.settling > 0.03) {
           const events = this.rules.captured(marble.id);
-          body.collider(0).setCollisionGroups(MARBLE_GROUPS);
+          body.collider(0).setCollisionGroups(LANDED_GROUPS);
           this.events.push({ type: 'captured', marbleId: marble.id, boxIndex: entry.boxIndex, fill: this.boxFill(entry.boxIndex) });
           for (const event of events) this.pushRulesEvent(event);
         } else if (marble.transit > 4) {
@@ -836,15 +842,30 @@ export class Machine {
     const near = nearestOnTrack(t.x, t.z);
     const velocity = body.linvel();
 
+    const mass = body.mass();
     if (t.y < onBeltHeight) {
       const along = velocity.x * near.tx + velocity.z * near.tz;
-      const wanted = Math.min(RACEWAY.speed - along, RACEWAY.driveAcceleration * TICK_SECONDS);
-      if (wanted > 0) {
-        const mass = body.mass();
-        body.applyImpulse({ x: near.tx * wanted * mass, y: 0, z: near.tz * wanted * mass }, true);
-      }
+      // A kicked marble that bounced back ignores the brake, since its box is what the brake waits for.
+      const braking = this.control.braking && !kicked;
+      const target = braking ? 0 : RACEWAY.speed;
+      const limit = (braking ? RACEWAY.brakeAcceleration : RACEWAY.driveAcceleration) * TICK_SECONDS;
+      const push = Math.max(Math.min(target - along, limit), -limit);
+      body.applyImpulse({ x: near.tx * push * mass, y: 0, z: near.tz * push * mass }, true);
+
+      // Outward is the tangent turned a quarter turn. Curves also need the pull that holds a marble on them.
+      const nx = near.tz;
+      const nz = -near.tx;
+      const outward = velocity.x * nx + velocity.z * nz;
+      const steerLimit = RACEWAY.centeringAcceleration * TICK_SECONDS;
+      const steer = Math.max(Math.min(-near.lateral * RACEWAY.centering - outward, steerLimit), -steerLimit);
+      body.applyImpulse({ x: nx * steer * mass, y: 0, z: nz * steer * mass }, true);
+    }
+    if (t.y > RACEWAY.floorY + MARBLE_RADIUS + 0.03) {
+      body.applyImpulse({ x: 0, y: -RACEWAY.downforce * TICK_SECONDS * mass, z: 0 }, true);
     }
 
+    // Standing still because the belt has paused isn't being stuck.
+    if (this.control.braking && !kicked) marble.stalled = 0;
     const moved = ((near.distance - marble.lastDistance + TRACK_LENGTH * 1.5) % TRACK_LENGTH) - TRACK_LENGTH / 2;
     if (moved > 0.4) {
       marble.lastDistance = near.distance;

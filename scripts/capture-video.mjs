@@ -16,7 +16,7 @@ mkdirSync(OUT, { recursive: true });
 const browser = await chromium.launch({
   args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'],
 });
-const context = await browser.newContext({ ...devices['Pixel 7'] });
+const context = await browser.newContext({ ...devices['Pixel 7'], deviceScaleFactor: 1.5 });
 const page = await context.newPage();
 page.on('pageerror', (error) => {
   throw error;

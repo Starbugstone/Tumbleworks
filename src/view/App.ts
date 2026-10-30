@@ -123,7 +123,7 @@ export class App {
   }
 
   /** Runs the physics for this much real time, then draws. */
-  advance(seconds: number): void {
+  advance(seconds: number, draw = true): void {
     this.accumulator += seconds;
     let steps = 0;
     while (this.accumulator >= TICK_SECONDS && steps < MAX_STEPS_PER_FRAME) {
@@ -133,7 +133,7 @@ export class App {
       this.scene.afterTick();
     }
     if (steps === MAX_STEPS_PER_FRAME) this.accumulator = 0;
-    this.scene.render(this.accumulator / TICK_SECONDS, seconds);
+    if (draw) this.scene.render(this.accumulator / TICK_SECONDS, seconds);
     this.refresh();
   }
 

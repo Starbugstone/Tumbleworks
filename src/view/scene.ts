@@ -82,7 +82,7 @@ export class MachineScene {
   private machine: Machine | null = null;
 
   private readonly marbleGeometry = new THREE.SphereGeometry(MARBLE_RADIUS, 32, 24);
-  private readonly twistGeometry = twistGeometry(MARBLE_RADIUS * 0.8);
+  private readonly twistGeometry = twistGeometry(MARBLE_RADIUS * 0.88);
   private readonly glassMaterials = new Map<Color, THREE.MeshPhysicalMaterial>();
   private readonly twistMaterials = new Map<Color, THREE.MeshStandardMaterial>();
   private readonly solidMaterials = new Map<Color, THREE.MeshPhysicalMaterial>();
@@ -105,7 +105,6 @@ export class MachineScene {
 
   private readonly gatePad: THREE.Mesh;
   private readonly gatePadMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5, depthWrite: false });
-  private readonly chuteGate: THREE.Group;
   private readonly boxLightOff = new THREE.MeshStandardMaterial({ color: 0x5a4436, roughness: 0.5 });
   private readonly boxLightOn = new THREE.MeshStandardMaterial({ color: 0xfff6c0, emissive: 0xffe680, emissiveIntensity: 2.4 });
   private readonly lamp: THREE.Mesh;
@@ -160,19 +159,6 @@ export class MachineScene {
     this.gatePad.rotation.x = -Math.PI / 2;
     this.gatePad.position.set(0, RACEWAY.floorY + 0.03, RACEWAY.centerZ + RACEWAY.radius);
     this.scene.add(this.gatePad);
-
-    // A clear panel with a dark top bar, which lifts away when the next box is in place.
-    this.chuteGate = new THREE.Group();
-    const gateBar = new THREE.Mesh(rounded(CHUTE.halfWidth, 0.07, 0.05, 0.04, 0, CHUTE.gateHeight, 0), plastic(0x3b4069, 0.35));
-    gateBar.castShadow = true;
-    const gatePanel = new THREE.Mesh(
-      new THREE.BoxGeometry(CHUTE.halfWidth * 2, CHUTE.gateHeight, 0.04),
-      new THREE.MeshPhysicalMaterial({ color: 0xdff2ff, transparent: true, opacity: 0.16, roughness: 0.05, depthWrite: false, envMapIntensity: 2.5 }),
-    );
-    gatePanel.position.y = CHUTE.gateHeight / 2;
-    gatePanel.renderOrder = 3;
-    this.chuteGate.add(gateBar, gatePanel);
-    this.scene.add(this.chuteGate);
 
     this.kicker = new THREE.Group();
     const arm = new THREE.Mesh(rounded(0.16, 0.16, 0.72, 0.12, 0, 0, 0.72), plastic(0xf25f33));
@@ -261,13 +247,13 @@ export class MachineScene {
     const guard = new THREE.MeshPhysicalMaterial({
       color: 0xdff2ff,
       transparent: true,
-      opacity: 0.1,
+      opacity: 0.045,
       roughness: 0.05,
       side: THREE.DoubleSide,
       depthWrite: false,
       envMapIntensity: 2.5,
     });
-    for (const offset of [channelHalf + wallThickness / 2, -channelHalf]) {
+    for (const offset of [channelHalf + wallThickness / 2]) {
       const band = new THREE.Mesh(this.guardGeometry(offset), guard);
       band.renderOrder = 1;
       this.scene.add(band);
@@ -655,7 +641,6 @@ export class MachineScene {
     }
   }
 
-  private gateLift = 2.2;
   private readonly tempA = new THREE.Quaternion();
   private readonly tempB = new THREE.Quaternion();
 
@@ -709,10 +694,6 @@ export class MachineScene {
     }
     if (active) this.gatePadMaterial.color.setHex(COLORS[active].hex);
     this.gatePad.visible = active !== null;
-    const { bottomY } = CHUTE;
-    const gateTarget = machine.chuteGateClosed ? 0 : 2.2;
-    this.gateLift += (gateTarget - this.gateLift) * Math.min(deltaSeconds * 16, 1);
-    this.chuteGate.position.set(0, bottomY + this.gateLift, CHUTE.gateZ);
     this.boxLights.forEach((lights, index) => {
       const fill = machine.boxFill(index);
       lights.forEach((light, i) => {
