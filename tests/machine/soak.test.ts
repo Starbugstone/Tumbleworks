@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { Machine, initPhysics, type Pose } from '../../src/machine/machine';
-import { BOARD_1, BOARD_2 } from '../../src/sim/boards';
+import { BOARD_1, BOARD_2, BOARD_3 } from '../../src/sim/boards';
 import type { BoardDef } from '../../src/sim/types';
 
 const TICKS_PER_SECOND = 60;
@@ -142,6 +142,8 @@ describe('the physical machine agrees with the rules', () => {
       ['board 1 wins', BOARD_1, WINS_1, 'won'],
       ['board 1 jams', BOARD_1, JAMS_1, 'jammed'],
       ['board 2 wins', BOARD_2, WINS_2, 'won'],
+      ['board 3 wins', BOARD_3, ['AACBCBA'], 'won'],
+      ['board 3 jams', BOARD_3, ['AB', 'BC'], 'jammed'],
     ] as const) {
       it(`${name}${withUndo ? ' with undo' : ''}`, { timeout: 600_000 }, () => {
         const outcomes: Outcome[] = [];

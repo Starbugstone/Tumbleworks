@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { Stage } from '../engine/stage';
+import type { MarbleEntity } from '../engine/marbles';
+import { frameBoard } from '../engine/framing';
 import type { Machine, Pose } from '../machine/machine';
 import {
   BOX,
@@ -17,17 +19,13 @@ import {
   TRAY,
 } from '../machine/layout';
 import type { Color } from '../sim/types';
-import { COLORS, glassMaterial, marbleMaterial, symbolTexture, twistGeometry, twistMaterial, woodTexture } from './art';
+import { COLORS, symbolTexture } from './art';
 
-const MAX_PIXEL_RATIO = 1.5;
 const RIB_COUNT = 28;
-/** What must stay on screen, in world units, used to frame the camera for any window shape. */
-const FRAME = { halfWidth: 6.15, top: 11.6, bottom: -0.2 };
 /** The walls are drawn lower than they collide, so they don't hide the action. */
 const DRAWN_WALL_HEIGHT = 0.62;
 const ISLAND_HEIGHT = 0.44;
 const CAMERA_DIRECTION = new THREE.Vector3(0, 0.72, 0.69).normalize();
-const CAMERA_TARGET = new THREE.Vector3(0, 3, -0.1);
 
 const plastic = (color: number, roughness = 0.34): THREE.MeshPhysicalMaterial =>
   new THREE.MeshPhysicalMaterial({ color, roughness, clearcoat: 0.55, clearcoatRoughness: 0.22, envMapIntensity: 0.9 });
@@ -62,11 +60,8 @@ function holePath(radius: number): THREE.Path {
   return path;
 }
 
-interface MarbleVisual {
+interface MarbleVisual extends MarbleEntity {
   readonly id: number;
-  readonly color: Color;
-  readonly mesh: THREE.Mesh;
-  readonly twist: THREE.Mesh;
   previous: Pose;
   current: Pose;
 }
@@ -77,17 +72,10 @@ interface TrayVisual {
 
 export class MachineScene {
   readonly renderer: THREE.WebGLRenderer;
-  readonly scene = new THREE.Scene();
+  readonly scene: THREE.Scene;
   readonly camera = new THREE.PerspectiveCamera(40, 1, 1, 200);
   private machine: Machine | null = null;
 
-  private readonly marbleGeometry = new THREE.SphereGeometry(MARBLE_RADIUS, 32, 24);
-  private readonly twistGeometry = twistGeometry(MARBLE_RADIUS * 0.88);
-  private readonly glassMaterials = new Map<Color, THREE.MeshPhysicalMaterial>();
-  private readonly twistMaterials = new Map<Color, THREE.MeshStandardMaterial>();
-  private readonly solidMaterials = new Map<Color, THREE.MeshPhysicalMaterial>();
-  /** Clear glass is the first thing given up if the device can't keep up. */
-  private clearGlass = true;
   private readonly dynamic = new THREE.Group();
   private marbles: MarbleVisual[] = [];
   private trays = new Map<number, TrayVisual>();
@@ -113,24 +101,9 @@ export class MachineScene {
   private readonly hitTargets: THREE.Mesh[] = [];
   private readonly raycaster = new THREE.Raycaster();
 
-  constructor(canvas: HTMLCanvasElement) {
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, MAX_PIXEL_RATIO));
-    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 0.95;
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    this.renderer.transmissionResolutionScale = 0.5;
-
-    const pmrem = new THREE.PMREMGenerator(this.renderer);
-    this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-    this.scene.environmentIntensity = 0.38;
-    pmrem.dispose();
-    this.scene.background = new THREE.Color(0x6e4a2b);
-
-    this.addLights();
-    this.addTable();
+  constructor(private readonly stage: Stage) {
+    this.renderer = stage.renderer;
+    this.scene = stage.createScene();
     this.addRaceway();
     this.addFunnel();
     this.addChute();
@@ -168,35 +141,6 @@ export class MachineScene {
 
     this.scene.add(this.dynamic);
     this.resize();
-  }
-
-  private addLights(): void {
-    const key = new THREE.DirectionalLight(0xfff0dc, 3.2);
-    key.position.set(-7, 22, 11);
-    key.castShadow = true;
-    key.shadow.mapSize.set(1024, 1024);
-    const range = 13;
-    key.shadow.camera.left = -range;
-    key.shadow.camera.right = range;
-    key.shadow.camera.top = range;
-    key.shadow.camera.bottom = -range;
-    key.shadow.camera.near = 4;
-    key.shadow.camera.far = 50;
-    key.shadow.bias = -0.0006;
-    key.shadow.normalBias = 0.02;
-    key.shadow.radius = 4;
-    this.scene.add(key);
-    this.scene.add(new THREE.HemisphereLight(0xffffff, 0x8a5a30, 0.35));
-  }
-
-  private addTable(): void {
-    const table = new THREE.Mesh(
-      new THREE.PlaneGeometry(90, 90),
-      new THREE.MeshStandardMaterial({ map: woodTexture(), roughness: 0.62, envMapIntensity: 0.35 }),
-    );
-    table.rotation.x = -Math.PI / 2;
-    table.receiveShadow = true;
-    this.scene.add(table);
   }
 
   private addRaceway(): void {
@@ -500,6 +444,7 @@ export class MachineScene {
   /** Builds everything that belongs to one level. */
   setMachine(machine: Machine): void {
     this.machine = machine;
+    for (const marble of this.marbles) this.stage.marbles.release(marble);
     this.dynamic.clear();
     this.marbles = [];
     this.trays = new Map();
@@ -510,15 +455,11 @@ export class MachineScene {
 
     for (const id of machine.marbleIds) {
       const color = machine.marbleColor(id);
-      const mesh = new THREE.Mesh(this.marbleGeometry, this.shellMaterial(color));
-      mesh.castShadow = true;
-      mesh.receiveShadow = false;
-      const twist = new THREE.Mesh(this.twistGeometry, this.twistMaterialFor(color));
-      twist.visible = this.clearGlass;
-      mesh.add(twist);
+      const entity = this.stage.marbles.create(color, MARBLE_RADIUS);
+      const { mesh } = entity;
       const pose: Pose = { x: 0, y: 0, z: 0, qx: 0, qy: 0, qz: 0, qw: 1 };
       machine.readMarble(id, pose);
-      this.marbles.push({ id, color, mesh, twist, previous: { ...pose }, current: { ...pose } });
+      this.marbles.push(Object.assign(entity, { id, previous: { ...pose }, current: { ...pose } }));
       this.dynamic.add(mesh);
     }
 
@@ -548,41 +489,13 @@ export class MachineScene {
     this.syncAfterJump();
   }
 
-  private shellMaterial(color: Color): THREE.MeshPhysicalMaterial {
-    const cache = this.clearGlass ? this.glassMaterials : this.solidMaterials;
-    let material = cache.get(color);
-    if (!material) {
-      material = this.clearGlass ? glassMaterial(color) : marbleMaterial(color);
-      cache.set(color, material);
-    }
-    return material;
-  }
+  lowerQuality(): boolean { return this.stage.lowerQuality(); }
 
-  private twistMaterialFor(color: Color): THREE.MeshStandardMaterial {
-    let material = this.twistMaterials.get(color);
-    if (!material) {
-      material = twistMaterial(color);
-      this.twistMaterials.set(color, material);
-    }
-    return material;
-  }
-
-  /** Steps down when frames take too long. Returns false once there's nothing left to give up. */
-  lowerQuality(): boolean {
-    if (this.renderer.getPixelRatio() > 1) {
-      this.renderer.setPixelRatio(1);
-      this.resize();
-      return true;
-    }
-    if (this.clearGlass) {
-      this.clearGlass = false;
-      for (const marble of this.marbles) {
-        marble.mesh.material = this.shellMaterial(marble.color);
-        marble.twist.visible = false;
-      }
-      return true;
-    }
-    return false;
+  dispose(): void {
+    for (const marble of this.marbles) this.stage.marbles.release(marble);
+    this.marbles = [];
+    this.stage.disposeScene(this.scene);
+    this.machine = null;
   }
 
   /** Call after each physics tick, so drawing can blend between the last two states. */
@@ -695,17 +608,20 @@ export class MachineScene {
     const width = element.clientWidth || window.innerWidth;
     const height = element.clientHeight || window.innerHeight;
     this.renderer.setSize(width, height, false);
-    this.camera.aspect = width / height;
-
-    // Back the camera off until the whole machine fits this window.
-    const fovV = THREE.MathUtils.degToRad(this.camera.fov);
-    const tanV = Math.tan(fovV / 2);
-    const tanH = tanV * this.camera.aspect;
-    const distanceForWidth = FRAME.halfWidth / tanH;
-    const distanceForHeight = (FRAME.top - FRAME.bottom) / 2 / tanV;
-    const distance = Math.max(distanceForWidth, distanceForHeight) * 1.04;
-    this.camera.position.copy(CAMERA_TARGET).addScaledVector(CAMERA_DIRECTION, distance);
-    this.camera.lookAt(CAMERA_TARGET);
-    this.camera.updateProjectionMatrix();
+    const points = [
+      { x: -6.2, y: RACEWAY.floorY, z: RACEWAY.centerZ }, { x: 6.2, y: RACEWAY.floorY, z: RACEWAY.centerZ },
+      { x: -5.8, y: FUNNEL.wallTopY, z: FUNNEL.mouth.back }, { x: 5.8, y: FUNNEL.wallTopY, z: FUNNEL.mouth.back },
+      { x: 0, y: 0, z: BOX.z + BOX.halfDepth },
+    ];
+    if (this.machine) {
+      this.machine.board.supplies.forEach((queue, supply) => {
+        queue.forEach((_, depth) => {
+          for (const side of [-1, 1]) points.push({ x: supplyX(supply, this.machine!.board.supplies.length) + side * TRAY.halfWidth,
+            y: TRAY.frontY + depth * (TRAY.nextY - TRAY.frontY) + 1.15,
+            z: TRAY.frontZ + depth * (TRAY.nextZ - TRAY.frontZ) - TRAY.depth });
+        });
+      });
+    }
+    frameBoard(this.camera, width, height, points, CAMERA_DIRECTION);
   }
 }

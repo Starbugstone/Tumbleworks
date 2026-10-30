@@ -6,8 +6,9 @@ const canvas = document.getElementById('scene');
 if (!(canvas instanceof HTMLCanvasElement)) throw new Error('Missing canvas');
 
 void App.start(canvas).then((app) => {
-  if (import.meta.env.DEV) {
-    // Browser tests and capture scripts read state and find tap targets through this.
-    Object.assign(window, { tumbleworks: { app } });
-  }
+  if (import.meta.env.DEV) Object.assign(window, { tumbleworks: { app } });
+}).catch((error: unknown) => {
+  console.error(error);
+  const boot = document.getElementById('boot');
+  if (boot) boot.textContent = 'The workshop could not start. Please refresh to try again.';
 });

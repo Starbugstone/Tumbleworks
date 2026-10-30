@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#6e4a2b" />
     <title>Tumbleworks</title>
     <style>
@@ -46,7 +46,7 @@
       .action:active { transform: translateY(3px); box-shadow: 0 2px 0 #c9b597, 0 4px 8px rgb(0 0 0 / 0.3); }
       .action:disabled { opacity: 0.55; }
       #undo.attention { background: var(--accent); color: #fff !important; box-shadow: 0 5px 0 #a83c1b, 0 8px 14px rgb(0 0 0 / 0.3); animation: pulse 0.7s ease-in-out infinite; }
-      @keyframes pulse { 50% { transform: scale(1.05); } }
+      @keyframes pulse { 50% { filter: brightness(1.18); } }
 
       #card { position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%); width: min(84%, 380px); padding: 20px 22px; border-radius: 26px; background: var(--cream); text-align: center; box-shadow: 0 12px 30px rgb(0 0 0 / 0.45); pointer-events: auto; animation: pop 0.24s cubic-bezier(0.2, 1.4, 0.4, 1); }
       @keyframes pop { from { scale: 0.8; opacity: 0; } }
@@ -63,26 +63,69 @@
       #confetti { position: absolute; inset: 0; overflow: hidden; }
       #confetti i { position: absolute; top: -20px; width: 10px; height: 6px; border-radius: 2px; animation: fall linear forwards; }
       @keyframes fall { to { transform: translateY(110vh) rotate(720deg); } }
+      [hidden] { display: none !important; }
+      #top { align-items: center; }
+      #wordmark { font-size: 23px; }
+      #difficulty { font-size: 12px; color: var(--cream); max-width: 108px; text-align: right; line-height: 1.15; }
+      #campaign-header { position: absolute; top: max(58px, calc(env(safe-area-inset-top) + 52px)); left: 12px; right: 12px; }
+      #level-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 9px; }
+      #level-name { color: var(--cream); font-size: 15px; text-shadow: 0 2px 5px #382415; }
+      #load { position: static; font-size: 13px; padding: 4px 10px; transform: none !important; }
+      #chips { display: flex; justify-content: flex-start; gap: 6px; width: max-content; max-width: 100%; margin: 0 auto; padding: 4px 0 8px; overflow-x: auto; touch-action: pan-x; scrollbar-width: none; }
+      .chip { flex: 0 0 31px; width: 31px; height: 31px; font-size: 14px; border-bottom: 3px solid var(--accent) !important; }
+      .chip[data-kind='tube'] { border-bottom-color: #61b3ff !important; }
+      .chip[data-kind='tray'] { border-bottom-color: #4dce9b !important; }
+      #level-title { font-size: 18px; font-weight: 600; color: var(--cream); text-align: center; text-shadow: 0 2px 5px #382415; margin-bottom: 4px; }
+      #instruction { padding: 7px 12px; margin: 0 auto 10px; width: fit-content; max-width: 520px; border-radius: 14px; background: rgb(255 249 238 / .94); font-size: 14px; line-height: 1.25; text-align: center; }
+      .action { height: 49px; font-size: 18px !important; border-radius: 15px; }
+      #next { min-height: 24px; margin-bottom: 8px; }
+      .box-chip { width: 23px; height: 23px; border-radius: 6px; }
+      #message { font-size: 14px; }
+      #focus-ring { position: fixed; width: 66px; height: 66px; border: 4px solid #fff8d4; outline: 3px solid var(--accent); border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 20px #ffda67; pointer-events: none; animation: pulse .8s ease-in-out infinite; }
+      #board-controls { position: fixed; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+      #board-controls:focus-within { width: auto; height: auto; clip-path: none; left: 12px; right: 12px; top: 125px; padding: 12px; border-radius: 12px; background: var(--cream); display: flex; gap: 6px; flex-wrap: wrap; pointer-events: auto; }
+      #board-controls button { border: 1px solid #c9b597; padding: 7px; border-radius: 6px; }
+      #boot { position: fixed; top: 40%; left: 50%; transform: translateX(-50%); width: min(80%, 360px); padding: 24px; border-radius: 20px; background: var(--cream); text-align: center; font-size: 20px; }
+      @media (min-width: 800px) { #top, #campaign-header { left: max(24px, calc(50% - 330px)); right: max(24px, calc(50% - 330px)); } #bottom { left: max(24px, calc(50% - 280px)); right: max(24px, calc(50% - 280px)); } }
+      @media (max-width: 365px) { #chips { gap: 4px; } .chip { flex-basis: 29px; width: 29px; height: 29px; } #wordmark { font-size: 20px; } #difficulty { font-size: 11px; } }
+      @media (max-height: 600px) and (min-width: 600px) {
+        #top { left: auto; right: 12px; top: 10px; }
+        #wordmark, #difficulty { display: none; }
+        #campaign-header { left: 12px; right: 68px; top: 10px; }
+        #chips { justify-content: flex-start; }
+        #level-title, #instruction { display: none; }
+        #bottom { left: max(12px, calc(50% - 245px)); right: max(12px, calc(50% - 245px)); bottom: 9px; }
+        .action { height: 38px; font-size: 16px !important; }
+      }
+      @media (prefers-reduced-motion: reduce) { #confetti { display: none; } #focus-ring, #undo.attention { animation: none; } }
     </style>
   </head>
   <body>
-    <canvas id="scene"></canvas>
+    <canvas id="scene" tabindex="0" aria-label="Puzzle board"></canvas>
     <div id="hud">
       <div id="top">
         <div id="wordmark">Tumbleworks</div>
-        <div id="chips"></div>
+        <div id="difficulty"></div>
         <button id="mute" aria-label="Sound">
           <svg class="on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h4L13 5v14l-5-4.5H4z" fill="currentColor"/><path d="M16.5 9a4.5 4.5 0 0 1 0 6M19 6.5a8 8 0 0 1 0 11"/></svg>
           <svg class="off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h4L13 5v14l-5-4.5H4z" fill="currentColor"/><path d="M17 9.5l5 5M22 9.5l-5 5"/></svg>
         </button>
       </div>
-      <div id="load"></div>
+      <div id="campaign-header">
+        <div id="level-row"><span id="level-name"></span><span id="load"></span></div>
+        <nav id="chips" aria-label="Campaign levels"></nav>
+      </div>
+      <div id="focus-ring" hidden></div>
+      <div id="board-controls" aria-label="Board pieces"></div>
       <div id="arrow" hidden><svg viewBox="0 0 64 48" width="60" height="45"><path d="M4 16h30V4l26 20-26 20V32H4z" fill="#f25f33" stroke="#fff" stroke-width="4" stroke-linejoin="round"/></svg></div>
       <div id="bottom">
-        <div id="message" hidden></div>
+        <div id="level-title"></div>
+        <div id="instruction"></div>
+        <div id="message" role="status" aria-live="polite" hidden></div>
         <div id="next"><span id="next-label">NEXT</span><span id="next-boxes"></span></div>
         <div id="buttons">
           <button id="undo" class="action">Undo</button>
+          <button id="hint" class="action">Hint</button>
           <button id="restart" class="action">Restart</button>
         </div>
       </div>
@@ -94,6 +137,7 @@
       <div id="confetti"></div>
       <div id="flash"></div>
     </div>
+    <div id="boot" role="status">Setting up the workshop…</div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

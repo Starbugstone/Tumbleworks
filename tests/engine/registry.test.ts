@@ -1,0 +1,114 @@
+import { describe, expect, it } from 'vitest';
+import { CAMPAIGN } from '../../src/campaign';
+import { CampaignRegistry, type Feedback, type GameLevel, type GameRuntime, type GameServices } from '../../src/engine/contracts';
+import { PhysicsService } from '../../src/engine/physics';
+import type { Color } from '../../src/sim/types';
+
+class SpinRuntime implements GameRuntime {
+  private turns = 0;
+  readonly busy = false;
+  readonly preview: readonly Color[] = [];
+  readonly previewLabel = '';
+  readonly jamReason = '';
+  readonly frames: { alpha: number; seconds: number }[] = [];
+  resizes = 0;
+  disposed = false;
+
+  constructor(readonly services: GameServices) {}
+  get status(): 'playing' | 'won' { return this.turns === 2 ? 'won' : 'playing'; }
+  get canUndo(): boolean { return this.turns > 0; }
+  get counter() { return { label: 'Turns', value: String(this.turns) }; }
+  activate(target: string): readonly Feedback[] {
+    if (target !== 'spin' || this.status === 'won') return [];
+    this.turns += 1;
+    return [{ type: this.turns === 2 ? 'match' : 'move' }];
+  }
+  pick(x: number, y: number): string | null { return x === 100 && y === 120 ? 'spin' : null; }
+  hint(): readonly Feedback[] { return [{ type: 'message', text: 'Turn the wheel twice.', target: 'spin' }]; }
+  undo(): boolean {
+    if (!this.canUndo) return false;
+    this.turns -= 1;
+    return true;
+  }
+  step(): readonly Feedback[] { return []; }
+  render(alpha: number, seconds: number): void { this.frames.push({ alpha, seconds }); }
+  resize(): void { this.resizes += 1; }
+  targets() { return { spin: { x: 100, y: 120, label: 'Turn the wheel' } }; }
+  inspect() { return { turns: this.turns }; }
+  dispose(): void { this.disposed = true; }
+}
+
+function syntheticLevel(kind: string, id: string): GameLevel {
+  return {
+    id, kind, name: 'Spin', title: id, difficulty: 'Getting started', instructions: 'Turn the wheel twice.',
+    create: (services) => new SpinRuntime(services),
+  };
+}
+
+describe('gameplay registry', () => {
+  it('adds a fourth runtime factory to the real campaign without special engine branches', () => {
+    const registry = new CampaignRegistry();
+    for (const kind of new Set(CAMPAIGN.map((level) => level.kind))) {
+      registry.register({ kind, levels: CAMPAIGN.filter((level) => level.kind === kind) });
+    }
+    registry.register({ kind: 'spin', levels: [syntheticLevel('spin', 'spin-1'), syntheticLevel('spin', 'spin-2')] });
+    const levels = registry.levels();
+    expect(levels.map((level) => level.id)).toEqual([
+      'board-1', 'tube-1', 'tray-1', 'spin-1', 'board-2', 'tube-2', 'tray-2', 'spin-2', 'board-3', 'tube-3', 'tray-3',
+    ]);
+    const fourth = levels.find((level) => level.id === 'spin-1');
+    if (!fourth) throw new Error('Fourth gameplay is missing');
+    const services: GameServices = {
+      physics: new PhysicsService(),
+      get stage(): never { throw new Error('This headless gameplay never requests a renderer'); },
+    };
+    const runtime = fourth.create(services);
+    expect(runtime).toBeInstanceOf(SpinRuntime);
+    expect(runtime.status).toBe('playing');
+    expect(runtime.hint()).toEqual([{ type: 'message', text: 'Turn the wheel twice.', target: 'spin' }]);
+    const target = runtime.targets()['spin'];
+    if (!target) throw new Error('Fourth gameplay did not expose input');
+    const picked = runtime.pick(target.x, target.y);
+    if (!picked) throw new Error('Fourth gameplay did not recognize its target');
+    expect(runtime.activate(picked)).toEqual([{ type: 'move' }]);
+    expect(runtime.counter).toEqual({ label: 'Turns', value: '1' });
+    runtime.step(); runtime.render(0.5, 1 / 60); runtime.resize();
+    expect(runtime.activate(picked)).toEqual([{ type: 'match' }]);
+    expect(runtime.status).toBe('won');
+    expect(runtime.undo()).toBe(true);
+    expect(runtime.inspect()).toEqual({ turns: 1 });
+    runtime.dispose();
+    if (!(runtime instanceof SpinRuntime)) throw new Error('Wrong runtime factory');
+    expect(runtime.services).toBe(services);
+    expect(runtime.frames).toEqual([{ alpha: 0.5, seconds: 1 / 60 }]);
+    expect(runtime.resizes).toBe(1);
+    expect(runtime.disposed).toBe(true);
+  });
+
+  it('interleaves uneven and empty banks without holes or duplicate levels', () => {
+    const registry = new CampaignRegistry()
+      .register({ kind: 'a', levels: [syntheticLevel('a', 'a1'), syntheticLevel('a', 'a2'), syntheticLevel('a', 'a3')] })
+      .register({ kind: 'empty', levels: [] })
+      .register({ kind: 'b', levels: [syntheticLevel('b', 'b1')] });
+    expect(registry.levels().map((level) => level.id)).toEqual(['a1', 'b1', 'a2', 'a3']);
+    expect(new CampaignRegistry().levels()).toEqual([]);
+  });
+
+  it('rejects duplicate gameplay kinds and level IDs across and within packs', () => {
+    const registry = new CampaignRegistry().register({ kind: 'a', levels: [syntheticLevel('a', 'shared')] });
+    expect(() => registry.register({ kind: 'a', levels: [] })).toThrow();
+    expect(() => registry.register({ kind: '', levels: [] })).toThrow();
+    expect(() => registry.register({ kind: 'b', levels: [syntheticLevel('b', 'shared')] })).toThrow();
+    expect(() => registry.register({ kind: 'b', levels: [syntheticLevel('b', 'new'), syntheticLevel('b', 'new')] })).toThrow();
+    expect(() => registry.register({ kind: 'b', levels: [syntheticLevel('b', '')] })).toThrow();
+    expect(registry.levels().map((level) => level.id)).toEqual(['shared']);
+  });
+
+  it('rejects a mismatched kind atomically and lets a corrected pack register', () => {
+    const registry = new CampaignRegistry().register({ kind: 'a', levels: [syntheticLevel('a', 'a1')] });
+    expect(() => registry.register({ kind: 'b', levels: [syntheticLevel('b', 'b1'), syntheticLevel('other', 'b2')] })).toThrow();
+    expect(registry.levels().map((level) => level.id)).toEqual(['a1']);
+    expect(() => registry.register({ kind: 'b', levels: [syntheticLevel('b', 'b1')] })).not.toThrow();
+    expect(registry.levels().map((level) => level.id)).toEqual(['a1', 'b1']);
+  });
+});

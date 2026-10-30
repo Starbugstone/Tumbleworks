@@ -1,87 +1,62 @@
-// Records a smooth video on machines without a GPU. The game is advanced one frame at a time and
-// each frame is saved as an image, so slow rendering can't affect the timing.
-//   docker compose exec -T dev sh scripts/snapshot.sh
-//   docker compose --profile e2e run --rm e2e node scripts/capture-video.mjs
-//   ffmpeg -framerate 30 -i output/frames/%05d.jpg -vf format=yuv420p -c:v libx264 -crf 22 output/capture/video.mp4
-import { chromium, devices } from '@playwright/test';
-import { mkdirSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
+// A silent, deterministic 24 fps playthrough: all three introductory boards, then harder-board previews.
+// docker compose --profile e2e run --rm e2e node scripts/capture-video.mjs
+// ffmpeg -framerate 24 -i output/poc9/video-frames/%05d.jpg -c:v libx264 -pix_fmt yuv420p -crf 22 -movflags +faststart output/poc9/tumbleworks-nine-levels.mp4
+import { chromium } from '@playwright/test';
+import { TUBE_BOARDS, TRAY_BOARDS } from '../src/puzzles/levels.ts';
+import { mkdirSync, writeFileSync } from 'node:fs';
 
-const BASE = process.env.CAPTURE_URL ?? 'http://game-server:5181';
-const OUT = 'output/frames';
-const FRAME_SECONDS = 1 / 30;
-rmSync(OUT, { recursive: true, force: true });
-mkdirSync(OUT, { recursive: true });
-
-const browser = await chromium.launch({
-  args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'],
-});
-const context = await browser.newContext({ ...devices['Pixel 7'], deviceScaleFactor: 1.5 });
-const page = await context.newPage();
-page.on('pageerror', (error) => {
-  throw error;
-});
-await page.goto(BASE);
-await page.waitForFunction(() => window.tumbleworks?.app?.machine, undefined, { timeout: 60000 });
-await page.evaluate(() => {
-  window.tumbleworks.app.manualClock = true;
-});
-
+const output = 'output/poc9/video-frames';
+mkdirSync(output, { recursive: true });
+const browser = await chromium.launch({ args: ['--use-angle=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist'] });
+const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, hasTouch: true, isMobile: true });
+const errors = [];
+page.on('pageerror', error => errors.push(error.message));
+await page.goto(process.env.CAPTURE_URL ?? 'http://game-server:5180');
+await page.waitForFunction(() => window.tumbleworks?.app?.runtime, undefined, { timeout: 60000 });
+await page.evaluate(() => { window.tumbleworks.app.manualClock = true; });
 let frame = 0;
 const step = async () => {
-  await page.evaluate((seconds) => window.tumbleworks.app.advance(seconds), FRAME_SECONDS);
-  await page.screenshot({ path: join(OUT, `${String(frame).padStart(5, '0')}.jpg`), type: 'jpeg', quality: 88, scale: 'css' });
-  frame += 1;
+  await page.evaluate(() => window.tumbleworks.app.advance(1/24));
+  await page.screenshot({ path: `${output}/${String(frame++).padStart(5,'0')}.jpg`, type: 'jpeg', quality: 88, scale: 'css' });
 };
-const hold = async (seconds) => {
-  for (let i = 0; i < seconds / FRAME_SECONDS; i++) await step();
-};
-const tap = async (name) => {
-  const { x, y } = await page.evaluate((n) => window.tumbleworks.app.debugTargets()[n], name);
-  await page.touchscreen.tap(x, y);
-  await step();
-};
-const until = async (check, limitSeconds = 60) => {
-  for (let i = 0; i < limitSeconds / FRAME_SECONDS; i++) {
-    if (await page.evaluate(check)) return;
+const hold = async seconds => { for (let n=0; n<Math.ceil(seconds*24); n++) await step(); };
+const settled = async () => {
+  for(let n=0;n<65*24;n++) {
+    const done = await page.evaluate(() => { const s=window.tumbleworks.app.debugState(); return !s.busy&&!s.settling; });
+    if(done) return;
     await step();
   }
-  throw new Error(`Timed out on ${check}`);
+  throw Error('Capture did not settle');
 };
-const settled = () => {
-  const { rules } = window.tumbleworks.app.machine;
-  return !rules.state.marbles.some(
-    (m) => m.status === 'pouring' || m.status === 'dropping' || (m.status === 'on-belt' && m.color === rules.activeColor),
-  );
+const tap = async id => {
+  const target = await page.evaluate(key => window.tumbleworks.app.debugTargets()[key],id);
+  if(!target) throw Error(`Missing ${id}`);
+  await page.touchscreen.tap(target.x,target.y);
+  await step();
 };
-const status = (value) => `window.tumbleworks.app.machine.rules.status === '${value}'`;
-
-await hold(1.2);
-await tap('supply0');
-await hold(3.6);
-await tap('supply1');
-await until(status('jammed'));
-await hold(3.4);
-await tap('undo');
-await hold(1.2);
-await tap('supply0');
-await hold(1);
-await until(settled);
-await hold(0.4);
-await tap('supply1');
-await until(status('won'));
-await hold(2.4);
-await tap('card');
-await hold(1);
-for (const supply of [0, 2, 1, 0, 1]) {
-  await tap(`supply${supply}`);
-  await hold(1);
-  await until(settled);
-  await hold(0.2);
+const next = async () => {
+  await page.locator('#card[data-kind="win"]').waitFor();
+  await hold(.7);
+  await page.locator('#card-action').click();
+  await step();
+  await hold(.7);
+};
+await hold(.8);
+for(const id of [0,0,1]) { await tap(`supply${id}`); await settled(); await hold(.12); }
+await next();
+for(const move of TUBE_BOARDS[0].solution) {
+  await tap(`tube${move.from}`); await hold(.1); await tap(`tube${move.to}`); await settled(); await hold(.08);
 }
-await until(status('won'));
-await hold(2.4);
-
-const recoveries = await page.evaluate(() => window.tumbleworks.app.machine.recoveries);
-console.log(JSON.stringify({ frames: frame, seconds: frame * FRAME_SECONDS, recoveries }));
+await next();
+for(const id of TRAY_BOARDS[0].solution) { await tap(`piece${id}`); await settled(); await hold(.08); }
+await page.locator('#card[data-kind="win"]').waitFor();
+await hold(.8);
+for(const index of [3,4,5,6,7,8]) {
+  await page.locator(`.chip[data-level="${index}"]`).click();
+  await step();
+  await hold(.8);
+}
+if(errors.length) throw Error(errors.join('\n'));
+writeFileSync('output/poc9/video-metadata.json',JSON.stringify({frames:frame,fps:24,seconds:frame/24,errors},null,2));
+console.log(JSON.stringify({frames:frame,seconds:frame/24,errors}));
 await browser.close();
