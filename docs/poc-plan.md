@@ -19,18 +19,20 @@ One browser game, one campaign, three rulesets: tube, tray and conveyor. They ca
 Top to bottom, as a toy on a wooden table:
 
 1. **Trays** hold packets of 6 marbles. Tapping one tips it, and marbles roll off one at a time.
-2. **A clear funnel** catches them. They really fall, bounce and knock into each other.
-3. **A powered raceway** carries them round in a calm, orderly line. They're steered to the middle and don't bounce, because playtesting found a lively belt slowed the game down. The liveliness belongs to the fall.
-4. **A selector at the front** kicks a marble matching the active box through a one-way door. Others ride on. If a marble for the next box is about to arrive during a box change, the belt pauses briefly so it doesn't lose a whole lap.
-5. **A short chute** drops it into the box.
+2. **A clear funnel** catches them. They really fall, bounce and knock into each other. **This is the only part that uses physics.**
+3. **The belt** carries them in evenly spaced slots at constant speed. It's scripted, and it never stops or pauses.
+4. **A selector at the front** sends a marble matching the active box out through the door. Others ride on.
+5. **A scripted arc** takes it into its place in the box.
 6. **A box** shows a light per marble, then leaves as the next arrives.
+
+Playtesting drove this split. Physics on the belt looked messy and slowed the game down, and pausing the belt to compensate was rejected outright: the game has to stay fluid.
 
 ## Tools
 
 | Need | Choice |
 | --- | --- |
 | Rendering | Three.js 0.187, fixed perspective camera, clear glass marbles |
-| Physics | Rapier 3D 0.21, running at a fixed 60 ticks per second |
+| Physics | Rapier 3D 0.21 at a fixed 60 ticks per second, for the fall only |
 | Language and build | TypeScript, Vite, in a Docker dev server |
 | Tests | Vitest for rules and headless physics, one Playwright journey |
 | Art | Generated in code: no image or audio files |
@@ -40,14 +42,15 @@ Left out on purpose: bloom and other post-processing, level generator, level edi
 
 ## Physics decides when, rules decide what
 
-The rules (`src/sim/rules.ts`) are pure code: which release is allowed, how much of the belt is used, which box is active, and what counts as a win or a jam. Physics only reports events such as "this marble reached the gate", and the rules answer.
+The rules (`src/sim/rules.ts`) are pure code: which release is allowed, how much of the belt is used, which box is active, and what counts as a win or a jam. The machine only reports events such as "this marble reached the gate", and the rules answer.
 
-This is safe because with one receiver queue the outcome depends only on which packets were released, not when. That's what the order-independence test checks, with 500 randomised schedules per level. It relies on every marble eventually arriving, which the rules can't promise, so the physics soak test checks it separately.
+This is safe because with one receiver queue the outcome depends only on which packets were released, not when. That's what the order-independence test checks, with 500 randomised schedules per level.
 
 ## Rules
 
 - Tap a tray to release its packet. Its whole size reserves belt space at once.
 - A marble leaves the belt only when it's the active box's colour, and at most 3 are ever reserved per box.
+- The selector moves to the next colour as soon as a box's third marble is on its way, so a matching marble behind it doesn't have to ride another lap. It flies a little slower so it arrives with its box.
 - **Win:** supplies, belt and boxes all done.
 - **Jam:** no packet fits, nothing on the belt matches the active box, and nothing is mid-delivery. A full belt that can still drain is not a jam.
 - **Blocked tap:** refused, never queued. Neutral feedback if the belt can still drain, an alarm if not.
@@ -86,18 +89,17 @@ Boxes:    R, R, Y, Y, B, B, R, R, G, G
 
 ## Keeping marbles moving
 
-Physics can strand a marble, and a stranded marble must never turn into a false jam. So:
+Only the fall can go wrong, because everything after it is scripted.
 
 - **Prevention comes first:** marbles pour one at a time, the funnel's outlet is wide, and clear walls contain them.
-- **The door is one-way by marble:** a collision filter lets only kicked marbles through, so a nudged marble can't escape. Kicked marbles also pass through belt traffic, so a neighbour can't bat them back.
-- **Rescue is the last resort:** a shove if a marble makes no forward progress for 2 seconds, then a teleport. Both are counted.
+- **Rescue is the last resort:** a shove if a marble is still falling after 4 seconds, then a teleport. Both are counted.
 - **The soak test fails on any teleport** and on more than one shove in a run.
 
 ## Tests
 
 - **Rules:** 29 tests, including both levels' full tap trees and the order-independence property.
-- **Physics soak:** both levels with varied tap timing and undo. The latest run at `SOAK_RUNS=30` covered 540 games with 0 teleports and 11 shoves. Level 1's winning order took 17-20 seconds and level 2's 22-30.
-- **Pace:** a brisk player must win level 1 in under 21 seconds and level 2 in under 30.
+- **Physics soak:** both levels with varied tap timing and undo. The latest run at `SOAK_RUNS=30` covered 540 games with 0 teleports and 0 shoves.
+- **Pace:** a brisk player must win level 1 in under 13 seconds and level 2 in under 16. They currently take 10.9 and 13.5.
 - **Browser:** jam → undo → win → reload still shows completion, plus a jam on level 2 and a refused tap.
 
 ## The verdict
@@ -105,8 +107,8 @@ Physics can strand a marble, and a stranded marble must never turn into a false 
 The POC fails if any of these is true:
 
 - Players can't explain a jam after level 1.
-- Riding the belt feels like waiting rather than watching.
-- It doesn't look and feel like a physical toy that's worth watching.
+- The game stops feeling fluid, or riding the belt feels like waiting rather than watching.
+- It doesn't look like a toy that's worth watching.
 
 It proves nothing about the tube and tray rulesets or the shared shell. Those wait for a second ruleset.
 

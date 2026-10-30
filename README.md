@@ -1,6 +1,6 @@
 # Tumbleworks
 
-A browser marble-sorting game with real physics. Tip a tray, watch the marbles fall through the funnel and ride the belt, and fill the boxes in order without jamming the machine.
+A browser marble-sorting game. Tip a tray, watch the marbles really fall through the funnel, ride the belt, and fill the boxes in order without jamming the machine.
 
 This is a proof of concept. The plan and the reasoning behind it are in [docs/poc-plan.md](docs/poc-plan.md).
 

@@ -96,7 +96,6 @@ export class MachineScene {
 
   private readonly ribs: THREE.InstancedMesh;
   private readonly ribDummy = new THREE.Object3D();
-  private ribPhase = 0;
 
   private readonly leds: THREE.Mesh[] = [];
   private readonly ledOff = new THREE.MeshStandardMaterial({ color: 0x8d8574, roughness: 0.5 });
@@ -243,22 +242,6 @@ export class MachineScene {
     islandTop.receiveShadow = true;
     this.scene.add(islandTop);
 
-    // Clear guards up to the height marbles actually hit, so a rebound has something to rebound from.
-    const guard = new THREE.MeshPhysicalMaterial({
-      color: 0xdff2ff,
-      transparent: true,
-      opacity: 0.045,
-      roughness: 0.05,
-      side: THREE.DoubleSide,
-      depthWrite: false,
-      envMapIntensity: 2.5,
-    });
-    for (const offset of [channelHalf + wallThickness / 2]) {
-      const band = new THREE.Mesh(this.guardGeometry(offset), guard);
-      band.renderOrder = 1;
-      this.scene.add(band);
-    }
-
     const wallMesh = new THREE.Mesh(this.outerWallGeometry(), plastic(0xf25f33, 0.28));
     wallMesh.castShadow = true;
     wallMesh.receiveShadow = true;
@@ -288,23 +271,6 @@ export class MachineScene {
       this.leds.push(led);
       this.scene.add(led);
     }
-  }
-
-  private guardGeometry(offset: number): THREE.BufferGeometry {
-    const { floorY, wallHeight } = RACEWAY;
-    const positions: number[] = [];
-    const segments = 120;
-    for (let i = 0; i < segments; i++) {
-      const a = trackPoint((i / segments) * TRACK_LENGTH, offset);
-      const b = trackPoint(((i + 1) / segments) * TRACK_LENGTH, offset);
-      const low = floorY + DRAWN_WALL_HEIGHT;
-      const high = floorY + wallHeight;
-      positions.push(a.x, low, a.z, b.x, low, b.z, b.x, high, b.z, a.x, low, a.z, b.x, high, b.z, a.x, high, a.z);
-    }
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    geometry.computeVertexNormals();
-    return geometry;
   }
 
   /** One smooth strip around the loop, with a gap for the door. */
@@ -670,9 +636,8 @@ export class MachineScene {
       group.visible = Math.abs(x) < 14;
     });
 
-    this.ribPhase = (this.ribPhase + deltaSeconds * RACEWAY.speed) % TRACK_LENGTH;
     for (let i = 0; i < RIB_COUNT; i++) {
-      const p = trackPoint((i / RIB_COUNT) * TRACK_LENGTH + this.ribPhase);
+      const p = trackPoint((i / RIB_COUNT) * TRACK_LENGTH + machine.beltDistance);
       this.ribDummy.position.set(p.x, RACEWAY.floorY + 0.014, p.z);
       this.ribDummy.rotation.y = Math.atan2(-p.tz, p.tx);
       this.ribDummy.updateMatrix();

@@ -18,32 +18,17 @@ export const RACEWAY = {
   wallThickness: 0.14,
   wallHeight: 1.8,
   /** Target tangential speed of the powered floor. */
-  speed: 12,
-  /** How hard the drive can push, as an acceleration. Collisions can still slow a marble down. */
-  driveAcceleration: 40,
-  /** Marbles are steered back to the middle of the channel, so the belt reads as an orderly line. */
-  centering: 7,
-  centeringAcceleration: 85,
-  /** Pulls a marble back down if it hops, so the bounce belongs to the fall and not the ride. */
-  downforce: 45,
-  /** How bouncy a marble is once it's on the belt or leaving it. */
-  calmRestitution: 0.08,
-  /** How hard the belt stops when it pauses for a box change. */
-  brakeAcceleration: 75,
+  /** Belt speed. Marbles ride it in evenly spaced slots, without physics. */
+  speed: 10,
+  slots: 16,
 } as const;
 
 export const GATE = {
   /** Marbles are checked as they cross this x on the front straight, travelling toward -x. */
-  checkX: 1.0,
-  doorHalf: 1.65,
-  kickOutward: 8,
-  kickUp: 0.4,
-  kickAlong: -1.2,
-  /** How long the kicker arm and door are drawn open. The door only ever lets a kicked marble through. */
-  openSeconds: 0.26,
-  /** How far before the selector a waiting marble makes the belt pause. Stopping from full speed takes about 1. */
-  brakeDistance: 2.2,
-  brakeLimitSeconds: 1.5,
+  checkX: 0.72,
+  doorHalf: 1.15,
+  /** How long the kicker arm and door are drawn open. */
+  openSeconds: 0.2,
 } as const;
 
 const raceFrontZ = RACEWAY.centerZ + RACEWAY.radius;
@@ -65,17 +50,26 @@ export const BOX = {
   height: 1,
   floorThickness: 0.14,
   wallThickness: 0.12,
-  /** Invisible extension so a bouncing marble stays in. */
-  catchHeight: 2.6,
+  /** Spacing of the three resting places. */
+  slotSpacing: 1.08,
   nextX: 5.5,
   parkedX: 30,
   exitX: -9.5,
-  /** How long a full box sits still before leaving, once its marbles have stopped bouncing. */
-  holdSeconds: 0.06,
-  /** Leave anyway after this long, in case something is still rocking. */
-  settleLimitSeconds: 0.28,
-  settledSpeed: 1.6,
+  /** How long a full box sits still before leaving. */
+  holdSeconds: 0.08,
   swapSeconds: 0.24,
+} as const;
+
+/** The scripted arc from the selector into the box. */
+export const FLIGHT = {
+  seconds: 0.34,
+  /** Slower when the box is still on its way, so the two arrive together. */
+  waitingSeconds: 0.56,
+  arc: 1.05,
+  hopSeconds: 0.16,
+  hopHeight: 0.2,
+  /** How long a marble that has just landed takes to settle into its slot on the belt. */
+  mergeSeconds: 0.2,
 } as const;
 
 /** The tray pivots on its front bottom edge, so its marbles spill toward the funnel. */

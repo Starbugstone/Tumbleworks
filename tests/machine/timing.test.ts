@@ -26,6 +26,6 @@ it('levels stay quick for a brisk player', () => {
   const level1 = brisk(BOARD_1, 'AAB');
   const level2 = brisk(BOARD_2, 'ABABC');
   console.log(`brisk win: level 1 ${level1.toFixed(1)}s, level 2 ${level2.toFixed(1)}s`);
-  expect(level1).toBeLessThan(21);
-  expect(level2).toBeLessThan(30);
+  expect(level1).toBeLessThan(13);
+  expect(level2).toBeLessThan(16);
 }, 120_000);
