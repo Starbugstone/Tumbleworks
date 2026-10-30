@@ -1,5 +1,5 @@
 // Plays the game in a real browser and saves screenshots and a video for review.
-//   docker compose run --rm e2e node scripts/capture.mjs [scenario]
+//   docker compose --profile e2e run --rm e2e node scripts/capture.mjs [scenario]
 import { chromium, devices } from '@playwright/test';
 import { mkdirSync, readdirSync, renameSync, rmSync } from 'node:fs';
 import { join } from 'node:path';

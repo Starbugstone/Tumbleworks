@@ -67,6 +67,10 @@ test('a jam can be undone, the level won, and the win survives a reload', async 
   await page.waitForFunction(() => Boolean((window as unknown as { tumbleworks?: Hook }).tumbleworks?.scene()?.sim));
   expect(await snapshot(page)).toMatchObject({ boardId: 'board-1', status: 'playing', occupancy: 0, canUndo: false });
 
+  // Level 2 stays locked until level 1 is won.
+  await tap(page, 'chip1');
+  expect((await snapshot(page)).boardId).toBe('board-1');
+
   // The guided first tap only accepts the blue packet.
   await tap(page, 'supply1');
   expect((await snapshot(page)).occupancy).toBe(0);
@@ -89,7 +93,7 @@ test('a jam can be undone, the level won, and the win survives a reload', async 
   await until(page, (s) => s.occupancy === 0 && s.frontBox === 4, 'red and blue should clear');
   await tap(page, 'supply1');
   await until(page, (s) => s.status === 'won', 'green should finish the level');
-  await expect.poll(() => visibleText(page), { timeout: 5000 }).toContain('Machine clear!');
+  await expect.poll(() => visibleText(page), { timeout: 15_000 }).toContain('Machine clear!');
 
   // Completion is saved, so a reload opens the next level with the first one ticked off.
   await page.reload();

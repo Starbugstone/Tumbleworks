@@ -1,6 +1,6 @@
 // Records a smooth video on machines without a GPU. The game is advanced one frame at a time and
 // each frame is saved as an image, so slow rendering can't affect the timing.
-//   docker compose run --rm e2e node scripts/capture-video.mjs
+//   docker compose --profile e2e run --rm e2e node scripts/capture-video.mjs
 //   ffmpeg -framerate 30 -i output/frames/%05d.jpg -vf format=yuv420p -c:v libx264 -crf 22 output/capture/video.mp4
 import { chromium, devices } from '@playwright/test';
 import { mkdirSync, rmSync } from 'node:fs';

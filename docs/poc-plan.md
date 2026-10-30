@@ -1,10 +1,20 @@
 # Marble sort POC plan
 
-Agreed with GPT-6.1 Sol (xhigh) over three rounds on 2026-10-30. Nothing here is built yet.
+Agreed with GPT-6.1 Sol (xhigh) over three rounds on 2026-10-30. The POC is now built on this plan; "Changes while building" lists where it moved on.
 
 ## The idea, in short
 
 One browser game, one campaign, three rulesets: tube, tray and conveyor. They can share marbles, sound, undo and progress, but each ruleset needs its own rules, level checks and tutorial. That makes this roughly three small games behind one front end, so the first thing to prove is that the riskiest of them is worth playing.
+
+## Changes while building
+
+- **Screen:** logical width is fixed at 720, but height grows up to 1620 on phones taller than 9:16, so the header and buttons can spread out. The game layout itself still occupies 720×1280.
+- **Lap time:** 2.4 seconds, to reduce waiting between deliveries. There is no fast-forward: speeding up marbles that can't deliver would look busy without making progress.
+- **Pouring:** released marbles wait in their tray and pour through the funnel one at a time, so no separate waiting rail exists.
+- **Delivery pacing:** the simulation delivers instantly, and the view shows it at a readable pace. Marbles wait in the chute until the box is free, and a box only celebrates after its third marble lands. This never changes an outcome.
+- **Blocked taps:** a blocked tap while the belt can still drain gets neutral feedback, not the error sound. The alarm is saved for real jams and for refusals that waiting won't fix.
+- **Level access:** level 2 is locked until level 1 is won.
+- **Video capture:** `scripts/capture-video.mjs` advances the game frame by frame, so videos are smooth on machines without a GPU.
 
 ## What the POC builds
 
@@ -119,6 +129,7 @@ It proves nothing about the tube and tray rulesets or the shared shell. Those wa
 
 ## What has and hasn't been checked
 
-- **Checked:** both boards' tap trees, by two separate enumerators. Re-run with `python3 -I research/conveyor_board_check.py`. It uses the settled model, not game code.
+- **Checked:** both boards' tap trees, by two separate enumerators. Re-run with `python3 -I docs/research/conveyor_board_check.py`. It uses the settled model, not game code.
 - **Checked by Sol only:** 1,000 randomly timed runs per board on three boards through a throwaway 24-position tick model, with zero mismatches against settled play. This supports the one-lane argument; the real simulation still has to pass the property test.
-- **Not checked:** Phaser 4 on a phone, whether the sprites look right, and whether any of this is fun. No code or playtest exists yet.
+- **Now tested in code:** both boards' full tap trees through the real simulation, 500 random-timing runs per board, and three browser journeys. Run them with the commands in the README.
+- **Not checked:** Phaser 4 on a phone, whether the sprites look right at phone size, how the sound feels, and whether any of this is fun. These need a person with a phone.

@@ -31,16 +31,26 @@ import { trackPoint } from './track';
 const INK_HEX = 0x2f3358;
 
 const TICK_MS = 1000 / 60;
+const IMPACT_MS = 130;
 /** After a long stall, such as a backgrounded tab, resume instead of fast-forwarding through it. */
 const MAX_FRAME_MS = 250;
-/** Delivery sits at the start of the bottom straight, directly above the active box. */
-const SIM_CONFIG = { ...DEFAULT_CONFIG, deliveryPosition: 14 };
+/** Delivery sits at the start of the bottom straight, directly above the active box. A lap takes 2.4 seconds. */
+const SIM_CONFIG = { ...DEFAULT_CONFIG, deliveryPosition: 14, ticksPerStep: 6 };
+/** Where a poured marble drops into the funnel, and how far through its flight it gets there. */
+const FUNNEL_MOUTH = { x: LOGICAL_WIDTH / 2, y: ENTRY_GATE_Y - 22, size: 44, split: 0.62 } as const;
+const LANDING_GAP_MS = 70;
+const BOX_CELEBRATE_MS = 170;
+const BOX_SWAP_MS = 240;
 const CHEVRON_COUNT = 24;
+/** The gauge sits lower when there's no message below it. */
+const GAUGE_IDLE_SHIFT = 42;
 
 /** Marbles waiting to enter stay in their tray and pour out one at a time, so 'tray' covers pending too. */
 type Place =
   | { readonly kind: 'tray'; readonly trayKey: number; readonly slot: number }
   | { readonly kind: 'belt'; readonly position: number }
+  /** Delivered by the simulation, waiting in the chute until the active box can take it. */
+  | { readonly kind: 'chute'; readonly index: number }
   | { readonly kind: 'box'; readonly box: number; readonly slot: number };
 
 interface Blend {
@@ -50,6 +60,10 @@ interface Blend {
   elapsed: number;
   duration: number;
   arc: number;
+  /** Fly here first, then continue to the target hidden under whatever is drawn above marbles. */
+  via?: { readonly x: number; readonly y: number; readonly size: number };
+  /** What this flight ends in, if its end should be heard and seen. */
+  landing?: 'belt' | 'box';
 }
 
 interface MarbleView {
@@ -62,6 +76,8 @@ interface MarbleView {
   size: number;
   placeKey: string;
   blend: Blend | null;
+  /** Milliseconds left of the contact bounce and squash. */
+  impact: number;
 }
 
 interface TrayView {
@@ -107,6 +123,20 @@ export class GameScene extends Phaser.Scene {
   private trays = new Map<number, TrayView>();
   private boxes: BoxView[] = [];
   private delivered = new Map<number, { box: number; slot: number }>();
+  /**
+   * The simulation can deliver faster than boxes can be seen to fill and change, so the view keeps
+   * its own pace. It never affects outcomes, only when they are shown.
+   */
+  private deliveryQueue: number[] = [];
+  private visualFront = 0;
+  private landedInFront = 0;
+  private boxPhase: 'ready' | 'celebrating' | 'swapping' = 'ready';
+  private boxPhaseTimer = 0;
+  private landingGap = 0;
+  private winPending = false;
+  /** Marbles whose next move is a correction after undo or restart, not a real landing. */
+  private silentMoves = new Set<number>();
+  private gauge!: Phaser.GameObjects.Container;
   private pips: Phaser.GameObjects.Image[] = [];
   private occupancyText!: Phaser.GameObjects.Text;
   private message!: Phaser.GameObjects.Text;
@@ -145,6 +175,14 @@ export class GameScene extends Phaser.Scene {
     this.trays = new Map();
     this.boxes = [];
     this.delivered = new Map();
+    this.deliveryQueue = [];
+    this.visualFront = 0;
+    this.landedInFront = 0;
+    this.boxPhase = 'ready';
+    this.boxPhaseTimer = 0;
+    this.landingGap = 0;
+    this.winPending = false;
+    this.silentMoves = new Set();
     this.pips = [];
     this.arrow = null;
     this.card = null;
@@ -174,7 +212,7 @@ export class GameScene extends Phaser.Scene {
       );
     }
 
-    this.add.image(LOGICAL_WIDTH / 2, ENTRY_GATE_Y, 'entry-gate').setDisplaySize(110, 110).setDepth(DEPTH.gates);
+    this.add.image(LOGICAL_WIDTH / 2, ENTRY_GATE_Y, 'entry-gate').setDisplaySize(110, 110).setDepth(DEPTH.gate);
 
     const delivery = trackPoint(SIM_CONFIG.deliveryPosition / SIM_CONFIG.beltPositions);
     this.add.image(delivery.x, delivery.y + 52, 'chute').setDisplaySize(130, 170).setDepth(DEPTH.gates);
@@ -255,6 +293,7 @@ export class GameScene extends Phaser.Scene {
             size: MARBLE_SIZE.tray,
             placeKey: '',
             blend: null,
+            impact: 0,
           });
         }
       }
@@ -279,7 +318,11 @@ export class GameScene extends Phaser.Scene {
       const foreground = active ? 0xffffff : INK_HEX;
       const chip = this.add.image(x, headerY, 'chip').setDisplaySize(72, 72).setDepth(DEPTH.hud);
       chip.setTint(active ? INK_HEX : 0xffffff);
+      const previous = BOARDS[index - 1];
+      const locked = previous !== undefined && !isCompleted(previous.id) && !active;
+      if (locked) chip.setAlpha(0.5);
       const label = this.text(x, headerY - 2, String(index + 1), 28, active ? '#ffffff' : INK).setOrigin(0.5);
+      if (locked) label.setAlpha(0.5);
       const check = this.add.image(x, headerY - 1, 'icon-check').setDisplaySize(30, 30).setTint(foreground).setDepth(DEPTH.hud);
       const showDone = (done: boolean): void => {
         label.setVisible(!done);
@@ -288,7 +331,7 @@ export class GameScene extends Phaser.Scene {
       showDone(isCompleted(board.id));
       if (index === this.boardIndex) this.markChipDone = () => showDone(true);
       chip.setInteractive({ useHandCursor: true }).on('pointerup', () => {
-        if (index !== this.boardIndex) this.scene.restart({ boardIndex: index });
+        if (index !== this.boardIndex && !locked) this.scene.restart({ boardIndex: index });
       });
     });
 
@@ -304,15 +347,18 @@ export class GameScene extends Phaser.Scene {
     });
 
     const { cx, cy } = TRACK;
-    this.text(cx, cy - 104, 'BELT SPACE', 22, INK_SOFT).setOrigin(0.5);
+    const gaugeLabel = this.text(cx, cy - 104, 'BELT LOAD', 22, INK_SOFT).setOrigin(0.5);
     this.occupancyText = this.text(cx, cy - 64, '', 46, INK).setOrigin(0.5);
 
     const capacity = this.sim.board.beltCapacity;
     const pipSpacing = 30;
     for (let i = 0; i < capacity; i++) {
       const x = cx + (i - (capacity - 1) / 2) * pipSpacing;
-      this.pips.push(this.add.image(x, cy - 18, 'pip').setDisplaySize(24, 24).setDepth(DEPTH.hud));
+      this.pips.push(this.add.image(x, cy - 18, 'pip').setDisplaySize(24, 24));
     }
+    this.gauge = this.add
+      .container(0, GAUGE_IDLE_SHIFT, [gaugeLabel, this.occupancyText, ...this.pips])
+      .setDepth(DEPTH.hud);
 
     this.message = this.text(cx, cy + 58, '', 28, INK, '500')
       .setOrigin(0.5)
@@ -386,9 +432,10 @@ export class GameScene extends Phaser.Scene {
     const { state, board } = this.sim;
     const occupancy = this.sim.occupancy;
     this.occupancyText.setText(`${occupancy} / ${board.beltCapacity}`);
-    const full = occupancy >= board.beltCapacity;
+    // A full belt that's draining is healthy, so only a jam gets the alarm colour.
+    const filled = state.status === 'jammed' ? 0xf25f33 : INK_HEX;
     this.pips.forEach((pip, i) => {
-      pip.setTint(i < occupancy ? (full ? 0xf25f33 : 0x3b4069) : 0xdccbaf);
+      pip.setTint(i < occupancy ? filled : 0xdccbaf);
     });
     this.undoButton.setEnabled(this.sim.canUndo && state.status !== 'won');
     const color = this.sim.frontColor;
@@ -403,8 +450,10 @@ export class GameScene extends Phaser.Scene {
     this.messageTimer?.remove();
     this.messageTimer = null;
     this.message.setText(value).setColor(color);
+    this.tweens.killTweensOf(this.gauge);
+    this.tweens.add({ targets: this.gauge, y: value ? 0 : GAUGE_IDLE_SHIFT, duration: 180, ease: 'Sine.easeOut' });
     if (holdMs > 0) {
-      this.messageTimer = this.time.delayedCall(holdMs, () => this.message.setText(''));
+      this.messageTimer = this.time.delayedCall(holdMs, () => this.setMessage(''));
     }
   }
 
@@ -424,12 +473,18 @@ export class GameScene extends Phaser.Scene {
     const result = this.sim.release(supply);
     if (!result.ok) {
       if (result.reason === 'no-space') {
-        this.shakeFront(supply);
-        sfx.blocked();
-        this.vibrate(30);
-        this.flashPips();
-        const suffix = result.canDrain ? '\nWait for the belt to clear.' : '';
-        this.setMessage(`Needs ${result.needed} free spaces${suffix}`, 1800, '#c23a1a');
+        if (result.canDrain) {
+          // Not a mistake: the belt is about to make room, so don't sound the alarm.
+          this.shakeFront(supply, 3);
+          sfx.tap();
+          this.setMessage(`Needs ${result.needed} free spaces.\nThe belt is clearing.`, 1600);
+        } else {
+          this.shakeFront(supply);
+          sfx.blocked();
+          this.vibrate(30);
+          this.flashPips();
+          this.setMessage(`Needs ${result.needed} free spaces`, 1800, '#c23a1a');
+        }
       } else if (result.reason === 'empty') {
         sfx.tap();
       }
@@ -443,7 +498,7 @@ export class GameScene extends Phaser.Scene {
       GameScene.guideSeen = true;
       this.arrow?.destroy();
       this.arrow = null;
-      this.setMessage(`${COLOR_NAMES[result.color]} has no box yet,\nso it keeps riding the belt.`);
+      this.setMessage(`${COLOR_NAMES[result.color]} keeps riding\nuntil a ${result.color} box is ready.`);
     } else {
       this.setMessage('');
     }
@@ -460,9 +515,11 @@ export class GameScene extends Phaser.Scene {
     this.closeCard();
     this.setMessage('');
     this.chain = 0;
+    const live = new Set(this.collectSimPlaces(this.sim.state).keys());
     for (const id of [...this.delivered.keys()]) {
-      if (this.locate(id).kind !== 'box') this.delivered.delete(id);
+      if (live.has(id)) this.delivered.delete(id);
     }
+    this.resyncDeliveries();
     this.syncTrays();
     this.updateBoxes();
     this.updateHud();
@@ -477,16 +534,30 @@ export class GameScene extends Phaser.Scene {
     this.chain = 0;
     this.closeCard();
     this.setMessage('');
+    this.resyncDeliveries();
     this.syncTrays();
     this.updateBoxes();
     this.updateHud();
+  }
+
+  /** Undo and restart jump the view straight to the simulation's state. */
+  private resyncDeliveries(): void {
+    for (const id of this.deliveryQueue) this.silentMoves.add(id);
+    for (const view of this.marbles.values()) {
+      if (view.blend) view.blend.landing = undefined;
+    }
+    this.deliveryQueue = [];
+    this.visualFront = this.sim.state.frontBox;
+    this.landedInFront = this.sim.state.frontBoxFill;
+    this.boxPhase = 'ready';
+    this.winPending = false;
   }
 
   private vibrate(ms: number): void {
     if ('vibrate' in navigator) navigator.vibrate(ms);
   }
 
-  private shakeFront(supply: number): void {
+  private shakeFront(supply: number, amount = 9): void {
     const key = this.sim.state.supplies[supply]?.[0]?.marbles[0]?.id;
     const tray = key === undefined ? undefined : this.trays.get(key);
     if (!tray) return;
@@ -494,7 +565,7 @@ export class GameScene extends Phaser.Scene {
     tray.shake.value = 0;
     this.tweens.add({
       targets: tray.shake,
-      value: { from: -9, to: 9 },
+      value: { from: -amount, to: amount },
       duration: 50,
       yoyo: true,
       repeat: 2,
@@ -549,6 +620,7 @@ export class GameScene extends Phaser.Scene {
 
     this.chainTimer -= delta;
     if (this.chainTimer <= 0) this.chain = 0;
+    this.runDeliveries(delta);
 
     const { state } = this.sim;
     const beltU = (position: number): number => {
@@ -571,6 +643,17 @@ export class GameScene extends Phaser.Scene {
   }
 
   private collectPlaces(state: Readonly<SimState>): Map<number, Place> {
+    const places = this.collectSimPlaces(state);
+    for (const [id, target] of this.delivered) {
+      if (places.has(id)) continue;
+      const index = this.deliveryQueue.indexOf(id);
+      places.set(id, index >= 0 ? { kind: 'chute', index } : { kind: 'box', box: target.box, slot: target.slot });
+    }
+    return places;
+  }
+
+  /** Every marble the simulation still holds, which is all but the delivered ones. */
+  private collectSimPlaces(state: Readonly<SimState>): Map<number, Place> {
     const places = new Map<number, Place>();
     for (const queue of state.supplies) {
       for (const packet of queue) {
@@ -583,16 +666,7 @@ export class GameScene extends Phaser.Scene {
       if (home) places.set(marble.id, { kind: 'tray', ...home });
     }
     for (const marble of state.belt) places.set(marble.id, { kind: 'belt', position: marble.position });
-    for (const [id, target] of this.delivered) {
-      if (!places.has(id)) places.set(id, { kind: 'box', box: target.box, slot: target.slot });
-    }
     return places;
-  }
-
-  private locate(id: number): Place {
-    const place = this.collectPlaces(this.sim.state).get(id);
-    if (!place) throw new Error(`Marble ${id} has no place`);
-    return place;
   }
 
   private driveMarble(view: MarbleView, place: Place, beltU: (position: number) => number, delta: number): void {
@@ -601,50 +675,91 @@ export class GameScene extends Phaser.Scene {
 
     if (view.placeKey !== key) {
       const first = view.placeKey === '';
-      const previous = view.placeKey.split(':')[0];
+      const previous = view.placeKey.split(':')[0] ?? '';
       view.placeKey = key;
       if (first) {
         view.x = target.x;
         view.y = target.y;
         view.size = target.size;
       } else {
-        const motion = this.motionFor(previous ?? '', place.kind);
-        view.blend = { fromX: view.x, fromY: view.y, fromSize: view.size, elapsed: 0, duration: motion.duration, arc: motion.arc };
+        view.blend = { fromX: view.x, fromY: view.y, fromSize: view.size, elapsed: 0, ...this.motionFor(previous, place.kind) };
+        if (this.silentMoves.delete(view.id)) view.blend.landing = undefined;
       }
     }
 
     let lift = 0;
+    let hidden = false;
     if (view.blend) {
       const blend = view.blend;
       blend.elapsed += delta;
       const t = Math.min(blend.elapsed / blend.duration, 1);
-      const eased = t * t * (3 - 2 * t);
-      view.x = blend.fromX + (target.x - blend.fromX) * eased;
-      view.y = blend.fromY + (target.y - blend.fromY) * eased;
-      view.size = blend.fromSize + (target.size - blend.fromSize) * eased;
-      lift = Math.sin(t * Math.PI) * blend.arc;
-      if (t >= 1) view.blend = null;
+      if (blend.via) {
+        const { via } = blend;
+        if (t < FUNNEL_MOUTH.split) {
+          const k = t / FUNNEL_MOUTH.split;
+          const eased = k * k * (3 - 2 * k);
+          view.x = blend.fromX + (via.x - blend.fromX) * eased;
+          view.y = blend.fromY + (via.y - blend.fromY) * eased;
+          view.size = blend.fromSize + (via.size - blend.fromSize) * eased;
+          lift = Math.sin(k * Math.PI) * blend.arc;
+        } else {
+          const k = (t - FUNNEL_MOUTH.split) / (1 - FUNNEL_MOUTH.split);
+          view.x = via.x + (target.x - via.x) * k;
+          view.y = via.y + (target.y - via.y) * k;
+          view.size = via.size + (target.size - via.size) * k;
+          hidden = true;
+        }
+      } else {
+        const eased = t * t * (3 - 2 * t);
+        view.x = blend.fromX + (target.x - blend.fromX) * eased;
+        view.y = blend.fromY + (target.y - blend.fromY) * eased;
+        view.size = blend.fromSize + (target.size - blend.fromSize) * eased;
+        lift = Math.sin(t * Math.PI) * blend.arc;
+      }
+      if (t >= 1) {
+        view.blend = null;
+        if (blend.landing) {
+          view.impact = IMPACT_MS;
+          if (blend.landing === 'belt') sfx.enter();
+          else if (place.kind === 'box') this.onLanded(place);
+        }
+      }
     } else {
       view.x = target.x;
       view.y = target.y;
       view.size = target.size;
     }
 
-    view.sprite.setPosition(view.x, view.y - lift).setDisplaySize(view.size + lift * 0.14, view.size + lift * 0.14);
-    view.sprite.setDepth(lift > 2 ? DEPTH.flying : DEPTH.marble);
+    let stretchX = 1;
+    let stretchY = 1;
+    if (view.impact > 0) {
+      view.impact = Math.max(view.impact - delta, 0);
+      const k = Math.sin((1 - view.impact / IMPACT_MS) * Math.PI);
+      lift += k * 5;
+      stretchX = 1 + k * 0.1;
+      stretchY = 1 - k * 0.12;
+    }
+
+    const size = view.size + lift * 0.14;
+    view.sprite.setPosition(view.x, view.y - lift).setDisplaySize(size * stretchX, size * stretchY);
+    view.sprite.setDepth(lift > 8 ? DEPTH.flying : DEPTH.marble);
     const seated = place.kind === 'tray' && lift < 2;
     view.shadow
       .setPosition(view.x + 3 + lift * 0.1, view.y + 6 + lift * 0.3)
       .setDisplaySize(view.size * 1.28, view.size * 1.28)
-      .setAlpha(seated ? 0 : 0.85 * (1 - Math.min(lift / 180, 0.6)));
+      .setAlpha(seated || hidden ? 0 : 0.85 * (1 - Math.min(lift / 180, 0.6)));
     const visible = place.kind !== 'box' || this.boxVisible(place.box);
     view.sprite.setVisible(visible);
     view.shadow.setVisible(visible && place.kind !== 'box');
   }
 
-  private motionFor(from: string, to: Place['kind']): { duration: number; arc: number } {
-    if (to === 'belt') return from === 'tray' ? { duration: 420, arc: 110 } : { duration: 300, arc: 34 };
-    if (to === 'box') return { duration: 260, arc: 46 };
+  private motionFor(from: string, to: Place['kind']): Pick<Blend, 'duration' | 'arc' | 'via' | 'landing'> {
+    if (to === 'belt') {
+      if (from !== 'tray') return { duration: 300, arc: 34 };
+      return { duration: 380, arc: 74, via: FUNNEL_MOUTH, landing: 'belt' };
+    }
+    if (to === 'chute') return from === 'chute' ? { duration: 70, arc: 0 } : { duration: 110, arc: 4 };
+    if (to === 'box') return { duration: 190, arc: 26, landing: 'box' };
     return { duration: 320, arc: 40 };
   }
 
@@ -664,6 +779,10 @@ export class GameScene extends Phaser.Scene {
       case 'belt': {
         const p = trackPoint(beltU(place.position));
         return { x: p.x, y: p.y, size: MARBLE_SIZE.belt };
+      }
+      case 'chute': {
+        const gate = trackPoint(SIM_CONFIG.deliveryPosition / SIM_CONFIG.beltPositions);
+        return { x: gate.x, y: gate.y + 62 - Math.min(place.index, 5) * 11, size: MARBLE_SIZE.tray };
       }
       case 'box': {
         const box = this.boxes[place.box];
@@ -751,7 +870,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateBoxes(instant = false): void {
-    const { frontBox } = this.sim.state;
+    const frontBox = this.visualFront;
     const delivery = trackPoint(SIM_CONFIG.deliveryPosition / SIM_CONFIG.beltPositions);
 
     for (const box of this.boxes) {
@@ -798,8 +917,8 @@ export class GameScene extends Phaser.Scene {
             y: BOX.frontY,
             displayWidth: BOX.width + 24,
             displayHeight: BOX.height + 32,
-            duration: 280,
-            ease: 'Back.easeOut',
+            duration: BOX_SWAP_MS,
+            ease: 'Cubic.easeOut',
           });
         }
       } else {
@@ -807,23 +926,13 @@ export class GameScene extends Phaser.Scene {
         if (instant) {
           box.large.setVisible(false);
         } else if (changed && wasFront) {
+          // Leaves as the next box arrives, moving the same way, so the two never overlap.
           box.large.setVisible(true);
-          box.large.setDepth(DEPTH.box + 1);
-          this.tweens.add({
-            targets: box.large,
-            displayWidth: (BOX.width + 24) * 1.08,
-            displayHeight: (BOX.height + 32) * 1.08,
-            duration: 110,
-            yoyo: true,
-            ease: 'Sine.easeOut',
-          });
           this.tweens.add({
             targets: box.large,
             x: -170,
-            y: BOX.frontY + 70,
-            rotation: -0.28,
-            delay: 260,
-            duration: 380,
+            rotation: -0.2,
+            duration: BOX_SWAP_MS,
             ease: 'Cubic.easeIn',
             onComplete: () => box.large.setVisible(false),
           });
@@ -842,31 +951,19 @@ export class GameScene extends Phaser.Scene {
       dirty = true;
       switch (event.type) {
         case 'entered':
-          sfx.enter();
           this.syncTrays();
           break;
-        case 'delivered': {
+        case 'delivered':
           this.delivered.set(event.marbleId, { box: event.boxIndex, slot: event.slot });
-          sfx.deliver(event.slot);
+          this.deliveryQueue.push(event.marbleId);
           break;
-        }
-        case 'boxFilled': {
-          const box = this.boxes[event.boxIndex];
-          this.chain += 1;
-          this.chainTimer = 1800;
-          sfx.boxFilled(this.chain - 1);
-          this.vibrate(18);
-          if (box) {
-            this.time.delayedCall(170, () => {
-              this.sparks.setParticleTint(COLORS[box.color].hex);
-              this.sparks.explode(18, box.large.x, box.large.y);
-            });
-          }
-          this.updateBoxes();
+        case 'boxFilled':
+          // Shown when its third marble lands, in onLanded.
           break;
-        }
         case 'won':
-          this.onWon();
+          markCompleted(this.sim.board.id);
+          this.markChipDone();
+          this.winPending = true;
           break;
         case 'jammed':
           sfx.jam();
@@ -878,6 +975,63 @@ export class GameScene extends Phaser.Scene {
     if (this.sim.state.status === 'jammed' && !this.jamExplained && this.sim.state.pending.length === 0) {
       this.jamExplained = true;
       this.showJamCard();
+    }
+  }
+
+  /** Lets one waiting marble drop per gap, and moves boxes on once they've been seen to fill. */
+  private runDeliveries(delta: number): void {
+    if (this.boxPhase !== 'ready') {
+      this.boxPhaseTimer -= delta;
+      if (this.boxPhaseTimer > 0) return;
+      if (this.boxPhase === 'celebrating') {
+        this.visualFront += 1;
+        this.updateBoxes();
+        this.boxPhase = 'swapping';
+        this.boxPhaseTimer = BOX_SWAP_MS;
+        return;
+      }
+      this.boxPhase = 'ready';
+      this.landingGap = 0;
+    }
+
+    this.landingGap -= delta;
+    const head = this.deliveryQueue[0];
+    if (head !== undefined && this.landingGap <= 0 && this.delivered.get(head)?.box === this.visualFront) {
+      this.deliveryQueue.shift();
+      this.landingGap = LANDING_GAP_MS;
+    }
+
+    if (this.winPending && this.deliveryQueue.length === 0 && this.visualFront >= this.boxes.length) {
+      this.winPending = false;
+      this.celebrateWin();
+    }
+  }
+
+  private onLanded(place: Extract<Place, { kind: 'box' }>): void {
+    sfx.deliver(place.slot);
+    const box = this.boxes[place.box];
+    if (box) this.tweens.add({ targets: box.large, y: BOX.frontY + 3, duration: 55, yoyo: true, ease: 'Sine.easeOut' });
+
+    this.landedInFront += 1;
+    if (this.landedInFront < this.sim.board.boxSize) return;
+    this.landedInFront = 0;
+    this.chain += 1;
+    this.chainTimer = 1800;
+    sfx.boxFilled(this.chain - 1);
+    this.vibrate(18);
+    this.boxPhase = 'celebrating';
+    this.boxPhaseTimer = BOX_CELEBRATE_MS;
+    if (box) {
+      this.sparks.setParticleTint(COLORS[box.color].hex);
+      this.sparks.explode(18, box.large.x, box.large.y);
+      this.tweens.add({
+        targets: box.large,
+        displayWidth: (BOX.width + 24) * 1.07,
+        displayHeight: (BOX.height + 32) * 1.07,
+        duration: BOX_CELEBRATE_MS / 2,
+        yoyo: true,
+        ease: 'Sine.easeOut',
+      });
     }
   }
 
@@ -924,11 +1078,9 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  private onWon(): void {
-    markCompleted(this.sim.board.id);
+  private celebrateWin(): void {
     sfx.win();
     this.vibrate(40);
-    this.markChipDone();
     this.time.delayedCall(420, () => this.showWinCard());
     this.confetti.explode(120);
     this.time.delayedCall(300, () => this.confetti.explode(100));
@@ -960,11 +1112,7 @@ export class GameScene extends Phaser.Scene {
       { primary: true },
     );
     this.openCard(cx, cy, [bg, title, body, button.container]);
-    this.cardButton = button;
   }
-
-  /** Exposed for the browser test, which needs real tap coordinates. */
-  cardButton: Button | null = null;
 
   private openCard(x: number, y: number, children: Phaser.GameObjects.GameObject[]): void {
     this.closeCard();
@@ -978,7 +1126,6 @@ export class GameScene extends Phaser.Scene {
     this.undoButton.container.setScale(1);
     this.card?.destroy();
     this.card = null;
-    this.cardButton = null;
   }
 
   // ---- Test and capture hooks ----
@@ -995,6 +1142,9 @@ export class GameScene extends Phaser.Scene {
       restart: toPage(BUTTONS.restartX, BUTTONS.y + EXTRA_HEIGHT * 0.5),
       card: toPage(TRACK.cx, TRACK.cy + 62),
     };
+    BOARDS.forEach((_, i) => {
+      targets[`chip${i}`] = toPage(484 + i * 66, 50 - EXTRA_HEIGHT * 0.5);
+    });
     const count = this.sim.board.supplies.length;
     for (let i = 0; i < count; i++) targets[`supply${i}`] = toPage(supplyX(i, count), TRAY.frontY);
     return targets;

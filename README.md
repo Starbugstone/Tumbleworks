@@ -19,9 +19,18 @@ The server is reachable by anyone on your network, so only run it on a network y
 ## Tests
 
 ```sh
-docker compose exec dev npm test                       # rules and simulation
+docker compose exec dev npm test                                # rules and simulation
 docker compose exec dev npm run typecheck
-docker compose run --rm e2e npx playwright test        # browser journey
+docker compose --profile e2e run --rm e2e npx playwright test   # browser journeys
 ```
 
 To use a different port, set `TUMBLEWORKS_PORT` before starting.
+
+## Capture screenshots or video
+
+```sh
+docker compose --profile e2e run --rm e2e node scripts/capture.mjs         # screenshots in output/capture
+docker compose --profile e2e run --rm e2e node scripts/capture-video.mjs   # frames in output/frames
+```
+
+Turn the frames into a video with the `ffmpeg` command at the top of `scripts/capture-video.mjs`.
