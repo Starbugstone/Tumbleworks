@@ -722,7 +722,8 @@ export class Machine {
       if (entry.status === 'pouring') {
         marble.transit += dt;
         const near = nearestOnTrack(t.x, t.z);
-        if (t.y < onBeltHeight && Math.abs(near.lateral) < RACEWAY.channelHalf) {
+        // Below the funnel's neck it's in the channel, even if it's riding on top of other marbles.
+        if (t.y < FUNNEL.neckY - MARBLE_RADIUS && Math.abs(near.lateral) < RACEWAY.channelHalf) {
           this.rules.entered(marble.id);
           marble.lastDistance = near.distance;
           marble.stalled = 0;
@@ -762,6 +763,9 @@ export class Machine {
           for (const event of events) this.pushRulesEvent(event);
         } else if (marble.transit > 4) {
           this.teleportToBox(marble.id, boxX);
+        } else if (!inside && marble.transit > 2 && Math.hypot(body.linvel().x, body.linvel().y, body.linvel().z) < 0.6) {
+          // Balanced on the rim where the chute meets the box. A small tip drops it in.
+          this.nudge(marble.id, { x: (boxX - t.x) * 0.6, y: 1.5, z: (BOX.z - t.z) * 1.6 });
         }
       }
     }

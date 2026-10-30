@@ -22,9 +22,12 @@ import { COLORS, marbleMaterial, symbolTexture, woodTexture } from './art';
 const MAX_PIXEL_RATIO = 1.5;
 const RIB_COUNT = 28;
 /** What must stay on screen, in world units, used to frame the camera for any window shape. */
-const FRAME = { halfWidth: 6.85, top: 11.6, bottom: -0.2 };
+const FRAME = { halfWidth: 6.15, top: 11.6, bottom: -0.2 };
+/** The walls are drawn lower than they collide, so they don't hide the action. */
+const DRAWN_WALL_HEIGHT = 0.62;
+const ISLAND_HEIGHT = 0.44;
 const CAMERA_DIRECTION = new THREE.Vector3(0, 0.72, 0.69).normalize();
-const CAMERA_TARGET = new THREE.Vector3(0, 2.7, -0.2);
+const CAMERA_TARGET = new THREE.Vector3(0, 3, -0.1);
 
 const plastic = (color: number, roughness = 0.34): THREE.MeshPhysicalMaterial =>
   new THREE.MeshPhysicalMaterial({ color, roughness, clearcoat: 0.55, clearcoatRoughness: 0.22, envMapIntensity: 0.9 });
@@ -73,7 +76,7 @@ interface TrayVisual {
 export class MachineScene {
   readonly renderer: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
-  readonly camera = new THREE.PerspectiveCamera(36, 1, 1, 200);
+  readonly camera = new THREE.PerspectiveCamera(40, 1, 1, 200);
   private machine: Machine | null = null;
 
   private readonly marbleGeometry = new THREE.SphereGeometry(MARBLE_RADIUS, 32, 24);
@@ -122,28 +125,28 @@ export class MachineScene {
 
     this.ribs = new THREE.InstancedMesh(
       new THREE.BoxGeometry(0.16, 0.012, RACEWAY.channelHalf * 1.7),
-      new THREE.MeshStandardMaterial({ color: 0x484f8a, roughness: 0.6 }),
+      new THREE.MeshStandardMaterial({ color: 0x383d6e, roughness: 0.7 }),
       RIB_COUNT,
     );
     this.ribs.frustumCulled = false;
     this.scene.add(this.ribs);
 
     this.lamp = new THREE.Mesh(new THREE.SphereGeometry(0.2, 20, 14), this.lampMaterial);
-    this.lamp.position.set(0, RACEWAY.floorY + RACEWAY.wallHeight * 0.92, OUTER_FRONT_Z + RACEWAY.wallThickness / 2);
+    this.lamp.position.set(0, RACEWAY.floorY + DRAWN_WALL_HEIGHT + 0.2, OUTER_FRONT_Z + RACEWAY.wallThickness / 2);
     this.scene.add(this.lamp);
 
     this.door = new THREE.Mesh(
-      new THREE.BoxGeometry(GATE.doorHalf * 2, RACEWAY.wallHeight * 0.74, RACEWAY.wallThickness * 0.7),
+      new THREE.BoxGeometry(GATE.doorHalf * 2, DRAWN_WALL_HEIGHT, RACEWAY.wallThickness * 0.7),
       new THREE.MeshPhysicalMaterial({ color: 0xbfe4ff, transparent: true, opacity: 0.32, roughness: 0.08, envMapIntensity: 2.5 }),
     );
-    this.door.position.set(0, RACEWAY.floorY + RACEWAY.wallHeight * 0.37, OUTER_FRONT_Z + RACEWAY.wallThickness / 2);
+    this.door.position.set(0, RACEWAY.floorY + DRAWN_WALL_HEIGHT / 2, OUTER_FRONT_Z + RACEWAY.wallThickness / 2);
     this.scene.add(this.door);
 
     this.kicker = new THREE.Group();
     const arm = new THREE.Mesh(rounded(0.09, 0.09, 0.6, 0.08, 0, 0, 0.6), plastic(0xf25f33));
     arm.castShadow = true;
     this.kicker.add(arm);
-    this.kicker.position.set(GATE.checkX - 0.4, RACEWAY.floorY + 0.45, RACEWAY.centerZ + RACEWAY.radius - RACEWAY.channelHalf - 0.05);
+    this.kicker.position.set(GATE.checkX - 0.4, RACEWAY.floorY + 0.5, RACEWAY.centerZ + RACEWAY.radius - RACEWAY.channelHalf - 0.05);
     this.scene.add(this.kicker);
 
     this.scene.add(this.dynamic);
@@ -180,7 +183,7 @@ export class MachineScene {
   }
 
   private addRaceway(): void {
-    const { floorY, centerZ, radius, channelHalf, wallThickness, wallHeight, straightHalf } = RACEWAY;
+    const { floorY, centerZ, radius, channelHalf, wallThickness, straightHalf } = RACEWAY;
     const lay = (geometry: THREE.BufferGeometry, y: number): THREE.BufferGeometry => {
       geometry.rotateX(-Math.PI / 2);
       geometry.translate(0, y, 0);
@@ -209,14 +212,14 @@ export class MachineScene {
     // The island in the middle of the loop, which carries the load lights.
     const islandRadius = radius - channelHalf - wallThickness / 2;
     const island = new THREE.Mesh(
-      lay(new THREE.ExtrudeGeometry(stadiumShape(islandRadius), { depth: wallHeight * 0.6, bevelEnabled: true, bevelSize: 0.07, bevelThickness: 0.07, bevelSegments: 3, curveSegments: 32 }), floorY),
+      lay(new THREE.ExtrudeGeometry(stadiumShape(islandRadius), { depth: ISLAND_HEIGHT, bevelEnabled: true, bevelSize: 0.07, bevelThickness: 0.07, bevelSegments: 3, curveSegments: 32 }), floorY),
       plastic(0xf25f33, 0.3),
     );
     island.castShadow = true;
     island.receiveShadow = true;
     this.scene.add(island);
     const islandTop = new THREE.Mesh(
-      lay(new THREE.ShapeGeometry(stadiumShape(islandRadius - 0.14), 32), floorY + wallHeight * 0.67 + 0.012),
+      lay(new THREE.ShapeGeometry(stadiumShape(islandRadius - 0.14), 32), floorY + ISLAND_HEIGHT + 0.08),
       plastic(0xfff6e4, 0.6),
     );
     islandTop.receiveShadow = true;
@@ -239,7 +242,7 @@ export class MachineScene {
 
     const capacityLeds = 12;
     const spacing = 0.62;
-    const rowY = floorY + wallHeight * 0.67 + 0.07;
+    const rowY = floorY + ISLAND_HEIGHT + 0.14;
     const geometry = new THREE.SphereGeometry(0.2, 20, 14);
     geometry.scale(1, 0.55, 1);
     for (let i = 0; i < capacityLeds; i++) {
@@ -255,9 +258,9 @@ export class MachineScene {
 
   /** One smooth strip around the loop, with a gap for the door. */
   private outerWallGeometry(): THREE.BufferGeometry {
-    const { floorY, centerZ, channelHalf, wallThickness, wallHeight } = RACEWAY;
+    const { floorY, centerZ, channelHalf, wallThickness } = RACEWAY;
     const segments = 180;
-    const top = floorY + wallHeight * 0.74;
+    const top = floorY + DRAWN_WALL_HEIGHT;
     const inner = channelHalf;
     const outer = channelHalf + wallThickness;
     const positions: number[] = [];
@@ -404,7 +407,7 @@ export class MachineScene {
     this.scene.add(floor);
     const railMaterial = plastic(0xf25f33, 0.3);
     for (const side of [-1, 1]) {
-      const rail = new THREE.Mesh(rounded(0.06, 0.22, length / 2, 0.05), railMaterial);
+      const rail = new THREE.Mesh(rounded(0.06, 0.26, length / 2, 0.05), railMaterial);
       rail.position.set(side * (halfWidth + 0.06), (topY + bottomY) / 2 + 0.1, (topZ + bottomZ) / 2);
       rail.rotation.x = Math.atan2(topY - bottomY, bottomZ - topZ);
       rail.castShadow = true;

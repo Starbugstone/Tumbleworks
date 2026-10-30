@@ -4,21 +4,21 @@
  *
  * Top to bottom: tipping trays, a clear funnel, a powered raceway, a chute, and the boxes.
  */
-export const MARBLE_RADIUS = 0.42;
+export const MARBLE_RADIUS = 0.5;
 export const GRAVITY = 26;
 export const TICK_SECONDS = 1 / 60;
 
 export const RACEWAY = {
   floorY: 2.1,
   centerZ: 0.5,
-  straightHalf: 2.6,
-  radius: 2.7,
+  straightHalf: 1.9,
+  radius: 2.6,
   /** Room for marbles to pass at the loading point instead of bridging the funnel. */
   channelHalf: 1.3,
   wallThickness: 0.14,
   wallHeight: 1.8,
   /** Target tangential speed of the powered floor. */
-  speed: 14,
+  speed: 11,
   /** How hard the drive can push, as an acceleration. Collisions can still slow a marble down. */
   driveAcceleration: 50,
 } as const;
@@ -46,15 +46,16 @@ export const CHUTE = {
 } as const;
 
 export const BOX = {
-  z: CHUTE.bottomZ + 0.62,
-  halfWidth: 1.5,
-  halfDepth: 0.62,
+  /** The chute's end overhangs the rim, so a slow marble can't balance between them. */
+  z: CHUTE.bottomZ + 0.74 - 0.22,
+  halfWidth: 1.78,
+  halfDepth: 0.74,
   height: 1,
   floorThickness: 0.14,
   wallThickness: 0.12,
   /** Invisible extension so a bouncing marble stays in. */
   catchHeight: 2.6,
-  nextX: 5.1,
+  nextX: 5.5,
   parkedX: 30,
   exitX: -9.5,
   /** How long a full box sits still before leaving. */
@@ -64,7 +65,7 @@ export const BOX = {
 
 /** The tray pivots on its front bottom edge, so its marbles spill toward the funnel. */
 export const TRAY = {
-  halfWidth: 1.72,
+  halfWidth: 1.8,
   depth: 2.5,
   floorThickness: 0.16,
   wallHeight: 0.62,
@@ -84,12 +85,12 @@ export const TRAY = {
   leaveSeconds: 0.25,
   slideSeconds: 0.28,
   slots: [
-    { x: -1.08, z: -0.66 },
-    { x: 0, z: -0.66 },
-    { x: 1.08, z: -0.66 },
-    { x: -1.08, z: -1.76 },
-    { x: 0, z: -1.76 },
-    { x: 1.08, z: -1.76 },
+    { x: -1.12, z: -0.72 },
+    { x: 0, z: -0.72 },
+    { x: 1.12, z: -0.72 },
+    { x: -1.12, z: -1.86 },
+    { x: 0, z: -1.86 },
+    { x: 1.12, z: -1.86 },
   ],
 } as const;
 
