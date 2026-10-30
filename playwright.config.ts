@@ -7,7 +7,7 @@ export default defineConfig({
   reporter: 'list',
   outputDir: 'output/playwright',
   use: {
-    baseURL: process.env.TUMBLEWORKS_URL ?? 'http://dev:5180',
+    baseURL: process.env.TUMBLEWORKS_URL ?? 'http://game-server:5180',
     ...devices['Pixel 7'],
     launchOptions: { args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] },
     trace: 'retain-on-failure',

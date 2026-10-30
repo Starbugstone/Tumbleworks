@@ -5,6 +5,7 @@ export default defineConfig({
     host: true,
     port: 5180,
     strictPort: true,
+    allowedHosts: ['game-server'],
   },
   test: {
     include: ['tests/sim/**/*.test.ts'],
