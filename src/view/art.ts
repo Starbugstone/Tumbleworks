@@ -86,6 +86,64 @@ export function marbleMaterial(color: Color): THREE.MeshPhysicalMaterial {
   });
 }
 
+/** A clear glass shell. The colour comes from the twist inside and a tint in the glass. */
+export function glassMaterial(color: Color): THREE.MeshPhysicalMaterial {
+  const palette = COLORS[color];
+  return new THREE.MeshPhysicalMaterial({
+    color: new THREE.Color(palette.light).lerp(new THREE.Color(0xffffff), 0.45),
+    transmission: 1,
+    thickness: 0.7,
+    ior: 1.5,
+    roughness: 0.03,
+    metalness: 0,
+    attenuationColor: new THREE.Color(palette.base),
+    attenuationDistance: 0.85,
+    specularIntensity: 1,
+    clearcoat: 1,
+    clearcoatRoughness: 0.02,
+    envMapIntensity: 3,
+  });
+}
+
+export function twistMaterial(color: Color): THREE.MeshStandardMaterial {
+  const palette = COLORS[color];
+  return new THREE.MeshStandardMaterial({
+    color: palette.hex,
+    emissive: palette.hex,
+    emissiveIntensity: 0.28,
+    roughness: 0.42,
+    side: THREE.DoubleSide,
+  });
+}
+
+/** Three twisted vanes through the marble's middle, like a cat's-eye marble. */
+export function twistGeometry(radius: number): THREE.BufferGeometry {
+  const positions: number[] = [];
+  const steps = 14;
+  const vanes = 3;
+  const turns = 2.1;
+  for (let vane = 0; vane < vanes; vane++) {
+    const start = (vane / vanes) * Math.PI * 2;
+    const point = (i: number, out: number): number[] => {
+      const y = -1 + (2 * i) / steps;
+      const reach = Math.sqrt(Math.max(1 - y * y, 0)) * out;
+      const angle = start + y * turns;
+      return [Math.cos(angle) * reach * radius, y * radius, Math.sin(angle) * reach * radius];
+    };
+    for (let i = 0; i < steps; i++) {
+      const a = point(i, 0);
+      const b = point(i, 1);
+      const c = point(i + 1, 1);
+      const d = point(i + 1, 0);
+      positions.push(...a, ...b, ...c, ...a, ...c, ...d);
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
 export function woodTexture(): THREE.CanvasTexture {
   const result = texture(
     canvas(1024, 1024, (ctx) => {
@@ -99,12 +157,12 @@ export function woodTexture(): THREE.CanvasTexture {
       };
       for (let plank = 0; plank < 4; plank++) {
         const y = plank * 256;
-        const tone = 0.88 + random() * 0.24;
+        const tone = 0.95 + random() * 0.1;
         ctx.fillStyle = `rgba(${Math.floor(150 * tone)}, ${Math.floor(98 * tone)}, ${Math.floor(54 * tone)}, 1)`;
         ctx.fillRect(0, y, 1024, 256);
         for (let i = 0; i < 70; i++) {
           const gy = y + random() * 256;
-          ctx.strokeStyle = `rgba(${random() > 0.5 ? '70, 38, 14' : '226, 176, 118'}, ${0.05 + random() * 0.13})`;
+          ctx.strokeStyle = `rgba(${random() > 0.5 ? '70, 38, 14' : '226, 176, 118'}, ${0.02 + random() * 0.06})`;
           ctx.lineWidth = 0.6 + random() * 2.4;
           ctx.beginPath();
           ctx.moveTo(0, gy);
@@ -112,8 +170,8 @@ export function woodTexture(): THREE.CanvasTexture {
           ctx.bezierCurveTo(340, gy + bend, 680, gy - bend, 1024, gy);
           ctx.stroke();
         }
-        ctx.fillStyle = 'rgba(52, 28, 10, 0.55)';
-        ctx.fillRect(0, y, 1024, 3);
+        ctx.fillStyle = 'rgba(52, 28, 10, 0.22)';
+        ctx.fillRect(0, y, 1024, 2);
       }
     }),
   );

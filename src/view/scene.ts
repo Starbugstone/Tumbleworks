@@ -17,7 +17,7 @@ import {
   TRAY,
 } from '../machine/layout';
 import type { Color } from '../sim/types';
-import { COLORS, marbleMaterial, symbolTexture, woodTexture } from './art';
+import { COLORS, glassMaterial, marbleMaterial, symbolTexture, twistGeometry, twistMaterial, woodTexture } from './art';
 
 const MAX_PIXEL_RATIO = 1.5;
 const RIB_COUNT = 28;
@@ -64,7 +64,9 @@ function holePath(radius: number): THREE.Path {
 
 interface MarbleVisual {
   readonly id: number;
+  readonly color: Color;
   readonly mesh: THREE.Mesh;
+  readonly twist: THREE.Mesh;
   previous: Pose;
   current: Pose;
 }
@@ -80,11 +82,17 @@ export class MachineScene {
   private machine: Machine | null = null;
 
   private readonly marbleGeometry = new THREE.SphereGeometry(MARBLE_RADIUS, 32, 24);
-  private readonly marbleMaterials = new Map<Color, THREE.MeshPhysicalMaterial>();
+  private readonly twistGeometry = twistGeometry(MARBLE_RADIUS * 0.8);
+  private readonly glassMaterials = new Map<Color, THREE.MeshPhysicalMaterial>();
+  private readonly twistMaterials = new Map<Color, THREE.MeshStandardMaterial>();
+  private readonly solidMaterials = new Map<Color, THREE.MeshPhysicalMaterial>();
+  /** Clear glass is the first thing given up if the device can't keep up. */
+  private clearGlass = true;
   private readonly dynamic = new THREE.Group();
   private marbles: MarbleVisual[] = [];
   private trays = new Map<number, TrayVisual>();
   private boxes: THREE.Group[] = [];
+  private boxLights: THREE.Mesh[][] = [];
 
   private readonly ribs: THREE.InstancedMesh;
   private readonly ribDummy = new THREE.Object3D();
@@ -95,6 +103,11 @@ export class MachineScene {
   private readonly ledOn = new THREE.MeshStandardMaterial({ color: 0x40e0a0, emissive: 0x18c080, emissiveIntensity: 1.5 });
   private readonly ledAlarm = new THREE.MeshStandardMaterial({ color: 0xff5a2c, emissive: 0xff3a10, emissiveIntensity: 1.9 });
 
+  private readonly gatePad: THREE.Mesh;
+  private readonly gatePadMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5, depthWrite: false });
+  private readonly chuteGate: THREE.Group;
+  private readonly boxLightOff = new THREE.MeshStandardMaterial({ color: 0x5a4436, roughness: 0.5 });
+  private readonly boxLightOn = new THREE.MeshStandardMaterial({ color: 0xfff6c0, emissive: 0xffe680, emissiveIntensity: 2.4 });
   private readonly lamp: THREE.Mesh;
   private readonly lampMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 1.3 });
   private readonly door: THREE.Mesh;
@@ -110,6 +123,7 @@ export class MachineScene {
     this.renderer.toneMappingExposure = 0.95;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.transmissionResolutionScale = 0.5;
 
     const pmrem = new THREE.PMREMGenerator(this.renderer);
     this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
@@ -131,7 +145,7 @@ export class MachineScene {
     this.ribs.frustumCulled = false;
     this.scene.add(this.ribs);
 
-    this.lamp = new THREE.Mesh(new THREE.SphereGeometry(0.2, 20, 14), this.lampMaterial);
+    this.lamp = new THREE.Mesh(new THREE.SphereGeometry(0.26, 20, 14), this.lampMaterial);
     this.lamp.position.set(0, RACEWAY.floorY + DRAWN_WALL_HEIGHT + 0.2, OUTER_FRONT_Z + RACEWAY.wallThickness / 2);
     this.scene.add(this.lamp);
 
@@ -142,8 +156,26 @@ export class MachineScene {
     this.door.position.set(0, RACEWAY.floorY + DRAWN_WALL_HEIGHT / 2, OUTER_FRONT_Z + RACEWAY.wallThickness / 2);
     this.scene.add(this.door);
 
+    this.gatePad = new THREE.Mesh(new THREE.PlaneGeometry(GATE.doorHalf * 2, RACEWAY.channelHalf * 2), this.gatePadMaterial);
+    this.gatePad.rotation.x = -Math.PI / 2;
+    this.gatePad.position.set(0, RACEWAY.floorY + 0.03, RACEWAY.centerZ + RACEWAY.radius);
+    this.scene.add(this.gatePad);
+
+    // A clear panel with a dark top bar, which lifts away when the next box is in place.
+    this.chuteGate = new THREE.Group();
+    const gateBar = new THREE.Mesh(rounded(CHUTE.halfWidth, 0.07, 0.05, 0.04, 0, CHUTE.gateHeight, 0), plastic(0x3b4069, 0.35));
+    gateBar.castShadow = true;
+    const gatePanel = new THREE.Mesh(
+      new THREE.BoxGeometry(CHUTE.halfWidth * 2, CHUTE.gateHeight, 0.04),
+      new THREE.MeshPhysicalMaterial({ color: 0xdff2ff, transparent: true, opacity: 0.16, roughness: 0.05, depthWrite: false, envMapIntensity: 2.5 }),
+    );
+    gatePanel.position.y = CHUTE.gateHeight / 2;
+    gatePanel.renderOrder = 3;
+    this.chuteGate.add(gateBar, gatePanel);
+    this.scene.add(this.chuteGate);
+
     this.kicker = new THREE.Group();
-    const arm = new THREE.Mesh(rounded(0.09, 0.09, 0.6, 0.08, 0, 0, 0.6), plastic(0xf25f33));
+    const arm = new THREE.Mesh(rounded(0.16, 0.16, 0.72, 0.12, 0, 0, 0.72), plastic(0xf25f33));
     arm.castShadow = true;
     this.kicker.add(arm);
     this.kicker.position.set(GATE.checkX - 0.4, RACEWAY.floorY + 0.5, RACEWAY.centerZ + RACEWAY.radius - RACEWAY.channelHalf - 0.05);
@@ -225,6 +257,22 @@ export class MachineScene {
     islandTop.receiveShadow = true;
     this.scene.add(islandTop);
 
+    // Clear guards up to the height marbles actually hit, so a rebound has something to rebound from.
+    const guard = new THREE.MeshPhysicalMaterial({
+      color: 0xdff2ff,
+      transparent: true,
+      opacity: 0.1,
+      roughness: 0.05,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+      envMapIntensity: 2.5,
+    });
+    for (const offset of [channelHalf + wallThickness / 2, -channelHalf]) {
+      const band = new THREE.Mesh(this.guardGeometry(offset), guard);
+      band.renderOrder = 1;
+      this.scene.add(band);
+    }
+
     const wallMesh = new THREE.Mesh(this.outerWallGeometry(), plastic(0xf25f33, 0.28));
     wallMesh.castShadow = true;
     wallMesh.receiveShadow = true;
@@ -254,6 +302,23 @@ export class MachineScene {
       this.leds.push(led);
       this.scene.add(led);
     }
+  }
+
+  private guardGeometry(offset: number): THREE.BufferGeometry {
+    const { floorY, wallHeight } = RACEWAY;
+    const positions: number[] = [];
+    const segments = 120;
+    for (let i = 0; i < segments; i++) {
+      const a = trackPoint((i / segments) * TRACK_LENGTH, offset);
+      const b = trackPoint(((i + 1) / segments) * TRACK_LENGTH, offset);
+      const low = floorY + DRAWN_WALL_HEIGHT;
+      const high = floorY + wallHeight;
+      positions.push(a.x, low, a.z, b.x, low, b.z, b.x, high, b.z, a.x, low, a.z, b.x, high, b.z, a.x, high, a.z);
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.computeVertexNormals();
+    return geometry;
   }
 
   /** One smooth strip around the loop, with a gap for the door. */
@@ -361,27 +426,27 @@ export class MachineScene {
     this.scene.add(shell);
 
     // A frame around the rim and down the corners, so the clear shape reads.
-    const frame = plastic(0xfdf5e6, 0.3);
-    const rod = (from: number[], to: number[], radius = 0.075): void => {
+    const rim = plastic(0xfdf5e6, 0.3);
+    const edge = new THREE.MeshPhysicalMaterial({ color: 0xffffff, transparent: true, opacity: 0.32, roughness: 0.2, depthWrite: false });
+    const rod = (from: number[], to: number[], radius: number, material: THREE.Material): void => {
       const a = new THREE.Vector3(from[0], from[1], from[2]);
       const b = new THREE.Vector3(to[0], to[1], to[2]);
-      const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, a.distanceTo(b), 10), frame);
+      const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, a.distanceTo(b), 8), material);
       mesh.position.copy(a).add(b).multiplyScalar(0.5);
       mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
-      mesh.castShadow = true;
       this.scene.add(mesh);
     };
     for (let i = 0; i < 4; i++) {
       const next = (i + 1) % 4;
-      rod(corners.mouth[i] ?? [], corners.mouth[next] ?? [], 0.1);
-      rod(corners.mouth[i] ?? [], corners.neck[i] ?? [], 0.05);
+      rod(corners.mouth[i] ?? [], corners.mouth[next] ?? [], 0.055, rim);
+      rod(corners.mouth[i] ?? [], corners.neck[i] ?? [], 0.025, edge);
     }
 
     // Posts carrying the funnel, and a gantry the trays hang from.
     const postMaterial = plastic(0x3b4069, 0.4);
     for (const x of [mouth.left, mouth.right]) {
       for (const z of [mouth.back, mouth.front]) {
-        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.13, mouthY, 12), postMaterial);
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, mouthY, 10), postMaterial);
         post.position.set(x, mouthY / 2, z);
         post.castShadow = true;
         this.scene.add(post);
@@ -465,8 +530,17 @@ export class MachineScene {
       new THREE.PlaneGeometry(0.62, 0.62),
       new THREE.MeshBasicMaterial({ map: symbolTexture(color), transparent: true, depthWrite: false, toneMapped: false }),
     );
-    symbol.position.set(0, h / 2, hd + 0.006);
+    symbol.position.set(0, h * 0.42, hd + 0.006);
     group.add(symbol);
+    const lights: THREE.Mesh[] = [];
+    const lightGeometry = new THREE.SphereGeometry(0.13, 16, 10);
+    for (let i = 0; i < 3; i++) {
+      const light = new THREE.Mesh(lightGeometry, this.boxLightOff);
+      light.position.set((i - 1) * 0.5, h + 0.03, hd - wt / 2);
+      group.add(light);
+      lights.push(light);
+    }
+    this.boxLights.push(lights);
     group.position.set(BOX.parkedX, 0, BOX.z);
     return group;
   }
@@ -478,22 +552,21 @@ export class MachineScene {
     this.marbles = [];
     this.trays = new Map();
     this.boxes = [];
+    this.boxLights = [];
     for (const target of this.hitTargets) this.scene.remove(target);
     this.hitTargets.length = 0;
 
     for (const id of machine.marbleIds) {
       const color = machine.marbleColor(id);
-      let material = this.marbleMaterials.get(color);
-      if (!material) {
-        material = marbleMaterial(color);
-        this.marbleMaterials.set(color, material);
-      }
-      const mesh = new THREE.Mesh(this.marbleGeometry, material);
+      const mesh = new THREE.Mesh(this.marbleGeometry, this.shellMaterial(color));
       mesh.castShadow = true;
-      mesh.receiveShadow = true;
+      mesh.receiveShadow = false;
+      const twist = new THREE.Mesh(this.twistGeometry, this.twistMaterialFor(color));
+      twist.visible = this.clearGlass;
+      mesh.add(twist);
       const pose: Pose = { x: 0, y: 0, z: 0, qx: 0, qy: 0, qz: 0, qw: 1 };
       machine.readMarble(id, pose);
-      this.marbles.push({ id, mesh, previous: { ...pose }, current: { ...pose } });
+      this.marbles.push({ id, color, mesh, twist, previous: { ...pose }, current: { ...pose } });
       this.dynamic.add(mesh);
     }
 
@@ -523,6 +596,43 @@ export class MachineScene {
     this.syncAfterJump();
   }
 
+  private shellMaterial(color: Color): THREE.MeshPhysicalMaterial {
+    const cache = this.clearGlass ? this.glassMaterials : this.solidMaterials;
+    let material = cache.get(color);
+    if (!material) {
+      material = this.clearGlass ? glassMaterial(color) : marbleMaterial(color);
+      cache.set(color, material);
+    }
+    return material;
+  }
+
+  private twistMaterialFor(color: Color): THREE.MeshStandardMaterial {
+    let material = this.twistMaterials.get(color);
+    if (!material) {
+      material = twistMaterial(color);
+      this.twistMaterials.set(color, material);
+    }
+    return material;
+  }
+
+  /** Steps down when frames take too long. Returns false once there's nothing left to give up. */
+  lowerQuality(): boolean {
+    if (this.renderer.getPixelRatio() > 1) {
+      this.renderer.setPixelRatio(1);
+      this.resize();
+      return true;
+    }
+    if (this.clearGlass) {
+      this.clearGlass = false;
+      for (const marble of this.marbles) {
+        marble.mesh.material = this.shellMaterial(marble.color);
+        marble.twist.visible = false;
+      }
+      return true;
+    }
+    return false;
+  }
+
   /** Call after each physics tick, so drawing can blend between the last two states. */
   afterTick(): void {
     const machine = this.machine;
@@ -545,6 +655,7 @@ export class MachineScene {
     }
   }
 
+  private gateLift = 2.2;
   private readonly tempA = new THREE.Quaternion();
   private readonly tempB = new THREE.Quaternion();
 
@@ -596,6 +707,18 @@ export class MachineScene {
       this.lampMaterial.color.setHex(COLORS[active].hex);
       this.lampMaterial.emissive.setHex(COLORS[active].hex);
     }
+    if (active) this.gatePadMaterial.color.setHex(COLORS[active].hex);
+    this.gatePad.visible = active !== null;
+    const { bottomY } = CHUTE;
+    const gateTarget = machine.chuteGateClosed ? 0 : 2.2;
+    this.gateLift += (gateTarget - this.gateLift) * Math.min(deltaSeconds * 16, 1);
+    this.chuteGate.position.set(0, bottomY + this.gateLift, CHUTE.gateZ);
+    this.boxLights.forEach((lights, index) => {
+      const fill = machine.boxFill(index);
+      lights.forEach((light, i) => {
+        light.material = i < fill ? this.boxLightOn : this.boxLightOff;
+      });
+    });
     this.door.visible = !machine.doorIsOpen;
     this.kicker.rotation.y = -machine.paddle * 0.9 - 0.25;
     this.kicker.scale.z = 1 + machine.paddle * 0.3;

@@ -178,7 +178,9 @@ it('undo restores captured marbles and a box already moving away', () => {
       full = step().some((event) => event.type === 'boxFull' && event.boxIndex === 1);
     }
     expect(full).toBe(true);
-    for (let i = 0; i < 15; i++) step();
+    // The box waits for its marbles to settle, then leaves.
+    for (let i = 0; i < 90 && machine.readBoxX(1) >= 0; i++) step();
+    for (let i = 0; i < 8; i++) step();
     expect(machine.readBoxX(1)).toBeLessThan(0);
     expect(machine.activeBoxForView).toBe(1);
     const saved = checkpoint(machine);

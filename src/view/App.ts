@@ -10,6 +10,8 @@ import { MachineScene } from './scene';
 
 const MAX_FRAME_SECONDS = 0.25;
 const MAX_STEPS_PER_FRAME = 8;
+const QUALITY_CHECK_SECONDS = 2.5;
+const SLOW_FRAME_SECONDS = 1 / 30;
 
 const element = <T extends HTMLElement>(id: string): T => {
   const found = document.getElementById(id);
@@ -31,6 +33,8 @@ export class App {
   private guideSeen = false;
   private messageTimer = 0;
   private chain = 0;
+  private slowClock = 0;
+  private slowFrames = 0;
 
   private readonly load = element('load');
   private readonly message = element('message');
@@ -100,9 +104,23 @@ export class App {
   private readonly frame = (now: number): void => {
     const seconds = Math.min((now - this.lastFrame) / 1000, MAX_FRAME_SECONDS);
     this.lastFrame = now;
-    if (!this.manualClock) this.advance(seconds);
+    if (!this.manualClock) {
+      this.advance(seconds);
+      this.watchFrameTime(seconds);
+    }
     requestAnimationFrame(this.frame);
   };
+
+  /** Steps the graphics down on a device that can't hold a smooth frame rate. Physics is never touched. */
+  private watchFrameTime(seconds: number): void {
+    this.slowClock += seconds;
+    this.slowFrames += 1;
+    if (this.slowClock < QUALITY_CHECK_SECONDS) return;
+    const average = this.slowClock / this.slowFrames;
+    this.slowClock = 0;
+    this.slowFrames = 0;
+    if (average > SLOW_FRAME_SECONDS) this.scene.lowerQuality();
+  }
 
   /** Runs the physics for this much real time, then draws. */
   advance(seconds: number): void {
@@ -259,8 +277,8 @@ export class App {
   private nextBoxesKey = '';
 
   private renderNextBoxes(): void {
-    const { rules, board } = this.machine;
-    const upcoming = board.boxes.slice(rules.activeBox + 1);
+    const { board } = this.machine;
+    const upcoming = board.boxes.slice(this.machine.activeBoxForView + 1);
     const key = upcoming.join();
     if (key === this.nextBoxesKey) return;
     this.nextBoxesKey = key;

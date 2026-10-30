@@ -92,6 +92,10 @@ interface Control {
   swap: number;
   recoveries: { nudges: number; teleports: number };
   endingReported: boolean;
+  /** Seconds left to wait for the last marble to stop bouncing before the hold starts counting. */
+  settleLimit: number;
+  /** The last box only tells the rules it has gone once it really has, because that's the win. */
+  swapOwed: boolean;
 }
 
 interface Saved {
@@ -124,6 +128,7 @@ export class Machine {
   private readonly trayHandles = new Map<number, number>();
   private readonly boxHandles: number[] = [];
   private readonly events: MachineEvent[] = [];
+  private gateCollider = -1;
   /** The most recent rescue, for diagnosing transport faults. */
   lastRecovery = '';
 
@@ -143,6 +148,8 @@ export class Machine {
       swap: 0,
       recoveries: { nudges: 0, teleports: 0 },
       endingReported: false,
+      settleLimit: 0,
+      swapOwed: false,
     };
     this.buildStatics();
     this.buildBoxes();
@@ -277,6 +284,14 @@ export class Machine {
         body,
       );
     }
+    this.gateCollider = this.world.createCollider(
+      RAPIER.ColliderDesc.cuboid(CHUTE.halfWidth, CHUTE.gateHeight / 2, 0.05)
+        .setTranslation(0, CHUTE.bottomY + CHUTE.gateHeight / 2, CHUTE.gateZ)
+        .setFriction(0.08)
+        .setRestitution(0.3),
+      body,
+    ).handle;
+
     // A board behind the box stops a fast marble overshooting.
     this.world.createCollider(
       RAPIER.ColliderDesc.cuboid(BOX.halfWidth + 0.5, 1.6, 0.06)
@@ -343,6 +358,8 @@ export class Machine {
             RAPIER.RigidBodyDesc.kinematicPositionBased()
               .setTranslation(place.x, place.y, place.z)
               .setCcdEnabled(true)
+              // A marble asleep against the chute's gate wouldn't notice it opening.
+              .setCanSleep(false)
               .setLinearDamping(0.02)
               .setAngularDamping(0.12),
           );
@@ -430,6 +447,15 @@ export class Machine {
   /** 0 closed, 1 fully swung, for drawing the kicker. */
   get paddle(): number {
     return this.control.paddle;
+  }
+
+  get chuteGateClosed(): boolean {
+    return this.control.hold > 0 || this.control.swap > 0;
+  }
+
+  /** How many marbles have landed in this box. */
+  boxFill(boxIndex: number): number {
+    return this.rules.state.marbles.filter((entry) => entry.status === 'in-box' && entry.boxIndex === boxIndex).length;
   }
 
   get doorIsOpen(): boolean {
@@ -527,6 +553,11 @@ export class Machine {
     if (event.type === 'boxFull') {
       this.events.push({ type: 'boxFull', boxIndex: event.boxIndex });
       this.control.hold = BOX.holdSeconds;
+      this.control.settleLimit = BOX.settleLimitSeconds;
+      // The selector moves straight on to the next colour, so matching marbles don't have to wait
+      // a whole lap. They queue behind the chute's gate until the next box is in place.
+      if (event.boxIndex + 1 < this.board.boxes.length) this.rules.boxSwapped();
+      else this.control.swapOwed = true;
     }
   }
 
@@ -653,8 +684,14 @@ export class Machine {
   private updateBoxes(): void {
     const dt = TICK_SECONDS;
     const control = this.control;
+    const gateClosed = control.hold > 0 || control.swap > 0;
+    const gate = this.world.getCollider(this.gateCollider);
+    if (gate.isEnabled() !== gateClosed) gate.setEnabled(gateClosed);
+
     if (control.hold > 0) {
-      control.hold -= dt;
+      control.settleLimit -= dt;
+      // The last marble gets to finish bouncing before anything moves.
+      if (control.settleLimit <= 0 || this.boxHasSettled(control.activeBox)) control.hold -= dt;
       if (control.hold <= 0) {
         this.carryBoxMarbles(control.activeBox);
         control.swap = BOX.swapSeconds;
@@ -670,7 +707,10 @@ export class Machine {
         control.activeBox += 1;
         if (control.activeBox + 1 < control.boxX.length) control.boxX[control.activeBox + 1] = BOX.nextX;
         this.events.push({ type: 'boxSwapped' });
-        for (const event of this.rules.boxSwapped()) this.pushRulesEvent(event);
+        if (control.swapOwed) {
+          control.swapOwed = false;
+          this.rules.boxSwapped();
+        }
       }
     }
 
@@ -686,6 +726,14 @@ export class Machine {
         this.marbleBody(marble.id).setNextKinematicTranslation({ x: boxX + carried.x, y: carried.y, z: carried.z });
       }
     }
+  }
+
+  private boxHasSettled(boxIndex: number): boolean {
+    return this.rules.state.marbles.every((entry) => {
+      if (entry.status !== 'in-box' || entry.boxIndex !== boxIndex) return true;
+      const v = this.marbleBody(entry.id).linvel();
+      return Math.hypot(v.x, v.y, v.z) < BOX.settledSpeed;
+    });
   }
 
   /** The box's marbles stop being simulated and ride away with it. */
@@ -746,8 +794,12 @@ export class Machine {
 
       if (entry.status === 'dropping') {
         marble.transit += dt;
+        // Waiting behind the chute's gate is not a fault.
+        if (this.chuteGateClosed) marble.transit = Math.min(marble.transit, 1);
         // A kicked marble that got knocked back into the channel just rides round and tries again.
         if (t.z < OUTER_FRONT_Z - MARBLE_RADIUS * 0.5 && t.y > RACEWAY.floorY && marble.transit > 0.5) {
+          // Riding round isn't being lost, so it doesn't count toward the time limit.
+          marble.transit = 0.5;
           this.driveMarble(marble, body, t, true);
           continue;
         }
@@ -756,14 +808,18 @@ export class Machine {
           Math.abs(t.x - boxX) < BOX.halfWidth && Math.abs(t.z - BOX.z) < BOX.halfDepth && t.y < BOX.height + MARBLE_RADIUS * 1.6;
         marble.settling = inside ? marble.settling + dt : 0;
         if (marble.settling > 0.14) {
-          const before = this.rules.activeBox;
           const events = this.rules.captured(marble.id);
           body.collider(0).setCollisionGroups(MARBLE_GROUPS);
-          this.events.push({ type: 'captured', marbleId: marble.id, boxIndex: before, fill: this.rules.activeFill });
+          this.events.push({ type: 'captured', marbleId: marble.id, boxIndex: entry.boxIndex, fill: this.boxFill(entry.boxIndex) });
           for (const event of events) this.pushRulesEvent(event);
         } else if (marble.transit > 4) {
           this.teleportToBox(marble.id, boxX);
-        } else if (!inside && marble.transit > 2 && Math.hypot(body.linvel().x, body.linvel().y, body.linvel().z) < 0.6) {
+        } else if (
+          !inside &&
+          marble.transit > 2 &&
+          Math.floor(marble.transit * 60) % 30 === 0 &&
+          Math.hypot(body.linvel().x, body.linvel().y, body.linvel().z) < 0.6
+        ) {
           // Balanced on the rim where the chute meets the box. A small tip drops it in.
           this.nudge(marble.id, { x: (boxX - t.x) * 0.6, y: 1.5, z: (BOX.z - t.z) * 1.6 });
         }
@@ -849,12 +905,15 @@ export class Machine {
 
   private teleportToBox(id: number, boxX: number): void {
     const body = this.marbleBody(id);
+    const from = body.translation();
+    const speed = body.linvel();
+    const stuckAt = `at ${from.x.toFixed(2)},${from.y.toFixed(2)},${from.z.toFixed(2)} moving ${speed.x.toFixed(1)},${speed.y.toFixed(1)},${speed.z.toFixed(1)}`;
     body.setTranslation({ x: boxX, y: BOX.height + 0.8, z: BOX.z }, true);
     body.setLinvel({ x: 0, y: -1, z: 0 }, true);
     const marble = this.control.marbles[id];
     if (marble) marble.transit = 0;
     this.control.recoveries.teleports += 1;
-    this.lastRecovery = 'never reached the box';
+    this.lastRecovery = `never reached the box ${stuckAt}`;
     this.events.push({ type: 'recovered', marbleId: id, how: 'teleport', why: 'never reached the box' });
   }
 

@@ -43,6 +43,10 @@ export const CHUTE = {
   bottomZ: OUTER_FRONT_Z + 1.25,
   bottomY: 1.45,
   halfWidth: 1.22,
+  /** A gate at the chute's end holds marbles back while the boxes change over. */
+  gateHeight: 2.9,
+  /** Far enough up the chute that marbles waiting here are clear of the moving boxes. */
+  gateZ: OUTER_FRONT_Z + 0.9,
 } as const;
 
 export const BOX = {
@@ -58,9 +62,12 @@ export const BOX = {
   nextX: 5.5,
   parkedX: 30,
   exitX: -9.5,
-  /** How long a full box sits still before leaving. */
-  holdSeconds: 0.18,
-  swapSeconds: 0.3,
+  /** How long a full box sits still before leaving, once its marbles have stopped bouncing. */
+  holdSeconds: 0.22,
+  /** Leave anyway after this long, in case something is still rocking. */
+  settleLimitSeconds: 1,
+  settledSpeed: 1.1,
+  swapSeconds: 0.38,
 } as const;
 
 /** The tray pivots on its front bottom edge, so its marbles spill toward the funnel. */
