@@ -1,0 +1,176 @@
+[
+  {
+    "title": "Voodoo: Marble Sort",
+    "url": "https://voodoo.io/games/marble-sort",
+    "relevance": "Publisher description of the conveyor game.",
+    "accessed": "2026-10-30"
+  },
+  {
+    "title": "Marble Sort: Google Play",
+    "url": "https://play.google.com/store/apps/details?id=com.microdose.balljam&hl=en_US",
+    "relevance": "Official rules, screenshots, update notes, and individual player reviews.",
+    "accessed": "2026-10-30"
+  },
+  {
+    "title": "Marble Sort: Apple App Store",
+    "url": "https://apps.apple.com/us/app/marble-sort-color-puzzle/id6754558455",
+    "relevance": "Official update history: larger pours, elevators, turn gates, and other additions.",
+    "accessed": "2026-10-30"
+  },
+  {
+    "title": "Ball Sort Puzzle: Google Play",
+    "url": "https://play.google.com/store/apps/details?id=com.GMA.Ball.Sort.Puzzle",
+    "relevance": "Official rules for the tube-sorting alternative.",
+    "accessed": "2026-10-30"
+  },
+  {
+    "title": "Neural Games: Marble Sort 3D",
+    "url": "https://neural-games.com/games/marble-sort/",
+    "relevance": "An existing browser adaptation and its published instructions; not proof of affiliation with Voodoo.",
+    "accessed": "2026-10-30"
+  },
+  {
+    "title": "Phaser: What is Phaser?",
+    "url": "https://phaser.io/oss/docs/phaser/getting-started/what-is-phaser",
+    "relevance": "2D browser framework, JavaScript/TypeScript, WebGL and Canvas.",
+    "accessed": "2026-10-30"
+  },
+  {
+    "title": "PixiJS: Renderers",
+    "url": "https://pixijs.com/guides/components/renderers/",
+    "relevance": "Rendering-library alternative; production WebGL recommendation.",
+    "accessed": "2026-10-30"
+  },
+  {
+    "title": "Three.js: OrthographicCamera",
+    "url": "https://threejs.org/docs/pages/OrthographicCamera.html",
+    "relevance": "Fixed apparent object sizes for a readable tabletop view.",
+    "accessed": "2026-10-30"
+  },
+  {
+    "title": "Three.js: InstancedMesh",
+    "url": "https://threejs.org/docs/pages/InstancedMesh.html",
+    "relevance": "Rendering many repeated marbles with fewer draw calls.",
+    "accessed": "2026-10-30"
+  },
+  {
+    "title": "Three.js: Shadows",
+    "url": "https://threejs.org/manual/pages/shadows.html",
+    "relevance": "Tradeoffs between shadow maps and simpler visual techniques.",
+    "accessed": "2026-10-30"
+  },
+  {
+    "title": "MDN: Anatomy of a video game",
+    "url": "https://developer.mozilla.org/en-US/docs/Games/Anatomy",
+    "relevance": "Game-loop and animation scheduling fundamentals.",
+    "accessed": "2026-10-30"
+  },
+  {
+    "title": "MDN: Audio for Web games",
+    "url": "https://developer.mozilla.org/en-US/docs/Games/Techniques/Audio_for_Web_Games",
+    "relevance": "User-initiated audio playback and game audio.",
+    "accessed": "2026-10-30"
+  },
+  {
+    "title": "MDN: Page Visibility API",
+    "url": "https://developer.mozilla.org/en-US/docs/Web/API/Page_Visibility_API",
+    "relevance": "Hidden-tab events and background throttling.",
+    "accessed": "2026-10-30"
+  },
+  {
+    "title": "MDN: localStorage",
+    "url": "https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage",
+    "relevance": "Persistence scope, private sessions, and storage failures.",
+    "accessed": "2026-10-30"
+  },
+  {
+    "title": "MDN: Offline and background operation",
+    "url": "https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Guides/Offline_and_background_operation",
+    "relevance": "Service-worker caching for optional offline play.",
+    "accessed": "2026-10-30"
+  },
+  {
+    "title": "Game Accessibility Guidelines: Colour",
+    "url": "https://gameaccessibilityguidelines.com/ensure-no-essential-information-is-conveyed-by-a-fixed-colour-alone/",
+    "relevance": "Redundant symbols or patterns for essential color information.",
+    "accessed": "2026-10-30"
+  },
+  {
+    "title": "GDC: Level Design Saga",
+    "url": "https://www.gdcvault.com/play/1023799/Level-Design-Saga-Creating-Levels",
+    "relevance": "King's session overview emphasizes tools, testing, and data-informed level iteration; full talk not reviewed.",
+    "accessed": "2026-10-30"
+  },
+  {
+    "title": "Ito et al.: Sorting Balls and Water",
+    "url": "https://arxiv.org/abs/2202.09495",
+    "relevance": "Complexity of tube/bin sorting, not a proof about conveyor puzzles.",
+    "accessed": "2026-10-30"
+  },
+  {
+    "title": "Kociemba: Color Sort Puzzles",
+    "url": "https://kociemba.org/themen/waterball/colorsort.html",
+    "relevance": "Author's explanation and solver for tube/bin sorting.",
+    "accessed": "2026-10-30"
+  },
+  {
+    "title": "Poki: Engagement",
+    "url": "https://developers.poki.com/guide/engagement",
+    "relevance": "First-session focus, short loops, gradual difficulty, and continuous interaction.",
+    "accessed": "2026-10-30"
+  },
+  {
+    "title": "Poki: Requirements",
+    "url": "https://developers.poki.com/guide/requirements-quality",
+    "relevance": "Device/layout requirements, bundled resources, storage handling, and platform ads.",
+    "accessed": "2026-10-30"
+  },
+  {
+    "title": "Poki: HTML5 SDK",
+    "url": "https://developers.poki.com/guide/sdk-html5",
+    "relevance": "Loading and gameplay lifecycle integration.",
+    "accessed": "2026-10-30"
+  },
+  {
+    "title": "CrazyGames: Technical requirements",
+    "url": "https://docs.crazygames.com/requirements/technical/",
+    "relevance": "Download limits, browser requirements, and SDK integration.",
+    "accessed": "2026-10-30"
+  },
+  {
+    "title": "CrazyGames: Requirements introduction",
+    "url": "https://docs.crazygames.com/requirements/intro/",
+    "relevance": "Basic versus Full Launch and monetization constraints.",
+    "accessed": "2026-10-30"
+  },
+  {
+    "title": "Vite: Deploying a static site",
+    "url": "https://vite.dev/guide/static-deploy.html",
+    "relevance": "Production static build and deployment.",
+    "accessed": "2026-10-30"
+  },
+  {
+    "title": "Triple Match 3D: Collection Bar",
+    "url": "https://ilyonsupport.helpshift.com/hc/en/4-triple-match-3d/faq/23-collection-bar/",
+    "relevance": "Official seven-slot collection bar and clearing triples.",
+    "accessed": "2026-10-30"
+  },
+  {
+    "title": "Triple Match 3D: Google Play",
+    "url": "https://play.google.com/store/apps/details?id=com.master.triple3d.find&hl=en_US",
+    "relevance": "Official description of hidden objects and matching triplets in a 3D pile.",
+    "accessed": "2026-10-30"
+  },
+  {
+    "title": "Match Factory: How do I play?",
+    "url": "https://peakgames.helpshift.com/hc/en/16-match-factory/faq/412-how-do-i-play-match-factory/",
+    "relevance": "Official matching, goal cards, collection bar, and time-limit rules.",
+    "accessed": "2026-10-30"
+  },
+  {
+    "title": "Zynga / Peak: Match Factory launch",
+    "url": "https://www.zynga.com/blog/zynga-and-peak-launch-match-factory-creating-3d-puzzle-adventure-fun-on-an-industrial-scale/",
+    "relevance": "Publisher description of timed 3D object matching and physical presentation.",
+    "accessed": "2026-10-30"
+  }
+]

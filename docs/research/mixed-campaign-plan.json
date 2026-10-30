@@ -1,0 +1,245 @@
+{
+  "status": "Proposed design lessons; not implemented or solver-verified level layouts",
+  "levels": [
+    {
+      "level": 1,
+      "type": "tube",
+      "name": "Tube sort",
+      "withinType": 1,
+      "lesson": "Select a top marble and move it into an empty tube.",
+      "guided": true
+    },
+    {
+      "level": 2,
+      "type": "tube",
+      "name": "Tube sort",
+      "withinType": 2,
+      "lesson": "Match top colors and recognize a full tube.",
+      "guided": true
+    },
+    {
+      "level": 3,
+      "type": "tray",
+      "name": "Tray match",
+      "withinType": 1,
+      "lesson": "Collect three identical marbles and watch the rack clear.",
+      "guided": true
+    },
+    {
+      "level": 4,
+      "type": "tray",
+      "name": "Tray match",
+      "withinType": 2,
+      "lesson": "Remove exposed pieces to uncover a matching marble.",
+      "guided": true
+    },
+    {
+      "level": 5,
+      "type": "conveyor",
+      "name": "Conveyor sort",
+      "withinType": 1,
+      "lesson": "Release a small packet into matching receiving boxes.",
+      "guided": true
+    },
+    {
+      "level": 6,
+      "type": "conveyor",
+      "name": "Conveyor sort",
+      "withinType": 2,
+      "lesson": "Read the next request and let unmatched marbles circulate.",
+      "guided": true
+    },
+    {
+      "level": 7,
+      "type": "tube",
+      "name": "Tube sort",
+      "withinType": 3,
+      "lesson": "Use a spare tube to expose a buried color.",
+      "guided": false
+    },
+    {
+      "level": 8,
+      "type": "tray",
+      "name": "Tray match",
+      "withinType": 3,
+      "lesson": "Read a shallow layered board with no capacity trap.",
+      "guided": false
+    },
+    {
+      "level": 9,
+      "type": "conveyor",
+      "name": "Conveyor sort",
+      "withinType": 3,
+      "lesson": "Choose a supply that serves an exposed box.",
+      "guided": false
+    },
+    {
+      "level": 10,
+      "type": "tube",
+      "name": "Tube sort",
+      "withinType": 4,
+      "lesson": "Consolidate one color to free working space.",
+      "guided": false
+    },
+    {
+      "level": 11,
+      "type": "tray",
+      "name": "Tray match",
+      "withinType": 4,
+      "lesson": "Introduce four types so the seven-slot rack can overflow.",
+      "guided": false
+    },
+    {
+      "level": 12,
+      "type": "conveyor",
+      "name": "Conveyor sort",
+      "withinType": 4,
+      "lesson": "Use a six-marble pour to complete successive requests.",
+      "guided": false
+    },
+    {
+      "level": 13,
+      "type": "tube",
+      "name": "Tube sort",
+      "withinType": 5,
+      "lesson": "Choose which mixed tube to open first.",
+      "guided": false
+    },
+    {
+      "level": 14,
+      "type": "tray",
+      "name": "Tray match",
+      "withinType": 5,
+      "lesson": "Finish a set before beginning another color.",
+      "guided": false
+    },
+    {
+      "level": 15,
+      "type": "conveyor",
+      "name": "Conveyor sort",
+      "withinType": 5,
+      "lesson": "Store one color briefly to expose the next useful supply.",
+      "guided": false
+    },
+    {
+      "level": 16,
+      "type": "tube",
+      "name": "Tube sort",
+      "withinType": 6,
+      "lesson": "Keep an empty tube available for the next useful move.",
+      "guided": false
+    },
+    {
+      "level": 17,
+      "type": "tray",
+      "name": "Tray match",
+      "withinType": 6,
+      "lesson": "Uncover a buried third copy through an easy matching set.",
+      "guided": false
+    },
+    {
+      "level": 18,
+      "type": "conveyor",
+      "name": "Conveyor sort",
+      "withinType": 6,
+      "lesson": "Notice the receiver preview before releasing leftovers.",
+      "guided": false
+    },
+    {
+      "level": 19,
+      "type": "tube",
+      "name": "Tube sort",
+      "withinType": 7,
+      "lesson": "Plan a two-move transfer before filling a spare.",
+      "guided": false
+    },
+    {
+      "level": 20,
+      "type": "tray",
+      "name": "Tray match",
+      "withinType": 7,
+      "lesson": "Choose the reveal that leaves fewer unmatched pieces.",
+      "guided": false
+    },
+    {
+      "level": 21,
+      "type": "conveyor",
+      "name": "Conveyor sort",
+      "withinType": 7,
+      "lesson": "Keep enough space for the packet that will unblock the board.",
+      "guided": false
+    },
+    {
+      "level": 22,
+      "type": "tube",
+      "name": "Tube sort",
+      "withinType": 8,
+      "lesson": "Finish a color while preserving access to the others.",
+      "guided": false
+    },
+    {
+      "level": 23,
+      "type": "tray",
+      "name": "Tray match",
+      "withinType": 8,
+      "lesson": "Recognize when a tempting pair has a difficult third copy.",
+      "guided": false
+    },
+    {
+      "level": 24,
+      "type": "conveyor",
+      "name": "Conveyor sort",
+      "withinType": 8,
+      "lesson": "Plan around two receiver lanes requesting the same color.",
+      "guided": false
+    },
+    {
+      "level": 25,
+      "type": "tube",
+      "name": "Tube sort",
+      "withinType": 9,
+      "lesson": "Untangle alternating colors with two temporary tubes.",
+      "guided": false
+    },
+    {
+      "level": 26,
+      "type": "tray",
+      "name": "Tray match",
+      "withinType": 9,
+      "lesson": "Plan two connected reveals without filling the rack.",
+      "guided": false
+    },
+    {
+      "level": 27,
+      "type": "conveyor",
+      "name": "Conveyor sort",
+      "withinType": 9,
+      "lesson": "Choose an order that drains the belt in a satisfying chain.",
+      "guided": false
+    },
+    {
+      "level": 28,
+      "type": "tube",
+      "name": "Tube sort",
+      "withinType": 10,
+      "lesson": "Combine the familiar rules on a four-color board.",
+      "guided": false
+    },
+    {
+      "level": 29,
+      "type": "tray",
+      "name": "Tray match",
+      "withinType": 10,
+      "lesson": "Clear a four-type layered tray using the familiar rules.",
+      "guided": false
+    },
+    {
+      "level": 30,
+      "type": "conveyor",
+      "name": "Conveyor sort",
+      "withinType": 10,
+      "lesson": "Combine supply order and receiver previews on a compact board.",
+      "guided": false
+    }
+  ]
+}
