@@ -5,6 +5,7 @@ class Sfx {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
   private muted = isMuted();
+  private lastImpact = 0;
 
   /** Browsers only allow audio after a user gesture, so call this from the first tap. */
   unlock(): void {
@@ -59,8 +60,18 @@ class Sfx {
     for (let i = 0; i < 6; i++) this.clink(1900 + i * 90, 0.07, i * 0.035);
   }
 
-  enter(): void {
-    this.clink(2300, 0.045);
+  /** A marble really hit something. Harder hits are louder and lower. */
+  impact(strength: number): void {
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    if (now - this.lastImpact < 0.022) return;
+    this.lastImpact = now;
+    const pitch = 2500 - strength * 900 + (Math.random() - 0.5) * 500;
+    this.clink(pitch, 0.03 + strength * 0.16);
+  }
+
+  kick(): void {
+    this.tone(210, 0.06, 0.22, 0, 'square', 90);
   }
 
   deliver(slot: number): void {

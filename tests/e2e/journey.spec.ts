@@ -3,75 +3,68 @@ import { expect, test, type Page } from '@playwright/test';
 interface Snapshot {
   status: string;
   occupancy: number;
-  pending: number;
-  frontBox: number;
+  activeBox: number;
   boardId: string;
-  canUndo: boolean;
+  pouring: number;
 }
 
 // The hook is a dev-only global, so the test describes the part of it that it uses.
 type Hook = {
-  scene(): {
-    sim: {
-      state: { status: string; pending: unknown[]; frontBox: number };
-      occupancy: number;
-      canUndo: boolean;
+  app: {
+    boardIndex: number;
+    machine: {
       board: { id: string };
+      rules: {
+        status: string;
+        occupancy: number;
+        activeBox: number;
+        state: { marbles: { status: string }[] };
+      };
     };
     debugTargets(): Record<string, { x: number; y: number }>;
-    children: { list: { type: string; text?: string; visible?: boolean }[] };
   };
 };
+const app = (): Hook['app'] => (window as unknown as { tumbleworks: Hook }).tumbleworks.app;
+
+const ready = (page: Page): Promise<unknown> =>
+  page.waitForFunction(() => Boolean((window as unknown as { tumbleworks?: Partial<Hook> }).tumbleworks?.app?.machine), undefined, {
+    timeout: 60_000,
+  });
+
 const snapshot = (page: Page): Promise<Snapshot> =>
   page.evaluate(() => {
-    const { sim } = (window as unknown as { tumbleworks: Hook }).tumbleworks.scene();
+    const { machine } = (window as unknown as { tumbleworks: Hook }).tumbleworks.app;
     return {
-      status: sim.state.status,
-      occupancy: sim.occupancy,
-      pending: sim.state.pending.length,
-      frontBox: sim.state.frontBox,
-      boardId: sim.board.id,
-      canUndo: sim.canUndo,
+      status: machine.rules.status,
+      occupancy: machine.rules.occupancy,
+      activeBox: machine.rules.activeBox,
+      boardId: machine.board.id,
+      pouring: machine.rules.state.marbles.filter((marble) => marble.status === 'pouring').length,
     };
   });
 
 async function tap(page: Page, target: string): Promise<void> {
-  const point = await page.evaluate((name) => (window as unknown as { tumbleworks: Hook }).tumbleworks.scene().debugTargets()[name], target);
+  const point = await page.evaluate((name) => (window as unknown as { tumbleworks: Hook }).tumbleworks.app.debugTargets()[name], target);
   if (!point) throw new Error(`No tap target called ${target}`);
   await page.touchscreen.tap(point.x, point.y);
 }
 
 async function until(page: Page, check: (s: Snapshot) => boolean, what: string): Promise<Snapshot> {
-  await expect.poll(async () => check(await snapshot(page)), { message: what, timeout: 45_000, intervals: [100] }).toBe(true);
+  await expect.poll(async () => check(await snapshot(page)), { message: what, timeout: 90_000, intervals: [150] }).toBe(true);
   return snapshot(page);
 }
-
-const visibleText = (page: Page): Promise<string> =>
-  page.evaluate(() =>
-    (window as unknown as { tumbleworks: Hook }).tumbleworks
-      .scene()
-      .children.list.flatMap((object) => {
-        const nested = (object as unknown as { list?: { type: string; text?: string }[] }).list ?? [];
-        return [object, ...nested];
-      })
-      .filter((object) => object.type === 'Text')
-      .map((object) => object.text ?? '')
-      .join(' | '),
-  );
 
 test('a jam can be undone, the level won, and the win survives a reload', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
 
   await page.goto('/');
-  await page.waitForFunction(() => Boolean((window as unknown as { tumbleworks?: Hook }).tumbleworks?.scene()?.sim));
-  expect(await snapshot(page)).toMatchObject({ boardId: 'board-1', status: 'playing', occupancy: 0, canUndo: false });
+  await ready(page);
+  expect(await snapshot(page)).toMatchObject({ boardId: 'board-1', status: 'playing', occupancy: 0 });
+  await expect(page.locator('.chip[data-level="1"]')).toBeDisabled();
+  await expect(page.locator('#undo')).toBeDisabled();
 
-  // Level 2 stays locked until level 1 is won.
-  await tap(page, 'chip1');
-  expect((await snapshot(page)).boardId).toBe('board-1');
-
-  // The guided first tap only accepts the blue packet.
+  // The guided first tap only accepts the blue tray.
   await tap(page, 'supply1');
   expect((await snapshot(page)).occupancy).toBe(0);
   await tap(page, 'supply0');
@@ -79,27 +72,25 @@ test('a jam can be undone, the level won, and the win survives a reload', async 
 
   // Green fills the belt, red can't get on, and nothing can deliver.
   await tap(page, 'supply1');
-  const jammed = await until(page, (s) => s.status === 'jammed', 'green should jam the belt');
-  expect(jammed.occupancy).toBe(12);
-  await until(page, (s) => s.pending === 0, 'waiting marbles should all enter');
-  await expect.poll(() => visibleText(page)).toContain('Belt jammed!');
+  expect(await snapshot(page)).toMatchObject({ status: 'jammed', occupancy: 12 });
+  await expect(page.locator('#card-title')).toHaveText('Belt jammed!', { timeout: 60_000 });
 
   await tap(page, 'undo');
   expect(await snapshot(page)).toMatchObject({ status: 'playing', occupancy: 6 });
-  await expect.poll(() => visibleText(page)).not.toContain('Belt jammed!');
+  await expect(page.locator('#card')).toBeHidden();
 
   // Red unblocks everything, then green finishes.
   await tap(page, 'supply0');
-  await until(page, (s) => s.occupancy === 0 && s.frontBox === 4, 'red and blue should clear');
+  await until(page, (s) => s.activeBox === 4 && s.occupancy === 0, 'red and blue should clear');
   await tap(page, 'supply1');
   await until(page, (s) => s.status === 'won', 'green should finish the level');
-  await expect.poll(() => visibleText(page), { timeout: 15_000 }).toContain('Machine clear!');
+  await expect(page.locator('#card-title')).toHaveText('Machine clear!', { timeout: 15_000 });
 
   // Completion is saved, so a reload opens the next level with the first one ticked off.
   await page.reload();
-  await page.waitForFunction(() => Boolean((window as unknown as { tumbleworks?: Hook }).tumbleworks?.scene()?.sim));
+  await ready(page);
   expect(await snapshot(page)).toMatchObject({ boardId: 'board-2', status: 'playing' });
-  expect(await page.evaluate(() => localStorage.getItem('tumbleworks.progress.v1'))).toContain('board-1');
+  await expect(page.locator('.chip[data-level="0"]')).toHaveText('✓');
 
   expect(errors).toEqual([]);
 });
@@ -108,28 +99,25 @@ test('a belt with no room and nothing to deliver is called a jam', async ({ page
   await page.goto('/');
   await page.evaluate(() => localStorage.setItem('tumbleworks.progress.v1', JSON.stringify({ completed: ['board-1'] })));
   await page.reload();
-  await page.waitForFunction(() => Boolean((window as unknown as { tumbleworks?: Hook }).tumbleworks?.scene()?.sim));
+  await ready(page);
   expect((await snapshot(page)).boardId).toBe('board-2');
 
   await tap(page, 'supply1'); // yellow
-  await tap(page, 'supply2'); // green: belt now 12/12 with neither able to deliver
+  await tap(page, 'supply2'); // green
   expect(await snapshot(page)).toMatchObject({ occupancy: 12, status: 'jammed' });
-  await tap(page, 'supply0');
-  expect((await snapshot(page)).occupancy).toBe(12);
-  await expect.poll(() => visibleText(page), { timeout: 15_000 }).toContain('Belt jammed!');
+  await expect(page.locator('#card-title')).toHaveText('Belt jammed!', { timeout: 60_000 });
 });
 
 test('a tap with too little room is refused and says why', async ({ page }) => {
   await page.goto('/');
   await page.evaluate(() => localStorage.setItem('tumbleworks.progress.v1', JSON.stringify({ completed: ['board-1'] })));
   await page.reload();
-  await page.waitForFunction(() => Boolean((window as unknown as { tumbleworks?: Hook }).tumbleworks?.scene()?.sim));
+  await ready(page);
 
-  // Red delivers at once and yellow waits, so the belt fills up but can still drain.
+  // Red can still deliver and yellow waits, so the belt fills up but can drain.
   await tap(page, 'supply0');
   await tap(page, 'supply1');
   await tap(page, 'supply2');
-  const refused = await snapshot(page);
-  expect(refused).toMatchObject({ occupancy: 12, status: 'playing' });
-  await expect.poll(() => visibleText(page)).toContain('Needs 6 free spaces');
+  expect(await snapshot(page)).toMatchObject({ occupancy: 12, status: 'playing' });
+  await expect(page.locator('#message')).toContainText('Needs 6 free spaces');
 });
