@@ -1,3 +1,4 @@
+import { FigureEightTrack, type BeltShape } from '../engine/belt-path';
 /**
  * Loop Sort geometry, in world units: x right, y up, z toward the viewer. A portrait platform with
  * the loop channel around its rim and truck lanes down the middle; trucks pour and load at the front.
@@ -23,7 +24,9 @@ export class RoundedTrack {
     this.length = 2 * this.straightX + 2 * this.straightZ + 4 * this.quarter;
   }
 
-  point(distance: number, offset = 0): TrackPoint {
+  point(distance: number, offset = 0): TrackPoint & { y: number } { return { ...this.flatPoint(distance, offset), y: 0 }; }
+
+  private flatPoint(distance: number, offset = 0): TrackPoint {
     const { halfWidth: hw, halfDepth: hd, corner: rc, straightX: sx, straightZ: sz, quarter: q, length } = this;
     let d = ((distance % length) + length) % length;
     const r = rc + offset;
@@ -100,7 +103,8 @@ export const TRUCK = {
   leaveSeconds: 0.85,
   exitLength: 2.6,
 } as const;
-export const trackFor = (lanes: number): RoundedTrack => {
+export const trackFor = (lanes: number, shape: BeltShape = 'oval'): RoundedTrack | FigureEightTrack => {
+  if (shape !== 'oval') return new FigureEightTrack(shape === 'wide-eight' ? 4.1 : 3.6, 9.5, 0, true);
   const columns = Math.max(...[bays(lanes).filter((bay) => bay.row === 'front').length, bays(lanes).filter((bay) => bay.row === 'back').length]);
   const rows = lanes <= 3 ? 1 : 2;
   const halfWidth = Math.max(2.75, (columns * LANE_SPACING) / 2 + LOOP.channelHalf + 0.85);

@@ -1,6 +1,6 @@
 # Campaign architecture
 
-The campaign has five levels each of Funnel Sort and Loop Sort, and three of Tube Sort. Every level can be completed, undone and restarted through the same interface, and completed levels survive a reload.
+The campaign has seven levels each of Funnel Sort and Loop Sort, and three of Tube Sort. Every level can be completed, undone and restarted through the same interface, and completed levels survive a reload.
 
 ## Ownership
 
@@ -13,6 +13,9 @@ The campaign has five levels each of Funnel Sort and Loop Sort, and three of Tub
 - `MarbleDrop` is the shared physics landing for Tube Sort.
 - `Sparks` pools completion particles in one instanced draw and clears them on undo.
 - Funnel Sort has its own physics world, undo snapshots and scripted belt.
+- Each conveyor machine owns its belt path. `FigureEightTrack` samples distance, height and tangent; `beltDeck` draws that same path, including the bridge. The original oval paths stay the default.
+- Runtimes provide optional `guideId` and current `GuideStep` values. `App` draws a tap icon at the named target without branching on game kind or blocking input.
+- `preferences.ts` validates language and seen-guide preferences separately from campaign progress. `i18n.ts` supplies bilingual copy; live language changes update labels and completion textures without recreating the runtime.
 
 We chose registered runtimes over one controller that switches on level kind. This lets a new type arrive without changes to the campaign controller, the marble resources or the physics service. It also keeps the puzzles out of a shared conveyor data model that most of them do not fit.
 
@@ -26,7 +29,7 @@ Take shared resources from `GameServices`. Do not create another renderer or cop
 
 ## Persistence
 
-Completed levels and the selected level use validated local storage, with an in-memory fallback. A board restarts on reload, and there is no cloud sync. Each runtime owns its undo snapshots, and Funnel Sort's snapshots include its physics world.
+Completed levels and the selected level use validated local storage, with an in-memory fallback. Language and completed/skipped introductions use a separate validated settings key with the same session-only fallback. A board restarts on reload, and there is no cloud sync. Each runtime owns its undo snapshots, and Funnel Sort's snapshots include its physics world.
 
 ## Input and animation
 

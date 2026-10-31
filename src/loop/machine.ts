@@ -1,7 +1,7 @@
 import { LoopRules, type LoopEvent, type TapResult } from './rules';
 import type { LoopBoardDef } from './types';
 import type { Color } from '../sim/types';
-import { type Bay, bays, DECK_TOP, LOOP, RIDE_Y, ROW_PITCH, ROW_WIDTH, RoundedTrack, STREAM, TICK_SECONDS, trackFor, TRUCK, unitLength } from './layout';
+import { type Bay, bays, DECK_TOP, LOOP, RIDE_Y, ROW_PITCH, ROW_WIDTH, STREAM, TICK_SECONDS, trackFor, TRUCK, unitLength } from './layout';
 
 export type LoopMachineEvent =
   | { readonly type: 'pour'; readonly lane: number; readonly color: Color }
@@ -65,7 +65,7 @@ const easeInOut = (t: number): number => t * t * (3 - 2 * t);
 /** Loop Sort's scripted machine: trucks pour units onto a loop that never stops and take their colour back. */
 export class LoopMachine {
   readonly rules: LoopRules;
-  readonly track: RoundedTrack;
+  readonly track: ReturnType<typeof trackFor>;
   readonly bays: Bay[];
   /** Capacity units exactly fill the loop, so a full loop looks full. */
   readonly unitSpacing: number;
@@ -78,7 +78,7 @@ export class LoopMachine {
 
   constructor(readonly board: LoopBoardDef) {
     this.rules = new LoopRules(board);
-    this.track = trackFor(board.lanes.length);
+    this.track = trackFor(board.lanes.length, board.trackShape);
     this.bays = bays(board.lanes.length);
     this.unitSpacing = this.track.length / board.loopCapacity;
     this.rowsPerUnit = Math.max(1, Math.round(this.unitSpacing / ROW_PITCH));
@@ -155,7 +155,7 @@ export class LoopMachine {
       const distance = this.control.belt + unit.offset + along;
       const point = this.track.point(distance, row);
       pose.roll = distance / 0.17;
-      if (unit.phase === 'riding') { pose.x = point.x; pose.y = RIDE_Y; pose.z = point.z; continue; }
+      if (unit.phase === 'riding') { pose.x = point.x; pose.y = RIDE_Y + point.y; pose.z = point.z; continue; }
       const mouthX = (this.bays[unit.lane]?.x ?? 0) + (across - 1) * 0.26;
       const mouthY = DECK_TOP + TRUCK.bedHeight + 0.25;
       const mouthZ = this.mouthZ(unit.lane);
@@ -164,7 +164,7 @@ export class LoopMachine {
       if (unit.phase === 'streaming') {
         const t = Math.max(0, Math.min((unit.time / STREAM.hopSeconds - stagger) / (1 - stagger), 1));
         pose.x = mouthX + (point.x - mouthX) * t;
-        pose.y = mouthY + (RIDE_Y - mouthY) * t * t + Math.sin(t * Math.PI) * 0.25;
+        pose.y = mouthY + (RIDE_Y + point.y - mouthY) * t * t + Math.sin(t * Math.PI) * 0.25;
         pose.z = mouthZ + (point.z - mouthZ) * t;
       } else {
         const t = Math.max(0, Math.min((unit.time / STREAM.absorbSeconds - stagger) / (1 - stagger), 1));
@@ -269,7 +269,7 @@ export class LoopMachine {
       unit.phase = 'flying';
       unit.time = 0;
       unit.lane = lane;
-      unit.fromX = point.x; unit.fromY = RIDE_Y; unit.fromZ = point.z;
+      unit.fromX = point.x; unit.fromY = RIDE_Y + point.y; unit.fromZ = point.z;
       this.events.push({ type: 'absorb', unit: unit.id, lane, fill: result.fill });
       for (const event of result.events) this.afterRulesEvent(event);
       return;

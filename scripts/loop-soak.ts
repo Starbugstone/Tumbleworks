@@ -2,7 +2,7 @@ import { LOOP_BOARDS } from '../src/loop/boards';
 import { LoopMachine } from '../src/loop/machine';
 import type { LoopBoardDef } from '../src/loop/types';
 
-const WITNESSES: Record<string, string> = { 'loop-1': 'AB', 'loop-2': 'ABC', 'loop-3': 'AABC', 'loop-4': 'ABDABC', 'loop-5': 'AACBBDACD' };
+import { LOOP_WITNESSES as WITNESSES } from '../tests/witnesses';
 function play(board: LoopBoardDef, order: string): Record<string, unknown> {
   const machine = new LoopMachine(board);
   const taps = [...order].map((letter) => letter.charCodeAt(0) - 65);

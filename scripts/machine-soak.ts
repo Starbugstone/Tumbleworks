@@ -1,3 +1,4 @@
+import { FUNNEL_WITNESSES } from '../tests/witnesses';
 import { BOARDS } from '../src/sim/boards';
 import { initPhysics, Machine } from '../src/machine/machine';
 import type { BoardDef } from '../src/sim/types';
@@ -19,5 +20,4 @@ function brisk(board: BoardDef, order: string): { seconds: number; status: strin
   machine.world.free();
   return result;
 }
-const witnesses = ['AAB', 'AABBC', 'AAABBCC', 'AAABBBCCC', 'ABAABBCCCDDD'];
-BOARDS.forEach((board, index) => console.log(board.id, JSON.stringify(brisk(board, witnesses[index] ?? ''))));
+BOARDS.forEach((board) => console.log(board.id, JSON.stringify(brisk(board, FUNNEL_WITNESSES[board.id] ?? ''))));

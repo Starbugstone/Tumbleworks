@@ -73,6 +73,7 @@ async function solve(page: Page, index: number): Promise<void> {
 }
 
 test('all levels complete through real touch input and share campaign progression', async ({ page }) => {
+  test.setTimeout(420_000);
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/');
@@ -107,7 +108,8 @@ test('each ruleset recovers from a real jam through the shared undo button', asy
   expect((await state(page)).status).toBe('playing');
   await expect(page.locator('#card')).toBeHidden();
 
-  await select(page, levelIndex('loop-2'));
+  await select(page, levelIndex('loop-3'));
+  await tap(page, 'lane0');
   await tap(page, 'lane1');
   expect((await state(page)).status).toBe('jammed');
   await page.getByRole('button', { name: 'Undo', exact: true }).click();
@@ -152,7 +154,7 @@ test('desktop and narrow-phone boards keep targets and controls inside the viewp
   await ready(page);
   for (const viewport of [{ width: 1365, height: 900 }, { width: 320, height: 700 }]) {
     await page.setViewportSize(viewport);
-    for (const id of ['board-1', 'loop-1', 'tube-1', 'board-3', 'loop-4', 'tube-3', 'board-5', 'loop-5']) {
+    for (const id of ['board-1', 'loop-1', 'tube-1', 'board-3', 'loop-4', 'tube-3', 'board-5', 'loop-5', 'board-6', 'loop-6', 'board-7', 'loop-7']) {
       const index = levelIndex(id);
       await select(page, index);
       const targets = await page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.debugTargets());

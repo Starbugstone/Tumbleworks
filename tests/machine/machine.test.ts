@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { initPhysics, Machine } from '../../src/machine/machine';
-import { BOARD_1, BOARDS } from '../../src/sim/boards';
+import { BOARD_1, BOARD_6, BOARDS } from '../../src/sim/boards';
+import { RIDE_Y, TRACK } from '../../src/machine/layout';
 import type { BoardDef } from '../../src/sim/types';
 import { FUNNEL_JAMS as JAMS, FUNNEL_WITNESSES as WITNESSES } from '../witnesses';
 
@@ -21,6 +22,25 @@ function play(board: BoardDef, order: string, limitSeconds = 150): Machine {
 }
 
 describe('the physical machine agrees with the rules', () => {
+  it('carries marbles over and under the eight crossing without swapping branches', () => {
+    const machine = new Machine(BOARD_6);
+    machine.tap(0);
+    const heights: number[] = [];
+    const pose = { x: 0, y: 0, z: 0, qx: 0, qy: 0, qz: 0, qw: 1 };
+    for (let tick = 0; tick < 60 * 15; tick++) {
+      machine.step();
+      for (const marble of machine.rules.state.marbles) {
+        if (marble.status !== 'on-belt') continue;
+        machine.readMarble(marble.id, pose);
+        if (Math.abs(pose.x) < 0.25 && Math.abs(pose.z - TRACK.centerZ) < 0.25) heights.push(pose.y);
+      }
+    }
+    expect(Math.min(...heights)).toBeCloseTo(RIDE_Y, 1);
+    expect(Math.max(...heights)).toBeGreaterThan(RIDE_Y + 2);
+    expect(heights.every((y) => y < RIDE_Y + 0.2 || y > RIDE_Y + 1.8)).toBe(true);
+    expect(machine.recoveries).toEqual({ nudges: 0, teleports: 0, bounces: 0 });
+    machine.world.free();
+  });
   for (const board of BOARDS) {
     it(`${board.id}: the witness wins through real pours with no rescues`, { timeout: 120_000 }, () => {
       const machine = play(board, WITNESSES[board.id] ?? '');

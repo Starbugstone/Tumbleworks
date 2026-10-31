@@ -5,6 +5,7 @@ import type { Stage } from './stage';
 export type GameStatus = 'playing' | 'won' | 'jammed';
 export type Difficulty = 'Getting started' | 'Finding a rhythm' | 'Thinking ahead';
 export interface ScreenPoint { x: number; y: number; label?: string }
+export interface GuideStep { readonly text: string; readonly target?: string; readonly done?: boolean }
 export interface Feedback {
   readonly type: 'tap' | 'move' | 'match' | 'blocked' | 'impact' | 'deliver' | 'message';
   readonly text?: string;
@@ -25,6 +26,8 @@ export interface GameLevel {
 
 /** No gameplay-specific state or branch belongs in the campaign controller. */
 export interface GameRuntime {
+  readonly guideId?: string;
+  guide?(): GuideStep;
   readonly drag?: {
     start(target: string, point: ScreenPoint): boolean;
     move(point: ScreenPoint, target: string | null): void;

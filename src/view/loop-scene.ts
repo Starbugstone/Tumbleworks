@@ -1,3 +1,4 @@
+import { beltDeck } from './belt-deck';
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { Sparks } from '../engine/sparks';
@@ -10,6 +11,7 @@ import { DECK_TOP, LOOP, MARBLE_RADIUS, TRUCK, TICK_SECONDS } from '../loop/layo
 import type { Color } from '../sim/types';
 import { COLORS, containerSymbolTexture } from './art';
 import { ARCADE, ArcadePop, ArcadeYard, stencil } from './arcade';
+import { t } from '../i18n';
 
 const CHEVRONS = 48;
 const CAMERA_DIRECTION = new THREE.Vector3(0, 0.84, 0.54).normalize();
@@ -92,7 +94,7 @@ export class LoopScene {
     this.scene = stage.createScene('arcade');
     this.scene.add(this.level);
     this.sparks = new Sparks(this.scene);
-    this.pops = new ArcadePop(this.scene, 'DISPATCH!');
+    this.pops = new ArcadePop(this.scene, () => t('DISPATCH!', 'DÉPART !'));
     for (const color of Object.keys(COLORS) as Color[]) {
       this.blockMaterials.set(color, shiny(COLORS[color].hex));
       this.symbols.set(color, containerSymbolTexture(color));
@@ -108,12 +110,16 @@ export class LoopScene {
     const innerD = track.halfDepth - LOOP.channelHalf;
     const base = rounded(outerW * 2 + 1.1, 1.1, outerD * 2 + 1.1, shiny(PLATFORM), 0.45);
     base.position.set(0, -0.55, 0);
+    const eight = machine.board.trackShape && machine.board.trackShape !== 'oval';
+    if (!eight) {
     const deck = slab(roundedRect(outerW, outerD, cornerOut), 0, LOOP.floorY, plastic(PLATFORM_DARK), plastic(CHANNEL, 0.55));
     const rim = slab(ring(roundedRect(outerW, outerD, cornerOut), roundedRect(track.halfWidth + LOOP.channelHalf, track.halfDepth + LOOP.channelHalf, track.corner + LOOP.channelHalf)), LOOP.floorY, DECK_TOP, plastic(PLATFORM_DARK), shiny(PLATFORM));
     const plateau = slab(roundedRect(innerW, innerD, Math.max(0.2, track.corner - LOOP.channelHalf)), LOOP.floorY, DECK_TOP, plastic(PLATFORM_DARK), shiny(PLATFORM));
-    this.level.add(base, deck, rim, plateau);
+    this.level.add(deck, rim, plateau);
     const rimLight = slab(ring(roundedRect(outerW + 0.015, outerD + 0.015, cornerOut), roundedRect(outerW - 0.05, outerD - 0.05, cornerOut - 0.05)), DECK_TOP, DECK_TOP + 0.04, plastic(PLATFORM_DARK), new THREE.MeshBasicMaterial({ color: ARCADE.cyan, toneMapped: false }));
     this.level.add(rimLight);
+    } else this.level.add(beltDeck(track, LOOP.channelHalf, LOOP.floorY, LOOP.wallHeight));
+    this.level.add(base);
     this.yard = new ArcadeYard(this.scene, outerW + 0.55, -outerD - 0.55, outerD + 0.55);
     const brand = stencil('LOOP SORT', 2.7, 0.35, '#b3e6e0');
     brand.position.set(0, DECK_TOP + 0.01, machine.bays.some((bay) => bay.row === 'back') ? 0 : -innerD + 0.45);
@@ -124,6 +130,11 @@ export class LoopScene {
       const tray = rounded(TRUCK.bedWidth + 0.26, 0.05, TRUCK.bedLength + TRUCK.cabLength + 0.3, plastic(0x092a3b, 0.6), 0.05);
       tray.position.set(bay.x, DECK_TOP + 0.02, machine.mouthZ(lane) - facing * (TRUCK.bedLength + TRUCK.cabLength) / 2);
       this.level.add(tray);
+      if (eight) {
+        const pier = rounded(TRUCK.bedWidth + 0.26, DECK_TOP, TRUCK.bedLength + TRUCK.cabLength + 0.3, plastic(PLATFORM), 0.05);
+        pier.position.set(tray.position.x, DECK_TOP / 2, tray.position.z);
+        this.level.add(pier);
+      }
       const pad = rounded(0.95, 0.06, LOOP.wallThickness + 0.1, shiny(0xf25f33), 0.03);
       pad.position.set(bay.x, DECK_TOP + 0.02, facing * (track.halfDepth + LOOP.channelHalf + LOOP.wallThickness / 2));
       this.level.add(pad);
@@ -202,17 +213,21 @@ export class LoopScene {
       this.hitTargets.push(target);
     });
     const { track } = machine;
-    const w = track.halfWidth + LOOP.channelHalf + LOOP.wallThickness + 0.55;
-    const d = track.halfDepth + LOOP.channelHalf + LOOP.wallThickness + 0.55;
+    const w = track.halfWidth + LOOP.channelHalf + LOOP.wallThickness + 0.05;
+    const d = track.halfDepth + LOOP.channelHalf + LOOP.wallThickness;
     this.framing = [
-      { x: -w, y: -1.1, z: -d }, { x: w, y: -1.1, z: -d }, { x: -w, y: DECK_TOP + 0.9, z: -d }, { x: w, y: DECK_TOP + 0.9, z: -d },
-      { x: -w, y: -1.1, z: d + 1.6 }, { x: w, y: -1.1, z: d + 1.6 }, { x: 0, y: DECK_TOP + 0.9, z: d },
+      { x: -w, y: 0, z: -d }, { x: w, y: 0, z: -d }, { x: -w, y: DECK_TOP + 0.9, z: -d }, { x: w, y: DECK_TOP + 0.9, z: -d },
+      { x: -w, y: 0, z: d }, { x: w, y: 0, z: d }, { x: 0, y: DECK_TOP + 0.9, z: d },
     ];
     for (const [lane, bay] of machine.bays.entries()) {
       const z = machine.facing(lane) * (track.halfDepth + LOOP.channelHalf + LOOP.wallThickness + TRUCK.exitLength + 0.3);
       for (const x of [bay.x - 0.65, bay.x + 0.65]) {
         this.framing.push({ x, y: DECK_TOP, z }, { x, y: DECK_TOP + 1.1, z });
       }
+    }
+    for (let i = 0; i < 64; i++) {
+      const point = track.point(i / 64 * track.length);
+      this.framing.push({ x: point.x, y: DECK_TOP + point.y + 0.5, z: point.z });
     }
     this.syncAfterJump();
     this.resize();
@@ -399,7 +414,7 @@ export class LoopScene {
     if (this.chevrons) {
       for (let i = 0; i < CHEVRONS; i++) {
         const p = machine.track.point((i / CHEVRONS) * machine.track.length + machine.beltDistance);
-        this.dummy.position.set(p.x, LOOP.floorY + 0.014, p.z);
+        this.dummy.position.set(p.x, LOOP.floorY + p.y + 0.014, p.z);
         this.dummy.quaternion.identity();
         this.dummy.rotation.set(0, Math.atan2(-p.tz, p.tx), 0);
         this.dummy.scale.setScalar(1);
@@ -431,6 +446,6 @@ export class LoopScene {
     const width = element.clientWidth || window.innerWidth;
     const height = element.clientHeight || window.innerHeight;
     this.stage.renderer.setSize(width, height, false);
-    if (this.framing.length) frameBoard(this.camera, width, height, this.framing, CAMERA_DIRECTION);
+    if (this.framing.length) frameBoard(this.camera, width, height, this.framing, width <= 600 ? new THREE.Vector3(0, 0.9, 0.436).normalize() : CAMERA_DIRECTION);
   }
 }

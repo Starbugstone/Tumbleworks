@@ -16,26 +16,35 @@ test('Loop Sort explains a refused tap: a full loop, a pour in progress, or a on
     if (!at) throw new Error(`No target ${id}`);
     await page.touchscreen.tap(at.x, at.y);
   };
-  // The level opens with the loop exactly full, so the first pour has to wait for the yellow truck.
+  // Introductory levels have room: the second tap explains that the pour is already running.
   await tap('lane0');
-  await tap('lane0');
-  await expect(page.locator('#message')).toContainText('The loop is full');
-  expect(await page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.debugState().unloading)).toEqual(['waiting', null]);
-  await expect(page.locator('#board-controls button').first()).toHaveText(/Unloading paused/);
-  const running = await page.evaluate(() => {
-    const app = (window as unknown as GameWindow).tumbleworks.app;
-    for (let tick = 0; tick < 600; tick++) {
-      app.advance(1 / 60, false);
-      const state = app.debugState();
-      if (Number(state.pending) > 0 && Number(state.occupancy) < 12) return true;
-    }
-    return false;
-  });
-  expect(running).toBe(true);
-  expect((await page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.debugState().unloading) as unknown[])[0]).toBe('pouring');
   await tap('lane0');
   await expect(page.locator('#message')).toHaveText('Still pouring.');
-  await tap('lane1');
+  expect(await page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.debugState().unloading)).toEqual(['pouring', null]);
+  await expect(page.locator('#board-controls button').first()).toHaveText(/Unloading/);
+  await page.evaluate(() => {
+    const app = (window as unknown as GameWindow).tumbleworks.app;
+    for (let tick = 0; tick < 300; tick++) app.advance(1 / 60, false);
+    app.advance(0);
+  });
+  await tap('lane0');
   await expect(page.locator('#message')).toContainText('one color');
+  // Traffic pressure remains on later boards. The authored losing pours leave a visible paused tailboard.
+  await page.locator('#levels-toggle').click();
+  await page.locator(`.chip[data-level="${CAMPAIGN.findIndex((level) => level.id === 'loop-3')}"]`).click();
+  for (const target of ['lane0', 'lane1']) {
+    await tap(target);
+    await page.evaluate(() => {
+      const app = (window as unknown as GameWindow).tumbleworks.app;
+      for (let tick = 0; tick < 5400; tick++) {
+        app.advance(1 / 60, false);
+        const state = app.debugState();
+        if (!state.busy && !state.settling) break;
+      }
+      app.advance(0);
+    });
+  }
+  expect(await page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.debugState().status)).toBe('jammed');
+  await expect(page.locator('#board-controls')).toContainText('Unloading paused');
   expect(errors).toEqual([]);
 });

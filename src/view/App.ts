@@ -7,6 +7,8 @@ import { BoardPointer } from '../engine/pointer';
 import { currentLevel, isCompleted, markCompleted, selectLevel } from '../progress';
 import { COLORS, drawSymbol } from './art';
 import type { Color } from '../sim/types';
+import { colorName, difficultyName, patternName, t } from '../i18n';
+import { guideSeen, locale, onLocaleChange, setGuideSeen, setLocale } from '../preferences';
 
 const element = (id: string): HTMLElement => {
   const found = document.getElementById(id);
@@ -39,6 +41,7 @@ export class App {
   private targetKey = '';
   private focusTarget: string | null = null;
   private chain = 0;
+  private guiding = false;
   private readonly message = element('message');
   private readonly undoButton = button('undo');
   private readonly card = element('card');
@@ -78,6 +81,23 @@ export class App {
     window.addEventListener('resize', () => { this.pointer.cancel(); this.runtime?.resize(); this.refresh(); });
     document.addEventListener('visibilitychange', () => { this.pointer.cancel(); this.lastFrame = performance.now(); this.accumulator = 0; });
     document.addEventListener('keydown', (event) => this.key(event));
+    button('language-en').addEventListener('click', () => setLocale('en'));
+    button('language-fr').addEventListener('click', () => setLocale('fr'));
+    button('guide-skip').addEventListener('click', () => this.finishGuide());
+    button('guide-replay').addEventListener('click', () => {
+      const id = this.runtime.guideId;
+      if (!id) return;
+      setGuideSeen(id, false);
+      this.loadBoard(this.boardIndex);
+    });
+    onLocaleChange(() => {
+      this.pointer.cancel();
+      this.setMessage('');
+      this.previewKey = '';
+      this.localize();
+      if (!this.card.hidden) this.endingCard();
+      this.refresh();
+    });
   }
 
   static async start(canvas: HTMLCanvasElement): Promise<App> {
@@ -101,6 +121,7 @@ export class App {
     this.runtime?.dispose();
     this.boardIndex = index;
     this.runtime = level.create(this.services);
+    this.guiding = Boolean(this.runtime.guideId && !guideSeen(this.runtime.guideId));
     selectLevel(level.id);
     this.accumulator = 0;
     this.lastFrame = performance.now();
@@ -113,12 +134,8 @@ export class App {
     this.card.hidden = true;
     this.setMessage('');
     element('confetti').replaceChildren();
-    element('level-name').textContent = `${index + 1} / ${CAMPAIGN.length} · ${level.name}`;
-    element('level-title').textContent = `${level.title} · ${level.difficulty}`;
-    element('difficulty').textContent = level.difficulty;
-    element('level-help').textContent = level.instructions;
-    element('instruction').textContent = level.instructions;
-    element('instruction').hidden = false;
+    this.localize();
+    element('instruction').hidden = this.guiding;
     window.clearTimeout(this.instructionTimer);
     this.instructionTimer = window.setTimeout(() => { element('instruction').hidden = true; }, 6000);
     this.showLevels(false);
@@ -217,14 +234,11 @@ export class App {
       this.confetti();
       this.winTimer = window.setTimeout(() => {
         if (this.runtime.status !== 'won') return;
-        const next = CAMPAIGN[this.boardIndex + 1];
-        this.showCard(next ? 'Nicely sorted!' : 'Workshop complete!',
-          next ? `Up next: ${next.name.toLowerCase()}.` : 'Every puzzle sorted. Pick a level above to play again.',
-          next ? 'Next level' : 'Play again', 'win');
+        this.endingCard();
       }, 400);
     } else {
       sfx.jam();
-      this.showCard('A little tangled!', this.runtime.jamReason, 'Keep looking', 'jam');
+      this.endingCard();
     }
   }
 
@@ -267,11 +281,71 @@ export class App {
       this.ring.style.left = `${focus.x}px`;
       this.ring.style.top = `${focus.y}px`;
     } else this.ring.hidden = true;
+    this.refreshGuide(targets);
+  }
+
+  private finishGuide(): void {
+    if (this.runtime.guideId) setGuideSeen(this.runtime.guideId);
+    this.guiding = false;
+    element('guide').hidden = true;
+    element('guide-pointer').hidden = true;
+  }
+
+  private refreshGuide(targets: Record<string, ScreenPoint>): void {
+    const step = this.guiding ? this.runtime.guide?.() : undefined;
+    const panel = element('guide');
+    const pointer = element('guide-pointer');
+    if (!step) { panel.hidden = pointer.hidden = true; return; }
+    if (step.done) { element('guide-text').textContent = step.text; this.finishGuide(); return; }
+    panel.hidden = !element('levels').hidden || !this.card.hidden;
+    element('instruction').hidden = true;
+    const copy = element('guide-text');
+    if (copy.textContent !== step.text) copy.textContent = step.text;
+    const at = step.target ? targets[step.target] : undefined;
+    pointer.hidden = !at || panel.hidden;
+    if (at) { pointer.style.left = `${at.x}px`; pointer.style.top = `${at.y}px`; }
+  }
+
+  private localize(): void {
+    document.documentElement.lang = locale();
+    for (const [id, label] of Object.entries({
+      undo: t('Undo', 'Annuler'), restart: t('Restart', 'Recommencer'), hint: t('Hint', 'Indice'), mute: t('Sound', 'Son'),
+      scene: t('Puzzle board', 'Plateau de jeu'), chips: t('Campaign levels', 'Niveaux'), 'board-controls': t('Board pieces', 'Pièces du plateau'), patterns: t('Container patterns', 'Motifs des contenants'),
+    })) element(id).setAttribute('aria-label', label);
+    element('language-label').textContent = t('Language', 'Langue');
+    for (const language of ['en', 'fr'] as const) button(`language-${language}`).setAttribute('aria-pressed', String(locale() === language));
+    button('guide-skip').textContent = t('Skip guide', 'Passer le guide');
+    button('guide-replay').textContent = t('Restart with guide', 'Recommencer avec le guide');
+    button('guide-replay').hidden = !this.runtime.guideId;
+    element('guide-pointer-label').textContent = t('Tap here', 'Touchez ici');
+    element('patterns').replaceChildren(...(['red', 'blue', 'green', 'yellow'] as Color[]).map((color, index) => {
+      const item = document.createElement('span');
+      item.textContent = `${['○', '◆', '▲', '★'][index]} ${patternName(color)} = ${colorName(color)}`;
+      return item;
+    }));
+    const level = CAMPAIGN[this.boardIndex];
+    if (!level) return;
+    element('level-name').textContent = `${this.boardIndex + 1} / ${CAMPAIGN.length} · ${level.name}`;
+    element('level-title').textContent = `${level.title} · ${difficultyName(level.difficulty)}`;
+    element('difficulty').textContent = difficultyName(level.difficulty);
+    element('level-help').textContent = level.instructions;
+    element('instruction').textContent = level.instructions;
+    this.renderChips();
+  }
+
+  private endingCard(): void {
+    const next = CAMPAIGN[this.boardIndex + 1];
+    if (this.runtime.status === 'won') this.showCard(
+      next ? t('Nicely sorted!', 'Bien trié !') : t('Workshop complete!', 'Atelier terminé !'),
+      next ? t(`Up next: ${next.name}.`, `À suivre : ${next.name}.`) : t('Every puzzle sorted. Pick a level above to play again.', 'Tous les puzzles sont triés. Choisissez un niveau pour rejouer.'),
+      next ? t('Next level', 'Niveau suivant') : t('Play again', 'Rejouer'), 'win');
+    else this.showCard(t('A little tangled!', 'Ça coince !'), this.runtime.jamReason, t('Keep looking', 'Continuer à chercher'), 'jam');
   }
 
   private showLevels(open: boolean): void {
     element('levels').hidden = !open;
     button('levels-toggle').setAttribute('aria-expanded', String(open));
+    if (this.runtime) this.refreshGuide(this.runtime.targets());
   }
 
   private renderChips(): void {
@@ -282,7 +356,7 @@ export class App {
       chip.dataset['kind'] = level.kind;
       chip.classList.toggle('active', index === this.boardIndex);
       chip.textContent = isCompleted(level.id) ? '✓' : String(index + 1);
-      chip.setAttribute('aria-label', `Level ${index + 1}: ${level.name}, ${level.difficulty}${isCompleted(level.id) ? ', completed' : ''}`);
+      chip.setAttribute('aria-label', t(`Level ${index + 1}: ${level.name}, ${difficultyName(level.difficulty)}${isCompleted(level.id) ? ', completed' : ''}`, `Niveau ${index + 1} : ${level.name}, ${difficultyName(level.difficulty)}${isCompleted(level.id) ? ', terminé' : ''}`));
       chip.setAttribute('aria-current', index === this.boardIndex ? 'step' : 'false');
       chip.addEventListener('click', () => { sfx.unlock(); this.showLevels(false); if (index !== this.boardIndex) this.loadBoard(index); });
       return chip;
@@ -295,7 +369,7 @@ export class App {
     chip.height = 64;
     chip.className = 'box-chip';
     chip.style.backgroundColor = COLORS[color].base;
-    chip.setAttribute('aria-label', color);
+    chip.setAttribute('aria-label', colorName(color));
     const context = chip.getContext('2d');
     if (context) { context.fillStyle = '#fff'; drawSymbol(context, color, 32, 33, 18); }
     return chip;

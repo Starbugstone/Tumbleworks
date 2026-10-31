@@ -46,10 +46,10 @@ function syntheticLevel(kind: string, id: string): GameLevel {
 }
 
 describe('gameplay registry', () => {
-  it('keeps thirteen sorting levels with their existing save IDs', () => {
+  it('keeps seventeen sorting levels with their existing save IDs', () => {
     expect(CAMPAIGN.map((level) => level.id)).toEqual([
       'board-1', 'loop-1', 'tube-1', 'board-2', 'loop-2', 'tube-2',
-      'board-3', 'loop-3', 'tube-3', 'board-4', 'loop-4', 'board-5', 'loop-5',
+      'board-3', 'loop-3', 'tube-3', 'board-4', 'loop-4', 'board-5', 'loop-5', 'board-6', 'loop-6', 'board-7', 'loop-7',
     ]);
     expect([...new Set(CAMPAIGN.map((level) => level.kind))]).toEqual(['conveyor', 'loop', 'tube']);
   });

@@ -1,3 +1,4 @@
+import { beltDeck } from './belt-deck';
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { Sparks } from '../engine/sparks';
@@ -6,10 +7,11 @@ import { MarbleCrowd } from '../engine/crowd';
 import { frameBoard } from '../engine/framing';
 import type { Stage } from '../engine/stage';
 import type { Machine, MachineEvent, Pose } from '../machine/machine';
-import { BOX, columnX, CRATE, FUNNEL, funnelHalfWidth, MARBLE_RADIUS, RACEWAY, STACK, TRACK, dockX } from '../machine/layout';
+import { BOX, columnX, CRATE, FUNNEL, funnelFaces, funnelHalfWidth, MARBLE_RADIUS, RACEWAY, STACK, TRACK, dockX } from '../machine/layout';
 import type { Color } from '../sim/types';
 import { COLORS, decal } from './art';
 import { ARCADE, ArcadePop, ArcadeYard, stencil } from './arcade';
+import { t } from '../i18n';
 
 const CHEVRONS = 36;
 const DECK_TOP = RACEWAY.floorY;
@@ -85,7 +87,7 @@ export class MachineScene {
   private readonly raycaster = new THREE.Raycaster();
   private readonly lightOff = plastic(0x2c3366, 0.6);
   private readonly lightOn = new THREE.MeshStandardMaterial({ color: 0xfff1b0, emissive: 0xffd45e, emissiveIntensity: 1.6 });
-  private readonly glass = new THREE.MeshPhysicalMaterial({ color: 0xd6ecff, transparent: true, opacity: 0.34, roughness: 0.08, metalness: 0, side: THREE.DoubleSide, depthWrite: false, envMapIntensity: 1.6 });
+  private readonly glass = new THREE.MeshPhysicalMaterial({ color: 0xd6ecff, transparent: true, opacity: 0.18, roughness: 0.08, metalness: 0, side: THREE.DoubleSide, depthWrite: false, envMapIntensity: 1.6 });
   private readonly tempA = new THREE.Quaternion();
   private readonly tempB = new THREE.Quaternion();
   private readonly sparks: Sparks;
@@ -96,39 +98,32 @@ export class MachineScene {
   constructor(private readonly stage: Stage) {
     this.scene = stage.createScene('arcade');
     this.sparks = new Sparks(this.scene);
-    this.pops = new ArcadePop(this.scene, 'LOADED!');
-    this.buildPlatform();
+    this.pops = new ArcadePop(this.scene, () => t('LOADED!', 'CHARGÉ !'));
     this.chevrons = new THREE.InstancedMesh(new THREE.BoxGeometry(0.1, 0.012, RACEWAY.channelHalf * 1.5), plastic(0x4f8896, 0.8), CHEVRONS);
     this.chevrons.frustumCulled = false;
     this.scene.add(this.chevrons, this.level);
   }
 
   private buildPlatform(): void {
+    if (this.machine?.board.trackShape && this.machine.board.trackShape !== 'oval') {
+      this.level.add(beltDeck(this.machine.track, RACEWAY.channelHalf, DECK_TOP, RACEWAY.wallHeight));
+      return;
+    }
     const outer = TRACK.radius + RACEWAY.channelHalf + RACEWAY.wallThickness;
     const inner = TRACK.radius - RACEWAY.channelHalf;
     const deck = slab(stadium(outer), 0, DECK_TOP, plastic(PLATFORM_DARK), plastic(CHANNEL, 0.55));
     const rim = slab(ring(outer, TRACK.radius + RACEWAY.channelHalf), DECK_TOP, RIM_TOP, plastic(PLATFORM_DARK), shiny(PLATFORM));
     const island = slab(stadium(inner), DECK_TOP, RIM_TOP, plastic(PLATFORM_DARK), shiny(PLATFORM));
-    this.scene.add(deck, rim, island);
+    this.level.add(deck, rim, island);
     const rail = slab(ring(outer + 0.015, outer - 0.055), RIM_TOP, RIM_TOP + 0.045, plastic(PLATFORM_DARK), new THREE.MeshBasicMaterial({ color: ARCADE.cyan, toneMapped: false }));
-    const label = stencil('KEEP IT FLOWING', 3.5, 0.5);
+    const label = stencil('› › ›', 3.5, 0.5);
     label.position.set(0, RIM_TOP + 0.01, TRACK.centerZ);
-    this.scene.add(rail, label);
+    this.level.add(rail, label);
     // A dark throat under the neck, where marbles drop onto the belt.
     const throat = new THREE.Mesh(new THREE.CylinderGeometry(FUNNEL.neck.halfX + 0.12, FUNNEL.neck.halfX + 0.12, FUNNEL.neckY - DECK_TOP, 20, 1, true), plastic(0x2a3170, 0.7));
     throat.material.side = THREE.BackSide;
     throat.position.set(0, (FUNNEL.neckY + DECK_TOP) / 2, FUNNEL.neck.z);
-    this.scene.add(throat);
-  }
-
-  private plateMesh(a: THREE.Vector3, b: THREE.Vector3, width: number, along: 'x' | 'z'): THREE.Mesh {
-    const length = a.distanceTo(b);
-    const geometry = along === 'x' ? new THREE.BoxGeometry(length, 0.06, width) : new THREE.BoxGeometry(width, 0.06, length);
-    const mesh = new THREE.Mesh(geometry, this.glass);
-    mesh.position.copy(a).add(b).multiplyScalar(0.5);
-    const angle = along === 'x' ? Math.atan2(b.y - a.y, b.x - a.x) : Math.atan2(b.y - a.y, b.z - a.z);
-    if (along === 'x') mesh.rotation.z = angle; else mesh.rotation.x = -angle;
-    return mesh;
+    this.level.add(throat);
   }
 
   /** The slab under everything is cut to the level: just wide enough for its columns and docks. */
@@ -149,12 +144,13 @@ export class MachineScene {
     const midZ = (mouth.back + mouth.front) / 2;
     const depth = mouth.front - mouth.back;
     const group = new THREE.Group();
-    group.add(
-      this.plateMesh(new THREE.Vector3(-half, mouthY, midZ), new THREE.Vector3(-neck.halfX, neckY, midZ), depth, 'x'),
-      this.plateMesh(new THREE.Vector3(half, mouthY, midZ), new THREE.Vector3(neck.halfX, neckY, midZ), depth, 'x'),
-      this.plateMesh(new THREE.Vector3(0, mouthY, mouth.back), new THREE.Vector3(0, neckY, neck.z - neck.halfZ), half * 2, 'z'),
-      this.plateMesh(new THREE.Vector3(0, mouthY, mouth.front), new THREE.Vector3(0, neckY, neck.z + neck.halfZ), half * 2, 'z'),
-    );
+    for (const face of funnelFaces(columns)) {
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(face.flatMap((p) => [p.x, p.y, p.z]), 3));
+      geometry.setIndex([0, 1, 2, 0, 2, 3]);
+      geometry.computeVertexNormals();
+      group.add(new THREE.Mesh(geometry, this.glass));
+    }
     const rimHeight = rimY - mouthY;
     const rimMaterial = shiny(0xffc857);
     for (const [x, z, w, d] of [[-half, midZ, 0.14, depth + 0.14], [half, midZ, 0.14, depth + 0.14], [0, mouth.back, half * 2 + 0.14, 0.14], [0, mouth.front, half * 2 + 0.14, 0.14]] as const) {
@@ -214,6 +210,7 @@ export class MachineScene {
   setMachine(machine: Machine): void {
     this.clearLevel();
     this.machine = machine;
+    this.buildPlatform();
     const counts = new Map<Color, number>();
     for (const id of machine.marbleIds) counts.set(machine.marbleColor(id), (counts.get(machine.marbleColor(id)) ?? 0) + 1);
     this.crowd = new MarbleCrowd(this.level, counts, MARBLE_RADIUS);
@@ -247,7 +244,8 @@ export class MachineScene {
     const docks = machine.board.docks.length;
     const dockHalf = Math.abs(dockX(0, docks)) + BOX.halfWidth + 0.3;
     const queueEnd = BOX.queueZ + BOX.queueSpacing * (Math.min(BOX.queueVisible, Math.max(...machine.board.docks.map((queue) => queue.length)) - 1) - 1) + 0.9;
-    const baseHalf = Math.max(half, dockHalf, TRACK.straightHalf + TRACK.radius + 1.1) + 0.45;
+    const trackHalf = Math.max(...Array.from({ length: 64 }, (_, i) => Math.abs(machine.track.point(i / 64 * machine.track.length).x)));
+    const baseHalf = Math.max(half, dockHalf, trackHalf + 1.1) + 0.45;
     this.buildBase(baseHalf, FUNNEL.mouth.back - 0.5, queueEnd + 0.7);
     for (let dock = 0; dock < docks; dock++) {
       const x = dockX(dock, docks);
@@ -258,13 +256,15 @@ export class MachineScene {
       this.level.add(strip, number);
     }
     this.framing = [
-      { x: -baseHalf, y: -0.9, z: queueEnd + 0.7 }, { x: baseHalf, y: -0.9, z: queueEnd + 0.7 },
-      { x: -baseHalf, y: 0, z: FUNNEL.mouth.back - 0.5 }, { x: baseHalf, y: 0, z: FUNNEL.mouth.back - 0.5 },
       { x: -half - 0.3, y: FUNNEL.rimY, z: FUNNEL.mouth.back }, { x: half + 0.3, y: FUNNEL.rimY, z: FUNNEL.mouth.back },
       { x: -half, y: STACK.y + STACK.stepY * (rows - 1) + 1.1, z: STACK.z + STACK.stepZ * (rows - 1) - CRATE.halfDepth },
       { x: half, y: STACK.y + STACK.stepY * (rows - 1) + 1.1, z: STACK.z + STACK.stepZ * (rows - 1) - CRATE.halfDepth },
       { x: -dockHalf, y: 0, z: queueEnd }, { x: dockHalf, y: 0, z: queueEnd },
     ];
+    for (let i = 0; i < 64; i++) for (const side of [-1, 1]) {
+      const point = machine.track.point(i / 64 * machine.track.length, side * (RACEWAY.channelHalf + RACEWAY.wallThickness));
+      this.framing.push({ x: point.x, y: RIM_TOP + point.y + MARBLE_RADIUS, z: point.z });
+    }
     this.syncAfterJump();
     this.resize();
   }
@@ -284,7 +284,8 @@ export class MachineScene {
     }
     this.hitTargets.length = 0;
     this.level.traverse((object) => {
-      if (!(object instanceof THREE.Mesh) || object instanceof THREE.InstancedMesh) return;
+      if (!(object instanceof THREE.Mesh)) return;
+      if (object instanceof THREE.InstancedMesh) object.dispose();
       object.geometry.dispose();
       for (const material of Array.isArray(object.material) ? object.material : [object.material]) if (material !== this.glass && material !== this.lightOff && material !== this.lightOn) {
         if ('map' in material && material.map instanceof THREE.Texture) material.map.dispose();
@@ -390,8 +391,8 @@ export class MachineScene {
       visual.lights.forEach((light, slot) => { light.material = slot < box.fill ? this.lightOn : this.lightOff; });
     }
     for (let i = 0; i < CHEVRONS; i++) {
-      const p = TRACK.point((i / CHEVRONS) * TRACK.length + machine.beltDistance);
-      this.dummy.position.set(p.x, DECK_TOP + 0.014, p.z);
+      const p = machine.track.point((i / CHEVRONS) * machine.track.length + machine.beltDistance);
+      this.dummy.position.set(p.x, DECK_TOP + p.y + 0.014, p.z);
       this.dummy.rotation.set(0, Math.atan2(-p.tz, p.tx), 0);
       this.dummy.scale.setScalar(1);
       this.dummy.updateMatrix();
@@ -422,6 +423,6 @@ export class MachineScene {
     const width = element.clientWidth || window.innerWidth;
     const height = element.clientHeight || window.innerHeight;
     this.stage.renderer.setSize(width, height, false);
-    if (this.framing.length) frameBoard(this.camera, width, height, this.framing, CAMERA_DIRECTION);
+    if (this.framing.length) frameBoard(this.camera, width, height, this.framing, width <= 600 ? new THREE.Vector3(0, 0.9, 0.436).normalize() : CAMERA_DIRECTION);
   }
 }

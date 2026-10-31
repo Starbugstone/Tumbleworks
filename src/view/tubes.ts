@@ -77,6 +77,15 @@ export class TubeView extends BoardView {
       });
       this.badges.push(badges);
     });
+    // Fit tubes, pattern rails and labels; the decorative plinth can extend toward the screen edges.
+    this.framing = definition.tubes.flatMap((_, index) => {
+      const at = this.position(index, 0);
+      const points: Point3[] = [];
+      for (const x of [at.x - 0.95, at.x + 1.2]) for (const y of [0.5, 0.7 + definition.capacity * STEP + 0.8]) {
+        for (const z of [at.z - 0.95, at.z + 1.75]) points.push({ x, y, z });
+      }
+      return points;
+    });
     this.rebuild(state);
     this.resize();
   }

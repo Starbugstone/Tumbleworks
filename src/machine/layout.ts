@@ -1,3 +1,4 @@
+import { FigureEightTrack, type BeltShape } from '../engine/belt-path';
 /**
  * Funnel Sort geometry, in world units: x right, y up, z toward the viewer. Physics and drawing
  * both read this file, so what you see is what the marbles hit.
@@ -28,7 +29,9 @@ export class Track {
   get frontZ(): number { return this.centerZ + this.radius; }
 
   /** A point on the centre line, offset outward (positive) or inward (negative). */
-  point(distance: number, offset = 0): TrackPoint {
+  point(distance: number, offset = 0): TrackPoint & { y: number } { return { ...this.flatPoint(distance, offset), y: 0 }; }
+
+  private flatPoint(distance: number, offset = 0): TrackPoint {
     const { straightHalf: S, radius: R, centerZ: CZ, arc: ARC, length } = this;
     let d = ((distance % length) + length) % length;
     const r = R + offset;
@@ -96,10 +99,10 @@ export const dockDistance = (dock: number, count: number): number => TRACK.neare
 export const COLUMN_SPACING = 2.5;
 export const columnX = (index: number, count: number): number => (index - (count - 1) / 2) * COLUMN_SPACING;
 /** The dish must catch every crate's spill, so its width follows the number of supply columns. */
-export const funnelHalfWidth = (columns: number): number => ((columns - 1) / 2) * COLUMN_SPACING + 1.85;
+export const funnelHalfWidth = (columns: number): number => ((columns - 1) / 2) * COLUMN_SPACING + 1.35;
 
 /** Supply crates hang over the funnel in a receding stack; the front crate opens when tapped. */
-export const STACK = { y: 5.6, z: -2.75, stepY: 1.0, stepZ: -0.9, slideSeconds: 0.22 } as const;
+export const STACK = { y: 4.65, z: -2.75, stepY: 1.0, stepZ: -0.9, slideSeconds: 0.22 } as const;
 export const CRATE = {
   halfWidth: 1.14,
   halfDepth: 1.14,
@@ -116,12 +119,12 @@ export const CRATE = {
 const backZ = TRACK.backZ;
 /** A shallow clear dish under the shelf that gathers every pour into one neck above the belt. */
 export const FUNNEL = {
-  mouthY: 4.45,
-  rimY: 5.3,
-  mouth: { back: -4.75, front: -0.15 },
-  neckY: 2.35,
+  mouthY: 3.8,
+  rimY: 4.25,
+  mouth: { back: -4.05, front: -0.5 },
+  neckY: 2.2,
   /** The drawn opening above the belt. The pile rests on a closed floor here; the exit itself is scripted. */
-  neck: { halfX: 0.5, halfZ: 0.52, z: backZ },
+  neck: { halfX: 0.5, halfZ: 0.45, z: backZ - 0.2 },
   /** Marbles this close to the neck centre, and this low, are the ones the neck can take next. */
   pickRadius: 1.0,
   pickHeight: 1.1,
@@ -152,3 +155,20 @@ export const BOX = {
 
 /** The scripted hop from the belt into a box. */
 export const FLIGHT = { seconds: 0.22, arc: 0.95, hopSeconds: 0.14, hopHeight: 0.16, mergeSeconds: 0.12 } as const;
+
+export const conveyorTrack = (shape: BeltShape = 'oval'): Track | FigureEightTrack => shape === 'oval' ? TRACK : new FigureEightTrack(shape === 'wide-eight' ? 5 : 4.4, shape === 'wide-eight' ? 1.8 : 1.65, TRACK.centerZ, false);
+
+/** Four tapered faces shared by the hopper mesh and its solid collision panels. */
+export function funnelFaces(columns: number): { x: number; y: number; z: number }[][] {
+  const half = funnelHalfWidth(columns);
+  const { mouth, mouthY, neck, neckY } = FUNNEL;
+  const outside = [
+    { x: -half, y: mouthY, z: mouth.back }, { x: half, y: mouthY, z: mouth.back },
+    { x: half, y: mouthY, z: mouth.front }, { x: -half, y: mouthY, z: mouth.front },
+  ];
+  const inside = [
+    { x: -neck.halfX, y: neckY, z: neck.z - neck.halfZ }, { x: neck.halfX, y: neckY, z: neck.z - neck.halfZ },
+    { x: neck.halfX, y: neckY, z: neck.z + neck.halfZ }, { x: -neck.halfX, y: neckY, z: neck.z + neck.halfZ },
+  ];
+  return outside.map((point, index) => [point, outside[(index + 1) % 4]!, inside[(index + 1) % 4]!, inside[index]!]);
+}

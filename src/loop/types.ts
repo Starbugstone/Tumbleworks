@@ -1,3 +1,4 @@
+import type { BeltShape } from '../engine/belt-path';
 import type { Color, Packet } from '../sim/types';
 
 /** One cargo truck: colour segments from the loop end backward. Totals never exceed the capacity. */
@@ -6,6 +7,7 @@ export interface TruckDef {
 }
 
 export interface LoopBoardDef {
+  readonly trackShape?: BeltShape;
   readonly id: string;
   readonly title: string;
   /** Marbles the loop holds before it is full. Unloading pauses above this. */

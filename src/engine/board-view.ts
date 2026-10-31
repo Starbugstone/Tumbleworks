@@ -22,7 +22,7 @@ export abstract class BoardView {
   private readonly hitObjects: THREE.Object3D[] = [];
   private readonly anchors = new Map<string, THREE.Vector3>();
   private bursts: { entity: MarbleEntity; at: Point3; to?: Point3; radius: number; time: number }[] = [];
-  private framing: Point3[] | null = null;
+  protected framing: Point3[] | null = null;
 
   constructor(protected readonly services: GameServices, private readonly elevation = 0.85) {
     this.scene = services.stage.createScene('studio');

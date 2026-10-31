@@ -1,3 +1,4 @@
+import type { BeltShape } from '../engine/belt-path';
 export type Color = 'red' | 'blue' | 'green' | 'yellow';
 
 export interface Packet {
@@ -6,6 +7,7 @@ export interface Packet {
 }
 
 export interface BoardDef {
+  readonly trackShape?: BeltShape;
   readonly id: string;
   readonly title: string;
   /** Marbles the belt holds before it is full. Entry is refused above this. */

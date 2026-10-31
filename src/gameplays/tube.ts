@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import type { Feedback, GameRuntime, GameServices, ScreenPoint } from '../engine/contracts';
 import type { Point3 } from '../engine/physics';
 import { TubeRules } from '../puzzles/rules';
@@ -57,18 +58,18 @@ export class TubeRuntime implements GameRuntime {
   get counter() {
     const complete = this.rules.state.tubes.filter((tube) => tube.length === this.board.capacity && tube.every((c) => c === tube[0])).length;
     const colors = new Set(this.board.tubes.flat()).size;
-    return { label: 'Sorted', value: `${complete} / ${colors}` };
+    return { label: t('Sorted', 'Triés'), value: `${complete} / ${colors}` };
   }
   readonly preview = [];
   readonly previewLabel = '';
-  readonly jamReason = 'No top marble can move. Undo a move to make room, or restart this board.';
+  get jamReason() { return t('No top marble can move. Undo a move to make room, or restart this board.', 'Aucune bille du haut ne peut bouger. Annulez un déplacement ou recommencez.'); }
 
   activate(target: string): readonly Feedback[] {
     if (this.status !== 'playing') return [];
     const index = Number(target.replace(/^tube/, ''));
     if (!/^tube\d+$/.test(target) || !this.rules.state.tubes[index]) return [];
     if (this.selected === null) {
-      if (!this.rules.state.tubes[index]?.length) return [{ type: 'message', text: 'Choose a tube with a marble first.' }];
+      if (!this.rules.state.tubes[index]?.length) return [{ type: 'message', text: t('Choose a tube with a marble first.', 'Choisissez d’abord un tube contenant des billes.') }];
       this.selected = index;
       this.view.select(index);
       return [{ type: 'tap' }];
@@ -84,7 +85,7 @@ export class TubeRuntime implements GameRuntime {
   private transfer(from: number, index: number, starts?: readonly Point3[]): readonly Feedback[] {
     const result = this.rules.move(from, index);
     if (!result.ok) {
-      const text = result.reason === 'full' ? 'That tube is full.' : 'Choose an empty tube or the same top color.';
+      const text = result.reason === 'full' ? t('That tube is full.', 'Ce tube est plein.') : t('Choose an empty tube or the same top color.', 'Choisissez un tube vide ou la même couleur en haut.');
       // The destination becomes the next selected source, so correcting a choice takes one tap.
       if (!starts) this.selected = this.rules.state.tubes[index]?.length ? index : this.selected;
       this.view.select(this.selected ?? -1);
@@ -104,9 +105,9 @@ export class TubeRuntime implements GameRuntime {
   }
   hint(): readonly Feedback[] {
     const move = this.rules.hint();
-    if (!move) return [{ type: 'message', text: 'No safe move found from here. Try undoing a move.' }];
+    if (!move) return [{ type: 'message', text: t('No safe move found from here. Try undoing a move.', 'Aucun déplacement sûr trouvé. Essayez d’annuler un déplacement.') }];
     const color = this.rules.state.tubes[move.from]?.at(-1);
-    return [{ type: 'message', text: `${color ? marbleName(color) : 'Marble'} group: tube ${move.from + 1} → tube ${move.to + 1}.`, target: `tube${move.from}` }];
+    return [{ type: 'message', text: t(`${color ? marbleName(color) : 'Marble'} group: tube ${move.from + 1} → tube ${move.to + 1}.`, `Groupe ${color ? marbleName(color) : 'de billes'} : tube ${move.from + 1} → tube ${move.to + 1}.`), target: `tube${move.from}` }];
   }
   undo(): boolean {
     if (!this.rules.undo()) return false;
@@ -117,9 +118,15 @@ export class TubeRuntime implements GameRuntime {
     return true;
   }
   pick(x: number, y: number) { return this.view.pick(x, y); }
-  targets() { return Object.fromEntries(Object.entries(this.view.targets()).map(([key, point]) => [key, { ...point, label: `Tube ${Number(key.slice(4)) + 1}` }])); }
+  targets() { return Object.fromEntries(Object.entries(this.view.targets()).map(([key, point]) => [key, { ...point, label: t(`Tube ${Number(key.slice(4)) + 1}`, `Tube ${Number(key.slice(4)) + 1}`) }])); }
   render() { this.view.render(); }
   resize() { this.view.resize(); }
+  get guideId() { return this.board.id === 'tube-1' ? 'tube-basics' : undefined; }
+  guide() {
+    if (this.rules.state.moves > 0) return { done: true, text: t('That whole group moved together. Fill each tube with one colour.', 'Tout le groupe s’est déplacé. Remplissez chaque tube d’une seule couleur.') };
+    if (this.selected === 0) return { target: 'tube3', text: t('Now tap this empty tube to move the blue diamond group.', 'Touchez ce tube vide pour déplacer le groupe bleu à losange.') };
+    return { target: 'tube0', text: t('Tap this tube to select its top group. Dragging works too.', 'Touchez ce tube pour sélectionner le groupe du haut. Vous pouvez aussi le faire glisser.') };
+  }
   inspect() { return { ...this.rules.snapshot(), selected: this.selected }; }
   dispose() { this.view.dispose(); }
 }

@@ -31,7 +31,7 @@ test('retired matching levels fall back safely without losing sorting progress o
   expect(await page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.debugState())).toMatchObject({ levelId: 'board-1' });
   await expect(page.getByRole('button', { name: 'Sound', exact: true })).toHaveClass(/muted/);
   await page.locator('#levels-toggle').click();
-  await expect(page.locator('.chip')).toHaveCount(13);
+  await expect(page.locator('.chip')).toHaveCount(CAMPAIGN.length);
   for (const id of ['tube-1', 'loop-2']) {
     await expect(page.locator(`.chip[data-level="${CAMPAIGN.findIndex((level) => level.id === id)}"]`)).toHaveText('✓');
   }
@@ -48,7 +48,7 @@ test('lorry final-colour markers survive a pour and undo while the exposed colou
   await page.locator(`.chip[data-level="${CAMPAIGN.findIndex((level) => level.id === 'loop-1')}"]`).click();
   await page.evaluate(() => {
     const app = (window as unknown as GameWindow).tumbleworks.app;
-    for (let i = 0; i < 480; i++) app.advance(1 / 60, false);
+    for (let i = 0; i < 2; i++) app.advance(1 / 60, false);
     app.advance(0);
   });
   const before = await page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.debugState());

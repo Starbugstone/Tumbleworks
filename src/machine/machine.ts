@@ -3,8 +3,8 @@ import { FALLING_GROUPS, PARKED_GROUPS, PLACED_GROUPS, physics, type PhysicsServ
 import { MachineRules, type ReleaseResult, type RulesEvent } from '../sim/rules';
 import type { BoardDef, Color } from '../sim/types';
 import {
-  BOX, columnX, CRATE, dockDistance, dockX, ENTRY_DISTANCE, FLIGHT, FUNNEL, funnelHalfWidth, GRAVITY, MARBLE_RADIUS,
-  RACEWAY, RIDE_Y, RIDER_SPACING, STACK, TICK_SECONDS, TRACK,
+  BOX, columnX, conveyorTrack, CRATE, dockX, FLIGHT, FUNNEL, funnelFaces, funnelHalfWidth, GRAVITY, MARBLE_RADIUS,
+  RACEWAY, RIDE_Y, RIDER_SPACING, STACK, TICK_SECONDS,
 } from './layout';
 
 export const initPhysics = (): Promise<void> => physics.init();
@@ -114,6 +114,8 @@ const easeOut = (t: number): number => 1 - (1 - t) * (1 - t);
 
 export class Machine {
   readonly rules: MachineRules;
+  readonly track: ReturnType<typeof conveyorTrack>;
+  readonly entryDistance: number;
   world: RAPIER.World;
   private control: Control;
   private readonly history: Saved[] = [];
@@ -125,8 +127,10 @@ export class Machine {
 
   constructor(readonly board: BoardDef, private readonly physicsService: PhysicsService = physics) {
     this.rules = new MachineRules(board);
+    this.track = conveyorTrack(board.trackShape);
+    this.entryDistance = this.track.nearest(0, FUNNEL.neck.z).distance;
     this.world = this.physicsService.createWorld(GRAVITY);
-    this.dockDistances = board.docks.map((_, dock) => dockDistance(dock, board.docks.length));
+    this.dockDistances = board.docks.map((_, dock) => this.track.nearest(dockX(dock, board.docks.length), RACEWAY.centerZ + RACEWAY.radius).distance);
     this.control = {
       tick: 0, belt: 0, crates: [], marbles: [], boxes: [], lastEntryTick: 0, neckOpen: true,
       recoveries: { nudges: 0, teleports: 0, bounces: 0 }, endingReported: false,
@@ -138,36 +142,25 @@ export class Machine {
 
   // ---- Building ----
 
-  private plate(body: RAPIER.RigidBody, axis: 'x' | 'z', a: { along: number; y: number }, b: { along: number; y: number }, halfWidth: number, center: number): void {
-    const dAlong = b.along - a.along;
-    const dY = b.y - a.y;
-    const halfLength = Math.hypot(dAlong, dY) / 2;
-    const midAlong = (a.along + b.along) / 2;
-    const midY = (a.y + b.y) / 2;
-    const angle = Math.atan2(dY, dAlong);
-    const desc = axis === 'x'
-      ? RAPIER.ColliderDesc.cuboid(halfLength, 0.06, halfWidth).setTranslation(midAlong, midY, center).setRotation({ x: 0, y: 0, z: Math.sin(angle / 2), w: Math.cos(angle / 2) })
-      : RAPIER.ColliderDesc.cuboid(halfWidth, 0.06, halfLength).setTranslation(center, midY, midAlong).setRotation({ x: -Math.sin(angle / 2), y: 0, z: 0, w: Math.cos(angle / 2) });
-    this.world.createCollider(desc.setFriction(0.05).setRestitution(0.12), body);
-  }
-
   /** Everything a falling marble can hit: the funnel dish, a chute under its neck, and the belt floor. */
   private buildFunnel(): void {
     const body = this.world.createRigidBody(RAPIER.RigidBodyDesc.fixed());
     const { floorY, channelHalf, wallThickness } = RACEWAY;
-    const span = TRACK.straightHalf + TRACK.radius + channelHalf + wallThickness + 0.5;
+    const span = Math.max(...Array.from({ length: 64 }, (_, i) => Math.abs(this.track.point(i / 64 * this.track.length).x))) + channelHalf + wallThickness + 0.5;
     this.beltFloorHandle = this.world.createCollider(
-      RAPIER.ColliderDesc.cuboid(span, 0.25, span).setTranslation(0, floorY - 0.25, TRACK.centerZ).setFriction(0.5).setRestitution(0.28), body).handle;
+      RAPIER.ColliderDesc.cuboid(span, 0.25, span).setTranslation(0, floorY - 0.25, RACEWAY.centerZ).setFriction(0.5).setRestitution(0.28), body).handle;
 
     const { mouth, neck, mouthY, neckY } = FUNNEL;
     const mouthHalf = funnelHalfWidth(this.board.supplies.length);
     const midZ = (mouth.back + mouth.front) / 2;
     const halfZ = (mouth.front - mouth.back) / 2 + 0.2;
     const halfX = mouthHalf + 0.2;
-    this.plate(body, 'x', { along: -mouthHalf, y: mouthY }, { along: -neck.halfX, y: neckY }, halfZ, midZ);
-    this.plate(body, 'x', { along: mouthHalf, y: mouthY }, { along: neck.halfX, y: neckY }, halfZ, midZ);
-    this.plate(body, 'z', { along: mouth.back, y: mouthY }, { along: neck.z - neck.halfZ, y: neckY }, halfX, 0);
-    this.plate(body, 'z', { along: mouth.front, y: mouthY }, { along: neck.z + neck.halfZ, y: neckY }, halfX, 0);
+    for (const face of funnelFaces(this.board.supplies.length)) {
+      const vertices = new Float32Array([...face, ...face.map((p) => ({ ...p, y: p.y - 0.12 }))].flatMap((p) => [p.x, p.y, p.z]));
+      const collider = RAPIER.ColliderDesc.convexHull(vertices);
+      if (!collider) throw new Error('Invalid funnel panel');
+      this.world.createCollider(collider.setFriction(0.05).setRestitution(0.12), body);
+    }
 
     const rimHalf = (FUNNEL.rimY - mouthY) / 2;
     const rim = (x: number, z: number, hx: number, hz: number): void => {
@@ -334,7 +327,7 @@ export class Machine {
   step(): MachineEvent[] {
     const { control } = this;
     control.tick += 1;
-    control.belt = (control.belt + RACEWAY.speed * TICK_SECONDS) % TRACK.length;
+    control.belt = (control.belt + RACEWAY.speed * TICK_SECONDS) % this.track.length;
     this.updateCrates();
     this.updateBoxes();
     this.pickFromNeck();
@@ -442,8 +435,8 @@ export class Machine {
     for (const other of this.control.marbles) {
       if (other.phase === 'exiting' && other.time < FUNNEL.exitSeconds) return false;
       if (other.phase !== 'riding' && other.phase !== 'merging') continue;
-      const distance = (this.control.belt + other.offset) % TRACK.length;
-      const gap = Math.abs(((distance - ENTRY_DISTANCE + TRACK.length * 1.5) % TRACK.length) - TRACK.length / 2);
+      const distance = (this.control.belt + other.offset) % this.track.length;
+      const gap = Math.abs(((distance - this.entryDistance + this.track.length * 1.5) % this.track.length) - this.track.length / 2);
       if (gap < RIDER_SPACING * 1.15) return false;
     }
     return true;
@@ -498,10 +491,10 @@ export class Machine {
       return;
     }
     const t = Math.min((marble.time - FUNNEL.exitSeconds) / FUNNEL.dropSeconds, 1);
-    const land = TRACK.point(ENTRY_DISTANCE, marble.lateral);
-    body.setNextKinematicTranslation({ x: neck.x + (land.x - neck.x) * t, y: neck.y + (RIDE_Y - neck.y) * t * t, z: neck.z + (land.z - neck.z) * t });
+    const land = this.track.point(this.entryDistance, marble.lateral);
+    body.setNextKinematicTranslation({ x: neck.x + (land.x - neck.x) * t, y: neck.y + (RIDE_Y + land.y - neck.y) * t * t, z: neck.z + (land.z - neck.z) * t });
     this.roll(marble, 0, 0);
-    if (t >= 1) this.joinBelt(marble, body, { distance: ENTRY_DISTANCE, lateral: marble.lateral });
+    if (t >= 1) this.joinBelt(marble, body, { distance: this.entryDistance, lateral: marble.lateral });
   }
 
   private updateFalling(marble: MarbleControl): void {
@@ -517,13 +510,13 @@ export class Machine {
   private joinBelt(marble: MarbleControl, body: RAPIER.RigidBody, near: { distance: number; lateral: number }): void {
     const t = body.translation();
     const q = body.rotation();
-    let offset = (near.distance - this.control.belt + TRACK.length) % TRACK.length;
+    let offset = (near.distance - this.control.belt + this.track.length) % this.track.length;
     // Keep the spacing honest even when a bounce lands it on a neighbour.
     for (let attempt = 0; attempt < 6; attempt++) {
       const clash = this.control.marbles.find((other) => other !== marble && (other.phase === 'riding' || other.phase === 'merging') &&
-        Math.abs((((other.offset - offset) % TRACK.length) + TRACK.length * 1.5) % TRACK.length - TRACK.length / 2) < RIDER_SPACING);
+        Math.abs((((other.offset - offset) % this.track.length) + this.track.length * 1.5) % this.track.length - this.track.length / 2) < RIDER_SPACING);
       if (!clash) break;
-      offset = (clash.offset - RIDER_SPACING + TRACK.length) % TRACK.length;
+      offset = (clash.offset - RIDER_SPACING + this.track.length) % this.track.length;
     }
     marble.phase = 'merging';
     marble.time = 0;
@@ -540,10 +533,10 @@ export class Machine {
 
   private updateRiding(marble: MarbleControl): void {
     const body = this.marbleBody(marble.id);
-    const distance = (this.control.belt + marble.offset) % TRACK.length;
-    const point = TRACK.point(distance, marble.lateral);
+    const distance = (this.control.belt + marble.offset) % this.track.length;
+    const point = this.track.point(distance, marble.lateral);
     let { x, z } = point;
-    let y = RIDE_Y;
+    let y = RIDE_Y + point.y;
     if (marble.phase === 'merging') {
       const t = Math.min(marble.time / FLIGHT.mergeSeconds, 1);
       const eased = easeInOut(t);
@@ -558,7 +551,7 @@ export class Machine {
     if (marble.phase !== 'riding') return;
     const moved = RACEWAY.speed * TICK_SECONDS;
     for (let dock = 0; dock < this.dockDistances.length; dock++) {
-      const past = (distance - (this.dockDistances[dock] ?? 0) + TRACK.length) % TRACK.length;
+      const past = (distance - (this.dockDistances[dock] ?? 0) + this.track.length) % this.track.length;
       if (past >= moved) continue;
       const arrival = this.rules.arrive(marble.id, dock);
       if (arrival.result !== 'deliver') continue;

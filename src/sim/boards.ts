@@ -31,4 +31,8 @@ export const BOARD_5 = board('board-5', 'The long way round', 18,
   [trays('green', 'red', 'yellow'), trays('blue', 'green', 'red'), trays('yellow', 'blue', 'green'), trays('red', 'yellow', 'blue')],
   docks(4, 'red', 'red', 'blue', 'blue', 'yellow', 'red', 'green', 'blue', 'yellow', 'green', 'red', 'yellow', 'blue', 'green', 'red', 'yellow', 'green', 'blue', 'yellow', 'red', 'green', 'blue', 'red', 'yellow', 'green', 'blue', 'yellow', 'red', 'green', 'blue', 'yellow', 'red', 'green', 'blue', 'yellow', 'green'));
 
-export const BOARDS: readonly BoardDef[] = [BOARD_1, BOARD_2, BOARD_3, BOARD_4, BOARD_5];
+export const BOARD_6: BoardDef = { ...board('board-6', 'First bridge', 21,
+  [trays('blue', 'red'), trays('green'), trays('yellow')],
+  docks(3, 'red', 'red', 'red', 'blue', 'blue', 'blue', 'green', 'green', 'green', 'yellow', 'yellow', 'yellow')), trackShape: 'eight' };
+export const BOARD_7: BoardDef = { ...BOARD_3, id: 'board-7', title: 'The wide crossing', trackShape: 'wide-eight' };
+export const BOARDS: readonly BoardDef[] = [BOARD_1, BOARD_2, BOARD_3, BOARD_4, BOARD_5, BOARD_6, BOARD_7];

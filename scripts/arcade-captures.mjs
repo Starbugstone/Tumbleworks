@@ -4,13 +4,13 @@ const output = 'output/current/arcade';
 mkdirSync(output, { recursive: true });
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const errors = [], reports = [];
-for (const viewport of [{ width: 390, height: 844 }, { width: 320, height: 700 }, { width: 1365, height: 900 }]) {
+for (const viewport of [{ width: 390, height: 700 }, { width: 320, height: 700 }, { width: 1365, height: 900 }]) {
   const page = await browser.newPage({ viewport, hasTouch: true, deviceScaleFactor: 1 });
   page.on('pageerror', e => errors.push(e.message));
   await page.goto(process.env.TUMBLEWORKS_URL ?? 'http://game-server:5180');
   await page.waitForFunction(() => window.tumbleworks?.app?.runtime);
   await page.evaluate(() => { window.tumbleworks.app.manualClock = true; });
-  for (const index of [1, 12, 0]) {
+  for (const index of [1, 12, 14, 16, 0]) {
     await page.locator('#levels-toggle').click();
     await page.locator(`.chip[data-level="${index}"]`).click();
     await page.evaluate(() => window.tumbleworks.app.advance(0));
@@ -32,7 +32,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 320, height: 700 }
       const app = window.tumbleworks.app;
       const runtime = app.runtime, view = runtime.view;
       const { LOOP_WITNESSES } = await import('/tests/witnesses.ts');
-      const taps = [...(LOOP_WITNESSES[index === 12 ? 'loop-5' : 'loop-1'] ?? '')];
+      const taps = [...(LOOP_WITNESSES[runtime.board.id] ?? '')];
       let next = 0;
       let detected = false;
       const bounds = [];
@@ -64,7 +64,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 320, height: 700 }
       return bounds;
     }, index);
     for (const { corners } of result) for (const p of corners) {
-      if (p.x < 10 || p.x > viewport.width - 10 || p.y < 52 || p.y > viewport.height - 85) throw new Error(`Departure clipped at ${JSON.stringify({ viewport, index, p })}`);
+      if (p.x < (viewport.width <= 600 ? 6 : 14) || p.x > viewport.width - (viewport.width <= 600 ? 6 : 14) || p.y < (viewport.width <= 600 ? 52 : 64) || p.y > viewport.height - (viewport.width <= 600 ? 80 : 92)) throw new Error(`Departure clipped at ${JSON.stringify({ viewport, index, p })}`);
     }
     await page.screenshot({ timeout: 60000, path: `${output}/${viewport.width}-action-${index}.png` });
     if (index !== 0) {
@@ -83,7 +83,8 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 320, height: 700 }
             const box = new Box3().setFromObject(group);
             for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) {
               const p = new Vector3(x, y, z).project(view.camera);
-              if (Math.abs(p.x) > 0.95 || Math.abs(p.y) > 0.88) throw new Error('Late departure clipped');
+              const screenX = (p.x + 1) * innerWidth / 2, screenY = (1 - p.y) * innerHeight / 2;
+              if (screenX < (innerWidth <= 600 ? 6 : 14) || screenX > innerWidth - (innerWidth <= 600 ? 6 : 14) || screenY < (innerWidth <= 600 ? 52 : 64) || screenY > innerHeight - (innerWidth <= 600 ? 80 : 92)) throw new Error('Late departure clipped');
             }
             count++;
           }

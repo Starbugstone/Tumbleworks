@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { Color } from '../sim/types';
+import { colorName, patternName } from '../i18n';
 
 export interface Palette {
   readonly base: string;
@@ -18,9 +19,7 @@ export const COLORS: Record<Color, Palette> = {
   green: { base: '#0b8f7a', light: '#7fe0cc', dark: '#044a40', hex: 0x0b8f7a },
   yellow: { base: '#ffdc52', light: '#fff8c8', dark: '#b58a05', hex: 0xffdc52 },
 };
-export const COLOR_NAMES: Record<Color, string> = { red: 'Red', blue: 'Blue', green: 'Green', yellow: 'Yellow' };
-export const PATTERN_NAMES: Record<Color, string> = { red: 'Ring', blue: 'Diamond', green: 'Triangle', yellow: 'Star' };
-export const marbleName = (color: Color): string => `${PATTERN_NAMES[color]} (${COLOR_NAMES[color].toLowerCase()})`;
+export const marbleName = (color: Color): string => `${patternName(color)} (${colorName(color)})`;
 
 type Ctx = CanvasRenderingContext2D;
 

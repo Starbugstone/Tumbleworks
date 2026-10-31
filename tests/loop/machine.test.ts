@@ -1,5 +1,6 @@
+import { QUEUED_LOOP as LOOP_1, CONGESTED_LOOP } from './fixtures';
 import { describe, expect, it } from 'vitest';
-import { LOOP_1, LOOP_BOARDS } from '../../src/loop/boards';
+import { LOOP_BOARDS } from '../../src/loop/boards';
 import { bays, DECK_TOP, RoundedTrack } from '../../src/loop/layout';
 import { LoopMachine, type UnitPose } from '../../src/loop/machine';
 import type { LoopBoardDef } from '../../src/loop/types';
@@ -41,6 +42,25 @@ describe('the rounded loop track', () => {
 });
 
 describe('the Loop Sort machine agrees with the rules', () => {
+  for (const board of LOOP_BOARDS.slice(0, 2)) {
+    it(`${board.id}: the introductory exchange never waits for belt capacity`, () => {
+      const machine = new LoopMachine(board);
+      expect(machine.rules.occupancy).toBe(0);
+      for (let lane = 0; lane < board.lanes.length; lane++) expect(machine.tap(lane).ok).toBe(true);
+      let idle = 0, longestIdle = 0;
+      for (let tick = 0; tick < 60 * 12; tick++) {
+        const events = machine.step();
+        if (machine.rules.pending) {
+          expect(machine.rules.free).toBeGreaterThan(0);
+          idle = events.some((event) => event.type === 'enter' || event.type === 'absorb') ? 0 : idle + 1;
+          longestIdle = Math.max(longestIdle, idle);
+        }
+        if (machine.rules.status === 'won' && !machine.transferring) break;
+      }
+      expect(machine.rules.status).toBe('won');
+      expect(longestIdle / 60).toBeLessThan(0.5);
+    });
+  }
   for (const board of LOOP_BOARDS) {
     it(`${board.id}: the witness wins through the scripted loop within capacity`, { timeout: 120_000 }, () => {
       const machine = play(board, LOOP_WITNESSES[board.id] ?? '');
@@ -109,7 +129,7 @@ describe('the Loop Sort machine agrees with the rules', () => {
       expect(machine.unitSpacing * board.loopCapacity).toBeCloseTo(machine.track.length, 6);
       expect(machine.marblesPerUnit % 3).toBe(0);
     }
-    const full = LOOP_BOARDS[1]!;
+    const full = CONGESTED_LOOP;
     expect(full.loop.reduce((sum, entry) => sum + entry.count, 0)).toBe(full.loopCapacity);
     const machine = new LoopMachine(full);
     const poses: UnitPose[] = Array.from({ length: machine.marblesPerUnit }, () => ({ x: 0, y: 0, z: 0, roll: 0, visible: false }));
@@ -123,9 +143,9 @@ describe('the Loop Sort machine agrees with the rules', () => {
   });
 
   it('the authored jam really jams and the pour that caused it stays paused in the truck', { timeout: 60_000 }, () => {
-    const machine = play(LOOP_BOARDS[1]!, LOOP_JAMS['loop-2'] ?? '');
+    const machine = play(LOOP_BOARDS[2]!, LOOP_JAMS['loop-3'] ?? '');
     expect(machine.rules.status).toBe('jammed');
-    expect(machine.rules.occupancy).toBe(LOOP_BOARDS[1]!.loopCapacity);
+    expect(machine.rules.occupancy).toBe(LOOP_BOARDS[2]!.loopCapacity);
     expect(machine.transferring).toBe(false);
   });
 

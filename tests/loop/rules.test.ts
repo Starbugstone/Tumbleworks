@@ -1,5 +1,6 @@
+import { QUEUED_LOOP as LOOP_1, CONGESTED_LOOP as LOOP_2 } from './fixtures';
 import { describe, expect, it } from 'vitest';
-import { LOOP_1, LOOP_2, LOOP_BOARDS } from '../../src/loop/boards';
+import { LOOP_BOARDS } from '../../src/loop/boards';
 import { LoopRules } from '../../src/loop/rules';
 import { hintLoop, loopTree, settleLoop } from '../../src/loop/solver';
 import type { LoopBoardDef } from '../../src/loop/types';
