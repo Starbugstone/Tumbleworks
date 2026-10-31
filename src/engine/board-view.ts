@@ -25,7 +25,7 @@ export abstract class BoardView {
   private framing: Point3[] | null = null;
 
   constructor(protected readonly services: GameServices, private readonly elevation = 0.85) {
-    this.scene = services.stage.createScene();
+    this.scene = services.stage.createScene('studio');
     this.scene.add(this.board, this.actors, this.marbleLayer);
   }
   get busy(): boolean { return this.motions.size > 0 || this.bursts.length > 0; }

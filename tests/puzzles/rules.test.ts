@@ -1,17 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { TRAY_BOARDS, TUBE_BOARDS } from '../../src/puzzles/levels';
-import { availableTrayPieces, solveTray, solveTube, TrayRules, TubeRules, validateTrayDef, validateTubeDef } from '../../src/puzzles/rules';
-import type { TrayDef, TubeDef } from '../../src/puzzles/types';
+import { TUBE_BOARDS } from '../../src/puzzles/levels';
+import { solveTube, TubeRules, validateTubeDef } from '../../src/puzzles/rules';
+import type { TubeDef } from '../../src/puzzles/types';
 
 function tubeLevel(index = 0): TubeDef {
   const board = TUBE_BOARDS[index];
   if (!board) throw new Error('Missing tube fixture');
-  return board;
-}
-
-function trayLevel(index = 0): TrayDef {
-  const board = TRAY_BOARDS[index];
-  if (!board) throw new Error('Missing tray fixture');
   return board;
 }
 
@@ -136,132 +130,5 @@ describe('tube sorting', () => {
     expect(() => validateTubeDef({ ...tubeLevel(), capacity: 0 })).toThrow();
     expect(() => validateTubeDef({ ...tubeLevel(), tubes: [['red'], []] })).toThrow();
     expect(() => validateTubeDef({ ...tubeLevel(), tubes: [['red', 'red', 'red', 'red', 'red'], []] })).toThrow();
-  });
-});
-
-describe('tray matching', () => {
-  it.each(TRAY_BOARDS)('$id replays its authored solution and conserves every piece', (board) => {
-    const before = structuredClone(board);
-    const rules = new TrayRules(board);
-    const cleared = new Set<number>();
-    for (const id of board.solution) {
-      const result = rules.pick(id);
-      expect(result.ok).toBe(true);
-      if (result.ok) {
-        for (const clearedId of result.clearedIds) {
-          expect(cleared.has(clearedId)).toBe(false);
-          cleared.add(clearedId);
-        }
-      }
-      const occupied = [...rules.state.remaining, ...rules.state.rack, ...cleared];
-      expect(new Set(occupied).size).toBe(board.pieces.length);
-      expect(occupied).toHaveLength(board.pieces.length);
-      expect(rules.state.rack.length).toBeLessThan(board.rackCapacity);
-    }
-    expect(rules.status).toBe('won');
-    expect(rules.state.remaining).toEqual([]);
-    expect(rules.state.rack).toEqual([]);
-    expect(rules.state.moves).toBe(board.pieces.length);
-    expect(board).toEqual(before);
-  });
-
-  it('only exposes a covered piece once every blocker is gone', () => {
-    const rules = new TrayRules(trayLevel());
-    expect(availableTrayPieces(rules.board, rules.state)).toEqual([8, 9, 10, 11]);
-    const initial = rules.snapshot();
-    expect(rules.pick(0)).toEqual({ ok: false, reason: 'covered' });
-    expect(rules.state).toEqual(initial);
-    expect(rules.canUndo).toBe(false);
-    rules.pick(8);
-    expect(rules.available).toContain(0);
-    expect(rules.available).toContain(1);
-    expect(rules.pick(8)).toEqual({ ok: false, reason: 'removed' });
-    expect(rules.pick(NaN)).toEqual({ ok: false, reason: 'invalid-piece' });
-    expect(rules.pick(999)).toEqual({ ok: false, reason: 'invalid-piece' });
-    rules.undo();
-    expect(rules.state).toEqual(initial);
-  });
-
-  it('clears a triple selected into the seventh slot before checking for a full rack', () => {
-    const rules = new TrayRules(trayLevel());
-    for (const id of [8, 0, 9, 2, 10, 4]) expect(rules.pick(id).ok).toBe(true);
-    expect(rules.state.rack).toHaveLength(6);
-    expect(rules.pick(1)).toEqual({ ok: true, color: 'red', clearedIds: [8, 0, 1] });
-    expect(rules.state.rack).toEqual([9, 2, 10, 4]);
-    expect(rules.status).toBe('playing');
-    rules.undo();
-    expect(rules.state.rack).toEqual([8, 0, 9, 2, 10, 4]);
-    expect(rules.state.remaining).toContain(1);
-  });
-
-  it.each([
-    { board: trayLevel(), trace: [8, 0, 9, 2, 10, 4, 11] },
-    { board: trayLevel(1), trace: [12, 0, 1, 13, 2, 14, 4] },
-    { board: trayLevel(2), trace: [16, 0, 1, 17, 2, 18, 4] },
-  ])('$board.id has a genuine overflow choice that undo recovers', ({ board, trace }) => {
-    const rules = new TrayRules(board);
-    for (const id of trace) expect(rules.pick(id).ok).toBe(true);
-    expect(rules.status).toBe('jammed');
-    expect(rules.state.rack).toHaveLength(7);
-    expect(rules.pick(board.solution[0] ?? -1)).toEqual({ ok: false, reason: 'finished' });
-    expect(rules.hint()).toBeNull();
-    expect(rules.undo()).toBe(true);
-    expect(rules.status).toBe('playing');
-    expect(rules.state.rack).toHaveLength(6);
-  });
-
-  it.each(TRAY_BOARDS)('$id provides winning hints after an alternate opening', (board) => {
-    const rules = new TrayRules(board);
-    const opening = [...board.pieces].reverse().find((piece) => piece.blockedBy.length === 0);
-    if (!opening) throw new Error('Missing selectable piece');
-    rules.pick(opening.id);
-    for (let i = 0; rules.status === 'playing' && i < board.pieces.length; i += 1) {
-      const hint = rules.hint();
-      expect(hint).not.toBeNull();
-      if (hint === null) throw new Error('No current-state solution');
-      expect(rules.available).toContain(hint);
-      expect(rules.pick(hint).ok).toBe(true);
-    }
-    expect(rules.status).toBe('won');
-  });
-
-  it('never changes gameplay state when a hint search reaches its budget', () => {
-    const rules = new TrayRules(trayLevel(2));
-    const before = rules.snapshot();
-    expect(solveTray(rules.board, rules.state, 0)).toBeNull();
-    expect(solveTray(rules.board, rules.state, 1)).toBeNull();
-    expect(rules.state).toEqual(before);
-  });
-
-  it('validates saved identities, covered-piece removals, matches, and completion', () => {
-    const rules = new TrayRules(trayLevel());
-    rules.pick(8); rules.pick(0); rules.pick(1);
-    const checkpoint = rules.snapshot();
-    rules.pick(9);
-    rules.restore(JSON.parse(JSON.stringify(checkpoint)));
-    expect(rules.state).toEqual(checkpoint);
-    expect(rules.canUndo).toBe(false);
-    checkpoint.remaining.length = 0;
-    expect(rules.state.remaining).toHaveLength(9);
-    const invalid = [
-      null, {}, { ...rules.snapshot(), rack: [999] }, { ...rules.snapshot(), rack: [9] },
-      { remaining: trayLevel().pieces.map((piece) => piece.id).filter((id) => id !== 0), rack: [0], moves: 1, status: 'playing' },
-      { ...rules.snapshot(), moves: 0 }, { ...rules.snapshot(), status: 'won' },
-    ];
-    for (const value of invalid) {
-      const before = rules.snapshot();
-      expect(() => rules.restore(value)).toThrow();
-      expect(rules.state).toEqual(before);
-    }
-  });
-
-  it('rejects bad IDs, missing blockers, cover cycles, and incomplete triples', () => {
-    const source = trayLevel();
-    const first = source.pieces[0];
-    if (!first) throw new Error('Missing fixture piece');
-    expect(() => validateTrayDef({ ...source, pieces: [...source.pieces, first] })).toThrow();
-    expect(() => validateTrayDef({ ...source, pieces: source.pieces.map((piece) => piece.id === 0 ? { ...piece, blockedBy: [999] } : piece) })).toThrow();
-    expect(() => validateTrayDef({ ...source, pieces: source.pieces.map((piece) => piece.id === 8 ? { ...piece, blockedBy: [0] } : piece) })).toThrow();
-    expect(() => validateTrayDef({ ...source, pieces: source.pieces.slice(1) })).toThrow();
   });
 });

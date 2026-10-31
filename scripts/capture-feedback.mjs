@@ -2,7 +2,6 @@
 import { chromium } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { TUBE_BOARDS } from '../src/puzzles/levels.ts';
-import { CONNECT_BOARDS } from '../src/puzzles/connect-levels.ts';
 const output = 'output/current/video-frames';
 mkdirSync(output, { recursive: true });
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
@@ -38,12 +37,6 @@ async function drag(from, to) {
 }
 await select('tube'); await hold(0.5);
 for (const move of TUBE_BOARDS[0].solution) await drag(`tube${move.from}`, `tube${move.to}`);
-await hold(0.8);
-await select('tray'); await hold(0.4);
-for (const id of [8, 0, 1, 9, 2, 3]) { await tap(`piece${id}`); await hold(0.08); }
-await hold(0.8);
-await select('connect'); await hold(0.4);
-for (const id of CONNECT_BOARDS[0].solution) { await tap(`piece${id}`); await hold(0.08); }
 await hold(0.8);
 await select('conveyor'); await hold(0.4);
 for (const id of [0, 0, 1]) { await tap(`supply${id}`); await hold(0.08); }

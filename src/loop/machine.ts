@@ -114,7 +114,7 @@ export class LoopMachine {
   facing(lane: number): number { return this.bays[lane]?.row === 'front' ? 1 : -1; }
 
   /** A truck's bed, front (loop end) first, as colour blocks in rules units, plus its position. */
-  readTrucks(): { lane: number; index: number; x: number; y: number; z: number; scale: number; visible: boolean; docked: boolean;
+  readTrucks(): { lane: number; index: number; x: number; y: number; z: number; scale: number; visible: boolean; docked: boolean; finalColor: Color;
     blocks: { color: Color; units: number; pouring: boolean }[] }[] {
     return this.control.trucks.map((truck) => {
       const state = this.rules.state.lanes[truck.lane]?.find((candidate) => candidate.index === truck.index) ??
@@ -132,7 +132,8 @@ export class LoopMachine {
         if (own.length) blocks.push({ color: own[0]!.color, units: own.length, pouring: false });
       }
       return { lane: truck.lane, index: truck.index, x: this.bays[truck.lane]!.x, y: truck.y, z: truck.z, scale: truck.scale,
-        visible: truck.phase !== 'gone' && truck.phase !== 'queued', docked: truck.phase === 'docked', blocks };
+        visible: truck.phase !== 'gone' && truck.phase !== 'queued', docked: truck.phase === 'docked',
+        finalColor: this.board.lanes[truck.lane]![truck.index]!.segments.at(-1)!.color, blocks };
     });
   }
 

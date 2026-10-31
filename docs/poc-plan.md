@@ -2,17 +2,17 @@
 
 ## Scope
 
-The POC is one browser game with one campaign and five gameplay types. The campaign takes one level of each type per round, so it ends with the two longest conveyor levels.
+The POC is one browser game with one campaign and three gameplay types. The campaign takes one level of each type per round, so it ends with the two longest conveyor levels.
 
 We rebuilt the two conveyor games after a playtest against Voodoo's Marble Sort! and Loop Sort, because the earlier Funnel Sort worked but felt bland. The targets are many marbles on screen, a belt or loop that never stops, an immediate response to a tap, boxes and trucks that clear in bulk, and very little interface over the board. The [research](research/loop-sort-marble-sort-mechanics.md) records the evidence.
 
 ## Levels
 
-| Difficulty | Funnel Sort | Loop Sort | Tube Sort | Tray Match | Connected Match |
-| --- | --- | --- | --- | --- | --- |
-| Getting started | Board 1 has 3 trays, 3 docks and a belt of 15. Board 2 has 5 trays and a belt of 18. | Loop 1 has 2 lanes, 3 trucks and a loop of 12. Loop 2 has 3 lanes, 4 trucks and a loop of 24. | 3 colors, 2 spare tubes | 12 marbles | 4×4, 5 moves |
-| Finding a rhythm | Board 3 has 7 trays, 4 docks and a belt of 18. | Loop 3 has 3 lanes, 5 trucks, 120 units and a loop of 34. | 4 colors, 2 spare tubes | 18 marbles | 5×5, 5 moves |
-| Thinking ahead | Board 4 has 9 trays. Board 5 has 12 trays and 108 marbles. Both have a belt of 18. | Loop 4 has 4 lanes, 6 trucks and a loop of 30. Loop 5 has 4 lanes, 8 trucks, 192 units and a loop of 56. | 4 colors, 1 spare tube | 24 marbles | 6×6, 7 moves |
+| Difficulty | Funnel Sort | Loop Sort | Tube Sort |
+| --- | --- | --- | --- |
+| Getting started | Board 1 has 3 trays, 3 docks and a belt of 15. Board 2 has 5 trays and a belt of 18. | Loop 1 has 2 lanes, 3 trucks and a loop of 12. Loop 2 has 3 lanes, 4 trucks and a loop of 24. | 3 colors, 2 spare tubes |
+| Finding a rhythm | Board 3 has 7 trays, 4 docks and a belt of 18. | Loop 3 has 3 lanes, 5 trucks, 120 units and a loop of 34. | 4 colors, 2 spare tubes |
+| Thinking ahead | Board 4 has 9 trays. Board 5 has 12 trays and 108 marbles. Both have a belt of 18. | Loop 4 has 4 lanes, 6 trucks and a loop of 30. Loop 5 has 4 lanes, 8 trucks, 192 units and a loop of 56. | 4 colors, 1 spare tube |
 
 `scripts/board-tree.ts` and `scripts/loop-tree.ts` count every tap order once the board has settled.
 
@@ -39,7 +39,11 @@ A rounded-rectangle loop runs around a plateau. Up to three bays face the front 
 
 The loop has one slot per unit of capacity, and the slots move with it. Each unit is drawn as rows of three tiny marbles that fill its slot, so a full loop looks full. A pouring truck puts each unit into the first empty slot that reaches its open end. It pauses when the loop is full.
 
-A unit a truck wants hops into the open end, and that color's block grows. A complete truck waits for its last unit to land, then drives over the rim and down a ramp. The next truck in the bay rises into place.
+A unit a truck wants hops into the open end, and that color's block grows smoothly. The cab keeps the truck’s final color and a contrasting pattern marker, even while it pours another color. Cabs have windows, mirrors and six wheels; the wheels turn during arrival and departure. A complete truck waits for its last unit to land, then drives over the rim and down a ramp. The next truck in the bay rises into place.
+
+## Presentation
+
+Tube Sort uses two columns on a taller platform, with one pattern marker beside every occupied slot. Selected bases and tube rims respond immediately; completed tubes emit a short burst and play their completion sound even when another move follows straight away. Funnel Sort boxes pulse as they fill and burst when complete. These effects never gate input and reset on undo. The phone HUD keeps its level pill, compact counter and sound button in one row.
 
 ## Choices the references do not confirm
 
@@ -63,9 +67,9 @@ The browser validates saved completion, level and mute data. If a write fails, p
 
 [Verification](verification.md) lists the results. The specs cover the following:
 
-- Rule tests play a winning order on all nineteen boards and a losing order on every conveyor board except loop 1. `tests/witnesses.ts` holds the conveyor orders.
+- Rule tests play a winning order on all thirteen boards and a losing order on every conveyor board except loop 1. `tests/witnesses.ts` holds the conveyor orders.
 - Machine tests play every Funnel Sort winning order through real physics with no rescues, and every Loop Sort winning order through the scripted loop.
 - Engine tests register one extra gameplay pack and cover uneven level banks, duplicate registration, the physics landing and storage fallback.
-- Browser tests complete all nineteen levels by touch and cover losing and undoing in every type, hints, restart, reload, denied storage, desktop and narrow layouts, and Loop Sort's messages for refused taps.
+- Browser tests complete all thirteen levels by touch and cover losing and undoing in every type, hints, restart, reload, denied storage, desktop and narrow layouts, and Loop Sort's messages for refused taps.
 
 Browser tests set the game clock by hand so software-rendered runs repeat. They do not measure frame rate on a phone. The sound is synthesized, and a person still has to judge it.

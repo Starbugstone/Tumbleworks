@@ -46,6 +46,14 @@ function syntheticLevel(kind: string, id: string): GameLevel {
 }
 
 describe('gameplay registry', () => {
+  it('keeps thirteen sorting levels with their existing save IDs', () => {
+    expect(CAMPAIGN.map((level) => level.id)).toEqual([
+      'board-1', 'loop-1', 'tube-1', 'board-2', 'loop-2', 'tube-2',
+      'board-3', 'loop-3', 'tube-3', 'board-4', 'loop-4', 'board-5', 'loop-5',
+    ]);
+    expect([...new Set(CAMPAIGN.map((level) => level.kind))]).toEqual(['conveyor', 'loop', 'tube']);
+  });
+
   it('adds another runtime factory to the real campaign without special engine branches', () => {
     const registry = new CampaignRegistry();
     for (const kind of new Set(CAMPAIGN.map((level) => level.kind))) {

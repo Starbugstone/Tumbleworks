@@ -1,8 +1,8 @@
 # Tumbleworks
 
-Tumbleworks is a browser marble game with one nineteen-level campaign. It has five levels each of Funnel Sort and Loop Sort, and three each of Tube Sort, Tray Match and Connected Match. The campaign takes one level of each type per round. The level picker behind the top-left pill opens any level.
+Tumbleworks is a browser marble game with one thirteen-level campaign. It has five levels each of Funnel Sort and Loop Sort, and three of Tube Sort. The campaign takes one level of each type per round. The level picker behind the top-left pill opens any level.
 
-Funnel Sort uses physics for the fall from a crate and for the pile in the funnel. A script moves marbles through the neck, along the belt and into the boxes. Loop Sort is fully scripted. Tube Sort and Tray Match use the shared physics landing for their transfers.
+Funnel Sort uses physics for the fall from a crate and for the pile in the funnel. A script moves marbles through the neck, along the belt and into the boxes. Loop Sort is fully scripted. Tube Sort uses the shared physics landing for their transfers.
 
 ## Run
 
@@ -15,12 +15,10 @@ Open <http://localhost:5180>. On a phone on the same network, use `http://<your-
 ## Play
 
 - **Funnel Sort.** Tap a crate of nine. The marbles fall into the funnel, and the neck feeds them onto the belt one at a time while the belt has room. Each dock has a queue of three-slot boxes. The front box takes its color as it passes, and the queue moves up when the box is full. You lose if the belt is full and no box wants anything on it.
-- **Loop Sort.** A truck takes the color at its loop end as that color passes. Tap a truck to pour that color onto the loop and reach the color behind it. A truck full of one color drives away. You lose if the loop is full and no truck can take anything from it.
+- **Loop Sort.** A truck takes the color at its loop end as that color passes. Tap a truck to pour that color onto the loop and reach the color behind it. The color and pattern on its cab show the final color it needs. A truck full of that color drives away. You lose if the loop is full and no truck can take anything from it.
 - **Tube Sort.** Drag a top group into an empty tube or onto the same color, or tap the two tubes. As many marbles as fit move in one action. You win when each color fills its own tube.
-- **Tray Match.** Pick exposed marbles into the seven-slot rack. Three of a color clear. You lose if the rack fills with no match.
-- **Connected Match.** Tap a group of three or more same-colored marbles that touch along their sides. Columns collapse without refilling. You lose if you run out of moves or strand a group.
 
-Every type accepts the next legal action while earlier animation runs. Marbles are plain, glossy and naturally colored, and every pair of colors differs in brightness. Crates, boxes and cargo blocks carry ring, diamond, triangle or star marks, and the level picker shows the legend.
+Every type accepts the next legal action while earlier animation runs. Marbles are plain, glossy and naturally colored, and every pair of colors differs in brightness. Crates, boxes, cargo blocks, truck cabs and the slot rail beside each tube carry ring, diamond, triangle or star marks, and the level picker shows the legend.
 
 Undo, restart and hints work in every type. On a keyboard, arrow keys select a piece, Enter or Space acts, U undoes, H shows a hint and R restarts.
 
@@ -53,4 +51,4 @@ To author levels, `scripts/board-tree.ts` and `scripts/loop-tree.ts` count the w
 docker compose --profile e2e run --rm e2e node scripts/inspect-feedback.mjs
 ```
 
-This writes every level, plus grayscale and desktop views of the first level of each type, to `output/current`. `scripts/capture-feedback.mjs` records a short playthrough frame by frame, so a slow software renderer does not change its speed. `scripts/peek.mjs <levelIndex>` writes phone and desktop captures of one level to `output/rework`.
+This writes every level, plus grayscale and desktop views of the first level of each type, to `output/current`. `scripts/capture-feedback.mjs` records a short playthrough frame by frame, so a slow software renderer does not change its speed. `scripts/peek.mjs <levelIndex>` writes phone and desktop captures of one level to `output/current/peek`.

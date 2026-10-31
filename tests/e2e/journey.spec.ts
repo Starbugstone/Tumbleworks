@@ -1,6 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { TUBE_BOARDS, TRAY_BOARDS } from '../../src/puzzles/levels';
-import { CONNECT_BOARDS } from '../../src/puzzles/connect-levels';
+import { TUBE_BOARDS } from '../../src/puzzles/levels';
 import type { App } from '../../src/view/App';
 import { CAMPAIGN } from '../../src/campaign';
 import { FUNNEL_WITNESSES, LOOP_WITNESSES } from '../witnesses';
@@ -45,7 +44,7 @@ const levelIndex = (id: string): number => {
 };
 
 async function select(page: Page, index: number): Promise<void> {
-  await page.getByRole('button', { name: /Loop Sort|Funnel Sort|Tube Sort|Tray Match|Connected Match/ }).first().click();
+  await page.getByRole('button', { name: /Loop Sort|Funnel Sort|Tube Sort/ }).first().click();
   await page.locator(`.chip[data-level="${index}"]`).click();
   await settle(page);
   expect((await state(page)).levelIndex).toBe(index);
@@ -67,12 +66,6 @@ async function solve(page: Page, index: number): Promise<void> {
         await tap(page, `tube${move.from}`);
         await tap(page, `tube${move.to}`);
       }
-      break;
-    case 'tray':
-      for (const piece of TRAY_BOARDS[bank(TRAY_BOARDS)]?.solution ?? []) await tap(page, `piece${piece}`);
-      break;
-    case 'connect':
-      for (const piece of CONNECT_BOARDS[bank(CONNECT_BOARDS)]?.solution ?? []) await tap(page, `piece${piece}`);
       break;
     default: throw new Error(`No solver for ${level.kind}`);
   }
@@ -127,26 +120,13 @@ test('each ruleset recovers from a real jam through the shared undo button', asy
   await page.getByRole('button', { name: 'Undo', exact: true }).click();
   expect(await state(page)).toMatchObject({ status: 'playing', moves: 0 });
 
-  await select(page, levelIndex('tray-1'));
-  for (const piece of [8, 0, 9, 2, 10, 4, 11]) await tap(page, `piece${piece}`);
-  expect(await state(page)).toMatchObject({ status: 'jammed', moves: 7 });
-  await page.getByRole('button', { name: 'Undo', exact: true }).click();
-  expect(await state(page)).toMatchObject({ status: 'playing', moves: 6 });
-  await tap(page, 'piece1');
-  expect(await state(page)).toMatchObject({ status: 'playing', moves: 7 });
-  expect((await state(page)).rack).toHaveLength(4);
 
-  await select(page, levelIndex('connect-1'));
-  for (const piece of [6, 0, 5, 12]) await tap(page, `piece${piece}`);
-  expect(await state(page)).toMatchObject({ status: 'jammed', moves: 4 });
-  await page.getByRole('button', { name: 'Undo', exact: true }).click();
-  expect(await state(page)).toMatchObject({ status: 'playing', moves: 3 });
 });
 
 test('hints explain current board actions without playing them; restart resets the board', async ({ page }) => {
   await page.goto('/');
   await ready(page);
-  for (const id of ['board-1', 'loop-1', 'tube-1', 'tray-1', 'connect-1']) {
+  for (const id of ['board-1', 'loop-1', 'tube-1']) {
     await select(page, levelIndex(id));
     const before = await state(page);
     await page.getByRole('button', { name: 'Hint', exact: true }).click();
@@ -154,15 +134,16 @@ test('hints explain current board actions without playing them; restart resets t
     await expect(page.locator('#focus-ring')).toBeVisible();
     expect(await state(page)).toEqual(before);
   }
-  await select(page, levelIndex('tray-1'));
-  await tap(page, 'piece8');
+  await select(page, levelIndex('tube-1'));
+  await tap(page, 'tube0');
+  await tap(page, 'tube3');
   expect((await state(page)).moves).toBe(1);
   await page.getByRole('button', { name: 'Restart', exact: true }).click();
-  expect(await state(page)).toMatchObject({ moves: 0, rack: [] });
+  expect(await state(page)).toMatchObject({ moves: 0, selected: null });
   await page.getByRole('button', { name: 'Sound', exact: true }).click();
   await page.reload();
   await ready(page);
-  expect((await state(page)).levelId).toBe('tray-1');
+  expect((await state(page)).levelId).toBe('tube-1');
   await expect(page.getByRole('button', { name: 'Sound', exact: true })).toHaveClass(/muted/);
 });
 
@@ -173,7 +154,7 @@ test('desktop and narrow-phone boards keep targets and controls inside the viewp
   await ready(page);
   for (const viewport of [{ width: 1365, height: 900 }, { width: 320, height: 700 }]) {
     await page.setViewportSize(viewport);
-    for (const id of ['board-1', 'loop-1', 'tube-1', 'tray-1', 'connect-1', 'board-3', 'loop-4', 'tube-3', 'tray-3', 'connect-3', 'board-5', 'loop-5']) {
+    for (const id of ['board-1', 'loop-1', 'tube-1', 'board-3', 'loop-4', 'tube-3', 'board-5', 'loop-5']) {
       const index = levelIndex(id);
       await select(page, index);
       const targets = await page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.debugTargets());

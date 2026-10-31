@@ -3,11 +3,8 @@ import { ConveyorRuntime } from './gameplays/conveyor';
 import { LoopRuntime } from './gameplays/loop';
 import { LOOP_BOARDS } from './loop/boards';
 import { TubeRuntime } from './gameplays/tube';
-import { TrayRuntime } from './gameplays/tray';
-import { ConnectRuntime } from './gameplays/connect';
-import { CONNECT_BOARDS } from './puzzles/connect-levels';
 import { GAME_NAMES } from './gameplays/names';
-import { TUBE_BOARDS, TRAY_BOARDS } from './puzzles/levels';
+import { TUBE_BOARDS } from './puzzles/levels';
 import { BOARDS } from './sim/boards';
 
 const difficulties: readonly Difficulty[] = ['Getting started', 'Finding a rhythm', 'Thinking ahead'];
@@ -27,7 +24,7 @@ const loop: GameplayPack = {
   kind: 'loop', levels: LOOP_BOARDS.map((board, index) => ({
     id: board.id, kind: 'loop', name: GAME_NAMES.loop, title: board.title,
     difficulty: difficultyOfFive(index),
-    instructions: 'Trucks take their loop-end color as it passes. Tap a truck to pour that color out and reach the next.',
+    instructions: 'Tap to pour. Trucks collect their open-end color. Fill each truck with the color marked on its cab.',
     create: (services) => new LoopRuntime(board, services),
   })),
 };
@@ -38,20 +35,5 @@ const tube: GameplayPack = {
     create: (services) => new TubeRuntime(board, services),
   })),
 };
-const tray: GameplayPack = {
-  kind: 'tray', levels: TRAY_BOARDS.map((board, index) => ({
-    id: board.id, kind: 'tray', name: GAME_NAMES.tray, title: board.title, difficulty: difficulty(index),
-    instructions: 'Pick exposed marbles. Three matching colors clear. Keep room in the rack.',
-    create: (services) => new TrayRuntime(board, services),
-  })),
-};
-
-// Composition is the only place a new gameplay pack is added. App never switches on kind.
-const connect: GameplayPack = {
-  kind: 'connect', levels: CONNECT_BOARDS.map((board, index) => ({
-    id: board.id, kind: 'connect', name: GAME_NAMES.connect, title: board.title, difficulty: difficulty(index),
-    instructions: 'Tap 3+ touching marbles of one color. Clear the board within the move limit.',
-    create: (services) => new ConnectRuntime(board, services),
-  })),
-};
-export const CAMPAIGN = new CampaignRegistry().register(conveyor).register(loop).register(tube).register(tray).register(connect).levels();
+// Composition is the only place a gameplay pack is added. App never switches on kind.
+export const CAMPAIGN = new CampaignRegistry().register(conveyor).register(loop).register(tube).levels();

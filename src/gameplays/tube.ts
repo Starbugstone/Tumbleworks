@@ -9,7 +9,6 @@ export class TubeRuntime implements GameRuntime {
   readonly rules: TubeRules;
   private readonly view: TubeView;
   private selected: number | null = null;
-  private completedMove = false;
   private dragFrom: number | null = null;
   readonly drag = {
     start: (target: string, point: ScreenPoint): boolean => {
@@ -93,15 +92,14 @@ export class TubeRuntime implements GameRuntime {
     }
     this.selected = null;
     this.view.select(-1);
-    this.completedMove = result.completedTube;
     this.view.moved(result, this.rules.state, starts);
-    return [{ type: 'move' }];
+    return [{ type: 'move' }, ...(result.completedTube ? [{ type: 'match' as const }] : [])];
   }
 
   step(): readonly Feedback[] {
     const busy = this.busy;
     this.view.step();
-    if (busy && !this.busy) return [{ type: this.completedMove ? 'match' : 'deliver' }];
+    if (busy && !this.busy) return [{ type: 'deliver' }];
     return [];
   }
   hint(): readonly Feedback[] {

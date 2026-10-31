@@ -1,9 +1,11 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import { Sparks } from '../engine/sparks';
+import { FIXED_SECONDS } from '../engine/physics';
 import { MarbleCrowd } from '../engine/crowd';
 import { frameBoard } from '../engine/framing';
 import type { Stage } from '../engine/stage';
-import type { Machine, Pose } from '../machine/machine';
+import type { Machine, MachineEvent, Pose } from '../machine/machine';
 import { BOX, columnX, CRATE, FUNNEL, funnelHalfWidth, MARBLE_RADIUS, RACEWAY, STACK, TRACK, dockX } from '../machine/layout';
 import type { Color } from '../sim/types';
 import { COLORS, decal } from './art';
@@ -73,7 +75,7 @@ export class MachineScene {
   private readonly dummy = new THREE.Object3D();
   private readonly tracked = new Map<number, Tracked>();
   private readonly crates = new Map<number, THREE.Group>();
-  private readonly boxes = new Map<string, { group: THREE.Group; lights: THREE.Mesh[] }>();
+  private readonly boxes = new Map<string, { group: THREE.Group; lights: THREE.Mesh[]; pulse: number }>();
   private readonly hitTargets: THREE.Mesh[] = [];
   private readonly raycaster = new THREE.Raycaster();
   private readonly lightOff = plastic(0x2c3366, 0.6);
@@ -81,10 +83,12 @@ export class MachineScene {
   private readonly glass = new THREE.MeshPhysicalMaterial({ color: 0xd6ecff, transparent: true, opacity: 0.34, roughness: 0.08, metalness: 0, side: THREE.DoubleSide, depthWrite: false, envMapIntensity: 1.6 });
   private readonly tempA = new THREE.Quaternion();
   private readonly tempB = new THREE.Quaternion();
+  private readonly sparks: Sparks;
   private framing: { x: number; y: number; z: number }[] = [];
 
   constructor(private readonly stage: Stage) {
     this.scene = stage.createScene('studio');
+    this.sparks = new Sparks(this.scene);
     this.buildPlatform();
     this.chevrons = new THREE.InstancedMesh(new THREE.BoxGeometry(0.1, 0.012, RACEWAY.channelHalf * 1.5), plastic(0xaab3f2, 0.8), CHEVRONS);
     this.chevrons.frustumCulled = false;
@@ -170,7 +174,7 @@ export class MachineScene {
     return group;
   }
 
-  private boxGroup(color: Color): { group: THREE.Group; lights: THREE.Mesh[] } {
+  private boxGroup(color: Color): { group: THREE.Group; lights: THREE.Mesh[]; pulse: number } {
     const group = new THREE.Group();
     const material = shiny(COLORS[color].hex);
     const body = rounded(BOX.halfWidth * 2, BOX.height, BOX.halfDepth * 2, material, 0.08);
@@ -186,7 +190,7 @@ export class MachineScene {
     const badge = decal(color, 0.34);
     badge.position.set(0, BOX.height / 2, BOX.halfDepth + 0.01);
     group.add(badge);
-    return { group, lights };
+    return { group, lights, pulse: 0 };
   }
 
   /** Builds everything that belongs to one level. */
@@ -226,8 +230,11 @@ export class MachineScene {
     const docks = machine.board.docks.length;
     const dockHalf = Math.abs(dockX(0, docks)) + BOX.halfWidth + 0.3;
     const queueEnd = BOX.queueZ + BOX.queueSpacing * (Math.min(BOX.queueVisible, Math.max(...machine.board.docks.map((queue) => queue.length)) - 1) - 1) + 0.9;
-    this.buildBase(Math.max(half, dockHalf, TRACK.straightHalf + TRACK.radius + 1.1) + 0.45, FUNNEL.mouth.back - 0.5, queueEnd);
+    const baseHalf = Math.max(half, dockHalf, TRACK.straightHalf + TRACK.radius + 1.1) + 0.45;
+    this.buildBase(baseHalf, FUNNEL.mouth.back - 0.5, queueEnd);
     this.framing = [
+      { x: -baseHalf, y: -0.9, z: queueEnd }, { x: baseHalf, y: -0.9, z: queueEnd },
+      { x: -baseHalf, y: 0, z: FUNNEL.mouth.back - 0.5 }, { x: baseHalf, y: 0, z: FUNNEL.mouth.back - 0.5 },
       { x: -half - 0.3, y: FUNNEL.rimY, z: FUNNEL.mouth.back }, { x: half + 0.3, y: FUNNEL.rimY, z: FUNNEL.mouth.back },
       { x: -half, y: STACK.y + STACK.stepY * (rows - 1) + 1.1, z: STACK.z + STACK.stepZ * (rows - 1) - CRATE.halfDepth },
       { x: half, y: STACK.y + STACK.stepY * (rows - 1) + 1.1, z: STACK.z + STACK.stepZ * (rows - 1) - CRATE.halfDepth },
@@ -255,12 +262,29 @@ export class MachineScene {
 
   dispose(): void {
     this.clearLevel();
+    this.sparks.dispose();
     this.stage.disposeScene(this.scene);
     this.machine = null;
   }
 
   /** Call after each physics tick, so drawing can blend between the last two states. */
+  react(events: readonly MachineEvent[]): void {
+    if (!this.machine) return;
+    for (const event of events) {
+      if (event.type !== 'captured' && event.type !== 'boxFull') continue;
+      const box = this.machine.readBoxes().find((box) => box.dock === event.dock &&
+        (event.type === 'boxFull' ? box.index === event.box : box.docked));
+      if (!box) continue;
+      const visual = this.boxes.get(`${box.dock}:${box.index}`);
+      if (visual) visual.pulse = 1;
+      if (event.type === 'boxFull') this.sparks.burst({ x: box.x, y: box.y + BOX.height, z: box.z }, COLORS[box.color].hex);
+    }
+  }
+
   afterTick(): void {
+    this.sparks.step(FIXED_SECONDS);
+    for (const box of this.boxes.values()) box.pulse = Math.max(0, box.pulse - FIXED_SECONDS * 4);
+
     const machine = this.machine;
     if (!machine) return;
     for (const [id, entry] of this.tracked) {
@@ -273,6 +297,8 @@ export class MachineScene {
 
   /** Undo and restart jump the world, so blending across the jump would look wrong. */
   syncAfterJump(): void {
+    this.sparks.clear();
+    for (const box of this.boxes.values()) box.pulse = 0;
     const machine = this.machine;
     if (!machine) return;
     for (const [id, entry] of this.tracked) {
@@ -304,7 +330,7 @@ export class MachineScene {
       if (!visual) continue;
       visual.group.visible = box.visible;
       visual.group.position.set(box.x, box.y, box.z);
-      visual.group.scale.setScalar(box.scale);
+      visual.group.scale.set(box.scale * (1 + Math.sin(visual.pulse * Math.PI) * 0.055), box.scale, box.scale * (1 + Math.sin(visual.pulse * Math.PI) * 0.055));
       visual.lights.forEach((light, slot) => { light.material = slot < box.fill ? this.lightOn : this.lightOff; });
     }
     for (let i = 0; i < CHEVRONS; i++) {

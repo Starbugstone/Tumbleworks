@@ -50,6 +50,28 @@ describe('the Loop Sort machine agrees with the rules', () => {
     });
   }
 
+  it('keeps the authored final colour for pouring, leaving and replacement trucks', () => {
+    const machine = new LoopMachine(LOOP_1);
+    const targets = () => machine.readTrucks().map(({ lane, index, finalColor }) => ({ lane, index, finalColor }));
+    const expected = [
+      { lane: 0, index: 0, finalColor: 'blue' },
+      { lane: 1, index: 0, finalColor: 'yellow' },
+      { lane: 1, index: 1, finalColor: 'red' },
+    ];
+    expect(targets()).toEqual(expected);
+    expect(machine.tap(0).ok).toBe(true);
+    let replacement = false;
+    for (let tick = 0; tick < 900; tick++) {
+      machine.step();
+      expect(targets()).toEqual(expected);
+      replacement ||= machine.readTrucks().some((truck) => truck.lane === 1 && truck.index === 1 && truck.docked);
+    }
+    expect(replacement).toBe(true);
+    expect(machine.undo()).toBe(true);
+    expect(targets()).toEqual(expected);
+    expect(machine.readTrucks().find((truck) => truck.lane === 1 && truck.docked)?.finalColor).toBe('yellow');
+  });
+
   it('sizes units so a full loop looks full: capacity units close the ring with no visible gap', () => {
     for (const board of LOOP_BOARDS) {
       const machine = new LoopMachine(board);
@@ -81,11 +103,13 @@ describe('the Loop Sort machine agrees with the rules', () => {
     for (let tick = 0; tick < 60 * 8; tick++) machine.step();
     expect(machine.rules.occupancy).toBe(0);
     const before = JSON.stringify(machine.rules.snapshot());
+    const trucksBefore = machine.readTrucks();
     expect(machine.tap(1).ok).toBe(true);
     for (let tick = 0; tick < 20; tick++) machine.step();
     expect(machine.rules.occupancy + machine.rules.pending).toBe(8);
     expect(machine.undo()).toBe(true);
     expect(JSON.stringify(machine.rules.snapshot())).toBe(before);
+    expect(machine.readTrucks()).toEqual(trucksBefore);
     expect(machine.transferring).toBe(false);
     expect(machine.tap(0).ok).toBe(true);
     expect(machine.tap(1).ok).toBe(true);

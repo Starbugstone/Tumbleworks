@@ -93,7 +93,7 @@ export const TRUCK = {
   bedWidth: 0.92,
   bedLength: 3.6,
   bedHeight: 0.28,
-  cabLength: 0.5,
+  cabLength: 0.82,
   /** The bed's loop end, measured inward from the loop's centre line. */
   mouthInset: LOOP.channelHalf + 0.4,
   arriveSeconds: 0.38,

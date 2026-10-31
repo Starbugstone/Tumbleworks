@@ -3,6 +3,4 @@ export const GAME_NAMES = {
   conveyor: 'Funnel Sort',
   loop: 'Loop Sort',
   tube: 'Tube Sort',
-  tray: 'Tray Match',
-  connect: 'Connected Match',
 } as const;

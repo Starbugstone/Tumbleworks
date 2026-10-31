@@ -1,4 +1,8 @@
 import * as THREE from 'three';
+import { Sparks } from '../engine/sparks';
+import { COLORS, containerSymbolTexture } from './art';
+import type { Color } from '../sim/types';
+import { FIXED_SECONDS } from '../engine/physics';
 import { BoardView } from '../engine/board-view';
 import type { GameServices, ScreenPoint } from '../engine/contracts';
 import type { Point3 } from '../engine/physics';
@@ -11,6 +15,11 @@ const STEP = 1.02;
 export class TubeView extends BoardView {
   private readonly selectors: THREE.Mesh[] = [];
   private readonly lights: THREE.Mesh[] = [];
+  private readonly rims: THREE.Mesh[] = [];
+  private readonly badges: THREE.Mesh[][] = [];
+  private readonly badgeMaterials = new Map<Color, THREE.MeshBasicMaterial>();
+  private readonly pulses: number[] = [];
+  private readonly sparks: Sparks;
   private selected = -1;
   private identities: string[][] = [];
   private nextIdentity = 0;
@@ -21,10 +30,16 @@ export class TubeView extends BoardView {
   private readonly dragRay = new THREE.Raycaster();
 
   constructor(services: GameServices, readonly definition: TubeDef, state: TubeState) {
-    super(services, 0.95);
-    const plinth = toyBox(10.8, 0.5, 11.2, 0xfdf5e6, 0.2);
+    super(services, 1.35);
+    this.sparks = new Sparks(this.scene);
+    for (const color of Object.keys(COLORS) as Color[]) this.badgeMaterials.set(color,
+      new THREE.MeshBasicMaterial({ map: containerSymbolTexture(color), transparent: true, depthWrite: false, toneMapped: false }));
+    const plinth = toyBox(8.2, 0.5, 15.2, 0x5566d9, 0.2);
     plinth.position.set(0, 0.3, 0.3);
     this.board.add(plinth);
+    const deck = toyBox(7.7, 0.08, 14.7, 0xe6e9ff, 0.16);
+    deck.position.set(0, 0.57, 0.3);
+    this.board.add(deck);
     const glass = new THREE.MeshPhysicalMaterial({ color: 0xe4f5ff, transmission: 0.35, transparent: true,
       opacity: 0.2, roughness: 0.08, side: THREE.DoubleSide, depthWrite: false, envMapIntensity: 1.5 });
     definition.tubes.forEach((_, index) => {
@@ -37,6 +52,8 @@ export class TubeView extends BoardView {
       rim.rotation.x = Math.PI / 2;
       rim.position.set(at.x, 0.7 + height, at.z);
       this.board.add(rim);
+      this.rims.push(rim);
+      this.pulses.push(0);
       const base = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.92, 0.25, 32), toyMaterial(0x3b4069));
       base.position.set(at.x, 0.64, at.z);
       this.selectors.push(base);
@@ -46,19 +63,32 @@ export class TubeView extends BoardView {
       this.lights.push(light);
       this.board.add(light);
       const number = label(String(index + 1), 0.75);
-      number.position.set(at.x, 0.58, at.z + 1.5);
+      number.position.set(at.x, 0.64, at.z + 1.35);
       this.board.add(number);
+      const rail = toyBox(0.46, height, 0.1, 0x3b4069, 0.04);
+      rail.position.set(at.x + 0.94, 0.7 + height / 2, at.z);
+      this.board.add(rail);
+      const badges = Array.from({ length: definition.capacity }, (_, slot) => {
+        const badge = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.4), this.badgeMaterials.get('red')!);
+        badge.position.set(at.x + 0.94, this.position(index, slot).y, at.z + 0.06);
+        this.board.add(badge);
+        return badge;
+      });
+      this.badges.push(badges);
     });
     this.rebuild(state);
     this.resize();
   }
 
   private position(tube: number, slot: number): Point3 {
-    return { x: (tube % 3 - 1) * 3.25, y: 1.25 + slot * STEP, z: tube < 3 ? -2.8 : 3.2 };
+    const lastAlone = this.definition.tubes.length % 2 === 1 && tube === this.definition.tubes.length - 1;
+    return { x: lastAlone ? 0 : (tube % 2 - 0.5) * 3.8, y: 1.25 + slot * STEP, z: (Math.floor(tube / 2) - 1) * 4.8 };
   }
 
   rebuild(state: TubeState): void {
     this.cancelMotion();
+    this.sparks.clear();
+    this.pulses.fill(0);
     this.identities = state.tubes.map((tube) => tube.map(() => String(this.nextIdentity++)));
     this.layout(state);
   }
@@ -75,6 +105,15 @@ export class TubeView extends BoardView {
       hit.position.set(at.x, 2.9, at.z);
       this.actors.add(hit);
       this.hit(hit, `tube${index}`, { ...at, y: 3.4 });
+      this.badges[index]?.forEach((badge, slot) => {
+        const color = tube[slot];
+        badge.visible = color !== undefined;
+        if (color) badge.material = this.badgeMaterials.get(color)!;
+      });
+      const rim = this.rims[index];
+      if (rim?.material instanceof THREE.MeshPhysicalMaterial) {
+        rim.material.color.setHex(tube.at(-1) ? COLORS[tube.at(-1)!].hex : 0xe7f4f2);
+      }
       const complete = tube.length === this.definition.capacity && tube.every((color) => color === tube[0]);
       const light = this.lights[index];
       if (light?.material instanceof THREE.MeshPhysicalMaterial) {
@@ -137,11 +176,35 @@ export class TubeView extends BoardView {
     return positions;
   }
 
+  override step(): void {
+    super.step();
+    this.sparks.step(FIXED_SECONDS);
+    this.rims.forEach((rim, index) => {
+      const pulse = Math.max(0, (this.pulses[index] ?? 0) - FIXED_SECONDS * 3);
+      this.pulses[index] = pulse;
+      rim.scale.setScalar(1 + Math.sin(pulse * Math.PI) * 0.14 + (this.selected === index ? 0.06 : 0));
+    });
+  }
+
+  override dispose(): void {
+    this.sparks.dispose();
+    super.dispose();
+    for (const material of this.badgeMaterials.values()) {
+      material.map?.dispose();
+      material.dispose();
+    }
+  }
+
   moved(result: Extract<TubeMoveResult, { ok: true }>, state: TubeState, starts?: readonly Point3[]): void {
     const moved = this.identities[result.from]?.splice(result.fromSlot, result.count) ?? [];
     this.identities[result.to]?.push(...moved);
     const origins = starts?.slice(-result.count);
     moved.forEach((id, offset) => { const at = origins?.[offset]; if (at) this.placeMarble(id, at); });
     this.layout(state, true);
+    this.pulses[result.to] = 1;
+    if (result.completedTube) {
+      const at = this.position(result.to, this.definition.capacity - 1);
+      this.sparks.burst({ ...at, y: at.y + 0.5 }, COLORS[result.color].hex, 18);
+    }
   }
 }

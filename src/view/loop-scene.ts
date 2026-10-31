@@ -1,19 +1,20 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import { Sparks } from '../engine/sparks';
+import { lorry } from './lorry';
 import { MarbleCrowd } from '../engine/crowd';
 import { frameBoard } from '../engine/framing';
 import type { Stage } from '../engine/stage';
-import type { LoopMachine, UnitPose } from '../loop/machine';
-import { DECK_TOP, LOOP, MARBLE_RADIUS, TRUCK } from '../loop/layout';
+import type { LoopMachine, LoopMachineEvent, UnitPose } from '../loop/machine';
+import { DECK_TOP, LOOP, MARBLE_RADIUS, TRUCK, TICK_SECONDS } from '../loop/layout';
 import type { Color } from '../sim/types';
-import { COLORS, decal } from './art';
+import { COLORS, containerSymbolTexture } from './art';
 
 const CHEVRONS = 48;
 const CAMERA_DIRECTION = new THREE.Vector3(0, 0.84, 0.54).normalize();
 const PLATFORM = 0x5566d9;
 const PLATFORM_DARK = 0x3f4cc0;
 const CHANNEL = 0xdfe3ff;
-const BED = 0xf6f2e8;
 const MAX_BLOCKS = 6;
 
 const plastic = (color: number, roughness = 0.42): THREE.MeshStandardMaterial =>
@@ -58,8 +59,8 @@ function rounded(width: number, height: number, depth: number, material: THREE.M
   return mesh;
 }
 
-interface Block { readonly group: THREE.Group; readonly box: THREE.Mesh; readonly badge: THREE.Mesh; color: Color | null }
-interface TruckVisual { readonly group: THREE.Group; readonly blocks: Block[] }
+interface Block { readonly group: THREE.Group; readonly box: THREE.Mesh; readonly badge: THREE.Mesh; color: Color | null; units: number; previousUnits: number }
+interface TruckVisual { readonly group: THREE.Group; readonly blocks: Block[]; readonly wheels: THREE.Group[]; pulse: number }
 
 /** The Loop Sort platform: a packed loop around a plateau of truck bays, ramps out the front. */
 export class LoopScene {
@@ -71,12 +72,13 @@ export class LoopScene {
   private chevrons: THREE.InstancedMesh | null = null;
   private readonly dummy = new THREE.Object3D();
   private readonly trucks = new Map<string, TruckVisual>();
+  private readonly previousTrucks = new Map<string, ReturnType<LoopMachine['readTrucks']>[number]>();
+  private readonly currentTrucks = new Map<string, ReturnType<LoopMachine['readTrucks']>[number]>();
   private readonly hitTargets: THREE.Mesh[] = [];
   private readonly raycaster = new THREE.Raycaster();
   private readonly blockMaterials = new Map<Color, THREE.Material>();
-  private readonly bedMaterial = shiny(BED);
-  private readonly cabMaterial = shiny(0xffffff);
-  private readonly lampMaterial = new THREE.MeshStandardMaterial({ color: 0xffe28a, emissive: 0xffc83c, emissiveIntensity: 1.4 });
+  private readonly symbols = new Map<Color, THREE.CanvasTexture>();
+  private readonly sparks: Sparks;
   private perUnit = 3;
   private readonly previous = new Map<number, UnitPose[]>();
   private readonly current = new Map<number, UnitPose[]>();
@@ -85,7 +87,11 @@ export class LoopScene {
   constructor(private readonly stage: Stage) {
     this.scene = stage.createScene('studio');
     this.scene.add(this.level);
-    for (const color of Object.keys(COLORS) as Color[]) this.blockMaterials.set(color, shiny(COLORS[color].hex));
+    this.sparks = new Sparks(this.scene);
+    for (const color of Object.keys(COLORS) as Color[]) {
+      this.blockMaterials.set(color, shiny(COLORS[color].hex));
+      this.symbols.set(color, containerSymbolTexture(color));
+    }
   }
 
   private buildPlatform(machine: LoopMachine): void {
@@ -124,43 +130,26 @@ export class LoopScene {
     this.level.add(this.chevrons);
   }
 
-  private truckVisual(): TruckVisual {
+  private truckVisual(color: Color, facing: number): TruckVisual {
     const group = new THREE.Group();
-    const bed = rounded(TRUCK.bedWidth, TRUCK.bedHeight, TRUCK.bedLength, this.bedMaterial, 0.06);
-    bed.position.set(0, TRUCK.bedHeight / 2, 0);
-    group.add(bed);
-    // Low side rails, so the cargo reads as sitting in a tray.
-    for (const side of [-1, 1]) {
-      const rail = rounded(0.08, 0.12, TRUCK.bedLength, this.bedMaterial, 0.03);
-      rail.position.set(side * (TRUCK.bedWidth / 2 - 0.04), TRUCK.bedHeight + 0.06, 0);
-      group.add(rail);
-    }
-    const cab = new THREE.Group();
-    const body = rounded(TRUCK.bedWidth, 0.42, TRUCK.cabLength, this.cabMaterial, 0.1);
-    body.position.y = 0.21;
-    cab.add(body);
-    for (const side of [-1, 1]) {
-      const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 8), this.lampMaterial);
-      lamp.position.set(side * 0.28, 0.16, -TRUCK.cabLength / 2 - 0.01);
-      cab.add(lamp);
-    }
-    cab.name = 'cab';
-    group.add(cab);
+    const shell = lorry(color, TRUCK);
+    shell.body.rotation.y = facing > 0 ? 0 : Math.PI;
+    group.add(shell.body);
     const blocks: Block[] = [];
     for (let i = 0; i < MAX_BLOCKS; i++) {
       const block = new THREE.Group();
       const box = new THREE.Mesh(new RoundedBoxGeometry(TRUCK.bedWidth - 0.16, 0.34, 1, 2, 0.05), this.blockMaterials.get('red')!);
       box.castShadow = true;
       block.add(box);
-      const badge = decal('red', 0.3);
+      const badge = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.3), new THREE.MeshBasicMaterial({ map: this.symbols.get('red')!, transparent: true, depthWrite: false, toneMapped: false }));
       badge.rotation.x = -Math.PI / 2;
       badge.position.y = 0.18;
       block.add(badge);
       block.visible = false;
       group.add(block);
-      blocks.push({ group: block, box, badge, color: null });
+      blocks.push({ group: block, box, badge, color: null, units: 0, previousUnits: 0 });
     }
-    return { group, blocks };
+    return { group, blocks, wheels: shell.wheels, pulse: 0 };
   }
 
   setMachine(machine: LoopMachine): void {
@@ -177,7 +166,7 @@ export class LoopScene {
       this.current.set(marble.id, Array.from({ length: this.perUnit }, () => ({ x: 0, y: 0, z: 0, roll: 0, visible: false })));
     }
     for (const truck of machine.readTrucks()) {
-      const visual = this.truckVisual();
+      const visual = this.truckVisual(truck.finalColor, machine.facing(truck.lane));
       this.trucks.set(`${truck.lane}:${truck.index}`, visual);
       this.level.add(visual.group);
     }
@@ -204,6 +193,8 @@ export class LoopScene {
     this.crowd?.dispose();
     this.crowd = null;
     this.trucks.clear();
+    this.previousTrucks.clear();
+    this.currentTrucks.clear();
     this.previous.clear();
     this.current.clear();
     for (const target of this.hitTargets) this.scene.remove(target);
@@ -212,7 +203,7 @@ export class LoopScene {
       if (!(object instanceof THREE.Mesh)) return;
       object.geometry.dispose();
       for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
-        if (![...this.blockMaterials.values(), this.bedMaterial, this.cabMaterial, this.lampMaterial].includes(material)) material.dispose();
+        if (![...this.blockMaterials.values()].includes(material)) material.dispose();
       }
     });
     this.level.clear();
@@ -221,11 +212,64 @@ export class LoopScene {
 
   dispose(): void {
     this.clearLevel();
+    this.sparks.dispose();
+    for (const material of this.blockMaterials.values()) material.dispose();
+    for (const texture of this.symbols.values()) texture.dispose();
     this.stage.disposeScene(this.scene);
     this.machine = null;
   }
 
+  react(events: readonly LoopMachineEvent[]): void {
+    if (!this.machine) return;
+    for (const event of events) {
+      if (event.type !== 'pour' && event.type !== 'absorb' && event.type !== 'complete') continue;
+      const truck = this.machine.readTrucks().find((truck) => truck.lane === event.lane && truck.docked);
+      if (!truck) continue;
+      const visual = this.trucks.get(`${truck.lane}:${truck.index}`);
+      if (visual) visual.pulse = event.type === 'complete' ? 1 : event.type === 'pour' ? 0.65 : 0.25;
+      if (event.type === 'complete') this.sparks.burst({ x: truck.x, y: truck.y + 0.7, z: truck.z }, COLORS[event.color].hex, 18);
+    }
+  }
+
+  private syncTrucks(snap: boolean): void {
+    if (!this.machine) return;
+    for (const truck of this.machine.readTrucks()) {
+      const key = `${truck.lane}:${truck.index}`;
+      this.previousTrucks.set(key, snap ? truck : this.currentTrucks.get(key) ?? truck);
+      this.currentTrucks.set(key, truck);
+    }
+  }
+
+  private syncCargo(snap: boolean): void {
+    if (!this.machine) return;
+    for (const truck of this.machine.readTrucks()) {
+      const visual = this.trucks.get(`${truck.lane}:${truck.index}`);
+      if (!visual) continue;
+      const ordered = [...truck.blocks].reverse();
+      visual.blocks.forEach((block, index) => {
+        const entry = ordered[index];
+        const target = entry?.units ?? 0;
+        const changedColor = entry && entry.color !== block.color;
+        block.previousUnits = block.units;
+        block.units = snap || changedColor ? target : block.units + (target - block.units) * 0.42;
+        if (Math.abs(target - block.units) < 0.01) block.units = target;
+        if (snap || changedColor) block.previousUnits = block.units;
+        if (changedColor) {
+          block.color = entry.color;
+          block.box.material = this.blockMaterials.get(entry.color)!;
+          const material = block.badge.material;
+          if (material instanceof THREE.MeshBasicMaterial) material.map = this.symbols.get(entry.color)!;
+        }
+      });
+    }
+  }
+
   afterTick(): void {
+    this.syncTrucks(false);
+    this.syncCargo(false);
+    this.sparks.step(TICK_SECONDS);
+    for (const visual of this.trucks.values()) visual.pulse = Math.max(0, visual.pulse - TICK_SECONDS * 4);
+
     const machine = this.machine;
     if (!machine) return;
     for (const [id, poses] of this.current) {
@@ -237,6 +281,10 @@ export class LoopScene {
   }
 
   syncAfterJump(): void {
+    this.sparks.clear();
+    this.syncTrucks(true);
+    this.syncCargo(true);
+    for (const visual of this.trucks.values()) visual.pulse = 0;
     const machine = this.machine;
     if (!machine) return;
     for (const [id, poses] of this.current) {
@@ -273,33 +321,29 @@ export class LoopScene {
     }
     this.crowd.commit();
     const unit = machine.unitLength;
-    for (const truck of machine.readTrucks()) {
+    for (const truck of this.currentTrucks.values()) {
       const visual = this.trucks.get(`${truck.lane}:${truck.index}`);
       if (!visual) continue;
       visual.group.visible = truck.visible;
       if (!truck.visible) continue;
       const facing = machine.facing(truck.lane);
-      visual.group.position.set(truck.x, truck.y, truck.z);
-      visual.group.scale.setScalar(truck.scale);
-      const cab = visual.group.getObjectByName('cab');
-      if (cab) { cab.position.z = -facing * (TRUCK.bedLength / 2 + TRUCK.cabLength / 2); cab.rotation.y = facing > 0 ? 0 : Math.PI; }
+      const previous = this.previousTrucks.get(`${truck.lane}:${truck.index}`);
+      const blend = previous?.visible ? alpha : 1;
+      const y = previous ? previous.y + (truck.y - previous.y) * blend : truck.y;
+      const z = previous ? previous.z + (truck.z - previous.z) * blend : truck.z;
+      const scale = previous ? previous.scale + (truck.scale - previous.scale) * blend : truck.scale;
+      visual.group.position.set(truck.x, y + Math.sin(visual.pulse * Math.PI) * 0.1, z);
+      visual.group.scale.setScalar(scale);
+      for (const wheel of visual.wheels) wheel.rotation.x = z / 0.2;
       // Cargo packs against the cab; the mouth end stays open. Blocks are listed loop end first.
       let edge = -facing * TRUCK.bedLength / 2;
-      const ordered = [...truck.blocks].reverse();
-      visual.blocks.forEach((block, index) => {
-        const entry = ordered[index];
-        block.group.visible = Boolean(entry && entry.units > 0);
-        if (!entry || entry.units <= 0) return;
-        const length = entry.units * unit;
+      visual.blocks.forEach((block) => {
+        const length = (block.previousUnits + (block.units - block.previousUnits) * alpha) * unit;
+        block.group.visible = length > 0.005;
+        if (!block.group.visible) return;
         block.group.position.set(0, TRUCK.bedHeight + 0.17, edge + facing * length / 2);
-        block.box.scale.z = Math.max(length - 0.04, 0.02);
+        block.box.scale.z = Math.max(length - 0.04, 0.005);
         block.badge.visible = length > 0.36;
-        if (block.color !== entry.color) {
-          block.color = entry.color;
-          block.box.material = this.blockMaterials.get(entry.color)!;
-          (block.badge.material as THREE.MeshBasicMaterial).map = (decal(entry.color).material as THREE.MeshBasicMaterial).map;
-          (block.badge.material as THREE.MeshBasicMaterial).needsUpdate = true;
-        }
         edge += facing * length;
       });
     }

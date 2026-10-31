@@ -20,7 +20,7 @@ export class ConveyorRuntime implements GameRuntime {
   get status() { return this.machine.rules.status; }
   get busy() { return this.machine.transferring; }
   get canUndo() { return this.machine.canUndo; }
-  get counter() { return { label: 'Belt', value: `${this.machine.rules.occupancy}/${this.board.beltCapacity}${this.machine.rules.funnelCount ? ` · funnel ${this.machine.rules.funnelCount}` : ''}` }; }
+  get counter() { return { label: 'Belt', value: `${this.machine.rules.occupancy}/${this.board.beltCapacity}${this.machine.rules.funnelCount ? ` +${this.machine.rules.funnelCount}` : ''}` }; }
   readonly preview = [];
   readonly previewLabel = '';
   get jamReason() {
@@ -36,7 +36,9 @@ export class ConveyorRuntime implements GameRuntime {
   }
   step(): readonly Feedback[] {
     const feedback: Feedback[] = [];
-    for (const event of this.machine.step()) {
+    const events = this.machine.step();
+    this.view.react(events);
+    for (const event of events) {
       switch (event.type) {
         case 'impact': feedback.push({ type: 'impact', strength: event.strength }); break;
         case 'kick': feedback.push({ type: 'deliver', slot: event.dock }); break;

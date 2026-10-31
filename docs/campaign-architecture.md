@@ -1,6 +1,6 @@
 # Campaign architecture
 
-The campaign has five levels each of Funnel Sort and Loop Sort, and three each of Tube Sort, Tray Match and Connected Match. Every level can be completed, undone and restarted through the same interface, and completed levels survive a reload.
+The campaign has five levels each of Funnel Sort and Loop Sort, and three of Tube Sort. Every level can be completed, undone and restarted through the same interface, and completed levels survive a reload.
 
 ## Ownership
 
@@ -10,7 +10,8 @@ The campaign has five levels each of Funnel Sort and Loop Sort, and three each o
 - `Stage` keeps one renderer, the lighting setup and `MarbleFactory` for the whole campaign.
 - `MarbleCrowd` draws the many marbles in the two conveyor games with instancing.
 - `PhysicsService` owns initialization, world timing and marble body construction.
-- `MarbleDrop` is the shared physics landing for Tube Sort and Tray Match.
+- `MarbleDrop` is the shared physics landing for Tube Sort.
+- `Sparks` pools completion particles in one instanced draw and clears them on undo.
 - Funnel Sort has its own physics world, undo snapshots and scripted belt.
 
 We chose registered runtimes over one controller that switches on level kind. This lets a new type arrive without changes to the campaign controller, the marble resources or the physics service. It also keeps the puzzles out of a shared conveyor data model that most of them do not fit.
@@ -34,3 +35,5 @@ Completed levels and the selected level use validated local storage, with an in-
 ## Evidence
 
 Unit tests cover the rules, the authored winning orders, registry composition and the physics landing. Browser tests cover each type, losing and undoing, level transitions and reload. Phone performance and audio still need a person to check them.
+
+Retired Tray Match and Connected Match IDs are ignored when selecting a level, without deleting completed sorting levels or the mute setting. Lorry goal markers come from each authored truck’s deepest segment and stay fixed while its exposed cargo changes.

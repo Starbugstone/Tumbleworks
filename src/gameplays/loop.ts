@@ -20,8 +20,7 @@ export class LoopRuntime implements GameRuntime {
   get busy() { return this.machine.transferring; }
   get canUndo() { return this.machine.canUndo; }
   get counter() {
-    const left = this.board.lanes.reduce((sum, _, lane) => sum + this.machine.waiting(lane), 0);
-    return { label: 'Loop', value: `${this.machine.rules.occupancy}/${this.board.loopCapacity}${left ? ` · ${left} more truck${left === 1 ? '' : 's'}` : ''}` };
+    return { label: 'Loop', value: `${this.machine.rules.occupancy}/${this.board.loopCapacity}` };
   }
   readonly preview = [];
   readonly previewLabel = '';
@@ -40,7 +39,9 @@ export class LoopRuntime implements GameRuntime {
   }
   step(): readonly Feedback[] {
     const feedback: Feedback[] = [];
-    for (const event of this.machine.step()) {
+    const events = this.machine.step();
+    this.view.react(events);
+    for (const event of events) {
       switch (event.type) {
         case 'absorb': if (event.fill % 3 === 0) feedback.push({ type: 'deliver', slot: event.lane }); break;
         case 'complete': feedback.push({ type: 'match' }); break;
@@ -78,13 +79,18 @@ export class LoopRuntime implements GameRuntime {
       const facing = this.machine.facing(lane);
       const at = this.view.toScreen(bay.x, DECK_TOP + 0.4, this.machine.mouthZ(lane) - facing * (TRUCK.bedLength + TRUCK.cabLength) / 2);
       const color = truck.segments[0]?.color;
-      return [[`lane${lane}`, { ...at, label: `Truck ${lane + 1}: ${color ? marbleName(color) : ''} at the loop end` }]];
+      const finalColor = this.board.lanes[lane]?.[truck.index]?.segments.at(-1)?.color;
+      return [[`lane${lane}`, { ...at, label: `Truck ${lane + 1}: ${color ? marbleName(color) : ''} at the loop end. Finish with ${finalColor ? marbleName(finalColor) : ''}` }]];
     }));
   }
   inspect() {
     const rules = this.machine.rules;
     return { occupancy: rules.occupancy, pending: rules.pending, status: rules.status,
       lanes: this.board.lanes.map((_, lane) => rules.front(lane)?.segments.map((segment) => `${segment.color}:${segment.marbles.length}`) ?? null),
+      finalColors: this.board.lanes.map((_, lane) => {
+        const truck = rules.front(lane);
+        return truck ? this.board.lanes[lane]?.[truck.index]?.segments.at(-1)?.color : null;
+      }),
       wants: this.board.lanes.map((_, lane) => rules.wants(lane)), tick: this.machine.tick,
       settling: this.busy || rules.canDrain() };
   }
