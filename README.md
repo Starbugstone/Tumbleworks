@@ -20,6 +20,8 @@ Open <http://localhost:5180>. On a phone on the same network, use `http://<your-
 
 Every type accepts the next legal action while earlier animation runs. Marbles are plain, glossy and naturally colored, and every pair of colors differs in brightness. Crates, boxes, cargo blocks, truck cabs and the slot rail beside each tube carry ring, diamond, triangle or star marks, and the level picker shows the legend.
 
+Funnel Sort and Loop Sort sit in an arcade loading yard with steady edge lighting. A filled box or truck gets a short completion stamp and sound at its loading point. Trucks leave across raised exit pads; they stay above the platform as they disappear.
+
 Undo, restart and hints work in every type. On a keyboard, arrow keys select a piece, Enter or Space acts, U undoes, H shows a hint and R restarts.
 
 The browser stores completed levels, the selected level and the mute setting. An unfinished board restarts on reload. There are no accounts and no cloud sync.

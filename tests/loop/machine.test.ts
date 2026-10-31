@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { LOOP_1, LOOP_BOARDS } from '../../src/loop/boards';
-import { bays, RoundedTrack } from '../../src/loop/layout';
+import { bays, DECK_TOP, RoundedTrack } from '../../src/loop/layout';
 import { LoopMachine, type UnitPose } from '../../src/loop/machine';
 import type { LoopBoardDef } from '../../src/loop/types';
 import { LOOP_JAMS, LOOP_WITNESSES } from '../witnesses';
@@ -71,6 +71,36 @@ describe('the Loop Sort machine agrees with the rules', () => {
     expect(machine.undo()).toBe(true);
     expect(targets()).toEqual(expected);
     expect(machine.readTrucks().find((truck) => truck.lane === 1 && truck.docked)?.finalColor).toBe('yellow');
+  });
+
+  it('dispatches above the deck and shrinks away before disappearing in both bay rows', () => {
+    const rows = new Set<string>();
+    for (const board of LOOP_BOARDS) {
+      const machine = new LoopMachine(board);
+      const taps = [...(LOOP_WITNESSES[board.id] ?? '')].map((letter) => letter.charCodeAt(0) - 65);
+      const lastVisible = new Map<string, number>();
+      const finished = new Set<string>();
+      let next = 0;
+      for (let tick = 0; tick < 60 * 200; tick++) {
+        machine.step();
+        for (const truck of machine.readTrucks()) {
+          const key = `${truck.lane}:${truck.index}`;
+          if (truck.departing) {
+            rows.add(machine.bays[truck.lane]!.row);
+            expect(truck.y).toBeGreaterThanOrEqual(DECK_TOP);
+            lastVisible.set(key, truck.scale);
+          } else if (!truck.visible && lastVisible.has(key) && !finished.has(key)) {
+            expect(lastVisible.get(key)).toBeLessThan(0.02);
+            finished.add(key);
+          }
+        }
+        if (machine.rules.status !== 'playing' && !machine.transferring) break;
+        const lane = taps[next];
+        if (lane !== undefined && machine.rules.pending === 0 && !machine.rules.canDrain() && tick % 10 === 0 && machine.tap(lane).ok) next++;
+      }
+      expect(finished.size).toBe(board.lanes.reduce((sum, lane) => sum + lane.length, 0));
+    }
+    expect([...rows].sort()).toEqual(['back', 'front']);
   });
 
   it('sizes units so a full loop looks full: capacity units close the ring with no visible gap', () => {

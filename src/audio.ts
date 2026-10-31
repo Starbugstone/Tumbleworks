@@ -57,7 +57,8 @@ class Sfx {
   }
 
   release(): void {
-    for (let i = 0; i < 6; i++) this.clink(1900 + i * 90, 0.07, i * 0.035);
+    this.tone(170, 0.09, 0.14, 0, 'triangle', 330);
+    this.tone(660, 0.09, 0.06, 0.035, 'sine', 990);
   }
 
   /** A marble really hit something. Harder hits are louder and lower. */
@@ -82,6 +83,8 @@ class Sfx {
   boxFilled(chain: number): void {
     const root = 523 * Math.pow(2, Math.min(chain, 7) / 12);
     [1, 1.25, 1.5].forEach((ratio, i) => this.tone(root * ratio, 0.26, 0.16, i * 0.05, 'triangle'));
+    this.tone(110, 0.12, 0.15, 0, 'triangle', 55);
+    this.tone(root * 2, 0.18, 0.06, 0.12, 'sine', root * 3);
   }
 
   blocked(): void {

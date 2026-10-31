@@ -25,12 +25,12 @@ export class Stage {
     this.tableMaterial = new THREE.MeshStandardMaterial({ map: woodTexture(), roughness: 0.62, envMapIntensity: 0.35 });
   }
 
-  createScene(backdrop: 'wood' | 'studio' = 'wood'): THREE.Scene {
+  createScene(backdrop: 'wood' | 'studio' | 'arcade' = 'wood'): THREE.Scene {
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(backdrop === 'wood' ? 0x6e4a2b : 0x1f2650);
+    scene.background = new THREE.Color(backdrop === 'wood' ? 0x6e4a2b : backdrop === 'arcade' ? 0x0b172b : 0x1f2650);
     scene.environment = this.environment;
     scene.environmentIntensity = backdrop === 'wood' ? 0.38 : 0.5;
-    const key = new THREE.DirectionalLight(0xfff0dc, 3.2);
+    const key = new THREE.DirectionalLight(0xfff0dc, backdrop === 'arcade' ? 2.3 : 3.2);
     key.position.set(-7, 22, 11);
     key.castShadow = true;
     key.shadow.mapSize.set(1024, 1024);

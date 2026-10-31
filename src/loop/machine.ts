@@ -114,7 +114,7 @@ export class LoopMachine {
   facing(lane: number): number { return this.bays[lane]?.row === 'front' ? 1 : -1; }
 
   /** A truck's bed, front (loop end) first, as colour blocks in rules units, plus its position. */
-  readTrucks(): { lane: number; index: number; x: number; y: number; z: number; scale: number; visible: boolean; docked: boolean; finalColor: Color; unloading: 'pouring' | 'waiting' | null;
+  readTrucks(): { lane: number; index: number; x: number; y: number; z: number; scale: number; visible: boolean; docked: boolean; departing: boolean; finalColor: Color; unloading: 'pouring' | 'waiting' | null;
     blocks: { color: Color; units: number; pouring: boolean }[] }[] {
     return this.control.trucks.map((truck) => {
       const state = this.rules.state.lanes[truck.lane]?.find((candidate) => candidate.index === truck.index) ??
@@ -133,6 +133,7 @@ export class LoopMachine {
       }
       return { lane: truck.lane, index: truck.index, x: this.bays[truck.lane]!.x, y: truck.y, z: truck.z, scale: truck.scale,
         visible: truck.phase !== 'gone' && truck.phase !== 'queued', docked: truck.phase === 'docked',
+        departing: truck.phase === 'leaving',
         unloading: state?.unloading.length ? (this.rules.free === 0 ? 'waiting' : 'pouring') : null,
         finalColor: this.board.lanes[truck.lane]![truck.index]!.segments.at(-1)!.color, blocks };
     });
@@ -287,7 +288,7 @@ export class LoopMachine {
     const facing = this.facing(truck.lane);
     const docked = this.mouthZ(truck.lane) - facing * TRUCK.bedLength / 2;
     if (truck.phase === 'docked' || truck.phase === 'arriving') return { z: docked, y: DECK_TOP, scale: 1 };
-    if (truck.phase === 'leaving') return { z: docked + facing * (TRUCK.bedLength + 3.4), y: DECK_TOP - 2.6, scale: 1 };
+    if (truck.phase === 'leaving') return { z: facing * (this.track.halfDepth + LOOP.channelHalf + LOOP.wallThickness + TRUCK.exitLength - 0.35), y: DECK_TOP, scale: 0 };
     return { z: docked, y: DECK_TOP - 1.4, scale: 0.3 };
   }
 
@@ -311,7 +312,9 @@ export class LoopMachine {
         const t = easeInOut(truck.time / truck.duration);
         truck.z = truck.fromZ + (target.z - truck.fromZ) * t;
         truck.y = truck.fromY + (target.y - truck.fromY) * t;
-        truck.scale = truck.fromScale + (target.scale - truck.fromScale) * t;
+        // Keep the chassis above the deck; dispatch shrinks it away at the outer pad, never through the platform.
+        const scaleT = truck.phase === 'leaving' ? easeInOut(Math.max(0, (truck.time / truck.duration - 0.5) * 2)) : t;
+        truck.scale = truck.fromScale + (target.scale - truck.fromScale) * scaleT;
         if (truck.time >= truck.duration && truck.phase === 'leaving') {
           truck.phase = 'gone';
           this.events.push({ type: 'gone', lane: truck.lane, truck: truck.index });

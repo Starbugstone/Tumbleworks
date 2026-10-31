@@ -97,7 +97,8 @@ export const TRUCK = {
   /** The bed's loop end, measured inward from the loop's centre line. */
   mouthInset: LOOP.channelHalf + 0.4,
   arriveSeconds: 0.38,
-  leaveSeconds: 0.7,
+  leaveSeconds: 0.85,
+  exitLength: 2.6,
 } as const;
 export const trackFor = (lanes: number): RoundedTrack => {
   const columns = Math.max(...[bays(lanes).filter((bay) => bay.row === 'front').length, bays(lanes).filter((bay) => bay.row === 'back').length]);

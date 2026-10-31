@@ -9,14 +9,15 @@ import type { Machine, MachineEvent, Pose } from '../machine/machine';
 import { BOX, columnX, CRATE, FUNNEL, funnelHalfWidth, MARBLE_RADIUS, RACEWAY, STACK, TRACK, dockX } from '../machine/layout';
 import type { Color } from '../sim/types';
 import { COLORS, decal } from './art';
+import { ARCADE, ArcadePop, ArcadeYard, stencil } from './arcade';
 
 const CHEVRONS = 36;
 const DECK_TOP = RACEWAY.floorY;
 const RIM_TOP = RACEWAY.floorY + RACEWAY.wallHeight;
 const CAMERA_DIRECTION = new THREE.Vector3(0, 0.82, 0.57).normalize();
-const PLATFORM = 0x5566d9;
-const PLATFORM_DARK = 0x3f4cc0;
-const CHANNEL = 0xe6e9ff;
+const PLATFORM = ARCADE.deck;
+const PLATFORM_DARK = ARCADE.edge;
+const CHANNEL = ARCADE.track;
 
 const plastic = (color: number, roughness = 0.42): THREE.MeshStandardMaterial =>
   new THREE.MeshStandardMaterial({ color, roughness, metalness: 0, envMapIntensity: 0.7 });
@@ -76,6 +77,10 @@ export class MachineScene {
   private readonly tracked = new Map<number, Tracked>();
   private readonly crates = new Map<number, THREE.Group>();
   private readonly boxes = new Map<string, { group: THREE.Group; lights: THREE.Mesh[]; pulse: number }>();
+  private previousCrates: ReturnType<Machine['readCrates']> = [];
+  private currentCrates: ReturnType<Machine['readCrates']> = [];
+  private previousBoxes: ReturnType<Machine['readBoxes']> = [];
+  private currentBoxes: ReturnType<Machine['readBoxes']> = [];
   private readonly hitTargets: THREE.Mesh[] = [];
   private readonly raycaster = new THREE.Raycaster();
   private readonly lightOff = plastic(0x2c3366, 0.6);
@@ -84,13 +89,16 @@ export class MachineScene {
   private readonly tempA = new THREE.Quaternion();
   private readonly tempB = new THREE.Quaternion();
   private readonly sparks: Sparks;
+  private readonly pops: ArcadePop;
+  private yard: ArcadeYard | null = null;
   private framing: { x: number; y: number; z: number }[] = [];
 
   constructor(private readonly stage: Stage) {
-    this.scene = stage.createScene('studio');
+    this.scene = stage.createScene('arcade');
     this.sparks = new Sparks(this.scene);
+    this.pops = new ArcadePop(this.scene, 'LOADED!');
     this.buildPlatform();
-    this.chevrons = new THREE.InstancedMesh(new THREE.BoxGeometry(0.1, 0.012, RACEWAY.channelHalf * 1.5), plastic(0xaab3f2, 0.8), CHEVRONS);
+    this.chevrons = new THREE.InstancedMesh(new THREE.BoxGeometry(0.1, 0.012, RACEWAY.channelHalf * 1.5), plastic(0x4f8896, 0.8), CHEVRONS);
     this.chevrons.frustumCulled = false;
     this.scene.add(this.chevrons, this.level);
   }
@@ -102,6 +110,10 @@ export class MachineScene {
     const rim = slab(ring(outer, TRACK.radius + RACEWAY.channelHalf), DECK_TOP, RIM_TOP, plastic(PLATFORM_DARK), shiny(PLATFORM));
     const island = slab(stadium(inner), DECK_TOP, RIM_TOP, plastic(PLATFORM_DARK), shiny(PLATFORM));
     this.scene.add(deck, rim, island);
+    const rail = slab(ring(outer + 0.015, outer - 0.055), RIM_TOP, RIM_TOP + 0.045, plastic(PLATFORM_DARK), new THREE.MeshBasicMaterial({ color: ARCADE.cyan, toneMapped: false }));
+    const label = stencil('KEEP IT FLOWING', 3.5, 0.5);
+    label.position.set(0, RIM_TOP + 0.01, TRACK.centerZ);
+    this.scene.add(rail, label);
     // A dark throat under the neck, where marbles drop onto the belt.
     const throat = new THREE.Mesh(new THREE.CylinderGeometry(FUNNEL.neck.halfX + 0.12, FUNNEL.neck.halfX + 0.12, FUNNEL.neckY - DECK_TOP, 20, 1, true), plastic(0x2a3170, 0.7));
     throat.material.side = THREE.BackSide;
@@ -124,6 +136,11 @@ export class MachineScene {
     const base = rounded(halfWidth * 2, 0.9, frontZ - backZ, shiny(PLATFORM), 0.3);
     base.position.set(0, -0.45, (frontZ + backZ) / 2);
     this.level.add(base);
+    this.yard = new ArcadeYard(this.scene, halfWidth, backZ, frontZ);
+    const brand = stencil('FUNNEL SORT', 3.3, 0.38, '#e1fffa');
+    brand.rotation.x = 0;
+    brand.position.set(0, -0.3, frontZ + 0.012);
+    this.level.add(brand);
   }
 
   private buildFunnel(columns: number): void {
@@ -139,7 +156,7 @@ export class MachineScene {
       this.plateMesh(new THREE.Vector3(0, mouthY, mouth.front), new THREE.Vector3(0, neckY, neck.z + neck.halfZ), half * 2, 'z'),
     );
     const rimHeight = rimY - mouthY;
-    const rimMaterial = shiny(0xf1f4ff);
+    const rimMaterial = shiny(0xffc857);
     for (const [x, z, w, d] of [[-half, midZ, 0.14, depth + 0.14], [half, midZ, 0.14, depth + 0.14], [0, mouth.back, half * 2 + 0.14, 0.14], [0, mouth.front, half * 2 + 0.14, 0.14]] as const) {
       const wall = new THREE.Mesh(new THREE.BoxGeometry(w, 0.06, d), this.glass);
       wall.position.set(x, mouthY + rimHeight / 2, z);
@@ -231,9 +248,17 @@ export class MachineScene {
     const dockHalf = Math.abs(dockX(0, docks)) + BOX.halfWidth + 0.3;
     const queueEnd = BOX.queueZ + BOX.queueSpacing * (Math.min(BOX.queueVisible, Math.max(...machine.board.docks.map((queue) => queue.length)) - 1) - 1) + 0.9;
     const baseHalf = Math.max(half, dockHalf, TRACK.straightHalf + TRACK.radius + 1.1) + 0.45;
-    this.buildBase(baseHalf, FUNNEL.mouth.back - 0.5, queueEnd);
+    this.buildBase(baseHalf, FUNNEL.mouth.back - 0.5, queueEnd + 0.7);
+    for (let dock = 0; dock < docks; dock++) {
+      const x = dockX(dock, docks);
+      const strip = rounded(BOX.halfWidth * 2 + 0.12, 0.04, queueEnd - BOX.z + 1.1, plastic(0x0b2939), 0.02);
+      strip.position.set(x, 0.03, (queueEnd + BOX.z) / 2 - 0.25);
+      const number = stencil(String(dock + 1).padStart(2, '0'), 0.65, 0.3, '#ffd363');
+      number.position.set(x, 0.06, BOX.z - 0.75);
+      this.level.add(strip, number);
+    }
     this.framing = [
-      { x: -baseHalf, y: -0.9, z: queueEnd }, { x: baseHalf, y: -0.9, z: queueEnd },
+      { x: -baseHalf, y: -0.9, z: queueEnd + 0.7 }, { x: baseHalf, y: -0.9, z: queueEnd + 0.7 },
       { x: -baseHalf, y: 0, z: FUNNEL.mouth.back - 0.5 }, { x: baseHalf, y: 0, z: FUNNEL.mouth.back - 0.5 },
       { x: -half - 0.3, y: FUNNEL.rimY, z: FUNNEL.mouth.back }, { x: half + 0.3, y: FUNNEL.rimY, z: FUNNEL.mouth.back },
       { x: -half, y: STACK.y + STACK.stepY * (rows - 1) + 1.1, z: STACK.z + STACK.stepZ * (rows - 1) - CRATE.halfDepth },
@@ -245,6 +270,8 @@ export class MachineScene {
   }
 
   private clearLevel(): void {
+    this.yard?.dispose();
+    this.yard = null;
     this.crowd?.dispose();
     this.crowd = null;
     this.tracked.clear();
@@ -270,6 +297,7 @@ export class MachineScene {
   dispose(): void {
     this.clearLevel();
     this.sparks.dispose();
+    this.pops.dispose();
     this.glass.dispose();
     this.lightOff.dispose();
     this.lightOn.dispose();
@@ -287,16 +315,25 @@ export class MachineScene {
       if (!box) continue;
       const visual = this.boxes.get(`${box.dock}:${box.index}`);
       if (visual) visual.pulse = 1;
-      if (event.type === 'boxFull') this.sparks.burst({ x: box.x, y: box.y + BOX.height, z: box.z }, COLORS[box.color].hex);
+      if (event.type === 'boxFull') {
+        const at = { x: box.x, y: box.y + BOX.height + 0.3, z: box.z };
+        this.sparks.burst(at, COLORS[box.color].hex, 20);
+        this.pops.burst(at);
+      }
     }
   }
 
   afterTick(): void {
     this.sparks.step(FIXED_SECONDS);
+    this.pops.step(FIXED_SECONDS);
     for (const box of this.boxes.values()) box.pulse = Math.max(0, box.pulse - FIXED_SECONDS * 4);
 
     const machine = this.machine;
     if (!machine) return;
+    this.previousCrates = this.currentCrates;
+    this.currentCrates = machine.readCrates();
+    this.previousBoxes = this.currentBoxes;
+    this.currentBoxes = machine.readBoxes();
     for (const [id, entry] of this.tracked) {
       const swap = entry.previous;
       entry.previous = entry.current;
@@ -308,9 +345,12 @@ export class MachineScene {
   /** Undo and restart jump the world, so blending across the jump would look wrong. */
   syncAfterJump(): void {
     this.sparks.clear();
+    this.pops.clear();
     for (const box of this.boxes.values()) box.pulse = 0;
     const machine = this.machine;
     if (!machine) return;
+    this.previousCrates = this.currentCrates = machine.readCrates();
+    this.previousBoxes = this.currentBoxes = machine.readBoxes();
     for (const [id, entry] of this.tracked) {
       machine.readMarble(id, entry.current);
       Object.assign(entry.previous, entry.current);
@@ -327,20 +367,26 @@ export class MachineScene {
       this.crowd.set(id, p.x + (c.x - p.x) * alpha, p.y + (c.y - p.y) * alpha, p.z + (c.z - p.z) * alpha, this.tempA.x, this.tempA.y, this.tempA.z, this.tempA.w);
     }
     this.crowd.commit();
-    for (const crate of machine.readCrates()) {
+    for (const [index, crate] of this.currentCrates.entries()) {
       const group = this.crates.get(crate.key);
       if (!group) continue;
+      const previous = this.previousCrates[index] ?? crate;
+      const blend = previous.visible ? alpha : 1;
+      const open = previous.open + (crate.open - previous.open) * blend;
       group.visible = crate.visible;
-      group.position.set(crate.x, crate.y + crate.open * 0.6, crate.z);
-      group.rotation.x = -crate.open * 0.9;
-      group.scale.setScalar(1 - crate.open * 0.85);
+      group.position.set(crate.x, previous.y + (crate.y - previous.y) * blend + open * 0.6, previous.z + (crate.z - previous.z) * blend);
+      group.rotation.x = -open * 0.9;
+      group.scale.setScalar(1 - open * 0.85);
     }
-    for (const box of machine.readBoxes()) {
+    for (const [index, box] of this.currentBoxes.entries()) {
       const visual = this.boxes.get(`${box.dock}:${box.index}`);
       if (!visual) continue;
+      const previous = this.previousBoxes[index] ?? box;
+      const blend = previous.visible ? alpha : 1;
+      const scale = previous.scale + (box.scale - previous.scale) * blend;
       visual.group.visible = box.visible;
-      visual.group.position.set(box.x, box.y, box.z);
-      visual.group.scale.set(box.scale * (1 + Math.sin(visual.pulse * Math.PI) * 0.055), box.scale, box.scale * (1 + Math.sin(visual.pulse * Math.PI) * 0.055));
+      visual.group.position.set(previous.x + (box.x - previous.x) * blend, previous.y + (box.y - previous.y) * blend, previous.z + (box.z - previous.z) * blend);
+      visual.group.scale.set(scale * (1 + Math.sin(visual.pulse * Math.PI) * 0.055), scale, scale * (1 + Math.sin(visual.pulse * Math.PI) * 0.055));
       visual.lights.forEach((light, slot) => { light.material = slot < box.fill ? this.lightOn : this.lightOff; });
     }
     for (let i = 0; i < CHEVRONS; i++) {

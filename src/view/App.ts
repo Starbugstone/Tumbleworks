@@ -172,7 +172,7 @@ export class App {
     for (const event of events) {
       switch (event.type) {
         case 'tap': sfx.tap(); break;
-        case 'move': sfx.tap(); break;
+        case 'move': sfx.release(); break;
         case 'match': sfx.boxFilled(this.chain++); break;
         case 'blocked': sfx.blocked(); break;
         case 'impact': sfx.impact(event.strength ?? 0.2); break;

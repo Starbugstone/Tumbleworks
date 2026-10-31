@@ -26,6 +26,7 @@ Reference material: Voodoo's Marble Sort! (funnel, belt, box columns) and Loop S
 - Color accessibility is required by the player, who is colour-blind and found yellow and green too close. The palette keeps a luminance gap between every pair: yellow is by far the brightest, green is a deep teal. Marbles themselves are plain glossy spheres in their natural colour: the player rejected surface textures, large symbols and camera-facing badges on marbles. The pattern language lives on the containers instead: crates, boxes, cargo blocks, truck cabs, tube slot rails and hints use **red = ring, blue = diamond, green = triangle, yellow = star**, and the legend sits in the level picker. Never rely on hue alone for a container.
 - Keep touch, mouse, keyboard, undo, restart, current-state hints and local completion working across types. Test cancelled/invalid drags and rapid successive moves.
 - Keep the interface out of the way: one slim top row (level pill, counter, sound), three round icon buttons at the bottom, a short instruction toast. The level picker, title, difficulty and pattern legend live behind the level pill. The player asked for the toy to fill the screen.
+- Keep ambient and perimeter lighting steady. The player rejected flashing or chasing side lights. Put motion and completion feedback at the active truck, crate or receiving box.
 
 ## Runtime and checks
 

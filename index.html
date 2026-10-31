@@ -76,6 +76,14 @@
       @media (max-height: 600px) and (min-width: 600px) { .action { width: 44px; height: 44px; } #bottom { bottom: 8px; } #toasts { bottom: 62px; } }
       @media (max-width: 420px) { #top { gap: 5px; left: 8px; right: 8px; } .pill { font-size: 12px; padding: 0 9px; gap: 4px; } }
       @media (prefers-reduced-motion: reduce) { #confetti { display: none; } #focus-ring, #undo.attention { animation: none; } }
+      /* The controls sit on the same dark enamel and amber buttons as the arcade machines. */
+      #top .pill, #hud #mute { background: #10283e; color: #efffff; border: 1px solid #3d7e8d; box-shadow: 0 3px 0 #071521, 0 5px 14px #0005; }
+      #load { color: #81ffe2 !important; letter-spacing: .02em; }
+      #load.jammed { color: #ffe1a3 !important; border-color: #ff9c54; }
+      #instruction { background: #10283ef2; color: #deeeef; border: 1px solid #345f70; border-radius: 12px; }
+      .action { background: #ffce65; box-shadow: 0 4px 0 #a56b29, 0 7px 12px #0006; }
+      .action:active { box-shadow: 0 1px 0 #a56b29, 0 4px 8px #0006; }
+      #hint { background: #80ead8; box-shadow: 0 4px 0 #267c79, 0 7px 12px #0006; }
     </style>
   </head>
   <body>
