@@ -52,39 +52,41 @@ export class TrayView extends BoardView {
     return { x: piece.x, y: 1.1 + piece.layer * 0.85, z: piece.z };
   }
 
-  rebuild(state: TrayState, rack = state.rack): void {
+  rebuild(state: TrayState): void {
+    this.cancelMotion();
+    this.layout(state);
+  }
+
+  private layout(state: TrayState, animate = false): void {
     this.clearActors();
     const available = new Set(availableTrayPieces(this.definition, state));
-    for (const id of state.remaining) {
+    const placements = state.remaining.flatMap((id) => {
       const piece = this.definition.pieces.find((value) => value.id === id);
-      if (!piece) continue;
-      const entity = this.marble(piece.color, RADIUS, this.position(id), `piece${id}`);
+      if (!piece) return [];
+      const at = this.position(id);
       if (!available.has(id)) {
-        // Keep the color visible beneath the cover, but mark the piece as unavailable.
         const cover = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.055, 8, 20), toyMaterial(0x86775f));
         cover.rotation.x = -Math.PI / 2;
-        cover.position.copy(entity.mesh.position).add(new THREE.Vector3(0, 0.6, 0));
+        cover.position.set(at.x, at.y + 0.6, at.z);
         this.actors.add(cover);
       }
-    }
-    rack.forEach((id, slot) => {
-      const piece = this.definition.pieces.find((value) => value.id === id);
-      if (piece) this.marble(piece.color, 0.48, rackPoint(slot));
+      return [{ id: String(id), color: piece.color, radius: RADIUS, at, target: `piece${id}` }];
     });
+    state.rack.forEach((id, slot) => {
+      const piece = this.definition.pieces.find((value) => value.id === id);
+      if (piece) placements.push({ id: String(id), color: piece.color, radius: 0.48, at: rackPoint(slot), target: '' });
+    });
+    this.syncMarbles(placements, animate);
   }
 
   picked(id: number, result: Extract<TrayPickResult, { ok: true }>, beforeRack: readonly number[], state: TrayState): void {
-    this.rebuild(state, [...beforeRack]);
-    this.transferMarble(result.color, 0.48, this.position(id), rackPoint(beforeRack.length), () => {
-      this.rebuild(state);
-      if (result.clearedIds.length) {
-        const oldRack = [...beforeRack, id];
-        const entries = result.clearedIds.flatMap((pieceId) => {
-          const piece = this.definition.pieces.find((value) => value.id === pieceId);
-          return piece ? [{ color: piece.color, at: rackPoint(oldRack.indexOf(pieceId)) }] : [];
-        });
-        this.burst(entries, 0.48);
-      }
+    const oldRack = [...beforeRack, id];
+    const entries = result.clearedIds.flatMap((pieceId) => {
+      const piece = this.definition.pieces.find((value) => value.id === pieceId);
+      const at = this.marblePosition(String(pieceId)) ?? this.position(pieceId);
+      return piece ? [{ color: piece.color, at, to: rackPoint(oldRack.indexOf(pieceId)) }] : [];
     });
+    this.layout(state, true);
+    if (entries.length) this.burst(entries, 0.48);
   }
 }

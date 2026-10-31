@@ -1,6 +1,6 @@
 # Tumbleworks
 
-A browser marble game with one nine-level campaign: three conveyor puzzles, three tube-sorting puzzles, and three tray-matching puzzles. Each type returns at an increasing difficulty. Every level is available from the numbered row for POC playtesting.
+A browser marble game with one twelve-level campaign: three difficulties each of **Funnel Sort**, **Tube Sort**, **Tray Match**, and **Connected Match**. Each type returns at an increasing difficulty. Every level is available from the numbered row for POC playtesting.
 
 The workshop shares its glass marbles, rendering, input, undo/restart, hints, sound and saved completion. The conveyor keeps real physics for the tray-to-funnel fall; its belt and delivery arcs stay scripted and never stop. Tube and tray transfers use the same reusable physical landing service.
 
@@ -14,17 +14,20 @@ Open <http://localhost:5180>. On a phone connected to the same network, use `htt
 
 ## Play
 
-- **Conveyor:** tip supplies, fill the receiving boxes in order, and preserve enough belt space for the next useful pour.
-- **Tubes:** select a tube, then an empty tube or a matching top color. Complete a full tube for each color.
-- **Tray:** pick exposed marbles into the seven-slot rack. Matching triples clear immediately; finish sets before filling the rack.
+- **Funnel Sort:** dump multiple trays into the funnel while earlier pours continue. Excess waits in the funnel until the moving belt has space. Fill the receiving boxes in order; a full belt that cannot drain is a dead end.
+- **Tube Sort:** drag a matching top group into an empty tube or onto the same pattern. Two-tap input also works. Transfer as many as fit in one action and complete a tube for each type.
+- **Tray Match:** the original layered puzzle: pick exposed marbles into the seven-slot rack. Any matching triple clears; finish sets before filling the rack.
+- **Connected Match:** tap groups of three or more matching marbles connected along their sides. Columns collapse without refill. Clear the board within the move limit; stranded groups lose.
 
-Undo, restart and hints work for all three. Keyboard: arrow keys select a piece, Enter/Space acts, U undoes, H hints, R restarts. Completion, the selected level and mute persist locally; an unfinished board starts fresh on reload. There is no account or cloud sync.
+All four accept the next legal action while earlier animation continues. Every marble carries rings, diamonds, triangles or stars as distinct surface textures that rotate with the model. Undo, restart and hints work for all four. Keyboard: arrow keys select a piece, Enter/Space acts, U undoes, H hints, R restarts. Completion, the selected level and mute persist locally; an unfinished board starts fresh on reload. There is no account or cloud sync.
 
 ## Architecture
 
+[AGENTS.md](AGENTS.md) fixes the permanent names, rules and development requirements.
+
 [The engine and extension contract](docs/campaign-architecture.md) explains ownership. Register another gameplay pack in `src/campaign.ts`; it supplies level factories implementing `GameRuntime`. The campaign controller has no switch on gameplay kind. Shared marble resources and physics remain in `src/engine`.
 
-[The POC plan](docs/poc-plan.md) records the nine boards and verification boundaries.
+[The POC plan](docs/poc-plan.md) records the twelve boards and verification boundaries.
 
 ## Checks
 
@@ -40,7 +43,7 @@ Browser journeys use real canvas touch targets and advance the real fixed-tick r
 ## Visual evidence
 
 ```sh
-docker compose --profile e2e run --rm e2e node scripts/inspect-poc.mjs
+docker compose --profile e2e run --rm e2e node scripts/inspect-feedback.mjs
 ```
 
-This captures phone and desktop boards into `output/poc9`. `scripts/capture-video.mjs` records a representative playthrough, advancing the game frame by frame so a software renderer does not change playback speed.
+This captures all twelve boards, desktop layouts and grayscale/low-quality checks into `output/poc12`. `scripts/capture-feedback.mjs` records a representative playthrough, advancing the game frame by frame so a software renderer does not change playback speed.

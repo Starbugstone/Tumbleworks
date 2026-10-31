@@ -3,41 +3,38 @@ import { Machine } from '../machine/machine';
 import { supplyX, TRAY } from '../machine/layout';
 import { hintConveyor } from '../sim/solver';
 import type { BoardDef } from '../sim/types';
-import { COLOR_NAMES } from '../view/art';
+import { marbleName } from '../view/art';
 import { MachineScene } from '../view/scene';
 
 export class ConveyorRuntime implements GameRuntime {
   readonly machine: Machine;
   private readonly view: MachineScene;
-  private firstTap: boolean;
 
-  constructor(readonly board: BoardDef, services: GameServices, guided: boolean) {
+  constructor(readonly board: BoardDef, services: GameServices) {
     this.machine = new Machine(board, services.physics);
     this.view = new MachineScene(services.stage);
     this.view.setMachine(this.machine);
-    this.firstTap = guided;
   }
   get status() { return this.machine.rules.status; }
   get busy() { return this.machine.transferring; }
   get canUndo() { return this.machine.canUndo; }
-  get counter() { return { label: 'Belt', value: `${this.machine.rules.occupancy} / ${this.board.beltCapacity}` }; }
+  get counter() { return { label: 'Belt / funnel', value: `${this.machine.rules.occupancy}/${this.board.beltCapacity} · ${this.machine.rules.funnelCount}` }; }
   get preview() { return this.board.boxes.slice(this.machine.activeBoxForView + 1, this.machine.activeBoxForView + 7); }
   readonly previewLabel = 'NEXT BOXES';
   get jamReason() {
-    const color = this.machine.rules.activeColor ?? 'the next color';
+    const active = this.machine.rules.activeColor;
+    const color = active ? marbleName(active).toLowerCase() : 'the next pattern';
     return `The next box needs ${color}, but the belt has no space to release it. Undo a pour to keep a route open.`;
   }
 
   activate(target: string): readonly Feedback[] {
     if (!/^supply\d+$/.test(target) || this.status !== 'playing') return [];
     const supply = Number(target.slice(6));
-    if (this.firstTap && supply !== 0) return [{ type: 'message', text: 'Start with the blue tray to uncover red.', target: 'supply0' }];
     const result = this.machine.tap(supply);
     if (!result.ok) {
       if (result.reason === 'no-space') return [{ type: result.canDrain ? 'message' : 'blocked', text: `Needs ${result.needed} free spaces.${result.canDrain ? ' The belt is clearing.' : ''}` }];
       return [{ type: 'tap' }];
     }
-    this.firstTap = false;
     return [{ type: 'move' }];
   }
   step(): readonly Feedback[] {
@@ -57,11 +54,10 @@ export class ConveyorRuntime implements GameRuntime {
     if (supply === null) return [{ type: 'message', text: this.busy || this.machine.rules.state.marbles.some((m) => m.status === 'on-belt' && m.color === this.machine.rules.activeColor)
       ? 'Let the matching marbles clear some space first.' : 'Try undoing a pour to make room for the next color.' }];
     const color = this.machine.rules.state.supplies[supply]?.[0]?.color;
-    return [{ type: 'message', text: `Tip tray ${String.fromCharCode(65 + supply)}${color ? `: ${COLOR_NAMES[color]}` : ''}.`, target: `supply${supply}` }];
+    return [{ type: 'message', text: `Tip tray ${String.fromCharCode(65 + supply)}${color ? `: ${marbleName(color)}` : ''}.`, target: `supply${supply}` }];
   }
   undo(): boolean {
     if (!this.machine.undo()) return false;
-    this.firstTap = false;
     this.view.syncAfterJump();
     return true;
   }
@@ -77,7 +73,7 @@ export class ConveyorRuntime implements GameRuntime {
   render(alpha: number, seconds: number) { this.view.render(alpha, seconds); }
   resize() { this.view.resize(); }
   inspect() {
-    return { occupancy: this.machine.rules.occupancy, activeBox: this.machine.rules.activeBox,
+    return { occupancy: this.machine.rules.occupancy, funnel: this.machine.rules.funnelCount, pending: [...this.machine.rules.state.pending], activeBox: this.machine.rules.activeBox,
       supplies: this.machine.rules.state.supplies.map((supply) => supply.map((packet) => packet.color)),
       recoveries: this.machine.recoveries, tick: this.machine.tick,
       settling: this.busy || this.machine.rules.state.marbles.some((m) => m.status === 'on-belt' && m.color === this.machine.rules.activeColor) };

@@ -25,6 +25,12 @@ export interface GameLevel {
 
 /** No gameplay-specific state or branch belongs in the campaign controller. */
 export interface GameRuntime {
+  readonly drag?: {
+    start(target: string, point: ScreenPoint): boolean;
+    move(point: ScreenPoint, target: string | null): void;
+    end(target: string | null): readonly Feedback[];
+    cancel(): void;
+  };
   readonly status: GameStatus;
   readonly busy: boolean;
   readonly canUndo: boolean;

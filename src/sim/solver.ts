@@ -12,9 +12,9 @@ function clone(rules: MachineRules): MachineRules {
 function settle(rules: MachineRules): boolean {
   const bound = 2 * rules.state.marbles.length + rules.board.boxes.length + 2;
   for (let round = 0; round < bound; round += 1) {
-    for (const marble of rules.state.marbles) {
-      if (marble.status === 'pouring') rules.entered(marble.id);
-    }
+    if (rules.status !== 'playing') return true;
+    const before = JSON.stringify(rules.state);
+    for (const id of [...rules.state.pending]) if (!rules.entered(id)) break;
     for (const marble of rules.state.marbles) {
       if (marble.status === 'dropping') rules.captured(marble.id);
     }
@@ -24,21 +24,17 @@ function settle(rules: MachineRules): boolean {
       rules.captured(marble.id);
       if (rules.state.waitingForSwap) rules.boxSwapped();
     }
-    const work = rules.state.waitingForSwap || rules.state.marbles.some((marble) =>
-      marble.status === 'pouring' || marble.status === 'dropping' ||
-      (rules.status === 'playing' && marble.status === 'on-belt' && marble.color === rules.activeColor),
-    );
-    if (!work) return true;
+    if (JSON.stringify(rules.state) === before) return true;
   }
   return false;
 }
 
-/** Returns an immediately fitting release with a proven continuation, or null if waiting or search is unresolved. */
+/** Returns a release with a verified FIFO-reservoir continuation, without mutating the live falls. */
 export function hintConveyor(rules: MachineRules, searchLimit = DEFAULT_SEARCH_LIMIT): number | null {
   if (rules.status !== 'playing' || !Number.isSafeInteger(searchLimit) || searchLimit <= 0) return null;
   const candidates = rules.state.supplies.flatMap((supply, index) => {
     const packet = supply[0];
-    return packet && packet.marbles.length <= rules.free ? [index] : [];
+    return packet ? [index] : [];
   });
   if (!candidates.length) return null;
   const settled = clone(rules);

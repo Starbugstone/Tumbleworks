@@ -5,7 +5,7 @@ import { drain, replaySettled } from './drive';
 import { board, invariantChecker, packet } from './helpers';
 
 function enterAll(rules: MachineRules): void {
-  for (const marble of rules.state.marbles) rules.entered(marble.id);
+  for (const id of [...rules.state.pending]) if (!rules.entered(id)) break;
 }
 
 describe('arrival-driven puzzle rules', () => {
@@ -34,7 +34,7 @@ describe('arrival-driven puzzle rules', () => {
     expect(source).toEqual(before);
   });
 
-  it('reserves the entire packet at release, before any marble enters', () => {
+  it('queues a complete released packet in the funnel while leaving the belt empty', () => {
     const rules = new MachineRules(BOARD_1);
     expect(rules.release(0)).toEqual({
       ok: true, supply: 0, color: 'blue', events: [],
@@ -42,34 +42,38 @@ describe('arrival-driven puzzle rules', () => {
     });
     expect(rules.state.marbles.slice(0, 6).map((marble) => marble.status)).toEqual(Array(6).fill('pouring'));
     expect(rules.state.supplies[0]?.[0]?.color).toBe('red');
-    expect(rules.occupancy).toBe(6);
-    expect(rules.free).toBe(6);
+    expect(rules.occupancy).toBe(0);
+    expect(rules.free).toBe(12);
+    expect(rules.funnelCount).toBe(6);
     expect(rules.release(0)).toMatchObject({ ok: true, color: 'red', events: [] });
-    expect(rules.occupancy).toBe(12);
-    expect(rules.free).toBe(0);
+    expect(rules.state.pending).toEqual(Array.from({ length: 12 }, (_, id) => id));
+    expect(rules.occupancy).toBe(0);
     expect(rules.status).toBe('playing');
   });
 
-  it('reports blocked packet size and canDrain for pours and belt marbles without changing state', () => {
+  it('accepts another dump while the belt is full and still able to drain', () => {
     const rules = new MachineRules(BOARD_1);
-    rules.release(0);
-    rules.release(0);
-    for (const enter of [false, true]) {
-      if (enter) enterAll(rules);
-      const before = rules.snapshot();
-      expect(rules.release(1)).toEqual({ ok: false, reason: 'no-space', needed: 6, free: 0, canDrain: true });
-      expect(rules.state).toEqual(before);
-    }
+    rules.release(0); rules.release(0);
+    enterAll(rules);
+    expect(rules.occupancy).toBe(12);
+    expect(rules.status).toBe('playing');
+    expect(rules.release(1)).toMatchObject({ ok: true, color: 'green' });
+    expect(rules.occupancy).toBe(12);
+    expect(rules.funnelCount).toBe(6);
+    expect(rules.entered(12)).toBe(false);
+    expect(rules.status).toBe('playing');
   });
 
-  it('reports canDrain false when only a smaller exposed packet can unblock the game', () => {
-    const rules = new MachineRules(board(
-      [[packet('blue', 2)], [packet('green', 2)], [packet('red')]], ['red', 'blue', 'blue', 'green', 'green'],
-    ));
-    rules.release(0);
-    expect(rules.release(1)).toEqual({ ok: false, reason: 'no-space', needed: 2, free: 1, canDrain: false });
-    expect(rules.status).toBe('playing');
-    expect(rules.release(2).ok).toBe(true);
+  it('admits a packet larger than belt capacity incrementally from the funnel', () => {
+    const rules = new MachineRules(board([[packet('red', 8)]], Array(8).fill('red'), 2));
+    expect(rules.release(0).ok).toBe(true);
+    expect(rules.funnelCount).toBe(8);
+    enterAll(rules);
+    expect(rules.occupancy).toBe(2);
+    expect(rules.funnelCount).toBe(6);
+    drain(rules, invariantChecker(rules));
+    expect(rules.status).toBe('won');
+    expect(rules.funnelCount).toBe(0);
   });
 
   it('rejects empty and nonexistent supplies without changing state', () => {
@@ -83,7 +87,7 @@ describe('arrival-driven puzzle rules', () => {
     expect(rules.release(1)).toEqual({ ok: false, reason: 'empty' });
   });
 
-  it('entered changes only pouring marbles, idempotently, without changing occupancy', () => {
+  it('entered reserves one space only for the next pouring marble and is idempotent', () => {
     const rules = new MachineRules(board([[packet('red', 2)]], ['red', 'red'], 2));
     const initial = rules.snapshot();
     rules.entered(0);
@@ -94,7 +98,8 @@ describe('arrival-driven puzzle rules', () => {
     rules.entered(0);
     expect(rules.state.marbles[0]?.status).toBe('on-belt');
     expect(rules.state.marbles[1]?.status).toBe('pouring');
-    expect(rules.occupancy).toBe(2);
+    expect(rules.occupancy).toBe(1);
+    expect(rules.funnelCount).toBe(1);
     const entered = rules.snapshot();
     rules.entered(0);
     expect(rules.state).toEqual(entered);
@@ -113,7 +118,7 @@ describe('arrival-driven puzzle rules', () => {
     for (const id of [-1, 0, 999]) expect(rules.arrive(id)).toBe('pass');
     rules.release(0);
     expect(rules.arrive(0)).toBe('pass');
-    expect(rules.occupancy).toBe(1);
+    expect(rules.occupancy).toBe(0);
     rules.release(1);
     enterAll(rules);
     const before = rules.snapshot();
@@ -138,6 +143,8 @@ describe('arrival-driven puzzle rules', () => {
     expect(rules.free).toBe(1);
     expect(rules.activeFill).toBe(0);
     expect(rules.release(1)).toMatchObject({ ok: true, events: [] });
+    expect(rules.occupancy).toBe(0);
+    expect(rules.entered(1)).toBe(true);
     expect(rules.occupancy).toBe(1);
     expect(rules.captured(0)).toEqual([{ type: 'boxFull', boxIndex: 0 }]);
     expect(rules.occupancy).toBe(1);
@@ -212,37 +219,28 @@ describe('arrival-driven puzzle rules', () => {
     expect(rules.state).toEqual(swapped);
   });
 
-  it('does not jam during a drop or pending swap, and reports canDrain for both', () => {
-    const rules = new MachineRules(board(
-      [[packet('red')], [packet('blue')], [packet('green', 2)]], ['red', 'blue', 'green', 'green'], 2,
-    ));
-    rules.release(0);
-    rules.release(1);
-    enterAll(rules);
-    rules.arrive(0);
+  it('does not jam a full belt during a drop or pending swap', () => {
+    const rules = new MachineRules(board([[packet('red')], [packet('blue')], [packet('green')]], ['red', 'blue', 'green'], 1));
+    rules.release(0); rules.release(1); rules.release(2);
+    expect(rules.entered(0)).toBe(true);
+    expect(rules.arrive(0)).toBe('deliver');
+    expect(rules.entered(1)).toBe(true);
+    expect(rules.free).toBe(0);
     expect(rules.status).toBe('playing');
-    expect(rules.release(2)).toEqual({ ok: false, reason: 'no-space', needed: 2, free: 1, canDrain: true });
-    for (let delay = 0; delay < 10; delay += 1) {
-      expect(rules.arrive(1)).toBe('pass');
-      expect(rules.status).toBe('playing');
-    }
+    for (let delay = 0; delay < 10; delay += 1) expect(rules.arrive(1)).toBe('pass');
     expect(rules.captured(0)).toEqual([{ type: 'boxFull', boxIndex: 0 }]);
-    expect(rules.release(2)).toMatchObject({ reason: 'no-space', canDrain: true });
-    for (let delay = 0; delay < 10; delay += 1) {
-      expect(rules.arrive(1)).toBe('pass');
-      expect(rules.status).toBe('playing');
-    }
+    expect(rules.status).toBe('playing');
+    expect(rules.entered(2)).toBe(false);
     expect(rules.boxSwapped()).toEqual([]);
     expect(rules.arrive(1)).toBe('deliver');
-    expect(rules.status).toBe('playing');
+    drain(rules);
+    expect(rules.status).toBe('won');
   });
 
-  it('defers a genuine jam until the outstanding swap completes, emitting it once', () => {
-    const rules = new MachineRules(board([[packet('red')], [packet('blue')]], ['red', 'green'], 2));
-    rules.release(0);
-    rules.release(1);
-    enterAll(rules);
-    rules.arrive(0);
+  it('defers a full-belt jam until an outstanding swap completes, emitting it once', () => {
+    const rules = new MachineRules(board([[packet('red')], [packet('blue')]], ['red', 'green'], 1));
+    rules.release(0); rules.release(1);
+    rules.entered(0); rules.arrive(0); rules.entered(1);
     expect(rules.status).toBe('playing');
     expect(rules.captured(0)).toEqual([{ type: 'boxFull', boxIndex: 0 }]);
     expect(rules.status).toBe('playing');
@@ -251,7 +249,7 @@ describe('arrival-driven puzzle rules', () => {
     expect(rules.status).toBe('jammed');
   });
 
-  it('jams at the last capture if an incomplete box has no possible next delivery', () => {
+  it('does not report a full-belt jam when an incomplete fixture has an empty belt', () => {
     const rules = new MachineRules(board([[packet('red', 2)]], ['red'], 2, 3));
     rules.release(0);
     enterAll(rules);
@@ -259,7 +257,9 @@ describe('arrival-driven puzzle rules', () => {
     rules.arrive(1);
     expect(rules.captured(1)).toEqual([]);
     expect(rules.status).toBe('playing');
-    expect(rules.captured(0)).toEqual([{ type: 'jammed' }]);
+    expect(rules.captured(0)).toEqual([]);
+    expect(rules.occupancy).toBe(0);
+    expect(rules.status).toBe('playing');
     expect(rules.activeFill).toBe(2);
     expect(rules.captured(0)).toEqual([]);
   });
@@ -296,39 +296,42 @@ describe('arrival-driven puzzle rules', () => {
     if (status === 'on-belt') rules.entered(1);
     rules.arrive(0);
     rules.captured(0);
-    expect(rules.boxSwapped()).toEqual(status === 'in-supply' ? [] : [{ type: 'jammed' }]);
+    expect(rules.boxSwapped()).toEqual([]);
     expect(rules.activeColor).toBeNull();
-    expect(rules.status).toBe(status === 'in-supply' ? 'playing' : 'jammed');
+    expect(rules.status).toBe('playing');
   });
 
-  it('reports an immediate release jam, remains jammed, and still lets pouring marbles enter', () => {
+  it('jams only on actual full-belt entry and retains pending funnel marbles', () => {
     const rules = new MachineRules(BOARD_1);
-    rules.release(0);
-    expect(rules.release(1)).toMatchObject({ ok: true, events: [{ type: 'jammed' }] });
-    expect(rules.status).toBe('jammed');
+    rules.release(0); rules.release(1); rules.release(0);
+    expect(rules.status).toBe('playing');
+    expect(rules.occupancy).toBe(0);
     enterAll(rules);
-    expect(rules.state.marbles.filter((marble) => marble.status === 'on-belt')).toHaveLength(12);
-    const landed = rules.snapshot();
+    expect(rules.status).toBe('jammed');
+    expect(rules.occupancy).toBe(12);
+    expect(rules.funnelCount).toBe(6);
+    const jam = rules.snapshot();
     for (const marble of rules.state.marbles) {
+      expect(rules.entered(marble.id)).toBe(false);
       expect(rules.arrive(marble.id)).toBe('pass');
       expect(rules.captured(marble.id)).toEqual([]);
-      rules.entered(marble.id);
     }
     expect(rules.boxSwapped()).toEqual([]);
     expect(rules.release(0)).toEqual({ ok: false, reason: 'finished' });
-    expect(rules.state).toEqual(landed);
+    expect(rules.state).toEqual(jam);
   });
 
-  it('jams below belt capacity when all supplies are empty and none of the released colours match', () => {
+  it('never calls a belt jam below capacity even when a malformed fixture has no matching receiver', () => {
     const rules = new MachineRules(board([[packet('blue')]], ['red']));
-    expect(rules.release(0)).toMatchObject({ ok: true, events: [{ type: 'jammed' }] });
+    expect(rules.release(0)).toMatchObject({ ok: true, events: [] });
+    expect(rules.entered(0)).toBe(true);
     expect(rules.free).toBe(2);
-    expect(rules.status).toBe('jammed');
+    expect(rules.status).toBe('playing');
   });
 
   it('is won initially only for an entirely finished empty board', () => {
     expect(new MachineRules(board([], [])).status).toBe('won');
-    expect(new MachineRules(board([], ['red'])).status).toBe('jammed');
+    expect(new MachineRules(board([], ['red'])).status).toBe('playing');
   });
 
   it('snapshots and restores complete deep plain JSON data, including partial captures and reservations', () => {
@@ -338,23 +341,24 @@ describe('arrival-driven puzzle rules', () => {
     rules.entered(0);
     rules.arrive(0);
     rules.captured(0);
+    rules.entered(1);
+    rules.arrive(1);
     rules.entered(2);
-    rules.arrive(2);
-    rules.entered(3);
     rules.release(1);
     const saved = rules.snapshot();
     expect(saved).toEqual(JSON.parse(JSON.stringify(saved)));
     expect(saved.marbles.map((marble) => marble.status)).toEqual([
-      'in-box', 'pouring', 'dropping', 'on-belt', 'pouring', 'pouring', 'pouring', 'in-supply',
+      'in-box', 'dropping', 'on-belt', 'pouring', 'pouring', 'pouring', 'pouring', 'in-supply',
     ]);
     drain(rules);
     expect(saved.activeBox).toBe(0);
     expect(saved.activeFill).toBe(1);
-    expect(saved.marbles[2]?.status).toBe('dropping');
+    expect(saved.marbles[1]?.status).toBe('dropping');
     rules.restore(saved);
     expect(rules.snapshot()).toEqual(saved);
-    expect(rules.occupancy).toBe(5);
-    expect(rules.free).toBe(3);
+    expect(rules.occupancy).toBe(1);
+    expect(rules.free).toBe(7);
+    expect(rules.state.pending).toEqual([3, 4, 5, 6]);
     const restored = rules.snapshot();
     saved.marbles.splice(0, 1);
     saved.supplies[2]?.splice(0, 1);
@@ -401,6 +405,7 @@ describe('arrival-driven puzzle rules', () => {
     drain(rules);
     const beforeJam = rules.snapshot();
     rules.release(1);
+    drain(rules);
     expect(rules.status).toBe('jammed');
     const jam = rules.snapshot();
     enterAll(rules);

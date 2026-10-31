@@ -18,6 +18,8 @@ export function label(text: string, width = 1.1, color = '#3b4069'): THREE.Mesh 
   const context = canvas.getContext('2d');
   if (!context) throw new Error('Cannot draw a board label');
   context.font = '600 52px Fredoka, sans-serif';
+  const measured = context.measureText(text).width;
+  if (measured > 176) context.font = `600 ${Math.floor(52 * 176 / measured)}px Fredoka, sans-serif`;
   context.fillStyle = color;
   context.textAlign = 'center';
   context.textBaseline = 'middle';

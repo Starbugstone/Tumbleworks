@@ -19,7 +19,7 @@ import {
   TRAY,
 } from '../machine/layout';
 import type { Color } from '../sim/types';
-import { COLORS, symbolTexture } from './art';
+import { COLORS, containerSymbolTexture } from './art';
 
 const RIB_COUNT = 28;
 /** The walls are drawn lower than they collide, so they don't hide the action. */
@@ -394,13 +394,11 @@ export class MachineScene {
     shell.receiveShadow = true;
     group.add(shell);
     const symbol = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.34, 0.34),
-      new THREE.MeshBasicMaterial({ map: symbolTexture(color), transparent: true, depthWrite: false }),
+      new THREE.PlaneGeometry(0.85, 0.85),
+      new THREE.MeshBasicMaterial({ map: containerSymbolTexture(color), transparent: true, alphaTest: 0.3, toneMapped: false }),
     );
-    symbol.position.set(hw - 0.42, ft + wh + 0.012, -depth + wt / 2);
-    symbol.rotation.x = -Math.PI / 2;
-    symbol.scale.set(0.34, 0.34, 1);
-    symbol.visible = false;
+    symbol.position.set(0, ft + sh / 2, 0.018);
+    symbol.rotation.x = -0.55;
     group.add(symbol);
     return group;
   }
@@ -423,11 +421,16 @@ export class MachineScene {
     shell.receiveShadow = true;
     group.add(shell);
     const symbol = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.62, 0.62),
-      new THREE.MeshBasicMaterial({ map: symbolTexture(color), transparent: true, depthWrite: false, toneMapped: false }),
+      new THREE.PlaneGeometry(0.84, 0.84),
+      new THREE.MeshBasicMaterial({ map: containerSymbolTexture(color), transparent: true, alphaTest: 0.3, toneMapped: false }),
     );
     symbol.position.set(0, h * 0.42, hd + 0.006);
     group.add(symbol);
+    const floorSymbol = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.1),
+      new THREE.MeshBasicMaterial({ map: containerSymbolTexture(color), transparent: true, alphaTest: 0.3, toneMapped: false }));
+    floorSymbol.rotation.x = -Math.PI / 2;
+    floorSymbol.position.set(0, ft + 0.008, 0);
+    group.add(floorSymbol);
     const lights: THREE.Mesh[] = [];
     const lightGeometry = new THREE.SphereGeometry(0.13, 16, 10);
     for (let i = 0; i < 3; i++) {

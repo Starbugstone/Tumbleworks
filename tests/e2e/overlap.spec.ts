@@ -1,0 +1,25 @@
+import { expect, test } from '@playwright/test';
+import { TUBE_BOARDS, TRAY_BOARDS } from '../../src/puzzles/levels';
+import { CONNECT_BOARDS } from '../../src/puzzles/connect-levels';
+import type { App } from '../../src/view/App';
+type GameWindow = Window & { tumbleworks: { app: App } };
+test('tube, tray and connected match accept subsequent moves before earlier animation finishes', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => Boolean((window as unknown as Partial<GameWindow>).tumbleworks?.app?.runtime));
+  await page.evaluate(() => { (window as unknown as GameWindow).tumbleworks.app.manualClock = true; });
+  for (const index of [1, 2, 3]) {
+    await page.locator(`.chip[data-level="${index}"]`).click();
+    const actions = index === 1 ? TUBE_BOARDS[0]!.solution.flatMap((move) => [`tube${move.from}`, `tube${move.to}`])
+      : (index === 2 ? TRAY_BOARDS[0]! : CONNECT_BOARDS[0]!).solution.map((id) => `piece${id}`);
+    for (const target of actions) {
+      const point = await page.evaluate((key) => (window as unknown as GameWindow).tumbleworks.app.debugTargets()[key], target);
+      expect(point).toBeTruthy();
+      await page.touchscreen.tap(point!.x, point!.y);
+    }
+    const snapshot = await page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.debugState());
+    expect(snapshot).toMatchObject({ status: 'won', busy: true, moves: index === 1 ? TUBE_BOARDS[0]!.solution.length : (index === 2 ? TRAY_BOARDS[0]! : CONNECT_BOARDS[0]!).solution.length });
+    await page.getByRole('button', { name: 'Undo', exact: true }).click();
+    expect(await page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.debugState())).toMatchObject({ status: 'playing', busy: false });
+    await page.getByRole('button', { name: 'Restart', exact: true }).click();
+  }
+});

@@ -5,11 +5,12 @@ import type { BoardDef } from '../../src/sim/types';
 export function drain(rules: MachineRules, afterCall: () => void = () => {}): void {
   const bound = 2 * rules.state.marbles.length + rules.board.boxes.length + 2;
   for (let round = 0; round < bound; round += 1) {
-    for (const marble of rules.state.marbles) {
-      if (marble.status === 'pouring') {
-        rules.entered(marble.id);
-        afterCall();
-      }
+    if (rules.status !== 'playing') return;
+    const before = JSON.stringify(rules.state);
+    for (const id of [...rules.state.pending]) {
+      const entered = rules.entered(id);
+      afterCall();
+      if (!entered) break;
     }
     for (const marble of rules.state.marbles) {
       if (marble.status === 'dropping') {
@@ -34,11 +35,7 @@ export function drain(rules: MachineRules, afterCall: () => void = () => {}): vo
         }
       }
     }
-    const work = rules.state.waitingForSwap || rules.state.marbles.some((marble) =>
-      marble.status === 'pouring' || marble.status === 'dropping' ||
-      (rules.status === 'playing' && marble.status === 'on-belt' && marble.color === rules.activeColor),
-    );
-    if (!work) return;
+    if (JSON.stringify(rules.state) === before) return;
   }
   throw new Error(`Rules failed to drain within ${bound} rounds: ${JSON.stringify(rules.state)}`);
 }

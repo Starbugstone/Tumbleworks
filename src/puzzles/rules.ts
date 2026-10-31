@@ -79,13 +79,15 @@ function tubeMove(board: TubeDef, state: TubeState, from: number, to: number): T
   if (!color) return { ok: false, reason: 'empty' };
   if (destination.length === board.capacity) return { ok: false, reason: 'full' };
   if (destination.length && destination.at(-1) !== color) return { ok: false, reason: 'different-color' };
-  const fromSlot = source.length - 1;
+  let runLength = 1;
+  while (runLength < source.length && source[source.length - runLength - 1] === color) runLength += 1;
+  const count = Math.min(runLength, board.capacity - destination.length);
+  const fromSlot = source.length - count;
   const toSlot = destination.length;
-  source.pop();
-  destination.push(color);
+  destination.push(...source.splice(fromSlot, count));
   state.moves += 1;
   state.status = tubeStatus(board, state.tubes);
-  return { ok: true, color, from, to, fromSlot, toSlot, completedTube: tubeIsComplete(destination, board.capacity) };
+  return { ok: true, color, from, to, fromSlot, toSlot, count, completedTube: tubeIsComplete(destination, board.capacity) };
 }
 
 interface TubeSearchNode {

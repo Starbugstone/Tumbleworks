@@ -10,8 +10,7 @@ export const TUBE_BOARDS: readonly TubeDef[] = [
       ['green', 'green', 'red', 'red'], [], [],
     ],
     solution: [
-      { from: 0, to: 3 }, { from: 0, to: 3 }, { from: 2, to: 0 }, { from: 2, to: 0 },
-      { from: 1, to: 2 }, { from: 1, to: 2 }, { from: 1, to: 3 }, { from: 1, to: 3 },
+      { from: 0, to: 3 }, { from: 2, to: 0 }, { from: 1, to: 2 }, { from: 1, to: 3 },
     ],
   },
   {
@@ -23,9 +22,9 @@ export const TUBE_BOARDS: readonly TubeDef[] = [
       ['yellow', 'yellow', 'red', 'blue'], [], [],
     ],
     solution: [
-      { from: 0, to: 4 }, { from: 0, to: 5 }, { from: 2, to: 0 }, { from: 3, to: 5 },
-      { from: 3, to: 0 }, { from: 1, to: 3 }, { from: 2, to: 3 }, { from: 1, to: 2 },
-      { from: 1, to: 5 }, { from: 1, to: 5 }, { from: 4, to: 2 },
+      { from: 0, to: 4 }, { from: 3, to: 0 }, { from: 2, to: 3 }, { from: 1, to: 2 },
+      { from: 1, to: 4 }, { from: 0, to: 1 }, { from: 3, to: 0 }, { from: 2, to: 3 },
+      { from: 2, to: 4 },
     ],
   },
   {
@@ -38,11 +37,9 @@ export const TUBE_BOARDS: readonly TubeDef[] = [
     ],
     solution: [
       { from: 0, to: 4 }, { from: 3, to: 4 }, { from: 1, to: 3 }, { from: 0, to: 1 },
-      { from: 4, to: 0 }, { from: 4, to: 0 }, { from: 3, to: 4 }, { from: 3, to: 4 },
-      { from: 2, to: 3 }, { from: 2, to: 4 }, { from: 2, to: 4 }, { from: 1, to: 2 },
-      { from: 1, to: 2 }, { from: 1, to: 3 }, { from: 0, to: 1 }, { from: 0, to: 1 },
-      { from: 0, to: 1 }, { from: 3, to: 0 }, { from: 3, to: 0 }, { from: 3, to: 0 },
-      { from: 3, to: 2 },
+      { from: 4, to: 0 }, { from: 3, to: 4 }, { from: 2, to: 3 }, { from: 2, to: 4 },
+      { from: 1, to: 2 }, { from: 1, to: 3 }, { from: 0, to: 1 }, { from: 3, to: 0 },
+      { from: 2, to: 3 },
     ],
   },
 ];

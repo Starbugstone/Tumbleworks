@@ -15,6 +15,28 @@ export const COLORS: Record<Color, Palette> = {
   yellow: { base: '#f9b917', light: '#fff2a6', dark: '#a86a04', hex: 0xf9b917 },
 };
 export const COLOR_NAMES: Record<Color, string> = { red: 'Red', blue: 'Blue', green: 'Green', yellow: 'Yellow' };
+export const PATTERN_NAMES: Record<Color, string> = { red: 'Ring', blue: 'Diamond', green: 'Triangle', yellow: 'Star' };
+export const marbleName = (color: Color): string => `${PATTERN_NAMES[color]} (${COLOR_NAMES[color].toLowerCase()})`;
+
+/** Opaque surface marks survive transmission, rotation and the lower quality material. */
+export function marblePattern(color: Color): THREE.MeshBasicMaterial {
+  const map = texture(canvas(1024, 512, (ctx) => {
+    for (const y of [100, 256, 412]) for (let column = 0; column < 4; column++) {
+      const x = column * 256 + (y === 256 ? 128 : 0);
+      for (const wrap of [-1024, 0, 1024]) {
+        ctx.save();
+        ctx.translate(x + wrap, y);
+        ctx.scale(1.35, 1);
+        ctx.fillStyle = '#202335';
+        drawSymbol(ctx, color, 0, 0, 49);
+        ctx.fillStyle = '#fff9ee';
+        drawSymbol(ctx, color, 0, 0, 34);
+        ctx.restore();
+      }
+    }
+  }));
+  return new THREE.MeshBasicMaterial({ map, transparent: true, alphaTest: 0.5, toneMapped: false });
+}
 
 type Ctx = CanvasRenderingContext2D;
 
@@ -218,4 +240,16 @@ export function symbolTexture(color: Color): THREE.CanvasTexture {
       drawSymbol(ctx, color, 64, 66, 46);
     }),
   );
+}
+
+/** Printed on containers, with a light backing for contrast on every plastic color. */
+export function containerSymbolTexture(color: Color): THREE.CanvasTexture {
+  return texture(canvas(128, 128, (ctx) => {
+    ctx.fillStyle = '#202335';
+    ctx.beginPath(); ctx.arc(64, 64, 62, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff9ee';
+    ctx.beginPath(); ctx.arc(64, 64, 57, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#202335';
+    drawSymbol(ctx, color, 64, 64, 39);
+  }));
 }

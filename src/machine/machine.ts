@@ -65,7 +65,7 @@ interface TrayControl {
  * Only 'falling' is physics. Everywhere else a marble is placed exactly: in its tray, in its slot
  * on the belt, along its arc into the box, and in its place in the box.
  */
-type MarblePhase = 'tray' | 'falling' | 'merging' | 'riding' | 'flying' | 'boxed';
+type MarblePhase = 'tray' | 'falling' | 'waiting' | 'merging' | 'riding' | 'flying' | 'boxed';
 
 interface MarbleControl {
   readonly id: number;
@@ -75,6 +75,8 @@ interface MarbleControl {
   traySlot: number;
   /** Which belt slot it rides in. */
   beltSlot: number;
+  /** A stable holding place, so draining the queue does not shift the whole reservoir. */
+  funnelSlot: number;
   /** Seconds in the current phase. */
   time: number;
   fromX: number;
@@ -134,6 +136,7 @@ export class Machine {
   private readonly history: Saved[] = [];
   private readonly marbleHandles = new Map<number, number>();
   private readonly trayHandles = new Map<number, number>();
+  private beltFloorHandle = -1;
   private readonly events: MachineEvent[] = [];
   private readonly gateDistance: number;
   /** The most recent rescue, for diagnosing transport faults. */
@@ -201,13 +204,13 @@ export class Machine {
     const { floorY, centerZ, straightHalf, radius, channelHalf, wallThickness } = RACEWAY;
 
     const floorHalfZ = radius + channelHalf + wallThickness + 0.02;
-    this.world.createCollider(
+    this.beltFloorHandle = this.world.createCollider(
       RAPIER.ColliderDesc.cuboid(straightHalf + floorHalfZ, 0.25, floorHalfZ)
         .setTranslation(0, floorY - 0.25, centerZ)
         .setFriction(0.55)
         .setRestitution(0.3),
       body,
-    );
+    ).handle;
 
     const { mouth, neck, mouthY, neckY } = FUNNEL;
     const midZ = (mouth.back + mouth.front) / 2;
@@ -285,6 +288,7 @@ export class Machine {
             trayKey: key,
             traySlot: slot,
             beltSlot: -1,
+            funnelSlot: -1,
             time: 0,
             fromX: 0,
             fromY: 0,
@@ -352,8 +356,11 @@ export class Machine {
   }
 
   get transferring(): boolean {
-    return this.control.marbles.some((marble) => marble.phase === 'falling' || marble.phase === 'merging' || marble.phase === 'flying') ||
-      this.rules.state.marbles.some((marble) => marble.status === 'pouring' || marble.status === 'dropping');
+    return this.control.hold > 0 || this.control.swap > 0 || this.rules.state.waitingForSwap ||
+      this.control.marbles.some((marble) => marble.phase === 'falling' || marble.phase === 'merging' || marble.phase === 'flying') ||
+      this.control.trays.some((tray) => tray.released && tray.phase !== 'gone') ||
+      (this.rules.status === 'playing' && this.rules.funnelCount > 0) ||
+      this.rules.state.marbles.some((marble) => marble.status === 'dropping');
   }
 
   get recoveries(): { readonly nudges: number; readonly teleports: number } {
@@ -513,13 +520,12 @@ export class Machine {
     for (const tray of this.control.trays) {
       if (tray.phase === 'gone') continue;
       tray.time += dt;
-      tray.position = this.control.trays.filter((other) => other.supply === tray.supply && other.key < tray.key && other.phase !== 'gone').length;
+      tray.position = this.control.trays.filter((other) => other.supply === tray.supply && other.key < tray.key && other.phase !== 'gone' && other.phase !== 'leaving').length;
       if (tray.slide > tray.position) tray.slide = Math.max(tray.slide - dt / TRAY.slideSeconds, tray.position);
 
       switch (tray.phase) {
         case 'waiting':
-          // One tray at a time, so the funnel gets a stream of marbles rather than a pile.
-          if (tray.released && tray.slide === 0 && tray.position === 0 && !this.anotherTrayIsPouring(tray)) {
+          if (tray.released && tray.slide === 0 && tray.position === 0) {
             tray.phase = 'tipping';
             tray.time = 0;
           }
@@ -569,13 +575,6 @@ export class Machine {
       body.setNextKinematicTranslation(this.trayOrigin(tray));
       body.setNextKinematicRotation(trayQuat(tray.angle));
     }
-  }
-
-  private anotherTrayIsPouring(tray: TrayControl): boolean {
-    return this.control.trays.some(
-      (other) =>
-        other !== tray && (other.phase === 'tipping' || (other.phase === 'pouring' && other.poured < other.marbleIds.length)),
-    );
   }
 
   private dropFromTray(id: number): void {
@@ -629,6 +628,9 @@ export class Machine {
       case 'falling':
         this.updateFalling(marble);
         break;
+      case 'waiting':
+        this.updateWaiting(marble);
+        break;
       case 'merging':
       case 'riding':
         this.updateRiding(marble);
@@ -651,8 +653,17 @@ export class Machine {
     const body = this.marbleBody(marble.id);
     const t = body.translation();
     const near = nearestOnTrack(t.x, t.z);
-    if (t.y < RIDE_Y + MARBLE_RADIUS * 2.15 && Math.abs(near.lateral) < RACEWAY.channelHalf + 0.5) {
-      this.joinBelt(marble, body, near.distance);
+    let landed = false;
+    if (t.y <= RIDE_Y + 0.08 && Math.abs(near.lateral) < RACEWAY.channelHalf + 0.5) {
+      this.world.contactPair(body.collider(0), this.world.getCollider(this.beltFloorHandle), (manifold) => {
+        if (manifold.numSolverContacts() > 0) landed = true;
+      });
+    }
+    if (landed) {
+      if (!this.joinBelt(marble, body, near.distance)) this.waitInFunnel(marble, body);
+    } else if ((this.rules.free === 0 || this.rules.state.pending[0] !== marble.id || this.rules.status !== 'playing') &&
+      t.y < FUNNEL.mouthY + MARBLE_RADIUS && marble.time > 0.8) {
+      this.waitInFunnel(marble, body);
     } else if (marble.time > FALL_RESCUE_SECONDS || t.y < RACEWAY.floorY - 1) {
       this.teleportToFunnel(marble);
     } else if (marble.time > FALL_NUDGE_SECONDS && Math.floor(marble.time * 60) % 60 === 0) {
@@ -664,12 +675,56 @@ export class Machine {
     return (this.control.belt + slot * SLOT_SPACING) % TRACK_LENGTH;
   }
 
+  /** The reservoir holds admitted pours separately; waiting is intentional, never a rescue. */
+  private waitInFunnel(marble: MarbleControl, body: RAPIER.RigidBody): void {
+    const at = body.translation();
+    marble.phase = 'waiting';
+    marble.time = 0;
+    marble.fromX = at.x;
+    marble.fromY = at.y;
+    marble.fromZ = at.z;
+    const occupied = new Set(this.control.marbles.filter((other) => other.phase === 'waiting' && other.id !== marble.id).map((other) => other.funnelSlot));
+    marble.funnelSlot = 0;
+    while (occupied.has(marble.funnelSlot)) marble.funnelSlot++;
+    body.setLinvel({ x: 0, y: 0, z: 0 }, false);
+    body.setAngvel({ x: 0, y: 0, z: 0 }, false);
+    body.setBodyType(RAPIER.RigidBodyType.KinematicPositionBased, false);
+    body.collider(0).setCollisionGroups(PLACED_GROUPS);
+  }
+
+  private updateWaiting(marble: MarbleControl): void {
+    const body = this.marbleBody(marble.id);
+    if (this.rules.status === 'playing' && this.rules.free > 0 && this.rules.state.pending[0] === marble.id) {
+      marble.phase = 'falling';
+      marble.time = 0;
+      marble.funnelSlot = -1;
+      marble.lastSpeed = 0;
+      body.setBodyType(RAPIER.RigidBodyType.Dynamic, true);
+      body.setLinvel({ x: 0, y: 0, z: 0 }, true);
+      body.setAngvel({ x: 0, y: 0, z: 0 }, true);
+      body.collider(0).setCollisionGroups(FALLING_GROUPS);
+      return;
+    }
+    const index = marble.funnelSlot;
+    const point = {
+      x: ((index % 3) - 1) * MARBLE_RADIUS * 2.1,
+      y: RIDE_Y + MARBLE_RADIUS * 2.4 + Math.floor(index / 6) * MARBLE_RADIUS * 2.1,
+      z: (FUNNEL.neck.back + FUNNEL.neck.front) / 2 + (Math.floor(index / 3) % 2 - 0.5) * MARBLE_RADIUS * 2.1,
+    };
+    const t = easeInOut(Math.min(marble.time / 0.25, 1));
+    body.setNextKinematicTranslation({
+      x: marble.fromX + (point.x - marble.fromX) * t,
+      y: marble.fromY + (point.y - marble.fromY) * t,
+      z: marble.fromZ + (point.z - marble.fromZ) * t,
+    });
+  }
+
   /** The fall ends here: from now on the marble rides in a slot. */
-  private joinBelt(marble: MarbleControl, body: RAPIER.RigidBody, distance: number): void {
+  private joinBelt(marble: MarbleControl, body: RAPIER.RigidBody, distance: number): boolean {
     const taken = new Set(
       this.control.marbles.filter((other) => other && (other.phase === 'riding' || other.phase === 'merging')).map((other) => other.beltSlot),
     );
-    let best = 0;
+    let best = -1;
     let bestGap = Number.POSITIVE_INFINITY;
     for (let slot = 0; slot < RACEWAY.slots; slot++) {
       if (taken.has(slot)) continue;
@@ -679,6 +734,7 @@ export class Machine {
         best = slot;
       }
     }
+    if (best < 0 || !this.rules.entered(marble.id)) return false;
     const t = body.translation();
     const q = body.rotation();
     marble.phase = 'merging';
@@ -695,7 +751,7 @@ export class Machine {
     body.setAngvel({ x: 0, y: 0, z: 0 }, false);
     body.setBodyType(RAPIER.RigidBodyType.KinematicPositionBased, false);
     body.collider(0).setCollisionGroups(PLACED_GROUPS);
-    this.rules.entered(marble.id);
+    return true;
   }
 
   private updateRiding(marble: MarbleControl): void {
@@ -710,7 +766,7 @@ export class Machine {
       const t = Math.min(marble.time / FLIGHT.mergeSeconds, 1);
       const eased = easeInOut(t);
       x = marble.fromX + (x - marble.fromX) * eased;
-      y = marble.fromY + (y - marble.fromY) * eased + Math.sin(t * Math.PI) * MARBLE_RADIUS * 2.1;
+      y = marble.fromY + (y - marble.fromY) * eased;
       z = marble.fromZ + (z - marble.fromZ) * eased;
       if (t >= 1) marble.phase = 'riding';
     }

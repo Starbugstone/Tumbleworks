@@ -3,6 +3,7 @@ import { CAMPAIGN } from '../campaign';
 import type { Feedback, GameRuntime, GameServices, ScreenPoint } from '../engine/contracts';
 import { FIXED_SECONDS, physics } from '../engine/physics';
 import { Stage } from '../engine/stage';
+import { BoardPointer } from '../engine/pointer';
 import { currentLevel, isCompleted, markCompleted, selectLevel } from '../progress';
 import { COLORS, drawSymbol } from './art';
 import type { Color } from '../sim/types';
@@ -42,14 +43,19 @@ export class App {
   private readonly card = element('card');
   private readonly chips = element('chips');
   private readonly ring = element('focus-ring');
+  private readonly pointer: BoardPointer;
 
   constructor(canvas: HTMLCanvasElement) {
     this.stage = new Stage(canvas);
     this.services = { stage: this.stage, physics };
-    canvas.addEventListener('pointerdown', (event) => {
-      sfx.unlock();
-      const target = this.runtime.pick(event.clientX, event.clientY);
-      if (target) this.activate(target);
+    this.pointer = new BoardPointer(canvas, {
+      unlock: () => sfx.unlock(),
+      pick: (point) => this.runtime.pick(point.x, point.y),
+      tap: (target) => this.activate(target),
+      start: (target, point) => this.runtime.drag?.start(target, point) ?? false,
+      move: (point, target) => { this.runtime.drag?.move(point, target); this.runtime.render(0, 0); },
+      end: (target) => { this.feedback(this.runtime.drag?.end(target) ?? []); this.runtime.render(0, 0); this.checkEnding(); this.refresh(); },
+      cancel: () => { this.runtime.drag?.cancel(); this.runtime.render(0, 0); this.refresh(); },
     });
     this.undoButton.addEventListener('click', () => this.undo());
     button('restart').addEventListener('click', () => { sfx.unlock(); this.loadBoard(this.boardIndex); });
@@ -66,8 +72,8 @@ export class App {
       mute.classList.toggle('muted', sfx.toggleMute());
       mute.setAttribute('aria-pressed', String(sfx.isMuted));
     });
-    window.addEventListener('resize', () => { this.runtime?.resize(); this.refresh(); });
-    document.addEventListener('visibilitychange', () => { this.lastFrame = performance.now(); this.accumulator = 0; });
+    window.addEventListener('resize', () => { this.pointer.cancel(); this.runtime?.resize(); this.refresh(); });
+    document.addEventListener('visibilitychange', () => { this.pointer.cancel(); this.lastFrame = performance.now(); this.accumulator = 0; });
     document.addEventListener('keydown', (event) => this.key(event));
   }
 
@@ -84,6 +90,7 @@ export class App {
   }
 
   private loadBoard(index: number): void {
+    this.pointer.cancel();
     const level = CAMPAIGN[index];
     if (!level) throw new Error(`No campaign level ${index}`);
     window.clearTimeout(this.winTimer);
@@ -174,6 +181,7 @@ export class App {
   }
 
   private undo(): void {
+    this.pointer.cancel();
     sfx.unlock();
     if (!this.runtime.undo()) return;
     window.clearTimeout(this.winTimer);

@@ -75,8 +75,10 @@
       .chip { flex: 0 0 31px; width: 31px; height: 31px; font-size: 14px; border-bottom: 3px solid var(--accent) !important; }
       .chip[data-kind='tube'] { border-bottom-color: #61b3ff !important; }
       .chip[data-kind='tray'] { border-bottom-color: #4dce9b !important; }
+      .chip[data-kind='connect'] { border-bottom-color: #bf98ff !important; }
       #level-title { font-size: 18px; font-weight: 600; color: var(--cream); text-align: center; text-shadow: 0 2px 5px #382415; margin-bottom: 4px; }
       #instruction { padding: 7px 12px; margin: 0 auto 10px; width: fit-content; max-width: 520px; border-radius: 14px; background: rgb(255 249 238 / .94); font-size: 14px; line-height: 1.25; text-align: center; }
+      #patterns { display: flex; justify-content: center; gap: 13px; color: var(--cream); text-shadow: 0 1px 3px #201b18; font-size: 12px; margin-bottom: 7px; }
       .action { height: 49px; font-size: 18px !important; border-radius: 15px; }
       #next { min-height: 24px; margin-bottom: 8px; }
       .box-chip { width: 23px; height: 23px; border-radius: 6px; }
@@ -94,6 +96,7 @@
         #campaign-header { left: 12px; right: 68px; top: 10px; }
         #chips { justify-content: flex-start; }
         #level-title, #instruction { display: none; }
+        #patterns { display: none; }
         #bottom { left: max(12px, calc(50% - 245px)); right: max(12px, calc(50% - 245px)); bottom: 9px; }
         .action { height: 38px; font-size: 16px !important; }
       }
@@ -121,6 +124,7 @@
       <div id="bottom">
         <div id="level-title"></div>
         <div id="instruction"></div>
+        <div id="patterns" aria-label="Marble patterns"><span>○ Ring</span><span>◆ Diamond</span><span>▲ Triangle</span><span>★ Star</span></div>
         <div id="message" role="status" aria-live="polite" hidden></div>
         <div id="next"><span id="next-label">NEXT</span><span id="next-boxes"></span></div>
         <div id="buttons">

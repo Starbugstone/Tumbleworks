@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { Color } from '../sim/types';
-import { glassMaterial, marbleMaterial, twistGeometry, twistMaterial } from '../view/art';
+import { glassMaterial, marbleMaterial, marblePattern, twistGeometry, twistMaterial } from '../view/art';
 
 export interface MarbleEntity {
   readonly color: Color;
@@ -15,6 +15,7 @@ export class MarbleFactory {
   private readonly shells = new Map<Color, THREE.MeshPhysicalMaterial>();
   private readonly solids = new Map<Color, THREE.MeshPhysicalMaterial>();
   private readonly twists = new Map<Color, THREE.MeshStandardMaterial>();
+  private readonly patterns = new Map<Color, THREE.MeshBasicMaterial>();
   private readonly entities = new Set<MarbleEntity>();
   private clear = true;
 
@@ -40,6 +41,11 @@ export class MarbleFactory {
     const twist = new THREE.Mesh(this.inside, inner);
     twist.visible = this.clear;
     mesh.add(twist);
+    let pattern = this.patterns.get(color);
+    if (!pattern) { pattern = marblePattern(color); this.patterns.set(color, pattern); }
+    const surface = new THREE.Mesh(this.sphere, pattern);
+    surface.scale.setScalar(1.008);
+    mesh.add(surface);
     const entity = { color, mesh, twist };
     this.entities.add(entity);
     return entity;
@@ -61,4 +67,5 @@ export class MarbleFactory {
   }
 
   get count(): number { return this.entities.size; }
+
 }

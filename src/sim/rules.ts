@@ -10,6 +10,8 @@ export type RulesMarble = Marble & (
 
 export interface RulesState {
   supplies: SupplyPacket[][];
+  /** Released marbles waiting in the funnel, in accepted pour order. These do not occupy the belt. */
+  pending: number[];
   /** Indexed by stable, supply-first marble ID; includes unreleased and captured marbles. */
   marbles: RulesMarble[];
   activeBox: number;
@@ -57,7 +59,7 @@ export class MachineRules {
       }),
     })));
     this.current = {
-      supplies, marbles, activeBox: 0, activeFill: 0, waitingForSwap: false, status: 'playing',
+      supplies, pending: [], marbles, activeBox: 0, activeFill: 0, waitingForSwap: false, status: 'playing',
     };
     this.evaluateStatus([]);
   }
@@ -67,8 +69,10 @@ export class MachineRules {
   }
 
   get occupancy(): number {
-    return this.current.marbles.filter((marble) => marble.status === 'pouring' || marble.status === 'on-belt').length;
+    return this.current.marbles.filter((marble) => marble.status === 'on-belt').length;
   }
+
+  get funnelCount(): number { return this.current.pending.length; }
 
   get free(): number {
     return this.board.beltCapacity - this.occupancy;
@@ -95,27 +99,23 @@ export class MachineRules {
     const queue = this.current.supplies[supply];
     const packet = queue?.[0];
     if (!queue || !packet) return { ok: false, reason: 'empty' };
-    if (packet.marbles.length > this.free) {
-      return {
-        ok: false, reason: 'no-space', needed: packet.marbles.length,
-        free: this.free, canDrain: this.canDrain(),
-      };
-    }
-
     queue.shift();
     for (const marble of packet.marbles) {
       this.current.marbles[marble.id] = { ...marble, status: 'pouring', boxIndex: null, slot: null };
+      this.current.pending.push(marble.id);
     }
     const events: RulesEvent[] = [];
     this.evaluateStatus(events);
     return { ok: true, supply, color: packet.color, marbles: packet.marbles, events };
   }
 
-  entered(marbleId: number): void {
+  entered(marbleId: number): boolean {
     const marble = this.current.marbles[marbleId];
-    if (marble?.status !== 'pouring') return;
+    if (this.status !== 'playing' || marble?.status !== 'pouring' || this.free <= 0 || this.current.pending[0] !== marbleId) return false;
+    this.current.pending.shift();
     this.current.marbles[marbleId] = { ...marble, status: 'on-belt' };
     this.evaluateStatus([]);
+    return true;
   }
 
   arrive(marbleId: number): 'deliver' | 'pass' {
@@ -169,7 +169,7 @@ export class MachineRules {
   private canDrain(): boolean {
     return this.current.waitingForSwap || this.current.marbles.some((marble) =>
       marble.status === 'dropping' ||
-      ((marble.status === 'pouring' || marble.status === 'on-belt') && marble.color === this.activeColor),
+      (marble.status === 'on-belt' && marble.color === this.activeColor),
     );
   }
 
@@ -178,16 +178,13 @@ export class MachineRules {
     if (state.status !== 'playing') return;
     if (
       state.supplies.every((supply) => supply.length === 0) &&
-      this.occupancy === 0 && !state.marbles.some((marble) => marble.status === 'dropping') &&
+      this.occupancy === 0 && this.funnelCount === 0 && !state.marbles.some((marble) => marble.status === 'dropping') &&
       this.activeBox === this.board.boxes.length
     ) {
       state.status = 'won';
       events.push({ type: 'won' });
     } else if (
-      !state.supplies.some((supply) => {
-        const packet = supply[0];
-        return packet !== undefined && packet.marbles.length <= this.free;
-      }) && !this.canDrain()
+      this.occupancy === this.board.beltCapacity && !this.canDrain()
     ) {
       state.status = 'jammed';
       events.push({ type: 'jammed' });

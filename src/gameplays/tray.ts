@@ -1,7 +1,7 @@
 import type { Feedback, GameRuntime, GameServices } from '../engine/contracts';
 import { TrayRules } from '../puzzles/rules';
 import type { TrayDef } from '../puzzles/types';
-import { COLOR_NAMES } from '../view/art';
+import { marbleName } from '../view/art';
 import { TrayView } from '../view/tray';
 
 export class TrayRuntime implements GameRuntime {
@@ -22,7 +22,7 @@ export class TrayRuntime implements GameRuntime {
   readonly jamReason = 'All seven rack slots contain unmatched marbles. Undo a pick and finish a triple before starting another color.';
 
   activate(target: string): readonly Feedback[] {
-    if (this.busy || this.status !== 'playing' || !/^piece\d+$/.test(target)) return [];
+    if (this.status !== 'playing' || !/^piece\d+$/.test(target)) return [];
     const id = Number(target.slice(5));
     const before = [...this.rules.state.rack];
     const result = this.rules.pick(id);
@@ -37,10 +37,9 @@ export class TrayRuntime implements GameRuntime {
     return busy && !this.busy ? [{ type: this.matching ? 'match' : 'deliver' }] : [];
   }
   hint(): readonly Feedback[] {
-    if (this.busy) return [{ type: 'message', text: 'Let this marble land, then ask for a hint.' }];
     const id = this.rules.hint();
     const piece = this.board.pieces.find((candidate) => candidate.id === id);
-    return piece ? [{ type: 'message', text: `Pick the highlighted ${COLOR_NAMES[piece.color].toLowerCase()} marble.`, target: `piece${piece.id}` }]
+    return piece ? [{ type: 'message', text: `Pick the highlighted ${marbleName(piece.color).toLowerCase()} marble.`, target: `piece${piece.id}` }]
       : [{ type: 'message', text: 'No safe path found. Undo a pick to make room.' }];
   }
   undo(): boolean {
@@ -53,7 +52,7 @@ export class TrayRuntime implements GameRuntime {
   targets() { return Object.fromEntries(Object.entries(this.view.targets()).map(([key, point]) => {
     const id = Number(key.slice(5));
     const piece = this.board.pieces.find((candidate) => candidate.id === id);
-    return [key, { ...point, label: `${piece ? COLOR_NAMES[piece.color] : ''} marble ${id + 1}` }];
+    return [key, { ...point, label: `${piece ? marbleName(piece.color) : ''} marble ${id + 1}` }];
   })); }
   render() { this.view.render(); }
   resize() { this.view.resize(); }

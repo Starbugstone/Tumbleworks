@@ -46,7 +46,7 @@ function syntheticLevel(kind: string, id: string): GameLevel {
 }
 
 describe('gameplay registry', () => {
-  it('adds a fourth runtime factory to the real campaign without special engine branches', () => {
+  it('adds a fifth runtime factory to the real campaign without special engine branches', () => {
     const registry = new CampaignRegistry();
     for (const kind of new Set(CAMPAIGN.map((level) => level.kind))) {
       registry.register({ kind, levels: CAMPAIGN.filter((level) => level.kind === kind) });
@@ -54,7 +54,7 @@ describe('gameplay registry', () => {
     registry.register({ kind: 'spin', levels: [syntheticLevel('spin', 'spin-1'), syntheticLevel('spin', 'spin-2')] });
     const levels = registry.levels();
     expect(levels.map((level) => level.id)).toEqual([
-      'board-1', 'tube-1', 'tray-1', 'spin-1', 'board-2', 'tube-2', 'tray-2', 'spin-2', 'board-3', 'tube-3', 'tray-3',
+      'board-1', 'tube-1', 'tray-1', 'connect-1', 'spin-1', 'board-2', 'tube-2', 'tray-2', 'connect-2', 'spin-2', 'board-3', 'tube-3', 'tray-3', 'connect-3',
     ]);
     const fourth = levels.find((level) => level.id === 'spin-1');
     if (!fourth) throw new Error('Fourth gameplay is missing');

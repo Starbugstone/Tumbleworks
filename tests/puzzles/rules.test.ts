@@ -30,14 +30,12 @@ describe('tube sorting', () => {
     expect(board).toEqual(before);
   });
 
-  it('moves only the top marble and reports its source and destination slots', () => {
+  it('moves the top color group and reports its lowest source and first destination slots', () => {
     const rules = new TubeRules(tubeLevel());
-    expect(rules.move(0, 3)).toEqual({ ok: true, color: 'blue', from: 0, to: 3, fromSlot: 3, toSlot: 0, completedTube: false });
-    expect(rules.state.tubes[0]).toEqual(['red', 'red', 'blue']);
-    expect(rules.state.tubes[3]).toEqual(['blue']);
-    rules.move(0, 3);
-    rules.move(2, 0);
-    expect(rules.move(2, 0)).toMatchObject({ ok: true, completedTube: true });
+    expect(rules.move(0, 3)).toEqual({ ok: true, color: 'blue', from: 0, to: 3, fromSlot: 2, toSlot: 0, count: 2, completedTube: false });
+    expect(rules.state.tubes[0]).toEqual(['red', 'red']);
+    expect(rules.state.tubes[3]).toEqual(['blue', 'blue']);
+    expect(rules.move(2, 0)).toMatchObject({ ok: true, count: 2, completedTube: true });
   });
 
   it('refuses invalid, empty, full, same-tube, and wrong-color moves without adding undo', () => {
@@ -120,12 +118,12 @@ describe('tube sorting', () => {
     const rules = new TubeRules(tubeLevel());
     rules.move(0, 3);
     const checkpoint = rules.snapshot();
-    rules.move(0, 3);
+    rules.move(2, 0);
     rules.restore(JSON.parse(JSON.stringify(checkpoint)));
     expect(rules.state).toEqual(checkpoint);
     expect(rules.canUndo).toBe(false);
     checkpoint.tubes[0]?.pop();
-    expect(rules.state.tubes[0]).toHaveLength(3);
+    expect(rules.state.tubes[0]).toHaveLength(2);
     for (const invalid of [null, {}, { tubes: [['purple']], moves: 0, status: 'playing' },
       { ...rules.snapshot(), tubes: [] }, { ...rules.snapshot(), moves: -1 }, { ...rules.snapshot(), status: 'won' }]) {
       const before = rules.snapshot();

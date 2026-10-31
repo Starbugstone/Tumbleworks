@@ -50,9 +50,13 @@ export function invariantChecker(rules: MachineRules): () => void {
     for (const color of ['red', 'blue', 'green', 'yellow'] as const) {
       require(counts[color] === initialColors[color], `Lost ${color} marbles`);
     }
-    const occupancy = state.marbles.filter((marble) => marble.status === 'pouring' || marble.status === 'on-belt').length;
+    const occupancy = state.marbles.filter((marble) => marble.status === 'on-belt').length;
     require(rules.occupancy === occupancy && occupancy <= board.beltCapacity && occupancy >= 0, 'Invalid occupancy');
     require(rules.free === board.beltCapacity - occupancy, 'Invalid free capacity');
+    const pending = state.marbles.filter((marble) => marble.status === 'pouring').map((marble) => marble.id).sort((a, b) => a - b);
+    require(new Set(state.pending).size === state.pending.length, 'Duplicate funnel identities');
+    require(JSON.stringify([...state.pending].sort((a, b) => a - b)) === JSON.stringify(pending), 'Funnel queue loses a pouring marble');
+    require(rules.funnelCount === pending.length, 'Invalid funnel count');
     require(Number.isInteger(rules.activeBox) && rules.activeBox >= 0 && rules.activeBox <= board.boxes.length, 'Invalid box');
     require(rules.activeFill >= 0 && rules.activeFill <= board.boxSize, 'Invalid fill');
     require(rules.activeColor === (board.boxes[rules.activeBox] ?? null), 'Invalid active colour');
@@ -85,12 +89,12 @@ export function invariantChecker(rules: MachineRules): () => void {
     if (rules.status === 'jammed') {
       require(!state.waitingForSwap && !state.marbles.some((marble) => marble.status === 'dropping'), 'Premature jam');
       require(!state.marbles.some((marble) =>
-        (marble.status === 'pouring' || marble.status === 'on-belt') && marble.color === rules.activeColor,
+        marble.status === 'on-belt' && marble.color === rules.activeColor,
       ), 'Jammed with deliverable marble');
-      require(!state.supplies.some((supply) => supply[0] !== undefined && supply[0].marbles.length <= rules.free), 'Jammed with fitting packet');
+      require(occupancy === board.beltCapacity, 'Jammed before the belt is full');
     }
     if (rules.status === 'won') {
-      require(unreleased.length === 0 && occupancy === 0 && !state.marbles.some((marble) => marble.status === 'dropping'), 'Premature win');
+      require(unreleased.length === 0 && occupancy === 0 && state.pending.length === 0 && !state.marbles.some((marble) => marble.status === 'dropping'), 'Premature win');
       require(rules.activeBox === board.boxes.length && rules.activeFill === 0, 'Won before all swaps');
     }
     if (terminal !== undefined) require(rules.status === terminal, 'Terminal status changed');

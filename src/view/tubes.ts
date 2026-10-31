@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { BoardView } from '../engine/board-view';
-import type { GameServices } from '../engine/contracts';
+import type { GameServices, ScreenPoint } from '../engine/contracts';
 import type { Point3 } from '../engine/physics';
 import { label, toyBox, toyMaterial } from '../engine/toy';
 import type { TubeDef, TubeMoveResult, TubeState } from '../puzzles/types';
@@ -12,6 +12,13 @@ export class TubeView extends BoardView {
   private readonly selectors: THREE.Mesh[] = [];
   private readonly lights: THREE.Mesh[] = [];
   private selected = -1;
+  private identities: string[][] = [];
+  private nextIdentity = 0;
+  private dragging: string[] = [];
+  private dragOrigin = new THREE.Vector3();
+  private dragStart: THREE.Vector3[] = [];
+  private readonly dragPlane = new THREE.Plane();
+  private readonly dragRay = new THREE.Raycaster();
 
   constructor(services: GameServices, readonly definition: TubeDef, state: TubeState) {
     super(services, 0.95);
@@ -50,12 +57,19 @@ export class TubeView extends BoardView {
     return { x: (tube % 3 - 1) * 3.25, y: 1.25 + slot * STEP, z: tube < 3 ? -2.8 : 3.2 };
   }
 
-  rebuild(state: TubeState, omitTube = -1, omitSlot = -1): void {
+  rebuild(state: TubeState): void {
+    this.cancelMotion();
+    this.identities = state.tubes.map((tube) => tube.map(() => String(this.nextIdentity++)));
+    this.layout(state);
+  }
+
+  private layout(state: TubeState, animate = false): void {
     this.clearActors();
+    this.syncMarbles(state.tubes.flatMap((tube, index) => tube.flatMap((color, slot) => {
+      const id = this.identities[index]?.[slot];
+      return id === undefined ? [] : [{ id, color, radius: RADIUS, at: this.position(index, slot) }];
+    })), animate);
     state.tubes.forEach((tube, index) => {
-      tube.forEach((color, slot) => {
-        if (index !== omitTube || slot !== omitSlot) this.marble(color, RADIUS, this.position(index, slot));
-      });
       const at = this.position(index, 1.5);
       const hit = new THREE.Mesh(new THREE.BoxGeometry(1.9, 5.3, 1.9), new THREE.MeshBasicMaterial({ visible: false }));
       hit.position.set(at.x, 2.9, at.z);
@@ -74,6 +88,7 @@ export class TubeView extends BoardView {
   select(index: number): void {
     this.selected = index;
     this.selectors.forEach((mesh, i) => {
+      mesh.scale.setScalar(i === index ? 1.12 : 1);
       if (mesh.material instanceof THREE.MeshPhysicalMaterial) {
         mesh.material.color.setHex(i === index ? 0xf25f33 : 0x3b4069);
         mesh.material.emissive.setHex(i === index ? 0x6c2109 : 0);
@@ -81,9 +96,52 @@ export class TubeView extends BoardView {
     });
   }
 
-  moved(result: Extract<TubeMoveResult, { ok: true }>, state: TubeState): void {
-    this.rebuild(state, result.to, result.toSlot);
-    this.transferMarble(result.color, RADIUS, this.position(result.from, result.fromSlot), this.position(result.to, result.toSlot),
-      () => this.rebuild(state), Math.max(0.65, this.definition.capacity * STEP + 1.35 - this.position(result.to, result.toSlot).y));
+  private pointOnPlane(point: ScreenPoint): THREE.Vector3 {
+    const rect = this.services.stage.canvas.getBoundingClientRect();
+    this.dragRay.setFromCamera(new THREE.Vector2((point.x - rect.left) / rect.width * 2 - 1, -(point.y - rect.top) / rect.height * 2 + 1), this.camera);
+    return this.dragRay.ray.intersectPlane(this.dragPlane, new THREE.Vector3()) ?? this.dragOrigin.clone();
+  }
+
+  beginDrag(index: number, state: TubeState, point: ScreenPoint): void {
+    const tube = state.tubes[index] ?? [];
+    const color = tube.at(-1);
+    if (!color) return;
+    let first = tube.length - 1;
+    while (first > 0 && tube[first - 1] === color) first--;
+    this.dragging = this.identities[index]?.slice(first) ?? [];
+    this.dragging.forEach((id) => this.stop(id));
+    this.dragStart = this.dragging.map((id) => {
+      const at = this.marblePosition(id);
+      return new THREE.Vector3(at?.x, at?.y, at?.z);
+    });
+    const anchor = this.dragStart.at(-1) ?? new THREE.Vector3();
+    this.dragPlane.setFromNormalAndCoplanarPoint(this.camera.getWorldDirection(new THREE.Vector3()), anchor);
+    this.dragOrigin = this.pointOnPlane(point);
+    this.select(index);
+  }
+
+  moveDrag(point: ScreenPoint, highlight: number): void {
+    const offset = this.pointOnPlane(point).sub(this.dragOrigin);
+    this.dragging.forEach((id, index) => {
+      const start = this.dragStart[index];
+      if (start) this.placeMarble(id, start.clone().add(offset));
+    });
+    this.select(highlight);
+  }
+
+  endDrag(state: TubeState): Point3[] {
+    const positions = this.dragging.flatMap((id) => { const at = this.marblePosition(id); return at ? [at] : []; });
+    this.dragging.forEach((id) => this.restoreMarble(id));
+    this.dragging = [];
+    this.dragStart = [];
+    return positions;
+  }
+
+  moved(result: Extract<TubeMoveResult, { ok: true }>, state: TubeState, starts?: readonly Point3[]): void {
+    const moved = this.identities[result.from]?.splice(result.fromSlot, result.count) ?? [];
+    this.identities[result.to]?.push(...moved);
+    const origins = starts?.slice(-result.count);
+    moved.forEach((id, offset) => { const at = origins?.[offset]; if (at) this.placeMarble(id, at); });
+    this.layout(state, true);
   }
 }

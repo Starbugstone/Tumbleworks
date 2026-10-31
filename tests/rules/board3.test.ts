@@ -82,7 +82,7 @@ describe('current-state conveyor hints', () => {
     for (const marble of rules.state.marbles) if (marble.status === 'pouring') rules.entered(marble.id);
     rules.arrive(6);
     const dropping = rules.snapshot();
-    expect(hintConveyor(rules)).toBeNull();
+    expect(hintConveyor(rules)).toBe(1);
     expect(rules.state).toEqual(dropping);
     rules.captured(6);
     const captured = rules.snapshot();
@@ -90,12 +90,19 @@ describe('current-state conveyor hints', () => {
     expect(rules.state).toEqual(captured);
   });
 
-  it('never recommends a packet that cannot fit until outstanding deliveries finish', () => {
+  it('can recommend another dump during a full belt that will drain', () => {
     const rules = new MachineRules(BOARD_3);
     rules.release(0); rules.release(0);
+    for (const id of [...rules.state.pending]) rules.entered(id);
     expect(rules.free).toBe(0);
     expect(rules.status).toBe('playing');
-    expect(hintConveyor(rules)).toBeNull();
+    const queued = hintConveyor(rules);
+    expect(queued).not.toBeNull();
+    const before = rules.snapshot();
+    if (queued === null) throw new Error('Expected an admissible dump');
+    expect(rules.release(queued).ok).toBe(true);
+    expect(rules.occupancy).toBe(12);
+    rules.restore(before);
     drain(rules);
     const next = hintConveyor(rules);
     expect(next).not.toBeNull();
