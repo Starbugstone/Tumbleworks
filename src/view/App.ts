@@ -34,6 +34,7 @@ export class App {
   private messageTimer = 0;
   private winTimer = 0;
   private hintTimer = 0;
+  private instructionTimer = 0;
   private previewKey = '';
   private targetKey = '';
   private focusTarget: string | null = null;
@@ -65,6 +66,8 @@ export class App {
       if (this.runtime.status === 'won') this.loadBoard((this.boardIndex + 1) % CAMPAIGN.length);
       else this.card.hidden = true;
     });
+    const toggle = button('levels-toggle');
+    toggle.addEventListener('click', () => { sfx.unlock(); this.showLevels(element('levels').hidden !== false); });
     const mute = button('mute');
     mute.classList.toggle('muted', sfx.isMuted);
     mute.addEventListener('click', () => {
@@ -111,9 +114,14 @@ export class App {
     this.setMessage('');
     element('confetti').replaceChildren();
     element('level-name').textContent = `${index + 1} / ${CAMPAIGN.length} · ${level.name}`;
-    element('level-title').textContent = level.title;
+    element('level-title').textContent = `${level.title} · ${level.difficulty}`;
     element('difficulty').textContent = level.difficulty;
+    element('level-help').textContent = level.instructions;
     element('instruction').textContent = level.instructions;
+    element('instruction').hidden = false;
+    window.clearTimeout(this.instructionTimer);
+    this.instructionTimer = window.setTimeout(() => { element('instruction').hidden = true; }, 6000);
+    this.showLevels(false);
     this.renderChips();
     this.runtime.resize();
     this.runtime.render(0, 0);
@@ -154,6 +162,7 @@ export class App {
     this.ring.hidden = !keepFocus;
     this.focusTarget = keepFocus ? target : null;
     this.setMessage('');
+    element('instruction').hidden = true;
     this.feedback(this.runtime.activate(target));
     this.checkEnding();
     this.refresh();
@@ -255,6 +264,11 @@ export class App {
     } else this.ring.hidden = true;
   }
 
+  private showLevels(open: boolean): void {
+    element('levels').hidden = !open;
+    button('levels-toggle').setAttribute('aria-expanded', String(open));
+  }
+
   private renderChips(): void {
     this.chips.replaceChildren(...CAMPAIGN.map((level, index) => {
       const chip = document.createElement('button');
@@ -265,7 +279,7 @@ export class App {
       chip.textContent = isCompleted(level.id) ? '✓' : String(index + 1);
       chip.setAttribute('aria-label', `Level ${index + 1}: ${level.name}, ${level.difficulty}${isCompleted(level.id) ? ', completed' : ''}`);
       chip.setAttribute('aria-current', index === this.boardIndex ? 'step' : 'false');
-      chip.addEventListener('click', () => { sfx.unlock(); if (index !== this.boardIndex) this.loadBoard(index); });
+      chip.addEventListener('click', () => { sfx.unlock(); this.showLevels(false); if (index !== this.boardIndex) this.loadBoard(index); });
       return chip;
     }));
   }

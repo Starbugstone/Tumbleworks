@@ -19,8 +19,8 @@ describe('shared board framing', () => {
       const y = (1-screen.y)*height/2;
       expect(x).toBeGreaterThanOrEqual(14);
       expect(x).toBeLessThanOrEqual(width-14);
-      expect(y).toBeGreaterThanOrEqual(compact?85:130);
-      expect(y).toBeLessThanOrEqual(height-(compact?100:185));
+      expect(y).toBeGreaterThanOrEqual(compact ? 56 : 64);
+      expect(y).toBeLessThanOrEqual(height - (compact ? 64 : 92));
       expect(screen.z).toBeGreaterThan(-1);
       expect(screen.z).toBeLessThan(1);
     }

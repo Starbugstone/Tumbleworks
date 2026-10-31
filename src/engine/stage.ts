@@ -25,11 +25,11 @@ export class Stage {
     this.tableMaterial = new THREE.MeshStandardMaterial({ map: woodTexture(), roughness: 0.62, envMapIntensity: 0.35 });
   }
 
-  createScene(): THREE.Scene {
+  createScene(backdrop: 'wood' | 'studio' = 'wood'): THREE.Scene {
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x6e4a2b);
+    scene.background = new THREE.Color(backdrop === 'wood' ? 0x6e4a2b : 0x1f2650);
     scene.environment = this.environment;
-    scene.environmentIntensity = 0.38;
+    scene.environmentIntensity = backdrop === 'wood' ? 0.38 : 0.5;
     const key = new THREE.DirectionalLight(0xfff0dc, 3.2);
     key.position.set(-7, 22, 11);
     key.castShadow = true;
@@ -38,11 +38,20 @@ export class Stage {
     key.shadow.bias = -0.0006;
     key.shadow.normalBias = 0.02;
     key.shadow.radius = 4;
-    scene.add(key, new THREE.HemisphereLight(0xffffff, 0x8a5a30, 0.35));
-    const table = new THREE.Mesh(new THREE.PlaneGeometry(90, 90), this.tableMaterial);
-    table.rotation.x = -Math.PI / 2;
-    table.receiveShadow = true;
-    scene.add(table);
+    scene.add(key, new THREE.HemisphereLight(0xffffff, backdrop === 'wood' ? 0x8a5a30 : 0x2b3473, backdrop === 'wood' ? 0.35 : 0.55));
+    if (backdrop === 'wood') {
+      const table = new THREE.Mesh(new THREE.PlaneGeometry(90, 90), this.tableMaterial);
+      table.rotation.x = -Math.PI / 2;
+      table.receiveShadow = true;
+      scene.add(table);
+    } else {
+      // A soft studio floor far below the platform, so the platform reads as a chunky toy on a stand.
+      const floor = new THREE.Mesh(new THREE.CircleGeometry(40, 48), new THREE.MeshStandardMaterial({ color: 0x2a3366, roughness: 0.95 }));
+      floor.rotation.x = -Math.PI / 2;
+      floor.position.y = -6;
+      floor.receiveShadow = true;
+      scene.add(floor);
+    }
     return scene;
   }
 

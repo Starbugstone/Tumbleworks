@@ -3,49 +3,58 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#6e4a2b" />
+    <meta name="theme-color" content="#1f2650" />
     <title>Tumbleworks</title>
     <style>
       :root { --ink: #2f3358; --cream: #fff9ee; --accent: #f25f33; }
       * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-      html, body { margin: 0; height: 100%; background: #6e4a2b; overflow: hidden; overscroll-behavior: none; touch-action: none; -webkit-user-select: none; user-select: none; font-family: Fredoka, 'Trebuchet MS', sans-serif; font-weight: 500; color: var(--ink); }
+      html, body { margin: 0; height: 100%; background: #1f2650; overflow: hidden; overscroll-behavior: none; touch-action: none; -webkit-user-select: none; user-select: none; font-family: Fredoka, 'Trebuchet MS', sans-serif; font-weight: 500; color: var(--ink); }
       #scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
       #hud { position: fixed; inset: 0; pointer-events: none; }
       #hud button { pointer-events: auto; font: inherit; color: inherit; border: 0; cursor: pointer; }
+      [hidden] { display: none !important; }
+      .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 
-      #top { position: absolute; top: max(10px, env(safe-area-inset-top)); left: 12px; right: 12px; display: flex; align-items: center; gap: 8px; }
-      #wordmark { font-weight: 600; font-size: 24px; color: var(--cream); text-shadow: 0 2px 6px rgb(0 0 0 / 0.45); margin-right: auto; }
-      #chips { display: flex; gap: 6px; }
-      .chip, #mute { width: 40px; height: 40px; border-radius: 50%; background: var(--cream); font-weight: 600; font-size: 18px; box-shadow: 0 3px 8px rgb(0 0 0 / 0.35); display: grid; place-items: center; padding: 0; }
-      .chip.active { background: var(--ink); color: var(--cream) !important; }
-      .chip:disabled { opacity: 0.5; }
-      #mute svg { width: 22px; height: 22px; }
+      /* One slim row at the top: the level pill opens the picker, the counter, and sound. */
+      #top { position: absolute; top: max(8px, env(safe-area-inset-top)); left: 10px; right: 10px; display: flex; align-items: center; gap: 8px; }
+      .pill { height: 36px; padding: 0 14px; border-radius: 18px; background: rgb(255 249 238 / 0.92); font-weight: 600; font-size: 14px; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 3px 8px rgb(0 0 0 / 0.3); white-space: nowrap; }
+      #levels-toggle::before { content: '≡'; font-size: 18px; line-height: 1; }
+      #load { margin-left: auto; }
+      #load.jammed { color: #fff; background: #d8431d; }
+      #mute { width: 36px; height: 36px; border-radius: 50%; background: rgb(255 249 238 / 0.92); display: grid; place-items: center; padding: 0; box-shadow: 0 3px 8px rgb(0 0 0 / 0.3); }
+      #mute svg { width: 20px; height: 20px; }
       #mute .off { display: none; }
       #mute.muted .on { display: none; }
       #mute.muted .off { display: block; }
 
-      #message { width: max-content; max-width: 96%; margin: 0 auto 8px; padding: 8px 14px; border-radius: 16px; background: rgb(255 249 238 / 0.94); font-size: 16px; line-height: 1.25; text-align: center; box-shadow: 0 4px 14px rgb(0 0 0 / 0.3); }
+      /* The level picker: everything that is not the toy lives here. */
+      #levels { position: absolute; top: max(52px, calc(env(safe-area-inset-top) + 46px)); left: 10px; right: 10px; max-width: 560px; margin: 0 auto; padding: 14px; border-radius: 20px; background: rgb(255 249 238 / 0.97); box-shadow: 0 12px 30px rgb(0 0 0 / 0.45); pointer-events: auto; animation: pop 0.2s cubic-bezier(0.2, 1.4, 0.4, 1); }
+      #levels-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+      #wordmark { font-weight: 600; font-size: 20px; }
+      #difficulty { font-size: 13px; opacity: 0.75; }
+      #chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 0 8px; }
+      .chip { width: 36px; height: 36px; border-radius: 50%; background: #fff; font-weight: 600; font-size: 15px; box-shadow: 0 2px 5px rgb(0 0 0 / 0.25); display: grid; place-items: center; padding: 0; border-bottom: 3px solid var(--accent) !important; }
+      .chip.active { background: var(--ink); color: var(--cream) !important; }
+      .chip[data-kind='loop'] { border-bottom-color: #ffd166 !important; }
+      .chip[data-kind='tube'] { border-bottom-color: #61b3ff !important; }
+      .chip[data-kind='tray'] { border-bottom-color: #4dce9b !important; }
+      .chip[data-kind='connect'] { border-bottom-color: #bf98ff !important; }
+      #level-title { font-weight: 600; font-size: 17px; margin: 2px 0 4px; }
+      #level-help { font-size: 14px; line-height: 1.3; margin: 0 0 8px; }
+      #patterns { display: flex; flex-wrap: wrap; gap: 12px; font-size: 13px; opacity: 0.85; }
+
+      /* Short-lived text over the board. */
+      #toasts { position: absolute; left: 10px; right: 10px; bottom: max(86px, calc(env(safe-area-inset-bottom) + 80px)); display: flex; flex-direction: column; align-items: center; gap: 6px; }
+      #instruction, #message { width: max-content; max-width: 100%; padding: 8px 14px; border-radius: 16px; background: rgb(255 249 238 / 0.94); font-size: 14px; line-height: 1.25; text-align: center; box-shadow: 0 4px 14px rgb(0 0 0 / 0.3); }
       #message.alarm { color: #c23a1a; }
-      #message[hidden], #arrow[hidden], #card[hidden] { display: none; }
 
-      #load { position: absolute; left: 0; top: 0; font-weight: 600; font-size: 15px; color: var(--ink); background: rgb(255 249 238 / 0.9); padding: 2px 11px; border-radius: 12px; box-shadow: 0 2px 5px rgb(0 0 0 / 0.2); white-space: nowrap; }
-      #load.jammed { color: #fff; background: #d8431d; }
-
-      #arrow { position: absolute; transform: translate(-50%, -50%); filter: drop-shadow(0 3px 5px rgb(0 0 0 / 0.5)); animation: bob 0.9s ease-in-out infinite; line-height: 0; }
-      #arrow.nudge { animation: nudge 0.25s ease-in-out 2, bob 0.9s ease-in-out 0.5s infinite; }
-      @keyframes bob { 50% { margin-left: -12px; } }
-      @keyframes nudge { 50% { scale: 1.35; } }
-
-      #bottom { position: absolute; left: 12px; right: 12px; bottom: max(12px, env(safe-area-inset-bottom)); }
-      #next { display: flex; align-items: center; justify-content: center; gap: 5px; margin-bottom: 9px; min-height: 28px; flex-wrap: wrap; }
-      #next-label { font-weight: 600; font-size: 13px; color: var(--cream); text-shadow: 0 1px 4px rgb(0 0 0 / 0.6); margin-right: 3px; letter-spacing: 0.04em; }
-      #next-boxes { display: contents; }
-      .box-chip { width: 28px; height: 28px; border-radius: 8px; box-shadow: 0 2px 4px rgb(0 0 0 / 0.4), inset 0 -3px 0 rgb(0 0 0 / 0.2); }
-      #buttons { display: flex; gap: 10px; }
-      .action { flex: 1; height: 54px; border-radius: 18px; background: var(--cream); font-weight: 600 !important; font-size: 20px !important; box-shadow: 0 5px 0 #c9b597, 0 8px 14px rgb(0 0 0 / 0.3); }
-      .action:active { transform: translateY(3px); box-shadow: 0 2px 0 #c9b597, 0 4px 8px rgb(0 0 0 / 0.3); }
-      .action:disabled { opacity: 0.55; }
-      #undo.attention { background: var(--accent); color: #fff !important; box-shadow: 0 5px 0 #a83c1b, 0 8px 14px rgb(0 0 0 / 0.3); animation: pulse 0.7s ease-in-out infinite; }
+      /* Three round actions along the bottom. */
+      #bottom { position: absolute; left: 0; right: 0; bottom: max(14px, env(safe-area-inset-bottom)); display: flex; justify-content: center; gap: 18px; }
+      .action { width: 54px; height: 54px; border-radius: 50%; background: var(--cream); display: grid; place-items: center; box-shadow: 0 4px 0 #c9b597, 0 7px 12px rgb(0 0 0 / 0.3); font-size: 24px; font-weight: 600; }
+      .action:active { transform: translateY(3px); box-shadow: 0 1px 0 #c9b597, 0 4px 8px rgb(0 0 0 / 0.3); }
+      .action:disabled { opacity: 0.5; }
+      .action svg { width: 26px; height: 26px; }
+      #undo.attention { background: var(--accent); color: #fff !important; box-shadow: 0 4px 0 #a83c1b, 0 7px 12px rgb(0 0 0 / 0.3); animation: pulse 0.7s ease-in-out infinite; }
       @keyframes pulse { 50% { filter: brightness(1.18); } }
 
       #card { position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%); width: min(84%, 380px); padding: 20px 22px; border-radius: 26px; background: var(--cream); text-align: center; box-shadow: 0 12px 30px rgb(0 0 0 / 0.45); pointer-events: auto; animation: pop 0.24s cubic-bezier(0.2, 1.4, 0.4, 1); }
@@ -56,50 +65,15 @@
       #card-action { height: 50px; padding: 0 26px; border-radius: 16px; font-weight: 600; font-size: 19px; background: var(--ink); color: #fff !important; }
       #card[data-kind='win'] #card-action { background: var(--accent); }
 
-      #flash { position: absolute; inset: 0; background: #fff; opacity: 0; }
-      #flash.go { animation: flash 0.28s ease-out; }
-      @keyframes flash { 0% { opacity: 0.6; } 100% { opacity: 0; } }
-
       #confetti { position: absolute; inset: 0; overflow: hidden; }
       #confetti i { position: absolute; top: -20px; width: 10px; height: 6px; border-radius: 2px; animation: fall linear forwards; }
       @keyframes fall { to { transform: translateY(110vh) rotate(720deg); } }
-      [hidden] { display: none !important; }
-      #top { align-items: center; }
-      #wordmark { font-size: 23px; }
-      #difficulty { font-size: 12px; color: var(--cream); max-width: 108px; text-align: right; line-height: 1.15; }
-      #campaign-header { position: absolute; top: max(58px, calc(env(safe-area-inset-top) + 52px)); left: 12px; right: 12px; }
-      #level-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 9px; }
-      #level-name { color: var(--cream); font-size: 15px; text-shadow: 0 2px 5px #382415; }
-      #load { position: static; font-size: 13px; padding: 4px 10px; transform: none !important; }
-      #chips { display: flex; justify-content: flex-start; gap: 6px; width: max-content; max-width: 100%; margin: 0 auto; padding: 4px 0 8px; overflow-x: auto; touch-action: pan-x; scrollbar-width: none; }
-      .chip { flex: 0 0 31px; width: 31px; height: 31px; font-size: 14px; border-bottom: 3px solid var(--accent) !important; }
-      .chip[data-kind='tube'] { border-bottom-color: #61b3ff !important; }
-      .chip[data-kind='tray'] { border-bottom-color: #4dce9b !important; }
-      .chip[data-kind='connect'] { border-bottom-color: #bf98ff !important; }
-      #level-title { font-size: 18px; font-weight: 600; color: var(--cream); text-align: center; text-shadow: 0 2px 5px #382415; margin-bottom: 4px; }
-      #instruction { padding: 7px 12px; margin: 0 auto 10px; width: fit-content; max-width: 520px; border-radius: 14px; background: rgb(255 249 238 / .94); font-size: 14px; line-height: 1.25; text-align: center; }
-      #patterns { display: flex; justify-content: center; gap: 13px; color: var(--cream); text-shadow: 0 1px 3px #201b18; font-size: 12px; margin-bottom: 7px; }
-      .action { height: 49px; font-size: 18px !important; border-radius: 15px; }
-      #next { min-height: 24px; margin-bottom: 8px; }
-      .box-chip { width: 23px; height: 23px; border-radius: 6px; }
-      #message { font-size: 14px; }
       #focus-ring { position: fixed; width: 66px; height: 66px; border: 4px solid #fff8d4; outline: 3px solid var(--accent); border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 20px #ffda67; pointer-events: none; animation: pulse .8s ease-in-out infinite; }
       #board-controls { position: fixed; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-      #board-controls:focus-within { width: auto; height: auto; clip-path: none; left: 12px; right: 12px; top: 125px; padding: 12px; border-radius: 12px; background: var(--cream); display: flex; gap: 6px; flex-wrap: wrap; pointer-events: auto; }
+      #board-controls:focus-within { width: auto; height: auto; clip-path: none; left: 12px; right: 12px; top: 60px; padding: 12px; border-radius: 12px; background: var(--cream); display: flex; gap: 6px; flex-wrap: wrap; pointer-events: auto; }
       #board-controls button { border: 1px solid #c9b597; padding: 7px; border-radius: 6px; }
       #boot { position: fixed; top: 40%; left: 50%; transform: translateX(-50%); width: min(80%, 360px); padding: 24px; border-radius: 20px; background: var(--cream); text-align: center; font-size: 20px; }
-      @media (min-width: 800px) { #top, #campaign-header { left: max(24px, calc(50% - 330px)); right: max(24px, calc(50% - 330px)); } #bottom { left: max(24px, calc(50% - 280px)); right: max(24px, calc(50% - 280px)); } }
-      @media (max-width: 365px) { #chips { gap: 4px; } .chip { flex-basis: 29px; width: 29px; height: 29px; } #wordmark { font-size: 20px; } #difficulty { font-size: 11px; } }
-      @media (max-height: 600px) and (min-width: 600px) {
-        #top { left: auto; right: 12px; top: 10px; }
-        #wordmark, #difficulty { display: none; }
-        #campaign-header { left: 12px; right: 68px; top: 10px; }
-        #chips { justify-content: flex-start; }
-        #level-title, #instruction { display: none; }
-        #patterns { display: none; }
-        #bottom { left: max(12px, calc(50% - 245px)); right: max(12px, calc(50% - 245px)); bottom: 9px; }
-        .action { height: 38px; font-size: 16px !important; }
-      }
+      @media (max-height: 600px) and (min-width: 600px) { .action { width: 44px; height: 44px; } #bottom { bottom: 8px; } #toasts { bottom: 62px; } }
       @media (prefers-reduced-motion: reduce) { #confetti { display: none; } #focus-ring, #undo.attention { animation: none; } }
     </style>
   </head>
@@ -107,31 +81,31 @@
     <canvas id="scene" tabindex="0" aria-label="Puzzle board"></canvas>
     <div id="hud">
       <div id="top">
-        <div id="wordmark">Tumbleworks</div>
-        <div id="difficulty"></div>
+        <button id="levels-toggle" class="pill" aria-expanded="false" aria-controls="levels"><span id="level-name"></span></button>
+        <span id="load" class="pill"></span>
         <button id="mute" aria-label="Sound">
           <svg class="on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h4L13 5v14l-5-4.5H4z" fill="currentColor"/><path d="M16.5 9a4.5 4.5 0 0 1 0 6M19 6.5a8 8 0 0 1 0 11"/></svg>
           <svg class="off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h4L13 5v14l-5-4.5H4z" fill="currentColor"/><path d="M17 9.5l5 5M22 9.5l-5 5"/></svg>
         </button>
       </div>
-      <div id="campaign-header">
-        <div id="level-row"><span id="level-name"></span><span id="load"></span></div>
+      <div id="levels" hidden>
+        <div id="levels-head"><span id="wordmark">Tumbleworks</span><span id="difficulty"></span></div>
         <nav id="chips" aria-label="Campaign levels"></nav>
+        <div id="level-title"></div>
+        <p id="level-help"></p>
+        <div id="patterns" aria-label="Container patterns"><span>○ Ring = red</span><span>◆ Diamond = blue</span><span>▲ Triangle = green</span><span>★ Star = yellow</span></div>
       </div>
       <div id="focus-ring" hidden></div>
       <div id="board-controls" aria-label="Board pieces"></div>
-      <div id="arrow" hidden><svg viewBox="0 0 64 48" width="60" height="45"><path d="M4 16h30V4l26 20-26 20V32H4z" fill="#f25f33" stroke="#fff" stroke-width="4" stroke-linejoin="round"/></svg></div>
-      <div id="bottom">
-        <div id="level-title"></div>
-        <div id="instruction"></div>
-        <div id="patterns" aria-label="Marble patterns"><span>○ Ring</span><span>◆ Diamond</span><span>▲ Triangle</span><span>★ Star</span></div>
+      <div id="toasts">
+        <div id="instruction" role="note"></div>
         <div id="message" role="status" aria-live="polite" hidden></div>
-        <div id="next"><span id="next-label">NEXT</span><span id="next-boxes"></span></div>
-        <div id="buttons">
-          <button id="undo" class="action">Undo</button>
-          <button id="hint" class="action">Hint</button>
-          <button id="restart" class="action">Restart</button>
-        </div>
+        <div id="next" hidden><span id="next-label"></span><span id="next-boxes"></span></div>
+      </div>
+      <div id="bottom">
+        <button id="undo" class="action" aria-label="Undo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7H5V3"/><path d="M5.5 7.5A8 8 0 1 1 4 13"/></svg></button>
+        <button id="hint" class="action" aria-label="Hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0 0 12 3z"/></svg></button>
+        <button id="restart" class="action" aria-label="Restart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 5v4h-4"/><path d="M19.5 9A8 8 0 1 0 20 14"/></svg></button>
       </div>
       <div id="card" hidden>
         <h2 id="card-title"></h2>
@@ -139,7 +113,6 @@
         <button id="card-action"></button>
       </div>
       <div id="confetti"></div>
-      <div id="flash"></div>
     </div>
     <div id="boot" role="status">Setting up the workshop…</div>
     <script type="module" src="/src/main.ts"></script>

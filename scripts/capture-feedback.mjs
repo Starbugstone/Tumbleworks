@@ -3,7 +3,7 @@ import { chromium } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { TUBE_BOARDS } from '../src/puzzles/levels.ts';
 import { CONNECT_BOARDS } from '../src/puzzles/connect-levels.ts';
-const output = 'output/poc12/video-frames';
+const output = 'output/current/video-frames';
 mkdirSync(output, { recursive: true });
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, hasTouch: true, isMobile: true });
@@ -20,7 +20,11 @@ async function frame() {
 async function hold(seconds) { for (let i = 0; i < seconds * 24; i++) await frame(); }
 async function point(id) { return page.evaluate(key => window.tumbleworks.app.debugTargets()[key], id); }
 async function tap(id) { const at = await point(id); if (!at) throw Error(`Missing ${id}`); await page.touchscreen.tap(at.x, at.y); }
-async function select(index) { await page.locator(`.chip[data-level="${index}"]`).click(); await frame(); }
+async function select(kind) {
+  await page.locator('#levels-toggle').click();
+  await page.locator(`.chip[data-kind="${kind}"]`).first().click();
+  await frame();
+}
 const touch = await page.context().newCDPSession(page);
 async function drag(from, to) {
   const a = await point(from), b = await point(to);
@@ -32,20 +36,22 @@ async function drag(from, to) {
   await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   await frame();
 }
-await select(1); await hold(0.5);
+await select('tube'); await hold(0.5);
 for (const move of TUBE_BOARDS[0].solution) await drag(`tube${move.from}`, `tube${move.to}`);
 await hold(0.8);
-await select(2); await hold(0.4);
+await select('tray'); await hold(0.4);
 for (const id of [8, 0, 1, 9, 2, 3]) { await tap(`piece${id}`); await hold(0.08); }
 await hold(0.8);
-await select(3); await hold(0.4);
+await select('connect'); await hold(0.4);
 for (const id of CONNECT_BOARDS[0].solution) { await tap(`piece${id}`); await hold(0.08); }
 await hold(0.8);
-await select(4); await hold(0.4);
-for (const id of [0, 0, 1, 1, 2]) { await tap(`supply${id}`); await hold(0.08); }
+await select('conveyor'); await hold(0.4);
+for (const id of [0, 0, 1]) { await tap(`supply${id}`); await hold(0.08); }
 await hold(4);
+await select('loop'); await hold(0.4);
+await tap('lane0'); await hold(4);
 await touch.detach();
 await browser.close();
-writeFileSync('output/poc12/video-metadata.json', JSON.stringify({ frames, fps: 24, seconds: frames / 24, errors }, null, 2));
+writeFileSync('output/current/video-metadata.json', JSON.stringify({ frames, fps: 24, seconds: frames / 24, errors }, null, 2));
 if (errors.length) throw Error(errors.join('\n'));
 console.log(JSON.stringify({ frames, seconds: frames / 24 }));

@@ -16,7 +16,7 @@ describe('shared marble physics', () => {
     } finally { world.free(); }
   });
 
-  it('constructs the requested sphere radius and keeps placed marbles out of physical collisions', () => {
+  it('constructs the requested sphere radius; placed marbles are kinematic and still block falling ones', () => {
     const world = physics.createWorld();
     try {
       const at = { x: 1, y: 4, z: -2 };

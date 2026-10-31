@@ -85,7 +85,7 @@ export class TubeRuntime implements GameRuntime {
   private transfer(from: number, index: number, starts?: readonly Point3[]): readonly Feedback[] {
     const result = this.rules.move(from, index);
     if (!result.ok) {
-      const text = result.reason === 'full' ? 'That tube is full.' : 'Choose an empty tube or the same top pattern.';
+      const text = result.reason === 'full' ? 'That tube is full.' : 'Choose an empty tube or the same top color.';
       // The destination becomes the next selected source, so correcting a choice takes one tap.
       if (!starts) this.selected = this.rules.state.tubes[index]?.length ? index : this.selected;
       this.view.select(this.selected ?? -1);

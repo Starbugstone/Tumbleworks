@@ -22,7 +22,7 @@ export class ConnectRuntime implements GameRuntime {
   activate(target: string): readonly Feedback[] {
     if (this.status !== 'playing' || !/^piece\d+$/.test(target)) return [];
     const ids = this.rules.pick(Number(target.slice(5)));
-    if (!ids) return [{ type: 'blocked', text: 'Match at least three of one pattern touching along their sides. Diagonals do not connect.' }];
+    if (!ids) return [{ type: 'blocked', text: 'Match at least three of one color touching along their sides. Diagonals do not connect.' }];
     this.view.cleared(ids, this.rules.snapshot());
     return [{ type: 'match' }];
   }

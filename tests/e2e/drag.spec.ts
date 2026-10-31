@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import type { App } from '../../src/view/App';
+import { CAMPAIGN } from '../../src/campaign';
 
 type GameWindow = Window & { tumbleworks: { app: App } };
 const state = (page: Page) => page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.debugState());
@@ -18,7 +19,8 @@ async function drag(page: Page, from: string, to: string | null, cancel = false)
 test('touch dragging transfers a whole top group quickly and cancellation changes nothing', async ({ page }) => {
   await page.goto('/');
   await page.waitForFunction(() => Boolean((window as unknown as Partial<GameWindow>).tumbleworks?.app?.runtime));
-  await page.locator('.chip[data-level="1"]').click();
+  await page.locator('#levels-toggle').click();
+  await page.locator(`.chip[data-level="${CAMPAIGN.findIndex((level) => level.id === 'tube-1')}"]`).click();
   await page.evaluate(() => { (window as unknown as GameWindow).tumbleworks.app.manualClock = true; });
   const before = await state(page);
   await drag(page, 'tube0', 'tube3', true);

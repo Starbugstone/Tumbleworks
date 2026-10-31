@@ -1,54 +1,71 @@
 # Tumbleworks POC
 
-## Current scope
+## Scope
 
-One browser game, one campaign, four gameplay types, three difficulties each. Levels alternate Funnel Sort, Tube Sort, Tray Match, Connected Match, then repeat at the next difficulty. All twelve are directly selectable for playtesting, and Next level advances through that order.
+The POC is one browser game with one campaign and five gameplay types. The campaign takes one level of each type per round, so it ends with the two longest conveyor levels.
 
-The earlier Phaser build was replaced after playtesting called for a more appealing physical toy. Three.js renders the shared workshop and glass marbles. Rapier provides real free falls. The conveyor belt and delivery arc are scripted; the belt never stops.
+We rebuilt the two conveyor games after a playtest against Voodoo's Marble Sort! and Loop Sort, because the earlier Funnel Sort worked but felt bland. The targets are many marbles on screen, a belt or loop that never stops, an immediate response to a tap, boxes and trucks that clear in bulk, and very little interface over the board. The [research](research/loop-sort-marble-sort-mechanics.md) records the evidence.
 
-## Difficulty banks
+## Levels
 
-| Difficulty | Funnel Sort | Tube Sort | Tray Match | Connected Match |
-| --- | --- | --- | --- | --- |
-| Getting started | 3 pours, 18 marbles, 2 supplies | 3 colors, 2 spare tubes, 4-group witness | 12 marbles, simple matching covers | 4×4, 5 moves, 4-group witness |
-| Finding a rhythm | 5 pours, 30 marbles, 3 supplies | 4 colors, 2 spares, 9-group witness | 18 marbles, cross-color covers | 5×5, 5 moves, 5-group witness |
-| Thinking ahead | 7 pours, 42 marbles, 3 deeper supplies | 4 colors, 1 spare, 13-group witness | 24 marbles, more interleaved dependencies | 6×6, 7 moves, 7-group witness |
+| Difficulty | Funnel Sort | Loop Sort | Tube Sort | Tray Match | Connected Match |
+| --- | --- | --- | --- | --- | --- |
+| Getting started | Board 1 has 3 trays, 3 docks and a belt of 15. Board 2 has 5 trays and a belt of 18. | Loop 1 has 2 lanes, 3 trucks and a loop of 12. Loop 2 has 3 lanes, 4 trucks and a loop of 24. | 3 colors, 2 spare tubes | 12 marbles | 4×4, 5 moves |
+| Finding a rhythm | Board 3 has 7 trays, 4 docks and a belt of 18. | Loop 3 has 3 lanes, 5 trucks, 120 units and a loop of 34. | 4 colors, 2 spare tubes | 18 marbles | 5×5, 5 moves |
+| Thinking ahead | Board 4 has 9 trays. Board 5 has 12 trays and 108 marbles. Both have a belt of 18. | Loop 4 has 4 lanes, 6 trucks and a loop of 30. Loop 5 has 4 lanes, 8 trucks, 192 units and a loop of 56. | 4 colors, 1 spare tube | 24 marbles | 6×6, 7 moves |
 
-Tube move counts are verified winning witnesses, not claims of human difficulty or minimum length. Tray racks always hold seven marbles, and triples resolve before checking fullness. Every type has real dead ends and undo recovery. User playtesting still determines whether these difficulty steps feel right.
+`scripts/board-tree.ts` and `scripts/loop-tree.ts` count every tap order once the board has settled.
 
-## Shared engine
+| Level | Winning orders | Losing orders |
+| --- | --- | --- |
+| Board 1 | 1 | 2 |
+| Board 5 | 19,121 | 1,958 |
+| Loop 1 | 2 | 0 |
+| Loop 5 | 80 | 66 |
 
-See [campaign-architecture.md](campaign-architecture.md). `App` owns campaign progression and feedback through `GameRuntime`; it does not know gameplay-specific state. Registered adapters own rules and scene layout. `Stage`, `MarbleFactory`, `PhysicsService`, `MarbleDrop`, and `BoardView` own reusable rendering, marble entities, body construction, picking, framing and transfer animation.
+Loop 1 is the tutorial, so it has no losing order. These counts show that choices exist, not how hard a level feels. That still needs a playtest.
 
-The fifth-gameplay contract is exercised by a synthetic pack in the engine tests. This establishes registration and runtime integration without changing App; a real new mechanic still needs its own rules, level authoring and tests.
+## Funnel Sort transport
 
-## Conveyor transport
+A crate holds nine marbles in a 3×3 block, and crates hang over a shallow clear dish in receding stacks. A tap opens the front crate, and its marbles fall into the dish.
 
-Supplies hold packets of six. Real marbles tip into the funnel, then join evenly spaced moving slots. Matching marbles take a scripted arc into a three-slot box. Incoming marbles approach their belt slot on a short raised path to reduce overlap with circulating marbles. Accepted dumps stay in an ordered funnel backlog; belt occupancy is reserved one marble at entry; animation never changes the puzzle's color accounting.
+The pile rests on a closed floor under the drawn neck. When the belt has room and the landing spot is clear, the neck takes the earliest-poured marble resting on it, or else the lowest one nearby. A script then moves that marble down onto the belt. We first tried a physical hole one marble wide, but two or three marbles arched over it. The closed floor removed the need for any rescue. The dish vibrates a little, so the pile keeps rolling toward the neck. Marbles waiting in a crate collide with nothing, so a sliding crate cannot throw one out.
 
-Board 1: supplies A blue/red, B green; box pairs red, blue, green. A-A-B wins; A-B jams.
+The belt has one lane and never stops. It passes the docks from right to left, and a marble goes to the first docked box of its color with a free slot. A dock asks for its next box as soon as the third slot is reserved, so a matching marble does not have to lap again. Full boxes sink away and the column moves up.
 
-Board 2: A red/blue, B yellow/red, C green; box pairs red, yellow, blue, red, green. The full settled tree has both winning and jamming choices.
+## Loop Sort transport
 
-Board 3: A blue/red/yellow, B green/blue, C yellow/red; box pairs red, blue, yellow, green, red, blue, yellow. A-A-C-B-C-B-A wins; A-B jams. There are 19 settled winning release sequences and 23 jam sequences.
+A rounded-rectangle loop runs around a plateau. Up to three bays face the front straight, and more lanes add a back row. A truck holds twenty-four units packed against its cab, and its open end faces the loop.
 
-## Recovery and hints
+The loop has one slot per unit of capacity, and the slots move with it. Each unit is drawn as rows of three tiny marbles that fill its slot, so a full loop looks full. A pouring truck puts each unit into the first empty slot that reaches its open end. It pauses when the loop is full.
 
-The shared controls call the active runtime. Undo restores a full rule snapshot; conveyor undo additionally restores Rapier state and animation control. Restart recreates the level. Hints search the current state with a bound and only recommend a verified continuation. If unresolved or currently blocked, the game suggests waiting or undoing rather than inventing a move.
+A unit a truck wants hops into the open end, and that color's block grows. A complete truck waits for its last unit to land, then drives over the rim and down a ramp. The next truck in the bay rises into place.
 
-Completion, selected level and mute are validated in local storage. A failed write leaves this session's progress in memory. Unfinished attempts restart after reload; no cloud save is claimed.
+## Choices the references do not confirm
 
-## Verification
+The research did not settle every rule of the original games, and nobody played a current build for it. We chose these rules ourselves:
 
-- Rule tests: all twelve winning witnesses; legal and illegal actions; conservation; real jams; undo; current-state hints; tray seventh-slot triple; malformed snapshot rejection.
-- Engine tests: a fourth gameplay pack and uneven banks, duplicate registration, shared Rapier body/landing behavior, and storage fallback/migration.
-- Conveyor tests: varied real-physics schedules, undo during transport, recovery counts and existing pace limits.
-- Browser journeys: all twelve boards through real touch hit targets, Next transitions, all-type jam/undo, hints and restart, reload, storage denial, desktop and narrow-phone layouts.
+- A one-color truck cannot be poured.
+- A complete truck drives away and the next one rises into its bay.
+- A truck's deepest segment fixes its final color.
+- The loop has a fixed slot capacity and speed.
+- Lives, boosters and obstacles are left out.
 
-Browser tests advance the actual fixed simulation clock explicitly to make software-rendered runs repeatable. This proves those interactions, not frame-rate performance on a physical phone. Audio is synthesized; listening quality still needs a user check.
+## Undo, hints and saves
 
-## Names and matching variants
+Undo restores a full rule snapshot. In Funnel Sort it also restores the physics world and animation state. Restart recreates the level.
 
-[AGENTS.md](../AGENTS.md) defines the permanent names. Tray Match retains its layered board and rack. Connected Match is an additional pack; it does not replace Tray Match. Its group tapping follows the interaction used by [Toon Blast](https://peakgames.helpshift.com/hc/en/4-toon-blast/faq/5-how-to-play/), adapted here to a minimum of three, a finite board, no refill and authored move limits.
+A hint searches from the current state within a limit and names a move only if it finds a winning line. That search treats the funnel pile as first in, first out, and it checks competing Loop Sort trucks in lane order, so the real game can differ. If the search finds nothing, the hint tells the player to wait or undo.
 
-Tube Sort supports contiguous group transfers, mobile drag/drop and tap fallback. Shared actors can be retargeted while moving. Every quality mode keeps repeated surface patterns on the model; hints and receivers use the same ring/diamond/triangle/star mapping.
+The browser validates saved completion, level and mute data. If a write fails, progress stays in memory for the session. An unfinished board restarts on reload.
+
+## Test coverage
+
+[Verification](verification.md) lists the results. The specs cover the following:
+
+- Rule tests play a winning order on all nineteen boards and a losing order on every conveyor board except loop 1. `tests/witnesses.ts` holds the conveyor orders.
+- Machine tests play every Funnel Sort winning order through real physics with no rescues, and every Loop Sort winning order through the scripted loop.
+- Engine tests register one extra gameplay pack and cover uneven level banks, duplicate registration, the physics landing and storage fallback.
+- Browser tests complete all nineteen levels by touch and cover losing and undoing in every type, hints, restart, reload, denied storage, desktop and narrow layouts, and Loop Sort's messages for refused taps.
+
+Browser tests set the game clock by hand so software-rendered runs repeat. They do not measure frame rate on a phone. The sound is synthesized, and a person still has to judge it.

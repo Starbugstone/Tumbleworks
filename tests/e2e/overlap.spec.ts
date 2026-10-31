@@ -2,13 +2,16 @@ import { expect, test } from '@playwright/test';
 import { TUBE_BOARDS, TRAY_BOARDS } from '../../src/puzzles/levels';
 import { CONNECT_BOARDS } from '../../src/puzzles/connect-levels';
 import type { App } from '../../src/view/App';
+import { CAMPAIGN } from '../../src/campaign';
 type GameWindow = Window & { tumbleworks: { app: App } };
 test('tube, tray and connected match accept subsequent moves before earlier animation finishes', async ({ page }) => {
   await page.goto('/');
   await page.waitForFunction(() => Boolean((window as unknown as Partial<GameWindow>).tumbleworks?.app?.runtime));
   await page.evaluate(() => { (window as unknown as GameWindow).tumbleworks.app.manualClock = true; });
-  for (const index of [1, 2, 3]) {
-    await page.locator(`.chip[data-level="${index}"]`).click();
+  for (const id of ['tube-1', 'tray-1', 'connect-1']) {
+    const index = id === 'tube-1' ? 1 : id === 'tray-1' ? 2 : 3;
+    await page.locator('#levels-toggle').click();
+    await page.locator(`.chip[data-level="${CAMPAIGN.findIndex((level) => level.id === id)}"]`).click();
     const actions = index === 1 ? TUBE_BOARDS[0]!.solution.flatMap((move) => [`tube${move.from}`, `tube${move.to}`])
       : (index === 2 ? TRAY_BOARDS[0]! : CONNECT_BOARDS[0]!).solution.map((id) => `piece${id}`);
     for (const target of actions) {

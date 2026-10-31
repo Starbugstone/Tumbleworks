@@ -5,8 +5,8 @@ import type { Point3 } from './physics';
 export function frameBoard(camera: THREE.PerspectiveCamera, width: number, height: number,
   points: readonly Point3[], direction: THREE.Vector3): void {
   const compact = height < 600 && width > 600;
-  const top = compact ? 85 : 130;
-  const bottom = compact ? 100 : 185;
+  const top = compact ? 56 : 64;
+  const bottom = compact ? 64 : 92;
   const safeWidth = Math.max(120, width - 28);
   const safeHeight = Math.max(160, height - top - bottom);
   const forward = direction.clone().normalize();

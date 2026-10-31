@@ -1,130 +1,12 @@
 /**
- * The machine's real geometry, in world units: x right, y up, z toward the viewer.
- * Physics and drawing both read this file, so what you see is what the marbles hit.
+ * Funnel Sort geometry, in world units: x right, y up, z toward the viewer. Physics and drawing
+ * both read this file, so what you see is what the marbles hit.
  *
- * Top to bottom: tipping trays, a clear funnel, a powered raceway, a chute, and the boxes.
+ * Back to front: a shelf of 3×3 trays, a shallow clear funnel, the belt loop, three docks with boxes.
  */
-export const MARBLE_RADIUS = 0.5;
+export const MARBLE_RADIUS = 0.32;
 export const GRAVITY = 34;
 export const TICK_SECONDS = 1 / 60;
-
-export const RACEWAY = {
-  floorY: 2.1,
-  centerZ: 0.5,
-  straightHalf: 1.9,
-  radius: 2.6,
-  /** Room for marbles to pass at the loading point instead of bridging the funnel. */
-  channelHalf: 1.3,
-  wallThickness: 0.14,
-  wallHeight: 1.8,
-  /** Target tangential speed of the powered floor. */
-  /** Belt speed. Marbles ride it in evenly spaced slots, without physics. */
-  speed: 10,
-  slots: 16,
-} as const;
-
-export const GATE = {
-  /** Marbles are checked as they cross this x on the front straight, travelling toward -x. */
-  checkX: 0.72,
-  doorHalf: 1.15,
-  /** How long the kicker arm and door are drawn open. */
-  openSeconds: 0.2,
-} as const;
-
-const raceFrontZ = RACEWAY.centerZ + RACEWAY.radius;
-export const OUTER_FRONT_Z = raceFrontZ + RACEWAY.channelHalf;
-
-export const CHUTE = {
-  topZ: OUTER_FRONT_Z + RACEWAY.wallThickness + 0.02,
-  topY: RACEWAY.floorY - 0.02,
-  bottomZ: OUTER_FRONT_Z + 1.25,
-  bottomY: 1.45,
-  halfWidth: 1.68,
-} as const;
-
-export const BOX = {
-  /** The chute's end overhangs the rim, so a slow marble can't balance between them. */
-  z: CHUTE.bottomZ + 0.74 - 0.22,
-  halfWidth: 1.78,
-  halfDepth: 0.74,
-  height: 1,
-  floorThickness: 0.14,
-  wallThickness: 0.12,
-  /** Spacing of the three resting places. */
-  slotSpacing: 1.08,
-  nextX: 5.5,
-  parkedX: 30,
-  exitX: -9.5,
-  /** How long a full box sits still before leaving. */
-  holdSeconds: 0.08,
-  swapSeconds: 0.24,
-} as const;
-
-/** The scripted arc from the selector into the box. */
-export const FLIGHT = {
-  seconds: 0.34,
-  /** Slower when the box is still on its way, so the two arrive together. */
-  waitingSeconds: 0.56,
-  arc: 1.05,
-  hopSeconds: 0.16,
-  hopHeight: 0.2,
-  /** How long a marble that has just landed takes to settle into its slot on the belt. */
-  mergeSeconds: 0.2,
-} as const;
-
-/** The tray pivots on its front bottom edge, so its marbles spill toward the funnel. */
-export const TRAY = {
-  halfWidth: 1.8,
-  depth: 2.5,
-  floorThickness: 0.16,
-  wallHeight: 0.62,
-  sillHeight: 0.2,
-  wallThickness: 0.12,
-  frontY: 7.5,
-  frontZ: -5.1,
-  nextY: 9.1,
-  nextZ: -6.3,
-  tipAngle: 0.72,
-  tipSeconds: 0.5,
-  /** The tilt angle's progress at which the first marble is let go, then one more per gap. */
-  firstMarbleSeconds: 0.18,
-  marbleGapSeconds: 0.11,
-  /** After the last marble is let go, give it this long to roll out, then leave. */
-  pourSeconds: 0.8,
-  leaveSeconds: 0.22,
-  slideSeconds: 0.26,
-  slots: [
-    { x: -1.12, z: -0.72 },
-    { x: 0, z: -0.72 },
-    { x: 1.12, z: -0.72 },
-    { x: -1.12, z: -1.86 },
-    { x: 0, z: -1.86 },
-    { x: 1.12, z: -1.86 },
-  ],
-} as const;
-
-export const supplyX = (index: number, count: number): number => {
-  const spots = count === 2 ? [-2.3, 2.3] : count === 3 ? [-3.75, 0, 3.75] : [0];
-  const x = spots[index];
-  if (x === undefined) throw new Error(`No position for supply ${index} of ${count}`);
-  return x;
-};
-
-const backZ = RACEWAY.centerZ - RACEWAY.radius;
-export const FUNNEL = {
-  mouthY: 6.4,
-  /** Clear walls above the mouth, so a lively pour stays in. */
-  wallTopY: 10.5,
-  mouth: { left: -5.7, right: 5.7, back: -5.7, front: -0.9 },
-  /** Keep the converging walls above circulating traffic, with an open fall into the wide channel. */
-  neckY: RACEWAY.floorY + RACEWAY.wallHeight + 0.5,
-  neck: {
-    left: -1.7,
-    right: 1.7,
-    back: backZ - RACEWAY.channelHalf,
-    front: backZ + RACEWAY.channelHalf,
-  },
-} as const;
 
 export interface TrackPoint {
   readonly x: number;
@@ -134,47 +16,139 @@ export interface TrackPoint {
   readonly tz: number;
 }
 
-const { straightHalf: S, radius: R, centerZ: CZ } = RACEWAY;
-const ARC = Math.PI * R;
-export const TRACK_LENGTH = 4 * S + 2 * ARC;
+/** A stadium loop: travel runs +x along the back straight and -x along the front. d = 0 is back centre. */
+export class Track {
+  readonly arc: number;
+  readonly length: number;
+  constructor(readonly straightHalf: number, readonly radius: number, readonly centerZ: number) {
+    this.arc = Math.PI * radius;
+    this.length = 4 * straightHalf + 2 * this.arc;
+  }
+  get backZ(): number { return this.centerZ - this.radius; }
+  get frontZ(): number { return this.centerZ + this.radius; }
 
-/** A point on the channel's centre line. d = 0 is back centre, and travel runs +x along the back. */
-export function trackPoint(distance: number, offset = 0): TrackPoint {
-  let d = ((distance % TRACK_LENGTH) + TRACK_LENGTH) % TRACK_LENGTH;
-  const r = R + offset;
-  if (d < S) return { x: d, z: CZ - r, tx: 1, tz: 0 };
-  d -= S;
-  if (d < ARC) {
-    const a = d / R;
-    return { x: S + r * Math.sin(a), z: CZ - r * Math.cos(a), tx: Math.cos(a), tz: Math.sin(a) };
+  /** A point on the centre line, offset outward (positive) or inward (negative). */
+  point(distance: number, offset = 0): TrackPoint {
+    const { straightHalf: S, radius: R, centerZ: CZ, arc: ARC, length } = this;
+    let d = ((distance % length) + length) % length;
+    const r = R + offset;
+    if (d < S) return { x: d, z: CZ - r, tx: 1, tz: 0 };
+    d -= S;
+    if (d < ARC) {
+      const a = d / R;
+      return { x: S + r * Math.sin(a), z: CZ - r * Math.cos(a), tx: Math.cos(a), tz: Math.sin(a) };
+    }
+    d -= ARC;
+    if (d < 2 * S) return { x: S - d, z: CZ + r, tx: -1, tz: 0 };
+    d -= 2 * S;
+    if (d < ARC) {
+      const a = d / R;
+      return { x: -S - r * Math.sin(a), z: CZ + r * Math.cos(a), tx: -Math.cos(a), tz: -Math.sin(a) };
+    }
+    d -= ARC;
+    return { x: -S + d, z: CZ - r, tx: 1, tz: 0 };
   }
-  d -= ARC;
-  if (d < 2 * S) return { x: S - d, z: CZ + r, tx: -1, tz: 0 };
-  d -= 2 * S;
-  if (d < ARC) {
-    const a = d / R;
-    return { x: -S - r * Math.sin(a), z: CZ + r * Math.cos(a), tx: -Math.cos(a), tz: -Math.sin(a) };
+
+  /** The nearest centre-line position to (x, z): how far along the loop, and how far outward of it. */
+  nearest(x: number, z: number): { readonly distance: number; readonly lateral: number } {
+    const { straightHalf: S, radius: R, centerZ: CZ, arc: ARC, length } = this;
+    const dz = z - CZ;
+    if (x > S) {
+      const a = Math.atan2(x - S, -dz);
+      return { distance: S + a * R, lateral: Math.hypot(x - S, dz) - R };
+    }
+    if (x < -S) {
+      const a = Math.atan2(-S - x, dz);
+      return { distance: S + ARC + 2 * S + a * R, lateral: Math.hypot(x + S, dz) - R };
+    }
+    if (dz < 0) return { distance: x >= 0 ? x : length + x, lateral: -dz - R };
+    return { distance: S + ARC + (S - x), lateral: dz - R };
   }
-  d -= ARC;
-  return { x: -S + d, z: CZ - r, tx: 1, tz: 0 };
 }
 
-/** The direction of travel at the point on the centre line nearest to (x, z), and how far along it is. */
-export function nearestOnTrack(x: number, z: number): TrackPoint & { readonly distance: number; readonly lateral: number } {
-  const dz = z - CZ;
-  if (x > S) {
-    const a = Math.atan2(x - S, -dz);
-    const distance = S + a * R;
-    return { x, z, tx: Math.cos(a), tz: Math.sin(a), distance, lateral: Math.hypot(x - S, dz) - R };
-  }
-  if (x < -S) {
-    const a = Math.atan2(-S - x, dz);
-    const distance = S + ARC + 2 * S + a * R;
-    return { x, z, tx: -Math.cos(a), tz: -Math.sin(a), distance, lateral: Math.hypot(x + S, dz) - R };
-  }
-  if (dz < 0) {
-    const distance = x >= 0 ? x : TRACK_LENGTH + x;
-    return { x, z, tx: 1, tz: 0, distance, lateral: -dz - R };
-  }
-  return { x, z, tx: -1, tz: 0, distance: S + ARC + (S - x), lateral: dz - R };
-}
+export const RACEWAY = {
+  floorY: 1.2,
+  centerZ: 0.5,
+  straightHalf: 2.3,
+  radius: 1.5,
+  /** Half the channel width. One marble wide, with a little room to wobble. */
+  channelHalf: 0.46,
+  wallThickness: 0.14,
+  wallHeight: 0.5,
+  /** Belt speed. Marbles ride it without physics and it never stops. */
+  speed: 5.2,
+  /** How far off the centre line a rider may sit. */
+  jitter: 0.1,
+} as const;
+export const TRACK = new Track(RACEWAY.straightHalf, RACEWAY.radius, RACEWAY.centerZ);
+export const RIDE_Y = RACEWAY.floorY + MARBLE_RADIUS;
+/** The least distance along the belt between two riders. */
+export const RIDER_SPACING = MARBLE_RADIUS * 2 * 1.08;
+/** Marbles drop onto the belt here, at the back centre. */
+export const ENTRY_DISTANCE = 0;
+export const OUTER_FRONT_Z = TRACK.frontZ + RACEWAY.channelHalf + RACEWAY.wallThickness;
+
+/** Docks along the front, in the order the belt passes them: it travels toward -x there, so dock 0 is rightmost. */
+export const DOCK_SPACING = 2.4;
+export const dockX = (dock: number, count: number): number => ((count - 1) / 2 - dock) * DOCK_SPACING;
+export const dockDistance = (dock: number, count: number): number => TRACK.nearest(dockX(dock, count), TRACK.frontZ).distance;
+
+export const COLUMN_SPACING = 2.5;
+export const columnX = (index: number, count: number): number => (index - (count - 1) / 2) * COLUMN_SPACING;
+/** The dish must catch every crate's spill, so its width follows the number of supply columns. */
+export const funnelHalfWidth = (columns: number): number => ((columns - 1) / 2) * COLUMN_SPACING + 1.85;
+
+/** Supply crates hang over the funnel in a receding stack; the front crate opens when tapped. */
+export const STACK = { y: 5.6, z: -2.75, stepY: 1.0, stepZ: -0.9, slideSeconds: 0.22 } as const;
+export const CRATE = {
+  halfWidth: 1.14,
+  halfDepth: 1.14,
+  floorThickness: 0.1,
+  wallHeight: 0.46,
+  wallThickness: 0.1,
+  /** How long the opened crate stays before it is gone. */
+  openSeconds: 0.32,
+  /** A marble still sitting in an opened crate after this long is dropped by force. */
+  stuckSeconds: 0.9,
+  slots: [-0.7, 0, 0.7].flatMap((z) => [-0.7, 0, 0.7].map((x) => ({ x, z }))),
+} as const;
+
+const backZ = TRACK.backZ;
+/** A shallow clear dish under the shelf that gathers every pour into one neck above the belt. */
+export const FUNNEL = {
+  mouthY: 4.45,
+  rimY: 5.3,
+  mouth: { back: -4.75, front: -0.15 },
+  neckY: 2.35,
+  /** The drawn opening above the belt. The pile rests on a closed floor here; the exit itself is scripted. */
+  neck: { halfX: 0.5, halfZ: 0.52, z: backZ },
+  /** Marbles this close to the neck centre, and this low, are the ones the neck can take next. */
+  pickRadius: 1.0,
+  pickHeight: 1.1,
+  /** The dish vibrates a little, like a parts feeder, so the pile keeps rolling toward the neck. */
+  shakeHeight: 1.4,
+  shakeImpulse: 0.5,
+  /** The scripted exit: down through the neck, then onto the belt. */
+  exitSeconds: 0.1,
+  dropSeconds: 0.14,
+} as const;
+
+export const BOX = {
+  z: OUTER_FRONT_Z + 0.98,
+  slotSpacing: 0.7,
+  halfWidth: 1.12,
+  halfDepth: 0.5,
+  height: 0.46,
+  floorThickness: 0.1,
+  wallThickness: 0.08,
+  /** Boxes still queued wait in a smaller row in front of the docks. */
+  queueZ: OUTER_FRONT_Z + 2.35,
+  queueSpacing: 1.1,
+  queueScale: 0.52,
+  queueVisible: 4,
+  moveSeconds: 0.26,
+  leaveSeconds: 0.3,
+} as const;
+
+/** The scripted hop from the belt into a box. */
+export const FLIGHT = { seconds: 0.22, arc: 0.95, hopSeconds: 0.14, hopHeight: 0.16, mergeSeconds: 0.12 } as const;

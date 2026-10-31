@@ -4,26 +4,30 @@
 
 Use these exact names in the interface, documentation and development discussions. Keep the internal kind and level IDs stable so existing progress continues to load.
 
-`docs/research/` preserves earlier exploration. This reference and the current registered campaign define the implemented POC.
+`docs/research/` holds the reference research on the inspiring games. This reference and the current registered campaign define the implemented POC.
 
 | Permanent name | Internal kind / level IDs | Meaning and rules | Implementation |
 | --- | --- | --- | --- |
-| **Funnel Sort** | `conveyor` / `board-1`…`board-3` | The drop, funnel and belt game. Tip supply trays into the funnel; marbles feed a continuously moving belt and fill the requested boxes in order. Multiple dumps may overlap. Excess marbles wait in the funnel until belt space opens. A full belt is a dead end only when it cannot drain. | `src/gameplays/conveyor.ts`, `src/machine/`, `src/sim/`, `src/view/scene.ts` |
+| **Funnel Sort** | `conveyor` / `board-1`…`board-5` | The Marble Sort style game. Tap a crate of nine marbles; they fall with physics into a clear funnel and pile there. The neck takes one marble at a time onto a belt that never stops, while the belt has room; the rest wait in the pile. Every dock has its own visible queue of three-slot boxes; the front box takes its colour as it passes, then the queue scrolls up. A full belt that cannot drain is a dead end. | `src/sim/` (rules, hint search, boards), `src/machine/`, `src/view/scene.ts`, `src/gameplays/conveyor.ts` |
+| **Loop Sort** | `loop` / `loop-1`…`loop-5` | The truck game: tube sorting on a ring. Trucks park in bays facing the loop; each bed holds colour segments packed against the cab. A truck takes its loop-end colour automatically as it passes the mouth. Tap a truck to pour its loop-end segment onto the loop and reach the segment behind it; a one-colour truck cannot be poured. A truck full of one colour clears the line and the next truck in the bay rolls up. The deepest segment fixes a truck's final colour. The loop has a capacity; a full loop nobody can take from is a dead end. Rules count units. The loop is divided into capacity slots that travel with it, and each unit is drawn as rows of three tiny marbles filling its slot, so a full loop looks full. | `src/loop/` (rules, hint search, boards, layout, machine), `src/view/loop-scene.ts`, `src/gameplays/loop.ts` |
 | **Tube Sort** | `tube` / `tube-1`…`tube-3` | Move a contiguous matching group from the top of one tube into an empty tube or onto the same pattern. Transfer as many as fit in one action. Support touch dragging and two-tap input. Sort full tubes of one type. | `src/gameplays/tube.ts`, tube sections of `src/puzzles/`, `src/view/tubes.ts` |
 | **Tray Match** | `tray` / `tray-1`…`tray-3` | The original layered tray and seven-slot rack. Only exposed marbles can be picked. Any three matching types in the rack clear; filling it with unmatched marbles loses. This is distinct from Connected Match and must remain available. | `src/gameplays/tray.ts`, tray sections of `src/puzzles/`, `src/view/tray.ts` |
 | **Connected Match** | `connect` / `connect-1`…`connect-3` | The additional neighboring-group game. Tap a whole group of at least three matching marbles connected horizontally or vertically. Diagonals do not count. Columns collapse without refill or sideways compaction. Clear the board within the move budget; stranded groups or exhausted moves lose. | `src/gameplays/connect.ts`, `src/puzzles/connect*.ts`, `src/view/connect.ts` |
 
-“Drop game” and “belt game” mean Funnel Sort. “Original/older tray” means Tray Match. “New connect version” means Connected Match. Do not replace one matching mode with the other.
+“Drop game”, “belt game” and “Marble Sort style” mean Funnel Sort. “Truck game” means Loop Sort. “Original/older tray” means Tray Match. “New connect version” means Connected Match. Do not replace one matching mode with the other.
+
+Reference material: Voodoo's Marble Sort! (funnel, belt, box columns) and Loop Sort (trucks on a loop). The feel targets taken from them: many marbles on screen, continuous motion, a tap that pays off within a tenth of a second, bulk resolution when a box or truck completes, and almost no interface over the toy.
 
 ## Campaign and shared engine
 
-- Maintain three evolving difficulties for each type: twelve POC levels, interleaved by difficulty in `src/campaign.ts`.
+- Funnel Sort and Loop Sort each have five levels; Tube Sort, Tray Match and Connected Match have three. The registry interleaves them by round in `src/campaign.ts`.
 - Use registered `GameplayPack` factories and the `GameRuntime` contract. `App` handles campaign and HUD without branching on gameplay kind.
-- Reuse `Stage`, `MarbleFactory`, `PhysicsService`, `BoardView` and `BoardPointer`. Add a new type without copying marble entities, renderer setup, physics initialization or pointer capture.
+- Reuse `Stage`, `MarbleFactory`, `MarbleCrowd` (instanced marbles for the two conveyor games), `PhysicsService`, `BoardView` and `BoardPointer`. Add a new type without copying marble entities, renderer setup, physics initialization or pointer capture.
 - Keep rule state authoritative and update it as soon as a legal action is accepted. Animation must allow the next legal action while earlier movement continues. Preserve actor identity and retarget from its current visible position. Undo must cancel presentation safely and restore the complete prior action.
-- Funnel Sort uses physics for free falls, including release of waiting marbles from the funnel, with scripted belt transport and delivery. Never pull a waiting pile directly into belt slots. The belt keeps moving. Pending funnel marbles must be retained and included in undo, accounting and diagnostics. Supply trays and receiving boxes must display the matching pattern on the container where it remains visible when filled.
-- Color accessibility is required by the player. Every marble, including transient/low-quality actors, must carry a distinct texture/pattern on the model: **red = ring, blue = diamond, green = triangle, yellow = star**. Patterns rotate with the marble. The player rejected large symbols and camera-facing badges because they detract from the marble; do not add them. Use the same shapes on receiving targets and include pattern names in hints. Never rely on hue alone.
+- Funnel Sort uses physics for the fall out of the crate and for the pile in the funnel. The neck is a closed floor with a scripted single-file exit (the earliest pour first among the marbles resting on it), because a physical hole of one marble width arches. Belt transport and delivery are scripted and the belt keeps moving. Waiting marbles in the pile must be retained and included in undo, accounting and diagnostics; the hint search approximates the pile as first in, first out. Loop Sort is fully scripted. Crates, boxes and cargo blocks must display the matching pattern on the container where it remains visible when filled.
+- Color accessibility is required by the player, who is colour-blind and found yellow and green too close. The palette keeps a luminance gap between every pair: yellow is by far the brightest, green is a deep teal. Marbles themselves are plain glossy spheres in their natural colour: the player rejected surface textures, large symbols and camera-facing badges on marbles. The pattern language lives on the containers instead: crates, boxes, cargo blocks and hints use **red = ring, blue = diamond, green = triangle, yellow = star**, and the legend sits in the level picker. Never rely on hue alone for a container.
 - Keep touch, mouse, keyboard, undo, restart, current-state hints and local completion working across types. Test cancelled/invalid drags and rapid successive moves.
+- Keep the interface out of the way: one slim top row (level pill, counter, sound), three round icon buttons at the bottom, a short instruction toast. The level picker, title, difficulty and pattern legend live behind the level pill. The player asked for the toy to fill the screen.
 
 ## Runtime and checks
 
@@ -35,6 +39,11 @@ docker compose exec -T dev npm run typecheck
 docker compose exec -T dev npm test
 docker compose exec -T dev npm run build
 docker compose --profile e2e run --rm e2e npx playwright test
+docker compose exec -T dev npx tsx scripts/board-tree.ts      # Funnel Sort release trees, for authoring
+docker compose exec -T dev npx tsx scripts/loop-tree.ts       # Loop Sort tap trees, for authoring
+docker compose exec -T dev npx tsx scripts/machine-soak.ts    # physical Funnel Sort witnesses, recoveries must stay 0
+docker compose exec -T dev npx tsx scripts/loop-soak.ts       # scripted Loop Sort witnesses
+docker compose --profile e2e run --rm e2e node scripts/peek.mjs <levelIndex>   # phone and desktop captures into output/rework
 ```
 
-Keep authored winning witnesses and actual losing choices for each difficulty. Verify real browser input, desktop/narrow layouts and grayscale pattern readability. Deterministic browser-clock tests prove behavior, not performance on a physical phone. Preserve pre-existing user processes and historical output artifacts.
+Keep authored winning witnesses and actual losing choices for each difficulty. Verify real browser input, desktop/narrow layouts and grayscale readability of colors and container patterns. Deterministic browser-clock tests prove behavior, not performance on a physical phone. Preserve pre-existing user processes and historical output artifacts: specs and capture scripts write to `output/current`, never into `output/poc9` or `output/poc12`.

@@ -1,49 +1,51 @@
-# Twelve-level POC verification
+# POC verification
 
-Verified 31 October 2026 (Europe/Paris), Docker development build on port 5180. Canonical names and development requirements are in [AGENTS.md](../AGENTS.md).
+Checked on 31 October 2026 against the Docker development build on port 5180. [AGENTS.md](../AGENTS.md) holds the permanent names and development requirements.
 
 ## Automated checks
 
-- Full unit suite: **140 tests pass across 16 files**.
-- TypeScript check and production build: pass. Vite retains its advisory large-chunk warning for the Three.js/Rapier bundle.
-- Browser suite: **nine journeys pass**, using Chromium/SwiftShader, isolated saves and real browser touch/keyboard input.
+| Check | Result |
+| --- | --- |
+| `npm run typecheck` | Pass |
+| `npm test` | 109 tests pass across 11 files |
+| `npm run build` | Pass, with Vite's large-chunk warning for the Three.js and Rapier bundle |
+| `npx playwright test` | 10 journeys pass in Chromium with SwiftShader, using separate saves and real touch and keyboard input |
 
 ## Browser scenarios
 
 | Scenario | Evidence |
 | --- | --- |
-| All twelve levels through real touch targets, completion cards, Next Level and reload | `tests/e2e/journey.spec.ts` |
-| All four types lose through real choices and recover through Undo | `tests/e2e/journey.spec.ts` |
+| All nineteen levels through real touch targets, completion cards, Next Level and reload | `tests/e2e/journey.spec.ts` |
+| All five types lose through real choices and recover through Undo | `tests/e2e/journey.spec.ts` |
 | Current-state hints, restart, mute, local progress, storage-denied fallback and keyboard controls | `tests/e2e/journey.spec.ts` |
 | Desktop 1365×900 and narrow phone 320×700 layouts | `tests/e2e/journey.spec.ts` |
 | Whole-group touch dragging, invalid drops, cancellation and atomic Undo | `tests/e2e/drag.spec.ts` |
 | Tube Sort, Tray Match and Connected Match accept successive moves before animation finishes | `tests/e2e/overlap.spec.ts` |
-| Funnel Sort accepts all dumps before motion, preserves backlog, drains, undoes and holds six extra marbles behind a genuinely full twelve-marble belt | `tests/e2e/reservoir.spec.ts` |
+| Funnel Sort accepts every crate before motion, keeps overflow in the funnel, drains and undoes. It also holds three marbles behind a full fifteen-marble belt with no rescues. | `tests/e2e/reservoir.spec.ts` |
+| Loop Sort explains a refused tap: full loop, pour in progress, one-color truck | `tests/e2e/loop.spec.ts` |
 
-The browser tests advance the real fixed simulation clock explicitly. They verify functionality and layout; they do not measure a physical phone's frame rate.
+The browser tests set the game clock by hand. They check behavior and layout, not frame rate on a phone.
 
-## Gravity and capacity
+## Physics and capacity
 
-The gravity regression first reproduced an airborne belt entry at center height 3.534 versus a belt rest height of 2.6, and a held marble skipping its fall. The fix requires Rapier floor contact near rest height before admission. Waiting marbles resume as dynamic bodies at their current poses, fall through multiple ticks, then make a short horizontal slot merge. The artificial upward hop and reservoir row compaction are removed.
+`tests/machine/machine.test.ts` plays every Funnel Sort witness through real Rapier physics and requires zero nudges and teleports. It also covers a physical jam, belt capacity, the time a quick player takes and undo during a pour. Each board gets one scripted run, not a randomized soak.
 
-`tests/machine/gravity.test.ts` observes real bodies and floor contacts for all thirty marbles in a burst, verifies descent before admission and rejects bulk held-group admission. Reservoir tests cover overlapping supply trays, zero/15/45-tick bursts, stable full-belt jams, complete physical Undo and the final box swap before idle. Holding positions remain scripted; the release fall uses gravity. Belt transport and box delivery stay scripted.
+`tests/loop/machine.test.ts` plays every Loop Sort witness through the scripted loop and checks that a full loop has no visible gap. These runs also catch an earlier stall, where free capacity never lined up with a truck's open end.
 
-The physical soak covers 192 varied runs across the three Funnel Sort boards, including Undo, with zero nudges and teleports. Another 1,000 seeded logical callback schedules preserve FIFO outcomes and capacity. Existing settled winning/jam trees remain valid.
+## Accessibility
 
-## Accessibility and extension
+The player asked for plain glossy marbles in natural colors. Yellow and green are separated by brightness as well as hue. Crates, boxes, cargo blocks and hints carry ring, diamond, triangle and star patterns, and the legend sits in the level picker.
 
-All marble actors share the same factory and repeated surface textures: rings, diamonds, triangles and stars. Textures rotate with the model and remain in the lower-quality material. The player rejected large camera-facing badges; those are absent. Supply trays and receiving boxes carry the corresponding symbol on their faces, with a second mark on the receiving floor. Hints name the pattern as well as color.
+Open gap: marbles in Tube Sort, Tray Match and Connected Match sit outside labeled containers, so color is now their main cue on the board. The player has not yet judged those types without marble patterns.
 
-Phone captures cover all twelve boards; grayscale and solid-material grayscale captures cover the four introductory modes. Browser capture diagnostics contain zero page errors, console errors and failed requests. A synthetic fifth gameplay pack still registers and runs without gameplay branches in App or copies of shared entities/physics.
+## Screenshots and video
 
-## Reproducible visual evidence
+- `scripts/inspect-feedback.mjs` captures every level on a phone, plus grayscale and desktop views of the first level of each type, under `output/current`.
+- `scripts/capture-feedback.mjs` records silent 24fps frames of touch dragging, rapid rack picks, connected clearing, overlapping funnel pours and a truck pour under `output/current/video-frames`.
+- `scripts/peek.mjs <levelIndex>` captures one level on phone and desktop under `output/rework`.
 
-- `scripts/inspect-feedback.mjs`: twelve phone boards, representative desktop layouts and grayscale checks, under `output/poc12`.
-- `scripts/capture-feedback.mjs`: silent 24fps fixed-clock clip of touch dragging, rapid rack picks, connected clearing and overlapping funnel dumps.
-- `output/poc12/tumbleworks-four-modes.mp4`: encoded 10.5-second clip.
-
-Output artifacts are ignored by Git. Historical `output/poc9` evidence remains available.
+Git ignores these files. `output/poc9` and the clips and frames in `output/poc12` are still there. Browser test runs during this rework overwrote the `campaign-level*`, `320-level*` and `1365-level*` PNGs in `output/poc12`, so those files now show rework boards. The specs now write to `output/current`.
 
 ## Limits
 
-Attempts restart on reload; completion, selected level and mute persist locally. There is no cloud save. Physical-phone frame rate, listening quality, pattern recognition at actual screen size and whether the three difficulty steps feel enjoyable still need player feedback.
+An unfinished board restarts on reload. Completed levels, the selected level and mute stay in local storage, and there is no cloud save. A playtest still has to check frame rate on a phone, the sound, whether the player can tell the colors apart at real screen size, and level difficulty.

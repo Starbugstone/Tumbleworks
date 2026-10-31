@@ -2,7 +2,10 @@ import RAPIER from '@dimforge/rapier3d-compat';
 
 export const FIXED_SECONDS = 1 / 60;
 export const FALLING_GROUPS = (0x0001 << 16) | 0xffff;
-export const PLACED_GROUPS = (0x0002 << 16) | 0;
+/** Placed marbles are kinematic: they push falling marbles aside but never move for them. */
+export const PLACED_GROUPS = (0x0002 << 16) | 0x0001;
+/** Parked marbles wait in a container and touch nothing, so a moving container never flings a neighbour. */
+export const PARKED_GROUPS = (0x0004 << 16) | 0;
 export interface Point3 { x: number; y: number; z: number }
 
 /** All gameplays share initialization, tick length and marble-body construction. */

@@ -8,35 +8,19 @@ export interface Palette {
   readonly hex: number;
 }
 
+/**
+ * Chosen so that no pair relies on hue alone: yellow is the brightest colour by far, green is a deep
+ * teal, red and blue sit between. Red-green and yellow-green confusions still leave a luminance gap.
+ */
 export const COLORS: Record<Color, Palette> = {
   red: { base: '#e4332f', light: '#ff9b86', dark: '#7c0d18', hex: 0xe4332f },
-  blue: { base: '#1f6fee', light: '#8fc8ff', dark: '#0a2f86', hex: 0x1f6fee },
-  green: { base: '#16a650', light: '#93f0ac', dark: '#075a2b', hex: 0x16a650 },
-  yellow: { base: '#f9b917', light: '#fff2a6', dark: '#a86a04', hex: 0xf9b917 },
+  blue: { base: '#2a63e8', light: '#9cc6ff', dark: '#0c2c82', hex: 0x2a63e8 },
+  green: { base: '#0b8f7a', light: '#7fe0cc', dark: '#044a40', hex: 0x0b8f7a },
+  yellow: { base: '#ffdc52', light: '#fff8c8', dark: '#b58a05', hex: 0xffdc52 },
 };
 export const COLOR_NAMES: Record<Color, string> = { red: 'Red', blue: 'Blue', green: 'Green', yellow: 'Yellow' };
 export const PATTERN_NAMES: Record<Color, string> = { red: 'Ring', blue: 'Diamond', green: 'Triangle', yellow: 'Star' };
 export const marbleName = (color: Color): string => `${PATTERN_NAMES[color]} (${COLOR_NAMES[color].toLowerCase()})`;
-
-/** Opaque surface marks survive transmission, rotation and the lower quality material. */
-export function marblePattern(color: Color): THREE.MeshBasicMaterial {
-  const map = texture(canvas(1024, 512, (ctx) => {
-    for (const y of [100, 256, 412]) for (let column = 0; column < 4; column++) {
-      const x = column * 256 + (y === 256 ? 128 : 0);
-      for (const wrap of [-1024, 0, 1024]) {
-        ctx.save();
-        ctx.translate(x + wrap, y);
-        ctx.scale(1.35, 1);
-        ctx.fillStyle = '#202335';
-        drawSymbol(ctx, color, 0, 0, 49);
-        ctx.fillStyle = '#fff9ee';
-        drawSymbol(ctx, color, 0, 0, 34);
-        ctx.restore();
-      }
-    }
-  }));
-  return new THREE.MeshBasicMaterial({ map, transparent: true, alphaTest: 0.5, toneMapped: false });
-}
 
 type Ctx = CanvasRenderingContext2D;
 
@@ -57,55 +41,9 @@ function texture(element: HTMLCanvasElement): THREE.CanvasTexture {
   return result;
 }
 
-/** A band that wanders around the marble, so spinning is easy to see. */
-function ribbon(ctx: Ctx, width: number, _height: number, y: number, thickness: number, amplitude: number, waves: number, phase: number, style: string): void {
-  ctx.fillStyle = style;
-  ctx.beginPath();
-  const steps = 64;
-  for (let i = 0; i <= steps; i++) {
-    const x = (i / steps) * width;
-    const w = Math.sin((i / steps) * Math.PI * 2 * waves + phase) * amplitude;
-    const t = thickness * (0.55 + 0.45 * Math.sin((i / steps) * Math.PI * 2 * (waves + 1) + phase * 2));
-    if (i === 0) ctx.moveTo(x, y + w - t);
-    else ctx.lineTo(x, y + w - t);
-  }
-  for (let i = steps; i >= 0; i--) {
-    const x = (i / steps) * width;
-    const w = Math.sin((i / steps) * Math.PI * 2 * waves + phase) * amplitude;
-    const t = thickness * (0.55 + 0.45 * Math.sin((i / steps) * Math.PI * 2 * (waves + 1) + phase * 2));
-    ctx.lineTo(x, y + w + t);
-  }
-  ctx.closePath();
-  ctx.fill();
-}
-
+/** The shared marble entity: a plain glossy sphere in its natural colour. */
 export function marbleMaterial(color: Color): THREE.MeshPhysicalMaterial {
-  const palette = COLORS[color];
-  const map = texture(
-    canvas(1024, 512, (ctx) => {
-      const body = ctx.createLinearGradient(0, 0, 0, 512);
-      body.addColorStop(0, palette.dark);
-      body.addColorStop(0.3, palette.base);
-      body.addColorStop(0.7, palette.base);
-      body.addColorStop(1, palette.dark);
-      ctx.fillStyle = body;
-      ctx.fillRect(0, 0, 1024, 512);
-      ribbon(ctx, 1024, 512, 130, 44, 58, 2, 0.4, palette.dark);
-      ribbon(ctx, 1024, 512, 384, 40, 66, 3, 2.2, palette.dark);
-      ribbon(ctx, 1024, 512, 250, 34, 78, 2, 1.4, palette.light);
-      ribbon(ctx, 1024, 512, 256, 8, 92, 3, 4.1, 'rgba(255,255,255,0.8)');
-    }),
-  );
-  return new THREE.MeshPhysicalMaterial({
-    map,
-    roughness: 0.05,
-    metalness: 0,
-    clearcoat: 1,
-    clearcoatRoughness: 0.02,
-    ior: 1.55,
-    specularIntensity: 1,
-    envMapIntensity: 3.2,
-  });
+  return new THREE.MeshPhysicalMaterial({ color: COLORS[color].hex, roughness: 0.2, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.08, envMapIntensity: 1.3 });
 }
 
 /** A clear glass shell. The colour comes from the twist inside and a tint in the glass. */
@@ -233,15 +171,6 @@ export function drawSymbol(ctx: Ctx, color: Color, cx: number, cy: number, r: nu
   ctx.restore();
 }
 
-export function symbolTexture(color: Color): THREE.CanvasTexture {
-  return texture(
-    canvas(128, 128, (ctx) => {
-      ctx.fillStyle = 'rgba(255,255,255,0.95)';
-      drawSymbol(ctx, color, 64, 66, 46);
-    }),
-  );
-}
-
 /** Printed on containers, with a light backing for contrast on every plastic color. */
 export function containerSymbolTexture(color: Color): THREE.CanvasTexture {
   return texture(canvas(128, 128, (ctx) => {
@@ -252,4 +181,17 @@ export function containerSymbolTexture(color: Color): THREE.CanvasTexture {
     ctx.fillStyle = '#202335';
     drawSymbol(ctx, color, 64, 64, 39);
   }));
+}
+
+/** A plain glossy marble in its natural colour, for instanced crowds. Patterns live on the containers. */
+export function crowdMaterial(color: Color): THREE.MeshPhysicalMaterial {
+  return new THREE.MeshPhysicalMaterial({ color: COLORS[color].hex, roughness: 0.2, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.08, envMapIntensity: 1.3 });
+}
+
+/** A printed pattern badge for containers: readable on every plastic colour and in grayscale. */
+export function decal(color: Color, size = 0.5): THREE.Mesh {
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(size, size),
+    new THREE.MeshBasicMaterial({ map: containerSymbolTexture(color), transparent: true, depthWrite: false, toneMapped: false }));
+  mesh.renderOrder = 2;
+  return mesh;
 }

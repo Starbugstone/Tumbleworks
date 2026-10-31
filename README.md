@@ -1,8 +1,8 @@
 # Tumbleworks
 
-A browser marble game with one twelve-level campaign: three difficulties each of **Funnel Sort**, **Tube Sort**, **Tray Match**, and **Connected Match**. Each type returns at an increasing difficulty. Every level is available from the numbered row for POC playtesting.
+Tumbleworks is a browser marble game with one nineteen-level campaign. It has five levels each of Funnel Sort and Loop Sort, and three each of Tube Sort, Tray Match and Connected Match. The campaign takes one level of each type per round. The level picker behind the top-left pill opens any level.
 
-The workshop shares its glass marbles, rendering, input, undo/restart, hints, sound and saved completion. The conveyor keeps real physics for the tray-to-funnel fall; its belt and delivery arcs stay scripted and never stop. Tube and tray transfers use the same reusable physical landing service.
+Funnel Sort uses physics for the fall from a crate and for the pile in the funnel. A script moves marbles through the neck, along the belt and into the boxes. Loop Sort is fully scripted. Tube Sort and Tray Match use the shared physics landing for their transfers.
 
 ## Run
 
@@ -10,24 +10,29 @@ The workshop shares its glass marbles, rendering, input, undo/restart, hints, so
 docker compose up --build
 ```
 
-Open <http://localhost:5180>. On a phone connected to the same network, use `http://<your-computer's-LAN-address>:5180`.
+Open <http://localhost:5180>. On a phone on the same network, use `http://<your-computer's-LAN-address>:5180`.
 
 ## Play
 
-- **Funnel Sort:** dump multiple trays into the funnel while earlier pours continue. Excess waits in the funnel until the moving belt has space. Fill the receiving boxes in order; a full belt that cannot drain is a dead end.
-- **Tube Sort:** drag a matching top group into an empty tube or onto the same pattern. Two-tap input also works. Transfer as many as fit in one action and complete a tube for each type.
-- **Tray Match:** the original layered puzzle: pick exposed marbles into the seven-slot rack. Any matching triple clears; finish sets before filling the rack.
-- **Connected Match:** tap groups of three or more matching marbles connected along their sides. Columns collapse without refill. Clear the board within the move limit; stranded groups lose.
+- **Funnel Sort.** Tap a crate of nine. The marbles fall into the funnel, and the neck feeds them onto the belt one at a time while the belt has room. Each dock has a queue of three-slot boxes. The front box takes its color as it passes, and the queue moves up when the box is full. You lose if the belt is full and no box wants anything on it.
+- **Loop Sort.** A truck takes the color at its loop end as that color passes. Tap a truck to pour that color onto the loop and reach the color behind it. A truck full of one color drives away. You lose if the loop is full and no truck can take anything from it.
+- **Tube Sort.** Drag a top group into an empty tube or onto the same color, or tap the two tubes. As many marbles as fit move in one action. You win when each color fills its own tube.
+- **Tray Match.** Pick exposed marbles into the seven-slot rack. Three of a color clear. You lose if the rack fills with no match.
+- **Connected Match.** Tap a group of three or more same-colored marbles that touch along their sides. Columns collapse without refilling. You lose if you run out of moves or strand a group.
 
-All four accept the next legal action while earlier animation continues. Every marble carries rings, diamonds, triangles or stars as distinct surface textures that rotate with the model. Undo, restart and hints work for all four. Keyboard: arrow keys select a piece, Enter/Space acts, U undoes, H hints, R restarts. Completion, the selected level and mute persist locally; an unfinished board starts fresh on reload. There is no account or cloud sync.
+Every type accepts the next legal action while earlier animation runs. Marbles are plain, glossy and naturally colored, and every pair of colors differs in brightness. Crates, boxes and cargo blocks carry ring, diamond, triangle or star marks, and the level picker shows the legend.
 
-## Architecture
+Undo, restart and hints work in every type. On a keyboard, arrow keys select a piece, Enter or Space acts, U undoes, H shows a hint and R restarts.
 
-[AGENTS.md](AGENTS.md) fixes the permanent names, rules and development requirements.
+The browser stores completed levels, the selected level and the mute setting. An unfinished board restarts on reload. There are no accounts and no cloud sync.
 
-[The engine and extension contract](docs/campaign-architecture.md) explains ownership. Register another gameplay pack in `src/campaign.ts`; it supplies level factories implementing `GameRuntime`. The campaign controller has no switch on gameplay kind. Shared marble resources and physics remain in `src/engine`.
+## Project documents
 
-[The POC plan](docs/poc-plan.md) records the twelve boards and verification boundaries.
+- [AGENTS.md](AGENTS.md) sets the permanent names, rules and development requirements.
+- [Campaign architecture](docs/campaign-architecture.md) explains which module owns what and how to add a gameplay type.
+- [The POC plan](docs/poc-plan.md) records the levels, transport design and test coverage.
+- [Verification](docs/verification.md) records the latest check results and known gaps.
+- [The mechanics research](docs/research/loop-sort-marble-sort-mechanics.md) records what is known about Marble Sort! and Loop Sort.
 
 ## Checks
 
@@ -38,12 +43,14 @@ docker compose exec -T dev npm run build
 docker compose --profile e2e run --rm e2e npx playwright test
 ```
 
-Browser journeys use real canvas touch targets and advance the real fixed-tick runtime deterministically. They check functionality and screenshots, not phone frame rates. Rules tests replay every authored solution; headless physics tests exercise the conveyor and shared landing service.
+Browser tests tap real canvas targets and advance the game clock by hand. They check behavior and layout, not phone frame rates.
 
-## Visual evidence
+To author levels, `scripts/board-tree.ts` and `scripts/loop-tree.ts` count the winning and losing tap orders of each conveyor level.
+
+## Screenshots and video
 
 ```sh
 docker compose --profile e2e run --rm e2e node scripts/inspect-feedback.mjs
 ```
 
-This captures all twelve boards, desktop layouts and grayscale/low-quality checks into `output/poc12`. `scripts/capture-feedback.mjs` records a representative playthrough, advancing the game frame by frame so a software renderer does not change playback speed.
+This writes every level, plus grayscale and desktop views of the first level of each type, to `output/current`. `scripts/capture-feedback.mjs` records a short playthrough frame by frame, so a slow software renderer does not change its speed. `scripts/peek.mjs <levelIndex>` writes phone and desktop captures of one level to `output/rework`.

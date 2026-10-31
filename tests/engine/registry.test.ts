@@ -46,30 +46,38 @@ function syntheticLevel(kind: string, id: string): GameLevel {
 }
 
 describe('gameplay registry', () => {
-  it('adds a fifth runtime factory to the real campaign without special engine branches', () => {
+  it('adds another runtime factory to the real campaign without special engine branches', () => {
     const registry = new CampaignRegistry();
     for (const kind of new Set(CAMPAIGN.map((level) => level.kind))) {
       registry.register({ kind, levels: CAMPAIGN.filter((level) => level.kind === kind) });
     }
     registry.register({ kind: 'spin', levels: [syntheticLevel('spin', 'spin-1'), syntheticLevel('spin', 'spin-2')] });
     const levels = registry.levels();
-    expect(levels.map((level) => level.id)).toEqual([
-      'board-1', 'tube-1', 'tray-1', 'connect-1', 'spin-1', 'board-2', 'tube-2', 'tray-2', 'connect-2', 'spin-2', 'board-3', 'tube-3', 'tray-3', 'connect-3',
-    ]);
-    const fourth = levels.find((level) => level.id === 'spin-1');
-    if (!fourth) throw new Error('Fourth gameplay is missing');
+    const kinds = [...new Set(CAMPAIGN.map((level) => level.kind)), 'spin'];
+    const rounds = Math.max(...kinds.map((kind) => levels.filter((level) => level.kind === kind).length));
+    const expected: string[] = [];
+    for (let round = 0; round < rounds; round++) {
+      for (const kind of kinds) {
+        const id = kind === 'spin' ? [`spin-1`, `spin-2`][round] : CAMPAIGN.filter((level) => level.kind === kind)[round]?.id;
+        if (id) expected.push(id);
+      }
+    }
+    expect(levels.map((level) => level.id)).toEqual(expected);
+    expect(levels.slice(0, kinds.length).map((level) => level.kind)).toEqual(kinds);
+    const extra = levels.find((level) => level.id === 'spin-1');
+    if (!extra) throw new Error('Extra gameplay is missing');
     const services: GameServices = {
       physics: new PhysicsService(),
       get stage(): never { throw new Error('This headless gameplay never requests a renderer'); },
     };
-    const runtime = fourth.create(services);
+    const runtime = extra.create(services);
     expect(runtime).toBeInstanceOf(SpinRuntime);
     expect(runtime.status).toBe('playing');
     expect(runtime.hint()).toEqual([{ type: 'message', text: 'Turn the wheel twice.', target: 'spin' }]);
     const target = runtime.targets()['spin'];
-    if (!target) throw new Error('Fourth gameplay did not expose input');
+    if (!target) throw new Error('Extra gameplay did not expose input');
     const picked = runtime.pick(target.x, target.y);
-    if (!picked) throw new Error('Fourth gameplay did not recognize its target');
+    if (!picked) throw new Error('Extra gameplay did not recognize its target');
     expect(runtime.activate(picked)).toEqual([{ type: 'move' }]);
     expect(runtime.counter).toEqual({ label: 'Turns', value: '1' });
     runtime.step(); runtime.render(0.5, 1 / 60); runtime.resize();
