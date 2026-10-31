@@ -75,7 +75,7 @@ export class ConveyorRuntime implements GameRuntime {
   }
   targets() {
     const columns = this.board.supplies.length;
-    return Object.fromEntries(this.board.supplies.flatMap((queue, supply) => {
+    return Object.fromEntries(this.machine.rules.state.supplies.flatMap((queue, supply) => {
       if (!queue.length) return [];
       const at = this.view.toScreen(columnX(supply, columns), STACK.y + 0.4, STACK.z);
       const color = queue[0]?.color;

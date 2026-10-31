@@ -4,6 +4,22 @@ import type { App } from '../../src/view/App';
 
 type GameWindow = Window & { tumbleworks: { app: App } };
 
+test('Funnel Sort controls follow exposed trays, disappear when empty and return on undo', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => Boolean((window as unknown as Partial<GameWindow>).tumbleworks?.app?.runtime));
+  await page.evaluate(() => { (window as unknown as GameWindow).tumbleworks.app.manualClock = true; });
+  const controls = page.locator('#board-controls');
+  await controls.getByRole('button', { name: 'Column 1: Diamond (blue)', exact: true }).press('Enter');
+  await expect(controls.getByRole('button', { name: 'Column 1: Ring (red)', exact: true })).toHaveCount(1);
+  await controls.getByRole('button', { name: 'Column 1: Ring (red)', exact: true }).press('Enter');
+  await expect(controls.getByRole('button', { name: /^Column 1:/ })).toHaveCount(0);
+  await expect(controls.getByRole('button', { name: 'Column 2: Triangle (green)', exact: true })).toHaveCount(1);
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
+  await expect(controls.getByRole('button', { name: 'Column 1: Ring (red)', exact: true })).toHaveCount(1);
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
+  await expect(controls.getByRole('button', { name: 'Column 1: Diamond (blue)', exact: true })).toHaveCount(1);
+});
+
 test('retired matching levels fall back safely without losing sorting progress or sound preference', async ({ page }) => {
   await page.addInitScript(() => {
     if (!localStorage.getItem('tumbleworks.progress.v1')) localStorage.setItem('tumbleworks.progress.v1', JSON.stringify({
