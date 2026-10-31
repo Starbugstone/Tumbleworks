@@ -4,13 +4,11 @@ import { crowdMaterial } from '../view/art';
 
 interface Slot { readonly color: Color; readonly index: number }
 
-/**
- * Many marbles, one draw call per colour. The pattern is baked into each colour's surface map,
- * so it rotates with the marble like every other marble in the workshop.
- */
+/** Many plain glossy marbles, one draw per colour; only visible instances reach the GPU. */
 export class MarbleCrowd {
   private readonly meshes = new Map<Color, THREE.InstancedMesh>();
   private readonly slots = new Map<number, Slot>();
+  private readonly written = new Map<Color, number>();
   private readonly used = new Map<Color, number>();
   private readonly dummy = new THREE.Object3D();
   private readonly geometry: THREE.SphereGeometry;
@@ -36,7 +34,7 @@ export class MarbleCrowd {
   add(id: number, color: Color): void {
     const mesh = this.meshes.get(color);
     const index = this.used.get(color) ?? 0;
-    if (!mesh || index >= mesh.count) throw new Error(`No room for another ${color} marble`);
+    if (!mesh || index >= mesh.instanceMatrix.count) throw new Error(`No room for another ${color} marble`);
     this.used.set(color, index + 1);
     this.slots.set(id, { color, index });
   }
@@ -44,16 +42,23 @@ export class MarbleCrowd {
   set(id: number, x: number, y: number, z: number, qx: number, qy: number, qz: number, qw: number, scale = 1): void {
     const slot = this.slots.get(id);
     const mesh = slot && this.meshes.get(slot.color);
-    if (!slot || !mesh) return;
+    if (!slot || !mesh || scale <= 0.001) return;
     this.dummy.position.set(x, y, z);
     this.dummy.quaternion.set(qx, qy, qz, qw);
     this.dummy.scale.setScalar(scale);
     this.dummy.updateMatrix();
-    mesh.setMatrixAt(slot.index, this.dummy.matrix);
+    const index = this.written.get(slot.color) ?? 0;
+    mesh.setMatrixAt(index, this.dummy.matrix);
+    this.written.set(slot.color, index + 1);
   }
 
+  /** Commit one complete frame of poses, packing out hidden marbles without changing actor IDs. */
   commit(): void {
-    for (const mesh of this.meshes.values()) mesh.instanceMatrix.needsUpdate = true;
+    for (const [color, mesh] of this.meshes) {
+      mesh.count = this.written.get(color) ?? 0;
+      mesh.instanceMatrix.needsUpdate = true;
+    }
+    this.written.clear();
   }
 
   get count(): number { return this.slots.size; }

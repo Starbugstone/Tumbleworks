@@ -15,7 +15,7 @@ Open <http://localhost:5180>. On a phone on the same network, use `http://<your-
 ## Play
 
 - **Funnel Sort.** Tap a crate of nine. The marbles fall into the funnel, and the neck feeds them onto the belt one at a time while the belt has room. Each dock has a queue of three-slot boxes. The front box takes its color as it passes, and the queue moves up when the box is full. You lose if the belt is full and no box wants anything on it.
-- **Loop Sort.** A truck takes the color at its loop end as that color passes. Tap a truck to pour that color onto the loop and reach the color behind it. The color and pattern on its cab show the final color it needs. A truck full of that color drives away. You lose if the loop is full and no truck can take anything from it.
+- **Loop Sort.** A truck takes the color at its loop end as that color passes. Tap a truck to pour that color onto the loop and reach the color behind it. The color and pattern on its cab show the final color it needs. Moving arrows at its open end mean unloading; a pause mark means the full loop is holding it up. A truck full of that color drives away. You lose if the loop is full and no truck can take anything from it.
 - **Tube Sort.** Drag a top group into an empty tube or onto the same color, or tap the two tubes. As many marbles as fit move in one action. You win when each color fills its own tube.
 
 Every type accepts the next legal action while earlier animation runs. Marbles are plain, glossy and naturally colored, and every pair of colors differs in brightness. Crates, boxes, cargo blocks, truck cabs and the slot rail beside each tube carry ring, diamond, triangle or star marks, and the level picker shows the legend.

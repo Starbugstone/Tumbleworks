@@ -250,12 +250,19 @@ export class MachineScene {
     this.tracked.clear();
     this.crates.clear();
     this.boxes.clear();
-    for (const target of this.hitTargets) this.scene.remove(target);
+    for (const target of this.hitTargets) {
+      this.scene.remove(target);
+      target.geometry.dispose();
+      for (const material of Array.isArray(target.material) ? target.material : [target.material]) material.dispose();
+    }
     this.hitTargets.length = 0;
     this.level.traverse((object) => {
       if (!(object instanceof THREE.Mesh) || object instanceof THREE.InstancedMesh) return;
       object.geometry.dispose();
-      for (const material of Array.isArray(object.material) ? object.material : [object.material]) if (material !== this.glass && material !== this.lightOff && material !== this.lightOn) material.dispose();
+      for (const material of Array.isArray(object.material) ? object.material : [object.material]) if (material !== this.glass && material !== this.lightOff && material !== this.lightOn) {
+        if ('map' in material && material.map instanceof THREE.Texture) material.map.dispose();
+        material.dispose();
+      }
     });
     this.level.clear();
   }
@@ -263,6 +270,9 @@ export class MachineScene {
   dispose(): void {
     this.clearLevel();
     this.sparks.dispose();
+    this.glass.dispose();
+    this.lightOff.dispose();
+    this.lightOn.dispose();
     this.stage.disposeScene(this.scene);
     this.machine = null;
   }

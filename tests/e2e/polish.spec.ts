@@ -36,6 +36,7 @@ test('lorry final-colour markers survive a pour and undo while the exposed colou
     app.advance(0);
   });
   const before = await page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.debugState());
+  expect(before.finalColors).toEqual(['blue', 'red']);
   const at = await page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.debugTargets()['lane0']);
   if (!at) throw new Error('Missing lorry');
   await page.touchscreen.tap(at.x, at.y);

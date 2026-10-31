@@ -40,7 +40,7 @@ export class TubeView extends BoardView {
     const deck = toyBox(7.7, 0.08, 14.7, 0xe6e9ff, 0.16);
     deck.position.set(0, 0.57, 0.3);
     this.board.add(deck);
-    const glass = new THREE.MeshPhysicalMaterial({ color: 0xe4f5ff, transmission: 0.35, transparent: true,
+    const glass = new THREE.MeshPhysicalMaterial({ color: 0xe4f5ff, clearcoat: 0.7, transparent: true,
       opacity: 0.2, roughness: 0.08, side: THREE.DoubleSide, depthWrite: false, envMapIntensity: 1.5 });
     definition.tubes.forEach((_, index) => {
       const at = this.position(index, 0);
@@ -69,8 +69,9 @@ export class TubeView extends BoardView {
       rail.position.set(at.x + 0.94, 0.7 + height / 2, at.z);
       this.board.add(rail);
       const badges = Array.from({ length: definition.capacity }, (_, slot) => {
-        const badge = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.4), this.badgeMaterials.get('red')!);
-        badge.position.set(at.x + 0.94, this.position(index, slot).y, at.z + 0.06);
+        const badge = new THREE.Mesh(new THREE.PlaneGeometry(0.44, 0.44), this.badgeMaterials.get('red')!);
+        badge.position.set(at.x + 0.94, this.position(index, slot).y, at.z + 0.16);
+        badge.rotation.x = -Math.atan2(1.35, 0.65);
         this.board.add(badge);
         return badge;
       });

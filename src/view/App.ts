@@ -257,6 +257,11 @@ export class App {
         return control;
       }));
     }
+    Object.entries(targets).forEach(([id, point], index) => {
+      const control = element('board-controls').children.item(index);
+      const label = point.label ?? id;
+      if (control && control.textContent !== label) control.textContent = label;
+    });
     const focus = this.focusTarget ? targets[this.focusTarget] : undefined;
     if (focus) {
       this.ring.style.left = `${focus.x}px`;

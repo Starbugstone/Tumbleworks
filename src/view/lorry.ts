@@ -1,12 +1,13 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Color } from '../sim/types';
 import { COLORS, decal } from './art';
 
 interface Dimensions { bedWidth: number; bedLength: number; bedHeight: number; cabLength: number }
 
 /** Cab faces local -z; the open tail faces the loop at +z. Cargo is added separately. */
-export function lorry(target: Color, dimensions: Dimensions): { body: THREE.Group; wheels: THREE.Group[] } {
+export function lorry(target: Color, dimensions: Dimensions): { body: THREE.Group; setWheelTravel: (distance: number) => void; setUnloading: (state: 'pouring' | 'waiting' | null, time: number) => void } {
   const { bedWidth: w, bedLength: length, bedHeight: h, cabLength: cab } = dimensions;
   const body = new THREE.Group();
   const paint = new THREE.MeshPhysicalMaterial({ color: COLORS[target].hex, roughness: 0.28, clearcoat: 0.8 });
@@ -40,26 +41,90 @@ export function lorry(target: Color, dimensions: Dimensions): { body: THREE.Grou
   }
   box(w * 0.94, 0.09, 0.1, 0, 0.24, cabZ - cab / 2, chrome);
   box(w * 0.4, 0.12, 0.035, 0, 0.39, cabZ - cab / 2 - 0.025, rubber);
+  // Static details share a draw per material; the moving wheels are instanced below.
+  const batches = new Map<THREE.Material, THREE.BufferGeometry[]>();
+  for (const part of [...body.children]) {
+    if (!(part instanceof THREE.Mesh) || Array.isArray(part.material)) continue;
+    part.updateMatrix();
+    const geometry = part.geometry.applyMatrix4(part.matrix);
+    const batch = batches.get(part.material) ?? [];
+    batch.push(geometry);
+    batches.set(part.material, batch);
+    body.remove(part);
+  }
+  for (const [material, geometries] of batches) {
+    const merged = mergeGeometries(geometries);
+    if (!merged) throw new Error('Lorry geometry could not be merged');
+    const mesh = new THREE.Mesh(merged, material);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    body.add(mesh);
+    for (const geometry of geometries) geometry.dispose();
+  }
   const badge = decal(target, w * 0.65);
   badge.rotation.x = -Math.PI / 2;
   badge.position.set(0, 0.855, cabZ + 0.06);
   badge.name = 'final-colour-marker';
   body.add(badge);
-  const wheels: THREE.Group[] = [];
-  for (const z of [cabZ, -length * 0.27, length * 0.34]) {
-    for (const side of [-1, 1]) {
-      const wheel = new THREE.Group();
-      const tire = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.13, 12), rubber);
-      tire.rotation.z = Math.PI / 2;
-      tire.castShadow = true;
-      wheel.add(tire);
-      const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.095, 0.145, 10), chrome);
-      hub.rotation.z = Math.PI / 2;
-      wheel.add(hub);
+  const tireGeometry = new THREE.CylinderGeometry(0.2, 0.2, 0.13, 12);
+  const hubGeometry = new THREE.CylinderGeometry(0.095, 0.095, 0.145, 10);
+  tireGeometry.rotateZ(Math.PI / 2);
+  hubGeometry.rotateZ(Math.PI / 2);
+  const tires = new THREE.InstancedMesh(tireGeometry, rubber, 6);
+  const hubs = new THREE.InstancedMesh(hubGeometry, chrome, 6);
+  tires.castShadow = true;
+  body.add(tires, hubs);
+  const wheel = new THREE.Object3D();
+  const setWheelTravel = (distance: number): void => {
+    let index = 0;
+    for (const z of [cabZ, -length * 0.27, length * 0.34]) for (const side of [-1, 1]) {
       wheel.position.set(side * (w / 2 + 0.01), 0.2, z);
-      body.add(wheel);
-      wheels.push(wheel);
+      wheel.rotation.x = distance / 0.2;
+      wheel.updateMatrix();
+      tires.setMatrixAt(index, wheel.matrix);
+      hubs.setMatrixAt(index++, wheel.matrix);
     }
+    tires.instanceMatrix.needsUpdate = true;
+    hubs.instanceMatrix.needsUpdate = true;
+  };
+  setWheelTravel(0);
+  const unloading = new THREE.Group();
+  unloading.position.set(0, h + 0.08, length / 2 + 0.28);
+  const plate = new THREE.Mesh(new RoundedBoxGeometry(w * 0.8, 0.06, 0.78, 2, 0.02), rubber);
+  unloading.add(plate);
+  const arrowShape = new THREE.Shape();
+  arrowShape.moveTo(-0.2, 0.08);
+  arrowShape.lineTo(0, -0.11);
+  arrowShape.lineTo(0.2, 0.08);
+  arrowShape.lineTo(0.13, 0.14);
+  arrowShape.lineTo(0, 0.015);
+  arrowShape.lineTo(-0.13, 0.14);
+  arrowShape.closePath();
+  const arrowGeometry = new THREE.ShapeGeometry(arrowShape);
+  arrowGeometry.rotateX(-Math.PI / 2);
+  const arrows = Array.from({ length: 3 }, (_, index) => {
+    const material = new THREE.MeshBasicMaterial({ color: 0xfff9d8, transparent: true, toneMapped: false });
+    const arrow = new THREE.Mesh(arrowGeometry, material);
+    arrow.position.set(0, 0.04, (index - 1) * 0.23);
+    unloading.add(arrow);
+    return arrow;
+  });
+  const pause = new THREE.Group();
+  for (const side of [-1, 1]) {
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.03, 0.38), lights);
+    bar.position.set(side * 0.12, 0.045, 0);
+    pause.add(bar);
   }
-  return { body, wheels };
+  unloading.add(pause);
+  body.add(unloading);
+  const setUnloading = (state: 'pouring' | 'waiting' | null, time: number): void => {
+    unloading.visible = state !== null;
+    pause.visible = state === 'waiting';
+    arrows.forEach((arrow, index) => {
+      arrow.visible = state === 'pouring';
+      arrow.material.opacity = 0.3 + 0.7 * Math.max(0, Math.sin(time * 12 - index * 1.4));
+    });
+  };
+  setUnloading(null, 0);
+  return { body, setWheelTravel, setUnloading };
 }

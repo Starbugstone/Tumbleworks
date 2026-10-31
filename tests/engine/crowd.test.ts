@@ -1,0 +1,34 @@
+import * as THREE from 'three';
+import { expect, it } from 'vitest';
+import { MarbleCrowd } from '../../src/engine/crowd';
+
+it('renders only visible marbles and restores their identities after an empty frame', () => {
+  const scene = new THREE.Scene();
+  const crowd = new MarbleCrowd(scene, new Map([['red', 3]]), 0.17);
+  for (let id = 0; id < 3; id++) crowd.add(id, 'red');
+  const mesh = scene.children[0];
+  if (!(mesh instanceof THREE.InstancedMesh)) throw new Error('Missing crowd mesh');
+  const at = (id: number, x: number, visible = true) => crowd.set(id, x, 1, 0, 0, 0, 0, 1, visible ? 1 : 0.0001);
+  at(0, 2); at(1, 4, false); at(2, 6);
+  crowd.commit();
+  expect(mesh.count).toBe(2);
+  const matrix = new THREE.Matrix4();
+  mesh.getMatrixAt(1, matrix);
+  expect(new THREE.Vector3().setFromMatrixPosition(matrix).x).toBe(6);
+  at(0, 2, false); at(1, 7); at(2, 6, false);
+  crowd.commit();
+  expect(mesh.count).toBe(1);
+  mesh.getMatrixAt(0, matrix);
+  expect(new THREE.Vector3().setFromMatrixPosition(matrix).x).toBe(7);
+  for (let id = 0; id < 3; id++) at(id, id, false);
+  crowd.commit();
+  expect(mesh.count).toBe(0);
+  for (let id = 0; id < 3; id++) at(id, id + 10);
+  crowd.commit();
+  expect(mesh.count).toBe(3);
+  expect(crowd.count).toBe(3);
+  mesh.getMatrixAt(2, matrix);
+  expect(new THREE.Vector3().setFromMatrixPosition(matrix).x).toBe(12);
+  crowd.dispose();
+  expect(scene.children).toHaveLength(0);
+});

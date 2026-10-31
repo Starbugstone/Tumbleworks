@@ -119,8 +119,6 @@ test('each ruleset recovers from a real jam through the shared undo button', asy
   expect((await state(page)).status).toBe('jammed');
   await page.getByRole('button', { name: 'Undo', exact: true }).click();
   expect(await state(page)).toMatchObject({ status: 'playing', moves: 0 });
-
-
 });
 
 test('hints explain current board actions without playing them; restart resets the board', async ({ page }) => {

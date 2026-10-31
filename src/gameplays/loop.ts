@@ -80,13 +80,17 @@ export class LoopRuntime implements GameRuntime {
       const at = this.view.toScreen(bay.x, DECK_TOP + 0.4, this.machine.mouthZ(lane) - facing * (TRUCK.bedLength + TRUCK.cabLength) / 2);
       const color = truck.segments[0]?.color;
       const finalColor = this.board.lanes[lane]?.[truck.index]?.segments.at(-1)?.color;
-      return [[`lane${lane}`, { ...at, label: `Truck ${lane + 1}: ${color ? marbleName(color) : ''} at the loop end. Finish with ${finalColor ? marbleName(finalColor) : ''}` }]];
+      return [[`lane${lane}`, { ...at, label: `Truck ${lane + 1}: ${color ? marbleName(color) : ''} at the loop end. Finish with ${finalColor ? marbleName(finalColor) : ''}${truck.unloading.length ? (this.machine.rules.free === 0 ? '. Unloading paused: loop full' : '. Unloading') : ''}` }]];
     }));
   }
   inspect() {
     const rules = this.machine.rules;
     return { occupancy: rules.occupancy, pending: rules.pending, status: rules.status,
       lanes: this.board.lanes.map((_, lane) => rules.front(lane)?.segments.map((segment) => `${segment.color}:${segment.marbles.length}`) ?? null),
+      unloading: this.board.lanes.map((_, lane) => {
+        const truck = rules.front(lane);
+        return truck?.unloading.length ? (rules.free === 0 ? 'waiting' : 'pouring') : null;
+      }),
       finalColors: this.board.lanes.map((_, lane) => {
         const truck = rules.front(lane);
         return truck ? this.board.lanes[lane]?.[truck.index]?.segments.at(-1)?.color : null;

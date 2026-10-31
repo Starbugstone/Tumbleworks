@@ -37,7 +37,7 @@ The belt has one lane and never stops. It passes the docks from right to left, a
 
 A rounded-rectangle loop runs around a plateau. Up to three bays face the front straight, and more lanes add a back row. A truck holds twenty-four units packed against its cab, and its open end faces the loop.
 
-The loop has one slot per unit of capacity, and the slots move with it. Each unit is drawn as rows of three tiny marbles that fill its slot, so a full loop looks full. A pouring truck puts each unit into the first empty slot that reaches its open end. It pauses when the loop is full.
+The loop has one slot per unit of capacity, and the slots move with it. Each unit is drawn as rows of three tiny marbles that fill its slot, so a full loop looks full. A pouring truck puts each unit into the first empty slot that reaches its open end. It pauses when the loop is full. A tailboard shows moving chevrons while unloading and a pause symbol while waiting for loop space.
 
 A unit a truck wants hops into the open end, and that color's block grows smoothly. The cab keeps the truck’s final color and a contrasting pattern marker, even while it pours another color. Cabs have windows, mirrors and six wheels; the wheels turn during arrival and departure. A complete truck waits for its last unit to land, then drives over the rim and down a ramp. The next truck in the bay rises into place.
 

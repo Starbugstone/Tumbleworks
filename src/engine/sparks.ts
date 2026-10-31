@@ -38,6 +38,7 @@ export class Sparks {
   }
 
   step(seconds: number): void {
+    if (!this.mesh.visible) return;
     for (const p of this.particles) {
       if (p.age >= LIFETIME) continue;
       p.age += seconds;
@@ -50,6 +51,7 @@ export class Sparks {
   }
 
   private draw(): void {
+    this.mesh.visible = this.particles.some((p) => p.age < LIFETIME);
     this.particles.forEach((p, index) => {
       const size = Math.max(0, 1 - p.age / LIFETIME) * 0.12;
       this.dummy.position.set(p.x, p.y, p.z);
@@ -68,6 +70,7 @@ export class Sparks {
 
   dispose(): void {
     this.mesh.removeFromParent();
+    this.mesh.dispose();
     this.mesh.geometry.dispose();
     this.mesh.material.dispose();
   }

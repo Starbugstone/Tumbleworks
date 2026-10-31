@@ -60,7 +60,7 @@ function rounded(width: number, height: number, depth: number, material: THREE.M
 }
 
 interface Block { readonly group: THREE.Group; readonly box: THREE.Mesh; readonly badge: THREE.Mesh; color: Color | null; units: number; previousUnits: number }
-interface TruckVisual { readonly group: THREE.Group; readonly blocks: Block[]; readonly wheels: THREE.Group[]; pulse: number }
+interface TruckVisual { readonly group: THREE.Group; readonly blocks: Block[]; readonly setWheelTravel: (distance: number) => void; readonly setUnloading: (state: 'pouring' | 'waiting' | null, time: number) => void; pulse: number }
 
 /** The Loop Sort platform: a packed loop around a plateau of truck bays, ramps out the front. */
 export class LoopScene {
@@ -149,7 +149,7 @@ export class LoopScene {
       group.add(block);
       blocks.push({ group: block, box, badge, color: null, units: 0, previousUnits: 0 });
     }
-    return { group, blocks, wheels: shell.wheels, pulse: 0 };
+    return { group, blocks, setWheelTravel: shell.setWheelTravel, setUnloading: shell.setUnloading, pulse: 0 };
   }
 
   setMachine(machine: LoopMachine): void {
@@ -197,13 +197,21 @@ export class LoopScene {
     this.currentTrucks.clear();
     this.previous.clear();
     this.current.clear();
-    for (const target of this.hitTargets) this.scene.remove(target);
+    for (const target of this.hitTargets) {
+      this.scene.remove(target);
+      target.geometry.dispose();
+      for (const material of Array.isArray(target.material) ? target.material : [target.material]) material.dispose();
+    }
     this.hitTargets.length = 0;
     this.level.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) return;
       object.geometry.dispose();
+      if (object instanceof THREE.InstancedMesh) object.dispose();
       for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
-        if (![...this.blockMaterials.values()].includes(material)) material.dispose();
+        if (![...this.blockMaterials.values()].includes(material)) {
+          if ('map' in material && material.map instanceof THREE.Texture && !Array.from(this.symbols.values()).some((texture) => texture === material.map)) material.map.dispose();
+          material.dispose();
+        }
       }
     });
     this.level.clear();
@@ -334,7 +342,8 @@ export class LoopScene {
       const scale = previous ? previous.scale + (truck.scale - previous.scale) * blend : truck.scale;
       visual.group.position.set(truck.x, y + Math.sin(visual.pulse * Math.PI) * 0.1, z);
       visual.group.scale.setScalar(scale);
-      for (const wheel of visual.wheels) wheel.rotation.x = z / 0.2;
+      visual.setWheelTravel(z);
+      visual.setUnloading(truck.unloading, (machine.tick + alpha) * TICK_SECONDS);
       // Cargo packs against the cab; the mouth end stays open. Blocks are listed loop end first.
       let edge = -facing * TRUCK.bedLength / 2;
       visual.blocks.forEach((block) => {

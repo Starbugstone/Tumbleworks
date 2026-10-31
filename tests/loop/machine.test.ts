@@ -60,6 +60,7 @@ describe('the Loop Sort machine agrees with the rules', () => {
     ];
     expect(targets()).toEqual(expected);
     expect(machine.tap(0).ok).toBe(true);
+    expect(machine.readTrucks().find((truck) => truck.lane === 0)?.unloading).toBe('waiting');
     let replacement = false;
     for (let tick = 0; tick < 900; tick++) {
       machine.step();

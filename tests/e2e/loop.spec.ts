@@ -20,6 +20,8 @@ test('Loop Sort explains a refused tap: a full loop, a pour in progress, or a on
   await tap('lane0');
   await tap('lane0');
   await expect(page.locator('#message')).toContainText('The loop is full');
+  expect(await page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.debugState().unloading)).toEqual(['waiting', null]);
+  await expect(page.locator('#board-controls button').first()).toHaveText(/Unloading paused/);
   const running = await page.evaluate(() => {
     const app = (window as unknown as GameWindow).tumbleworks.app;
     for (let tick = 0; tick < 600; tick++) {
@@ -30,6 +32,7 @@ test('Loop Sort explains a refused tap: a full loop, a pour in progress, or a on
     return false;
   });
   expect(running).toBe(true);
+  expect((await page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.debugState().unloading) as unknown[])[0]).toBe('pouring');
   await tap('lane0');
   await expect(page.locator('#message')).toHaveText('Still pouring.');
   await tap('lane1');

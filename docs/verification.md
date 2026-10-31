@@ -1,13 +1,13 @@
 # POC verification
 
-Checked on 31 October 2026 against the Docker development build on isolated port 5181 (`tumbleworks-polish`). [AGENTS.md](../AGENTS.md) holds the permanent names and development requirements.
+Checked on 31 October 2026 against the Docker development build on port 5180 (`main`), after initial isolated verification on port 5181. [AGENTS.md](../AGENTS.md) holds the permanent names and development requirements.
 
 ## Automated checks
 
 | Check | Result |
 | --- | --- |
 | `npm run typecheck` | Pass |
-| `npm test` | 84 tests pass across 10 files |
+| `npm test` | 85 tests pass across 11 files |
 | `npm run build` | Pass, with Vite's large-chunk warning for the Three.js and Rapier bundle |
 | `npx playwright test` | 12 journeys pass in Chromium with SwiftShader, using real touch and keyboard input |
 
@@ -22,7 +22,7 @@ Checked on 31 October 2026 against the Docker development build on isolated port
 | Whole-group touch dragging, invalid drops, cancellation and atomic Undo | `tests/e2e/drag.spec.ts` |
 | Tube Sort accepts successive moves before animation finishes | `tests/e2e/overlap.spec.ts` |
 | Funnel Sort accepts every crate before motion, keeps overflow in the funnel, drains and undoes. It also holds three marbles behind a full fifteen-marble belt with no rescues. | `tests/e2e/reservoir.spec.ts` |
-| Loop Sort explains a refused tap: full loop, pour in progress, one-color truck | `tests/e2e/loop.spec.ts` |
+| Loop Sort explains a refused tap and marks unloading versus waiting for space | `tests/e2e/loop.spec.ts` |
 
 The browser tests set the game clock by hand. They check behavior and layout, not frame rate on a phone.
 
@@ -39,6 +39,10 @@ The polish regression tests cover retired-level save fallback and lorry goal sta
 The player asked for plain glossy marbles in natural colors. Yellow and green are separated by brightness as well as hue. Crates, boxes, cargo blocks and hints carry ring, diamond, triangle and star patterns, and the legend sits in the level picker.
 
 Tube Sort now has a pattern rail with one marker per occupied slot. Lorry cabs carry a permanent final-color roof marker. Phone, narrow and desktop captures, including grayscale, are in `output/current/polish`. The player still needs to judge readability at their own phone size.
+
+## Rendering checks
+
+`node scripts/polish-live.mjs` drives Loop Sort with the real browser clock and checks that geometry and texture counts stay stable through repeated level changes. Hidden marbles are excluded from instance draws; lorry body details are batched by material, and wheels and completion sparks are instanced. These checks use SwiftShader and do not establish a phone frame rate.
 
 ## Screenshots and video
 
