@@ -21,7 +21,7 @@ export class ConveyorRuntime implements GameRuntime {
   get status() { return this.machine.rules.status; }
   get busy() { return this.machine.transferring; }
   get canUndo() { return this.machine.canUndo; }
-  get counter() { return { label: t('Belt', 'Tapis'), value: `${this.machine.rules.occupancy}/${this.board.beltCapacity}${this.machine.rules.funnelCount ? ` +${this.machine.rules.funnelCount}` : ''}` }; }
+  get counter() { return { label: t('Belt', 'Tapis'), value: `${this.machine.rules.occupancy}/${this.board.beltCapacity}${this.machine.rules.funnelCount ? ` +${this.machine.rules.funnelCount}` : ''}`, full: this.machine.rules.free <= 0 }; }
   readonly preview = [];
   readonly previewLabel = '';
   get jamReason() {

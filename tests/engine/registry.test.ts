@@ -3,6 +3,9 @@ import { CAMPAIGN } from '../../src/campaign';
 import { CampaignRegistry, type Feedback, type GameLevel, type GameRuntime, type GameServices } from '../../src/engine/contracts';
 import { PhysicsService } from '../../src/engine/physics';
 import type { Color } from '../../src/sim/types';
+import { BOARDS } from '../../src/sim/boards';
+import { LOOP_BOARDS } from '../../src/loop/boards';
+import { TUBE_BOARDS } from '../../src/puzzles/levels';
 
 class SpinRuntime implements GameRuntime {
   private turns = 0;
@@ -46,12 +49,28 @@ function syntheticLevel(kind: string, id: string): GameLevel {
 }
 
 describe('gameplay registry', () => {
-  it('keeps seventeen sorting levels with their existing save IDs', () => {
-    expect(CAMPAIGN.map((level) => level.id)).toEqual([
-      'board-1', 'loop-1', 'tube-1', 'board-2', 'loop-2', 'tube-2',
-      'board-3', 'loop-3', 'tube-3', 'board-4', 'loop-4', 'board-5', 'loop-5', 'board-6', 'loop-6', 'board-7', 'loop-7',
-    ]);
+  it('keeps ninety sorting levels with their existing save IDs, interleaved by round from the original seventeen', () => {
+    const expected: string[] = [];
+    for (let round = 1; round <= 30; round++) expected.push(`board-${round}`, `loop-${round}`, `tube-${round}`);
+    expect(CAMPAIGN.map((level) => level.id)).toEqual(expected);
+    expect(CAMPAIGN.slice(0, 11).map((level) => level.id)).toEqual(['board-1', 'loop-1', 'tube-1', 'board-2', 'loop-2', 'tube-2', 'board-3', 'loop-3', 'tube-3', 'board-4', 'loop-4']);
     expect([...new Set(CAMPAIGN.map((level) => level.kind))]).toEqual(['conveyor', 'loop', 'tube']);
+  });
+
+  it('marks exactly the boards that use the fifth colour as Full spectrum and keeps the opening tiers gentle', () => {
+    const colors = new Map<string, Set<Color>>();
+    for (const board of BOARDS) colors.set(board.id, new Set(board.supplies.flat().map((tray) => tray.color)));
+    for (const board of LOOP_BOARDS) colors.set(board.id, new Set([...board.lanes.flat().flatMap((truck) => truck.segments.map((segment) => segment.color)), ...board.loop.map((entry) => entry.color)]));
+    for (const board of TUBE_BOARDS) colors.set(board.id, new Set(board.tubes.flat()));
+    for (const level of CAMPAIGN) {
+      expect(level.difficulty === 'Full spectrum', level.id).toBe(colors.get(level.id)?.has('orange') ?? false);
+    }
+    expect(CAMPAIGN.slice(0, 5).map((level) => level.difficulty)).toEqual(Array(5).fill('Getting started'));
+    expect(CAMPAIGN[5]?.difficulty).toBe('Finding a rhythm');
+    expect(CAMPAIGN.filter((level) => level.difficulty === 'Full spectrum').length).toBeGreaterThan(40);
+    // Orange arrives in Tube Sort first, then in the eighth Funnel Sort and Loop Sort levels.
+    expect(['tube-6', 'board-8', 'loop-8'].map((id) => CAMPAIGN.find((level) => level.id === id)?.difficulty)).toEqual(['Full spectrum', 'Full spectrum', 'Full spectrum']);
+    expect(['tube-5', 'board-7', 'loop-7'].map((id) => CAMPAIGN.find((level) => level.id === id)?.difficulty)).toEqual(['Thinking ahead', 'Thinking ahead', 'Thinking ahead']);
   });
 
   it('adds another runtime factory to the real campaign without special engine branches', () => {

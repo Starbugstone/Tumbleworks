@@ -2,14 +2,24 @@ import { expect, test, type Page } from '@playwright/test';
 import type { App } from '../../src/view/App';
 import { TUBE_BOARDS } from '../../src/puzzles/levels';
 type GameWindow = Window & { tumbleworks: { app: App } };
+/** Uncaught page errors explain a missing target far better than the missing target does. */
+const pageErrors = new WeakMap<Page, string[]>();
 const ready = async (page: Page) => {
+  if (!pageErrors.has(page)) {
+    const errors: string[] = [];
+    pageErrors.set(page, errors);
+    page.on('pageerror', (error) => errors.push(error.message));
+  }
   await page.goto('/');
   await page.waitForFunction(() => Boolean((window as unknown as Partial<GameWindow>).tumbleworks?.app?.runtime));
   await page.evaluate(() => { (window as unknown as GameWindow).tumbleworks.app.manualClock = true; });
 };
 const tap = async (page: Page, id: string) => {
   const point = await page.evaluate(key => (window as unknown as GameWindow).tumbleworks.app.debugTargets()[key], id);
-  if (!point) throw new Error(`Missing target ${id}`);
+  if (!point) {
+    const errors = pageErrors.get(page) ?? [];
+    throw new Error(`Missing target ${id}${errors.length ? ` after page errors: ${errors.join(' | ')}` : ''}`);
+  }
   await page.touchscreen.tap(point.x, point.y);
 };
 const select = async (page: Page, index: number) => {

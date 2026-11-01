@@ -15,7 +15,7 @@ export class BoardPointer {
   private gesture: { id: number; origin: ScreenPoint; target: string | null; moved: boolean; dragging: boolean } | null = null;
   constructor(private readonly canvas: HTMLCanvasElement, private readonly actions: PointerActions) {
     canvas.addEventListener('pointerdown', (event) => {
-      if (this.gesture || !event.isPrimary || event.button !== 0) return;
+      if (this.gesture || event.button !== 0) return;
       this.actions.unlock();
       const origin = { x: event.clientX, y: event.clientY };
       this.gesture = { id: event.pointerId, origin, target: actions.pick(origin), moved: false, dragging: false };

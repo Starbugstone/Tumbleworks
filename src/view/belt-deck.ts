@@ -7,7 +7,6 @@ export function beltDeck(path: BeltPath, halfWidth: number, floorY: number, wall
   const group = new THREE.Group();
   const floor = new THREE.MeshStandardMaterial({ color: ARCADE.track, roughness: 0.6 });
   const edge = new THREE.MeshStandardMaterial({ color: ARCADE.edge, roughness: 0.45 });
-  const light = new THREE.MeshBasicMaterial({ color: ARCADE.cyan, toneMapped: false });
   const band = (left: number, right: number, bottom: number, top: number, material: THREE.Material): void => {
     const positions: number[] = [], indices: number[] = [];
     const samples = 256;
@@ -34,7 +33,6 @@ export function beltDeck(path: BeltPath, halfWidth: number, floorY: number, wall
   for (const side of [-1, 1]) {
     const outer = side * (halfWidth + 0.12), inner = side * halfWidth;
     band(Math.min(outer, inner), Math.max(outer, inner), -0.2, wallHeight, edge);
-    band(Math.min(outer, inner) + 0.025, Math.max(outer, inner) - 0.025, wallHeight, wallHeight + 0.025, light);
   }
   // Amber bridge posts sit on the raised shoulders, outside the marble channel.
   const posts = new THREE.InstancedMesh(new THREE.BoxGeometry(0.1, 0.35, 0.1), new THREE.MeshStandardMaterial({ color: ARCADE.gold }), 12);

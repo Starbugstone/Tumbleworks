@@ -1,4 +1,5 @@
 import { beltDeck } from './belt-deck';
+import { BeltSurface } from './belt-surface';
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { Sparks } from '../engine/sparks';
@@ -7,13 +8,12 @@ import { MarbleCrowd } from '../engine/crowd';
 import { frameBoard } from '../engine/framing';
 import type { Stage } from '../engine/stage';
 import type { Machine, MachineEvent, Pose } from '../machine/machine';
-import { BOX, columnX, CRATE, FUNNEL, funnelFaces, funnelHalfWidth, MARBLE_RADIUS, RACEWAY, STACK, TRACK, dockX } from '../machine/layout';
+import { BOX, columnX, CRATE, FUNNEL, funnelFaces, funnelHalfWidth, MARBLE_RADIUS, RACEWAY, RIDE_Y, STACK, TRACK, dockX } from '../machine/layout';
 import type { Color } from '../sim/types';
 import { COLORS, decal } from './art';
-import { ARCADE, ArcadePop, ArcadeYard, stencil } from './arcade';
+import { ARCADE, ArcadePop, ArcadeYard } from './arcade';
 import { t } from '../i18n';
 
-const CHEVRONS = 36;
 const DECK_TOP = RACEWAY.floorY;
 const RIM_TOP = RACEWAY.floorY + RACEWAY.wallHeight;
 const CAMERA_DIRECTION = new THREE.Vector3(0, 0.82, 0.57).normalize();
@@ -74,8 +74,7 @@ export class MachineScene {
   private machine: Machine | null = null;
   private crowd: MarbleCrowd | null = null;
   private readonly level = new THREE.Group();
-  private readonly chevrons: THREE.InstancedMesh;
-  private readonly dummy = new THREE.Object3D();
+  private belt: BeltSurface | null = null;
   private readonly tracked = new Map<number, Tracked>();
   private readonly crates = new Map<number, THREE.Group>();
   private readonly boxes = new Map<string, { group: THREE.Group; lights: THREE.Mesh[]; pulse: number }>();
@@ -88,6 +87,8 @@ export class MachineScene {
   private readonly lightOff = plastic(0x2c3366, 0.6);
   private readonly lightOn = new THREE.MeshStandardMaterial({ color: 0xfff1b0, emissive: 0xffd45e, emissiveIntensity: 1.6 });
   private readonly glass = new THREE.MeshPhysicalMaterial({ color: 0xd6ecff, transparent: true, opacity: 0.18, roughness: 0.08, metalness: 0, side: THREE.DoubleSide, depthWrite: false, envMapIntensity: 1.6 });
+  /** The chute is a pipe the eye should follow, so it is a little milkier than the dish. */
+  private readonly chuteGlass = new THREE.MeshPhysicalMaterial({ color: 0xcfe9ff, transparent: true, opacity: 0.36, roughness: 0.12, metalness: 0, side: THREE.DoubleSide, depthWrite: false, envMapIntensity: 1.8 });
   private readonly tempA = new THREE.Quaternion();
   private readonly tempB = new THREE.Quaternion();
   private readonly sparks: Sparks;
@@ -99,13 +100,16 @@ export class MachineScene {
     this.scene = stage.createScene('arcade');
     this.sparks = new Sparks(this.scene);
     this.pops = new ArcadePop(this.scene, () => t('LOADED!', 'CHARGÉ !'));
-    this.chevrons = new THREE.InstancedMesh(new THREE.BoxGeometry(0.1, 0.012, RACEWAY.channelHalf * 1.5), plastic(0x4f8896, 0.8), CHEVRONS);
-    this.chevrons.frustumCulled = false;
-    this.scene.add(this.chevrons, this.level);
+    this.scene.add(this.level);
   }
 
   private buildPlatform(): void {
-    if (this.machine?.board.trackShape && this.machine.board.trackShape !== 'oval') {
+    if (!this.machine) return;
+    // The belt is one textured strip whose plates scroll with belt travel: motion without heavy marks.
+    // Plates are long enough that three ticks per frame at 30 fps still reads as forward travel.
+    this.belt = new BeltSurface(this.machine.track, RACEWAY.channelHalf - 0.03, DECK_TOP, MARBLE_RADIUS * 5.2);
+    this.level.add(this.belt.mesh);
+    if (this.machine.board.trackShape && this.machine.board.trackShape !== 'oval') {
       this.level.add(beltDeck(this.machine.track, RACEWAY.channelHalf, DECK_TOP, RACEWAY.wallHeight));
       return;
     }
@@ -115,15 +119,25 @@ export class MachineScene {
     const rim = slab(ring(outer, TRACK.radius + RACEWAY.channelHalf), DECK_TOP, RIM_TOP, plastic(PLATFORM_DARK), shiny(PLATFORM));
     const island = slab(stadium(inner), DECK_TOP, RIM_TOP, plastic(PLATFORM_DARK), shiny(PLATFORM));
     this.level.add(deck, rim, island);
-    const rail = slab(ring(outer + 0.015, outer - 0.055), RIM_TOP, RIM_TOP + 0.045, plastic(PLATFORM_DARK), new THREE.MeshBasicMaterial({ color: ARCADE.cyan, toneMapped: false }));
-    const label = stencil('› › ›', 3.5, 0.5);
-    label.position.set(0, RIM_TOP + 0.01, TRACK.centerZ);
-    this.level.add(rail, label);
-    // A dark throat under the neck, where marbles drop onto the belt.
-    const throat = new THREE.Mesh(new THREE.CylinderGeometry(FUNNEL.neck.halfX + 0.12, FUNNEL.neck.halfX + 0.12, FUNNEL.neckY - DECK_TOP, 20, 1, true), plastic(0x2a3170, 0.7));
-    throat.material.side = THREE.BackSide;
-    throat.position.set(0, (FUNNEL.neckY + DECK_TOP) / 2, FUNNEL.neck.z);
-    this.level.add(throat);
+  }
+
+  /** A clear pipe from the neck to the belt entry: the one place marbles join the belt, on every track shape. */
+  private buildChute(machine: Machine): void {
+    const { neck, neckY, chuteRadius, chuteClearance } = FUNNEL;
+    const land = machine.track.point(machine.entryDistance);
+    const top = new THREE.Vector3(0, neckY - 0.04, neck.z);
+    const bottom = new THREE.Vector3(land.x, RIDE_Y + land.y + MARBLE_RADIUS + chuteClearance, land.z);
+    const axis = bottom.clone().sub(top);
+    const length = axis.length();
+    const pipe = new THREE.Mesh(new THREE.CylinderGeometry(chuteRadius, chuteRadius, length, 24, 1, true), this.chuteGlass);
+    pipe.renderOrder = 1;
+    pipe.position.copy(top).addScaledVector(axis, 0.5);
+    pipe.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), axis.normalize());
+    const lip = new THREE.Mesh(new THREE.TorusGeometry(chuteRadius + 0.02, 0.05, 10, 28), shiny(0xf25f33));
+    lip.position.copy(bottom);
+    lip.quaternion.copy(pipe.quaternion);
+    lip.rotateX(Math.PI / 2);
+    this.level.add(pipe, lip);
   }
 
   /** The slab under everything is cut to the level: just wide enough for its columns and docks. */
@@ -132,10 +146,6 @@ export class MachineScene {
     base.position.set(0, -0.45, (frontZ + backZ) / 2);
     this.level.add(base);
     this.yard = new ArcadeYard(this.scene, halfWidth, backZ, frontZ);
-    const brand = stencil('FUNNEL SORT', 3.3, 0.38, '#e1fffa');
-    brand.rotation.x = 0;
-    brand.position.set(0, -0.3, frontZ + 0.012);
-    this.level.add(brand);
   }
 
   private buildFunnel(columns: number): void {
@@ -221,6 +231,7 @@ export class MachineScene {
       this.tracked.set(id, { previous: { ...pose }, current: pose });
     }
     this.buildFunnel(machine.board.supplies.length);
+    this.buildChute(machine);
     for (const crate of machine.readCrates()) {
       const group = this.crateGroup(crate.color);
       this.crates.set(crate.key, group);
@@ -247,13 +258,11 @@ export class MachineScene {
     const trackHalf = Math.max(...Array.from({ length: 64 }, (_, i) => Math.abs(machine.track.point(i / 64 * machine.track.length).x)));
     const baseHalf = Math.max(half, dockHalf, trackHalf + 1.1) + 0.45;
     this.buildBase(baseHalf, FUNNEL.mouth.back - 0.5, queueEnd + 0.7);
+    // A quiet lane under each dock groups its waiting boxes; a tint, not a dark slot.
     for (let dock = 0; dock < docks; dock++) {
-      const x = dockX(dock, docks);
-      const strip = rounded(BOX.halfWidth * 2 + 0.12, 0.04, queueEnd - BOX.z + 1.1, plastic(0x0b2939), 0.02);
-      strip.position.set(x, 0.03, (queueEnd + BOX.z) / 2 - 0.25);
-      const number = stencil(String(dock + 1).padStart(2, '0'), 0.65, 0.3, '#ffd363');
-      number.position.set(x, 0.06, BOX.z - 0.75);
-      this.level.add(strip, number);
+      const lane = rounded(BOX.halfWidth * 2 + 0.12, 0.04, queueEnd - BOX.z + 0.9, plastic(ARCADE.lane, 0.6), 0.02);
+      lane.position.set(dockX(dock, docks), 0.03, (queueEnd + BOX.z) / 2 - 0.15);
+      this.level.add(lane);
     }
     this.framing = [
       { x: -half - 0.3, y: FUNNEL.rimY, z: FUNNEL.mouth.back }, { x: half + 0.3, y: FUNNEL.rimY, z: FUNNEL.mouth.back },
@@ -287,12 +296,13 @@ export class MachineScene {
       if (!(object instanceof THREE.Mesh)) return;
       if (object instanceof THREE.InstancedMesh) object.dispose();
       object.geometry.dispose();
-      for (const material of Array.isArray(object.material) ? object.material : [object.material]) if (material !== this.glass && material !== this.lightOff && material !== this.lightOn) {
+      for (const material of Array.isArray(object.material) ? object.material : [object.material]) if (material !== this.glass && material !== this.chuteGlass && material !== this.lightOff && material !== this.lightOn) {
         if ('map' in material && material.map instanceof THREE.Texture) material.map.dispose();
         material.dispose();
       }
     });
     this.level.clear();
+    this.belt = null;
   }
 
   dispose(): void {
@@ -300,6 +310,7 @@ export class MachineScene {
     this.sparks.dispose();
     this.pops.dispose();
     this.glass.dispose();
+    this.chuteGlass.dispose();
     this.lightOff.dispose();
     this.lightOn.dispose();
     this.stage.disposeScene(this.scene);
@@ -390,15 +401,7 @@ export class MachineScene {
       visual.group.scale.set(scale * (1 + Math.sin(visual.pulse * Math.PI) * 0.055), scale, scale * (1 + Math.sin(visual.pulse * Math.PI) * 0.055));
       visual.lights.forEach((light, slot) => { light.material = slot < box.fill ? this.lightOn : this.lightOff; });
     }
-    for (let i = 0; i < CHEVRONS; i++) {
-      const p = machine.track.point((i / CHEVRONS) * machine.track.length + machine.beltDistance);
-      this.dummy.position.set(p.x, DECK_TOP + p.y + 0.014, p.z);
-      this.dummy.rotation.set(0, Math.atan2(-p.tz, p.tx), 0);
-      this.dummy.scale.setScalar(1);
-      this.dummy.updateMatrix();
-      this.chevrons.setMatrixAt(i, this.dummy.matrix);
-    }
-    this.chevrons.instanceMatrix.needsUpdate = true;
+    this.belt?.setTravel(machine.beltDistance + alpha * RACEWAY.speed * FIXED_SECONDS);
     this.stage.renderer.render(this.scene, this.camera);
   }
 

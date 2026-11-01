@@ -1,5 +1,6 @@
 import type { BeltShape } from '../engine/belt-path';
-export type Color = 'red' | 'blue' | 'green' | 'yellow';
+/** Orange arrives late in the campaign. Its luminance sits between the dark three and yellow. */
+export type Color = 'red' | 'blue' | 'green' | 'yellow' | 'orange';
 
 export interface Packet {
   readonly color: Color;

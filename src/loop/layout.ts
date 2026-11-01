@@ -101,7 +101,8 @@ export const TRUCK = {
   mouthInset: LOOP.channelHalf + 0.4,
   arriveSeconds: 0.38,
   leaveSeconds: 0.85,
-  exitLength: 2.6,
+  /** A short dispatch pad beyond the rim: a leaving truck shrinks away over it. */
+  exitLength: 1.7,
 } as const;
 export const trackFor = (lanes: number, shape: BeltShape = 'oval'): RoundedTrack | FigureEightTrack => {
   if (shape !== 'oval') return new FigureEightTrack(shape === 'wide-eight' ? 4.1 : 3.6, 9.5, 0, true);

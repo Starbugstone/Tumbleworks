@@ -60,6 +60,10 @@ export class LoopRules {
       const segments = truck.segments.map((segment) => ({ color: segment.color, marbles: packet(segment.color, segment.count, 'in-truck', lane, index) }));
       const load = segments.reduce((sum, segment) => sum + segment.marbles.length, 0);
       if (load > board.truckCapacity) throw new Error(`Board ${board.id}: lane ${lane} truck ${index} carries ${load} of ${board.truckCapacity}`);
+      // Adjacent segments of one colour would let a one-colour truck be poured; they are a board error.
+      for (let at = 1; at < segments.length; at++) {
+        if (segments[at]!.color === segments[at - 1]!.color) throw new Error(`Board ${board.id}: lane ${lane} truck ${index} repeats ${segments[at]!.color} in adjacent segments`);
+      }
       if (!segments.length) throw new Error(`Board ${board.id}: lane ${lane} truck ${index} is empty`);
       return { index, segments, unloading: [], complete: false };
     }));
@@ -166,13 +170,23 @@ export class LoopRules {
     return this.current.marbles.some((marble) => marble.status === 'on-loop' && this.laneFor(marble.color) !== null);
   }
 
+  /** True while some front truck still has a segment to pour; a truck of one colour cannot be tapped. */
+  canPour(): boolean {
+    return this.current.lanes.some((queue) => queue[0] && !queue[0].unloading.length && queue[0].segments.length >= 2);
+  }
+
+  /**
+   * A jam is any dead end: a full loop nobody can take from, or, with nothing left to pour and nothing
+   * unloading, a loop nobody can take from. The second case happens when the marbles a truck still
+   * needs sit in a truck queued behind it.
+   */
   private evaluateStatus(events: LoopEvent[]): void {
     const state = this.current;
     if (state.status !== 'playing') return;
     if (state.lanes.every((queue) => queue.length === 0)) {
       state.status = 'won';
       events.push({ type: 'won' });
-    } else if (this.free <= 0 && !this.canDrain()) {
+    } else if (!this.canDrain() && (this.free <= 0 || (this.pending === 0 && !this.canPour()))) {
       state.status = 'jammed';
       events.push({ type: 'jammed' });
     }

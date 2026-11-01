@@ -3,7 +3,7 @@ import { FALLING_GROUPS, PARKED_GROUPS, PLACED_GROUPS, physics, type PhysicsServ
 import { MachineRules, type ReleaseResult, type RulesEvent } from '../sim/rules';
 import type { BoardDef, Color } from '../sim/types';
 import {
-  BOX, columnX, conveyorTrack, CRATE, dockX, FLIGHT, FUNNEL, funnelFaces, funnelHalfWidth, GRAVITY, MARBLE_RADIUS,
+  BOX, columnX, conveyorTrack, CRATE, dockX, entryDistanceFor, FLIGHT, FUNNEL, funnelFaces, funnelHalfWidth, GRAVITY, MARBLE_RADIUS,
   RACEWAY, RIDE_Y, RIDER_SPACING, STACK, TICK_SECONDS,
 } from './layout';
 
@@ -107,6 +107,8 @@ interface Saved {
 }
 
 const BOX_REST_Y = BOX.floorThickness + MARBLE_RADIUS;
+/** Steps from the neck's pick to the landing, counting the pick step. The belt moves on meanwhile. */
+const EXIT_STEPS = Math.ceil((FUNNEL.exitSeconds + FUNNEL.dropSeconds) / TICK_SECONDS - 1e-6);
 const FALL_NUDGE_SECONDS = 4;
 const FALL_RESCUE_SECONDS = 8;
 const easeInOut = (t: number): number => t * t * (3 - 2 * t);
@@ -128,7 +130,7 @@ export class Machine {
   constructor(readonly board: BoardDef, private readonly physicsService: PhysicsService = physics) {
     this.rules = new MachineRules(board);
     this.track = conveyorTrack(board.trackShape);
-    this.entryDistance = this.track.nearest(0, FUNNEL.neck.z).distance;
+    this.entryDistance = entryDistanceFor(this.track);
     this.world = this.physicsService.createWorld(GRAVITY);
     this.dockDistances = board.docks.map((_, dock) => this.track.nearest(dockX(dock, board.docks.length), RACEWAY.centerZ + RACEWAY.radius).distance);
     this.control = {
@@ -429,17 +431,33 @@ export class Machine {
     }
   }
 
-  /** The neck lets one marble through when the belt has room and the landing spot is clear. */
-  private canEnter(): boolean {
-    if (this.rules.status !== 'playing' || this.rules.free <= 0) return false;
+  /** The belt offset the entry will have when a marble picked now reaches the bottom of the chute. */
+  private landingOffset(): number {
+    const length = this.track.length;
+    const beltThen = this.control.belt + RACEWAY.speed * TICK_SECONDS * (EXIT_STEPS - 1);
+    return (((this.entryDistance - beltThen) % length) + length) % length;
+  }
+
+  /** No rider, merging marble or reserved landing sits within a marble's spacing of this offset. */
+  private slotFree(offset: number, except: MarbleControl | null): boolean {
+    const length = this.track.length;
     for (const other of this.control.marbles) {
-      if (other.phase === 'exiting' && other.time < FUNNEL.exitSeconds) return false;
-      if (other.phase !== 'riding' && other.phase !== 'merging') continue;
-      const distance = (this.control.belt + other.offset) % this.track.length;
-      const gap = Math.abs(((distance - this.entryDistance + this.track.length * 1.5) % this.track.length) - this.track.length / 2);
-      if (gap < RIDER_SPACING * 1.15) return false;
+      if (other === except) continue;
+      if (other.phase !== 'riding' && other.phase !== 'merging' && other.phase !== 'exiting') continue;
+      const gap = Math.abs((((other.offset - offset) % length) + length * 1.5) % length - length / 2);
+      if (gap < RIDER_SPACING * 1.05) return false;
     }
     return true;
+  }
+
+  /**
+   * One marble at a time through the neck, and only when the slot it will land in is still clear when
+   * it gets there. Marbles already in the chute hold their reserved slots, so two can never share one.
+   */
+  private canEnter(): boolean {
+    if (this.rules.status !== 'playing' || this.rules.free <= 0) return false;
+    if (this.control.marbles.some((other) => other.phase === 'exiting' && other.time < FUNNEL.exitSeconds)) return false;
+    return this.slotFree(this.landingOffset(), null);
   }
 
   /**
@@ -473,6 +491,7 @@ export class Machine {
     pick.fromX = t.x; pick.fromY = t.y; pick.fromZ = t.z;
     pick.qx = q.x; pick.qy = q.y; pick.qz = q.z; pick.qw = q.w;
     pick.lateral = ((pick.id * 7) % 5 - 2) / 2 * RACEWAY.jitter;
+    pick.offset = this.landingOffset();
     body.setLinvel({ x: 0, y: 0, z: 0 }, false);
     body.setAngvel({ x: 0, y: 0, z: 0 }, false);
     body.setBodyType(RAPIER.RigidBodyType.KinematicPositionBased, false);
@@ -490,11 +509,13 @@ export class Machine {
       body.setNextKinematicTranslation({ x: marble.fromX + (neck.x - marble.fromX) * t, y: marble.fromY + (neck.y - marble.fromY) * t, z: marble.fromZ + (neck.z - marble.fromZ) * t });
       return;
     }
-    const t = Math.min((marble.time - FUNNEL.exitSeconds) / FUNNEL.dropSeconds, 1);
+    // A hair of tolerance keeps the landing on the step the reservation assumed, despite summed ticks.
+    const t = Math.min((marble.time + 1e-9 - FUNNEL.exitSeconds) / FUNNEL.dropSeconds, 1);
     const land = this.track.point(this.entryDistance, marble.lateral);
-    body.setNextKinematicTranslation({ x: neck.x + (land.x - neck.x) * t, y: neck.y + (RIDE_Y + land.y - neck.y) * t * t, z: neck.z + (land.z - neck.z) * t });
+    const s = t * t;
+    body.setNextKinematicTranslation({ x: neck.x + (land.x - neck.x) * s, y: neck.y + (RIDE_Y + land.y - neck.y) * s, z: neck.z + (land.z - neck.z) * s });
     this.roll(marble, 0, 0);
-    if (t >= 1) this.joinBelt(marble, body, { distance: this.entryDistance, lateral: marble.lateral });
+    if (t >= 1) this.joinBelt(marble, body);
   }
 
   private updateFalling(marble: MarbleControl): void {
@@ -506,22 +527,22 @@ export class Machine {
     else if (marble.time > FALL_NUDGE_SECONDS && Math.floor(marble.time * 60) % 45 === 0) this.nudge(marble, { x: -t.x * 0.6, y: 2.2, z: (FUNNEL.neck.z - t.z) * 0.6 });
   }
 
-  /** The fall ends here: from now on the marble rides where it landed. */
-  private joinBelt(marble: MarbleControl, body: RAPIER.RigidBody, near: { distance: number; lateral: number }): void {
+  /** The chute ends here: the marble takes the slot reserved for it at the neck and rides from there. */
+  private joinBelt(marble: MarbleControl, body: RAPIER.RigidBody): void {
     const t = body.translation();
     const q = body.rotation();
-    let offset = (near.distance - this.control.belt + this.track.length) % this.track.length;
-    // Keep the spacing honest even when a bounce lands it on a neighbour.
-    for (let attempt = 0; attempt < 6; attempt++) {
-      const clash = this.control.marbles.find((other) => other !== marble && (other.phase === 'riding' || other.phase === 'merging') &&
-        Math.abs((((other.offset - offset) % this.track.length) + this.track.length * 1.5) % this.track.length - this.track.length / 2) < RIDER_SPACING);
-      if (!clash) break;
-      offset = (clash.offset - RIDER_SPACING + this.track.length) % this.track.length;
+    if (!this.slotFree(marble.offset, marble)) {
+      // The reservation should make this impossible. Step back behind the neighbour and count it, so soaks notice.
+      for (let attempt = 0; attempt < 6 && !this.slotFree(marble.offset, marble); attempt++) {
+        marble.offset = (marble.offset - RIDER_SPACING + this.track.length) % this.track.length;
+      }
+      this.control.recoveries.bounces += 1;
+      this.lastRecovery = `landing slot taken at ${t.x.toFixed(2)},${t.z.toFixed(2)}`;
+      this.events.push({ type: 'recovered', marbleId: marble.id, how: 'bounce', why: 'landing slot taken' });
     }
     marble.phase = 'merging';
     marble.time = 0;
-    marble.offset = offset;
-    marble.lateral = Math.max(-RACEWAY.jitter, Math.min(RACEWAY.jitter, near.lateral));
+    marble.lateral = Math.max(-RACEWAY.jitter, Math.min(RACEWAY.jitter, marble.lateral));
     marble.fromX = t.x; marble.fromY = t.y; marble.fromZ = t.z;
     marble.qx = q.x; marble.qy = q.y; marble.qz = q.z; marble.qw = q.w;
     body.setLinvel({ x: 0, y: 0, z: 0 }, false);

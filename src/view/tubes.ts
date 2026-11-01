@@ -34,11 +34,15 @@ export class TubeView extends BoardView {
     this.sparks = new Sparks(this.scene);
     for (const color of Object.keys(COLORS) as Color[]) this.badgeMaterials.set(color,
       new THREE.MeshBasicMaterial({ map: containerSymbolTexture(color), transparent: true, depthWrite: false, toneMapped: false }));
-    const plinth = toyBox(8.2, 0.5, 15.2, 0x5566d9, 0.2);
-    plinth.position.set(0, 0.3, 0.3);
+    // The plinth grows with the rows of tubes, so a seventh tube still stands on it.
+    const rows = Math.ceil(definition.tubes.length / 2);
+    const depth = rows * 4.8 + 0.8;
+    const centerZ = (rows - 1) * 2.4 - 4.8 + 0.3;
+    const plinth = toyBox(8.2, 0.5, depth, 0x5566d9, 0.2);
+    plinth.position.set(0, 0.3, centerZ);
     this.board.add(plinth);
-    const deck = toyBox(7.7, 0.08, 14.7, 0xe6e9ff, 0.16);
-    deck.position.set(0, 0.57, 0.3);
+    const deck = toyBox(7.7, 0.08, depth - 0.5, 0xe6e9ff, 0.16);
+    deck.position.set(0, 0.57, centerZ);
     this.board.add(deck);
     const glass = new THREE.MeshPhysicalMaterial({ color: 0xe4f5ff, clearcoat: 0.7, transparent: true,
       opacity: 0.2, roughness: 0.08, side: THREE.DoubleSide, depthWrite: false, envMapIntensity: 1.5 });

@@ -93,7 +93,7 @@ describe('the Loop Sort machine agrees with the rules', () => {
     expect(machine.readTrucks().find((truck) => truck.lane === 1 && truck.docked)?.finalColor).toBe('yellow');
   });
 
-  it('dispatches above the deck and shrinks away before disappearing in both bay rows', () => {
+  it('dispatches above the deck and shrinks away before disappearing in both bay rows', { timeout: 300_000 }, () => {
     const rows = new Set<string>();
     for (const board of LOOP_BOARDS) {
       const machine = new LoopMachine(board);

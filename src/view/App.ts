@@ -23,6 +23,8 @@ const button = (id: string): HTMLButtonElement => {
 
 /** Campaign, controls and feedback only. Gameplay rules and entities belong to registered runtimes. */
 export class App {
+  /** Held fast forward runs this many ticks per real tick: a lap of a full belt in a third of the time. */
+  static readonly FAST_SPEED = 3;
   readonly stage: Stage;
   readonly services: GameServices;
   runtime!: GameRuntime;
@@ -42,8 +44,11 @@ export class App {
   private focusTarget: string | null = null;
   private chain = 0;
   private guiding = false;
+  /** Simulation speed while the fast-forward button or key is held. Rules are unchanged; ticks just come faster. */
+  private speed = 1;
   private readonly message = element('message');
   private readonly undoButton = button('undo');
+  private readonly fastButton = button('fast');
   private readonly card = element('card');
   private readonly chips = element('chips');
   private readonly ring = element('focus-ring');
@@ -69,6 +74,7 @@ export class App {
       if (this.runtime.status === 'won') this.loadBoard((this.boardIndex + 1) % CAMPAIGN.length);
       else this.card.hidden = true;
     });
+    this.bindFastForward();
     const toggle = button('levels-toggle');
     toggle.addEventListener('click', () => { sfx.unlock(); this.showLevels(element('levels').hidden !== false); });
     const mute = button('mute');
@@ -79,8 +85,10 @@ export class App {
       mute.setAttribute('aria-pressed', String(sfx.isMuted));
     });
     window.addEventListener('resize', () => { this.pointer.cancel(); this.runtime?.resize(); this.refresh(); });
-    document.addEventListener('visibilitychange', () => { this.pointer.cancel(); this.lastFrame = performance.now(); this.accumulator = 0; });
+    document.addEventListener('visibilitychange', () => { this.pointer.cancel(); this.setFast(false); this.lastFrame = performance.now(); this.accumulator = 0; });
+    window.addEventListener('blur', () => this.setFast(false));
     document.addEventListener('keydown', (event) => this.key(event));
+    document.addEventListener('keyup', (event) => { if (event.key === 'f' || event.key === 'F') this.setFast(false); });
     button('language-en').addEventListener('click', () => setLocale('en'));
     button('language-fr').addEventListener('click', () => setLocale('fr'));
     button('guide-skip').addEventListener('click', () => this.finishGuide());
@@ -98,6 +106,35 @@ export class App {
       if (!this.card.hidden) this.endingCard();
       this.refresh();
     });
+  }
+
+  /** Press and hold, on any pointer: capture keeps the release even when the finger slides off. */
+  private bindFastForward(): void {
+    const fast = this.fastButton;
+    fast.addEventListener('contextmenu', (event) => event.preventDefault());
+    fast.addEventListener('touchstart', (event) => event.preventDefault(), { passive: false });
+    fast.addEventListener('pointerdown', (event) => {
+      if (fast.disabled) return;
+      event.preventDefault();
+      sfx.unlock();
+      fast.setPointerCapture(event.pointerId);
+      this.setFast(true);
+    });
+    for (const type of ['pointerup', 'pointercancel', 'lostpointercapture'] as const) fast.addEventListener(type, () => this.setFast(false));
+    fast.addEventListener('keydown', (event) => { if ((event.key === ' ' || event.key === 'Enter') && !event.repeat) { event.preventDefault(); this.setFast(true); } });
+    fast.addEventListener('keyup', (event) => { if (event.key === ' ' || event.key === 'Enter') this.setFast(false); });
+    fast.addEventListener('blur', () => this.setFast(false));
+  }
+
+  get fastForward(): boolean { return this.speed > 1; }
+
+  setFast(on: boolean): void {
+    const allowed = on && Boolean(this.runtime) && this.runtime.status === 'playing' && !this.fastButton.disabled;
+    const next = allowed ? App.FAST_SPEED : 1;
+    if (next === this.speed) return;
+    this.speed = next;
+    this.fastButton.classList.toggle('active', allowed);
+    this.fastButton.setAttribute('aria-pressed', String(allowed));
   }
 
   static async start(canvas: HTMLCanvasElement): Promise<App> {
@@ -118,6 +155,7 @@ export class App {
     if (!level) throw new Error(`No campaign level ${index}`);
     window.clearTimeout(this.winTimer);
     window.clearTimeout(this.hintTimer);
+    this.setFast(false);
     this.runtime?.dispose();
     this.boardIndex = index;
     this.runtime = level.create(this.services);
@@ -162,14 +200,15 @@ export class App {
   };
 
   advance(seconds: number, draw = true): void {
-    this.accumulator += Math.min(seconds, 0.25);
+    this.accumulator += Math.min(seconds * this.speed, 0.25);
+    const limit = 8 * this.speed;
     let steps = 0;
-    while (this.accumulator >= FIXED_SECONDS && steps < 8) {
+    while (this.accumulator >= FIXED_SECONDS && steps < limit) {
       this.accumulator -= FIXED_SECONDS;
       this.feedback(this.runtime.step());
       steps++;
     }
-    if (steps === 8) this.accumulator = 0;
+    if (steps === limit) this.accumulator = 0;
     if (draw) this.runtime.render(this.accumulator / FIXED_SECONDS, seconds);
     this.checkEnding();
     this.refresh();
@@ -186,14 +225,16 @@ export class App {
   }
 
   private feedback(events: readonly Feedback[]): void {
+    // Fast forward triples the event rate, so the small per-marble sounds rest and only the payoffs play.
+    const quiet = this.speed > 1;
     for (const event of events) {
       switch (event.type) {
-        case 'tap': sfx.tap(); break;
+        case 'tap': if (!quiet) sfx.tap(); break;
         case 'move': sfx.release(); break;
         case 'match': sfx.boxFilled(this.chain++); break;
         case 'blocked': sfx.blocked(); break;
-        case 'impact': sfx.impact(event.strength ?? 0.2); break;
-        case 'deliver': sfx.deliver(event.slot ?? 0); break;
+        case 'impact': if (!quiet) sfx.impact(event.strength ?? 0.2); break;
+        case 'deliver': if (!quiet || (event.slot ?? 0) === 0) sfx.deliver(event.slot ?? 0); break;
         case 'message': break;
       }
       if (event.text) this.setMessage(event.text, 5500, event.type === 'blocked');
@@ -248,10 +289,13 @@ export class App {
     const counter = this.runtime.counter;
     const loadText = `${counter.label} ${counter.value}`;
     if (element('load').textContent !== loadText) element('load').textContent = loadText;
+    element('load').classList.toggle('full', Boolean(counter.full) && this.runtime.status === 'playing');
     element('load').classList.toggle('jammed', this.runtime.status === 'jammed');
     this.undoButton.disabled = !this.runtime.canUndo;
     this.undoButton.classList.toggle('attention', this.runtime.status === 'jammed');
     button('hint').disabled = this.runtime.status !== 'playing';
+    this.fastButton.disabled = this.runtime.status !== 'playing';
+    if (this.fastButton.disabled) this.setFast(false);
     const key = this.runtime.preview.join(',');
     if (key !== this.previewKey) {
       this.previewKey = key;
@@ -309,7 +353,7 @@ export class App {
   private localize(): void {
     document.documentElement.lang = locale();
     for (const [id, label] of Object.entries({
-      undo: t('Undo', 'Annuler'), restart: t('Restart', 'Recommencer'), hint: t('Hint', 'Indice'), mute: t('Sound', 'Son'),
+      undo: t('Undo', 'Annuler'), restart: t('Restart', 'Recommencer'), hint: t('Hint', 'Indice'), fast: t('Fast forward (hold)', 'Avance rapide (maintenir)'), mute: t('Sound', 'Son'),
       scene: t('Puzzle board', 'Plateau de jeu'), chips: t('Campaign levels', 'Niveaux'), 'board-controls': t('Board pieces', 'Pièces du plateau'), patterns: t('Container patterns', 'Motifs des contenants'),
     })) element(id).setAttribute('aria-label', label);
     element('language-label').textContent = t('Language', 'Langue');
@@ -318,9 +362,9 @@ export class App {
     button('guide-replay').textContent = t('Restart with guide', 'Recommencer avec le guide');
     button('guide-replay').hidden = !this.runtime.guideId;
     element('guide-pointer-label').textContent = t('Tap here', 'Touchez ici');
-    element('patterns').replaceChildren(...(['red', 'blue', 'green', 'yellow'] as Color[]).map((color, index) => {
+    element('patterns').replaceChildren(...(['red', 'blue', 'green', 'yellow', 'orange'] as Color[]).map((color, index) => {
       const item = document.createElement('span');
-      item.textContent = `${['○', '◆', '▲', '★'][index]} ${patternName(color)} = ${colorName(color)}`;
+      item.textContent = `${['○', '◆', '▲', '★', '✚'][index]} ${patternName(color)} = ${colorName(color)}`;
       return item;
     }));
     const level = CAMPAIGN[this.boardIndex];
@@ -403,6 +447,7 @@ export class App {
     if (event.ctrlKey || event.metaKey || event.altKey) return;
     if (event.target instanceof HTMLButtonElement && (event.key === 'Enter' || event.key === ' ')) return;
     if (event.key === 'u') this.undo();
+    else if (event.key === 'f' || event.key === 'F') { if (!event.repeat) { sfx.unlock(); this.setFast(true); } }
     else if (event.key === 'h') this.feedback(this.runtime.hint());
     else if (event.key === 'r') this.loadBoard(this.boardIndex);
     else if (event.key.startsWith('Arrow')) {
@@ -420,7 +465,7 @@ export class App {
   }
   debugTargets(): Record<string, ScreenPoint> {
     const targets = this.runtime.targets();
-    for (const id of ['undo', 'restart', 'hint', 'card-action']) {
+    for (const id of ['undo', 'restart', 'hint', 'fast', 'card-action']) {
       const rect = element(id).getBoundingClientRect();
       targets[id === 'card-action' ? 'card' : id] = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
     }
@@ -429,6 +474,6 @@ export class App {
   debugState(): Record<string, unknown> {
     const level = CAMPAIGN[this.boardIndex];
     return { levelIndex: this.boardIndex, levelId: level?.id, kind: level?.kind, difficulty: level?.difficulty,
-      ...this.runtime.inspect(), status: this.runtime.status, busy: this.runtime.busy, entities: this.stage.marbles.count };
+      ...this.runtime.inspect(), status: this.runtime.status, busy: this.runtime.busy, speed: this.speed, entities: this.stage.marbles.count };
   }
 }

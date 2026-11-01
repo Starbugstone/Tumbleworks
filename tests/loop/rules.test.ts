@@ -21,6 +21,8 @@ describe('Loop Sort rules', () => {
     expect(() => new LoopRules({ ...LOOP_1, loop: [{ color: 'red', count: 12 }] })).toThrow(/red|yellow/);
     expect(() => new LoopRules({ ...LOOP_1, truckCapacity: 20 })).toThrow(/carries|cannot/);
     expect(() => new LoopRules({ ...LOOP_1, loopCapacity: 6 })).toThrow(/over loop capacity/);
+    const split = LOOP_1.lanes.map((lane, index) => index ? lane : lane.map((truck, at) => at ? truck : ({ segments: [{ color: truck.segments[0]!.color, count: 2 }, { color: truck.segments[0]!.color, count: truck.segments[0]!.count - 2 }, ...truck.segments.slice(1)] })));
+    expect(() => new LoopRules({ ...LOOP_1, lanes: split })).toThrow(/adjacent segments/);
   });
 
   it('trucks take their loop-end colour automatically and fill from the loop', () => {

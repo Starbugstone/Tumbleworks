@@ -21,13 +21,14 @@ export class LoopRuntime implements GameRuntime {
   get busy() { return this.machine.transferring; }
   get canUndo() { return this.machine.canUndo; }
   get counter() {
-    return { label: t('Loop', 'Circuit'), value: `${this.machine.rules.occupancy}/${this.board.loopCapacity}` };
+    return { label: t('Loop', 'Circuit'), value: `${this.machine.rules.occupancy}/${this.board.loopCapacity}`, full: this.machine.rules.free <= 0 };
   }
   readonly preview = [];
   readonly previewLabel = '';
   get jamReason() {
     const wanted = [...new Set(this.board.lanes.map((_, lane) => this.machine.rules.wants(lane)).filter((want): want is Exclude<typeof want, null | 'any'> => want !== null && want !== 'any'))];
     const names = wanted.map((color) => marbleName(color).toLowerCase());
+    if (this.machine.rules.free > 0) return t(`No truck can pour and the trucks only take ${names.join(' or ') || 'nothing right now'}. What they need is stuck in a truck behind. Undo a pour.`, `Aucun camion ne peut se vider et les camions ne prennent que ${names.join(' ou ') || 'plus rien pour le moment'}. Ce qu’il leur faut est bloqué dans un camion derrière. Annulez un versement.`);
     return t(`The loop is full and the trucks only take ${names.join(' or ') || 'nothing right now'}. Undo a pour to free the line.`, `Le circuit est plein et les camions ne prennent que ${names.join(' ou ') || 'plus rien pour le moment'}. Annulez un versement pour libérer le passage.`);
   }
 

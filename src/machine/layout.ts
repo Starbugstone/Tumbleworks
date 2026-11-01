@@ -102,7 +102,7 @@ export const columnX = (index: number, count: number): number => (index - (count
 export const funnelHalfWidth = (columns: number): number => ((columns - 1) / 2) * COLUMN_SPACING + 1.35;
 
 /** Supply crates hang over the funnel in a receding stack; the front crate opens when tapped. */
-export const STACK = { y: 4.65, z: -2.75, stepY: 1.0, stepZ: -0.9, slideSeconds: 0.22 } as const;
+export const STACK = { y: 6.15, z: -2.75, stepY: 1.0, stepZ: -0.9, slideSeconds: 0.22 } as const;
 export const CRATE = {
   halfWidth: 1.14,
   halfDepth: 1.14,
@@ -117,12 +117,15 @@ export const CRATE = {
 } as const;
 
 const backZ = TRACK.backZ;
-/** A shallow clear dish under the shelf that gathers every pour into one neck above the belt. */
+/**
+ * A shallow clear dish under the shelf that gathers every pour into one neck, and a clear chute from
+ * the neck to the belt. The dish sits high enough that the figure-eight bridge ramps pass under it.
+ */
 export const FUNNEL = {
-  mouthY: 3.8,
-  rimY: 4.25,
+  mouthY: 5.3,
+  rimY: 5.75,
   mouth: { back: -4.05, front: -0.5 },
-  neckY: 2.2,
+  neckY: 3.7,
   /** The drawn opening above the belt. The pile rests on a closed floor here; the exit itself is scripted. */
   neck: { halfX: 0.5, halfZ: 0.45, z: backZ - 0.2 },
   /** Marbles this close to the neck centre, and this low, are the ones the neck can take next. */
@@ -131,9 +134,12 @@ export const FUNNEL = {
   /** The dish vibrates a little, like a parts feeder, so the pile keeps rolling toward the neck. */
   shakeHeight: 1.4,
   shakeImpulse: 0.5,
-  /** The scripted exit: down through the neck, then onto the belt. */
+  /** The scripted exit: down through the neck, then straight down the chute onto the belt. */
   exitSeconds: 0.1,
-  dropSeconds: 0.14,
+  dropSeconds: 0.2,
+  /** The chute's inside radius; its lower mouth stops this far above a riding marble. */
+  chuteRadius: 0.56,
+  chuteClearance: 0.12,
 } as const;
 
 export const BOX = {
@@ -155,6 +161,18 @@ export const BOX = {
 
 /** The scripted hop from the belt into a box. */
 export const FLIGHT = { seconds: 0.22, arc: 0.95, hopSeconds: 0.14, hopHeight: 0.16, mergeSeconds: 0.12 } as const;
+
+/**
+ * Where the chute meets the belt. The oval takes the point straight below the neck. An eight joins the
+ * lower pass a little before it dives under the bridge, so the chute never ends beneath the deck.
+ */
+export function entryDistanceFor(track: Track | FigureEightTrack): number {
+  if (track instanceof FigureEightTrack) {
+    const a = 0.35;
+    return track.nearest(track.halfWidth * Math.sin(a), track.centerZ - track.halfDepth * Math.sin(2 * a)).distance;
+  }
+  return track.nearest(0, FUNNEL.neck.z).distance;
+}
 
 export const conveyorTrack = (shape: BeltShape = 'oval'): Track | FigureEightTrack => shape === 'oval' ? TRACK : new FigureEightTrack(shape === 'wide-eight' ? 5 : 4.4, shape === 'wide-eight' ? 1.8 : 1.65, TRACK.centerZ, false);
 

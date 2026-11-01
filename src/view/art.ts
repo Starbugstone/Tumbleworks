@@ -12,12 +12,15 @@ export interface Palette {
 /**
  * Chosen so that no pair relies on hue alone: yellow is the brightest colour by far, green is a deep
  * teal, red and blue sit between. Red-green and yellow-green confusions still leave a luminance gap.
+ * Orange, the late fifth colour, sits halfway up in luminance (about 0.40 against 0.15–0.21 for the
+ * dark three and 0.73 for yellow), so it never shares a brightness band with a neighbour on its hue line.
  */
 export const COLORS: Record<Color, Palette> = {
   red: { base: '#e4332f', light: '#ff9b86', dark: '#7c0d18', hex: 0xe4332f },
   blue: { base: '#2a63e8', light: '#9cc6ff', dark: '#0c2c82', hex: 0x2a63e8 },
   green: { base: '#0b8f7a', light: '#7fe0cc', dark: '#044a40', hex: 0x0b8f7a },
   yellow: { base: '#ffdc52', light: '#fff8c8', dark: '#b58a05', hex: 0xffdc52 },
+  orange: { base: '#ff8a1c', light: '#ffc48a', dark: '#8a3f00', hex: 0xff8a1c },
 };
 export const marbleName = (color: Color): string => `${patternName(color)} (${colorName(color)})`;
 
@@ -158,12 +161,20 @@ export function drawSymbol(ctx: Ctx, color: Color, cx: number, cy: number, r: nu
     ctx.lineTo(r * 1.05, r * 0.8);
     ctx.lineTo(-r * 1.05, r * 0.8);
     ctx.closePath();
-  } else {
+  } else if (color === 'yellow') {
     for (let i = 0; i < 10; i++) {
       const a = -Math.PI / 2 + (i * Math.PI) / 5;
       const radius = i % 2 === 0 ? r * 1.15 : r * 0.5;
       ctx.lineTo(Math.cos(a) * radius, Math.sin(a) * radius);
     }
+    ctx.closePath();
+  } else {
+    // A bold cross: four arms read at every size and never look like the ring, diamond, triangle or star.
+    const arm = r * 0.4;
+    const reach = r * 1.08;
+    ctx.moveTo(-arm, -reach); ctx.lineTo(arm, -reach); ctx.lineTo(arm, -arm); ctx.lineTo(reach, -arm);
+    ctx.lineTo(reach, arm); ctx.lineTo(arm, arm); ctx.lineTo(arm, reach); ctx.lineTo(-arm, reach);
+    ctx.lineTo(-arm, arm); ctx.lineTo(-reach, arm); ctx.lineTo(-reach, -arm); ctx.lineTo(-arm, -arm);
     ctx.closePath();
   }
   ctx.fill('evenodd');

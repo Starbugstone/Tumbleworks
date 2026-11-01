@@ -3,7 +3,7 @@ import type { PhysicsService } from './physics';
 import type { Stage } from './stage';
 
 export type GameStatus = 'playing' | 'won' | 'jammed';
-export type Difficulty = 'Getting started' | 'Finding a rhythm' | 'Thinking ahead';
+export type Difficulty = 'Getting started' | 'Finding a rhythm' | 'Thinking ahead' | 'Full spectrum';
 export interface ScreenPoint { x: number; y: number; label?: string }
 export interface GuideStep { readonly text: string; readonly target?: string; readonly done?: boolean }
 export interface Feedback {
@@ -37,7 +37,7 @@ export interface GameRuntime {
   readonly status: GameStatus;
   readonly busy: boolean;
   readonly canUndo: boolean;
-  readonly counter: { label: string; value: string };
+  readonly counter: { label: string; value: string; full?: boolean };
   readonly preview: readonly Color[];
   readonly previewLabel: string;
   readonly jamReason: string;

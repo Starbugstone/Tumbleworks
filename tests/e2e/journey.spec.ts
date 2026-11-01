@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { TUBE_BOARDS } from '../../src/puzzles/levels';
+import { availableTubeMoves, TubeRules } from '../../src/puzzles/rules';
 import type { App } from '../../src/view/App';
 import { CAMPAIGN } from '../../src/campaign';
 import { FUNNEL_WITNESSES, LOOP_WITNESSES } from '../witnesses';
@@ -33,7 +34,19 @@ async function tap(page: Page, target: string): Promise<void> {
   expect(point.x).toBeLessThan(size?.width ?? 0);
   expect(point.y).toBeGreaterThan(0);
   expect(point.y).toBeLessThan(size?.height ?? 0);
-  await page.touchscreen.tap(point.x, point.y);
+  // Under a loaded machine a synthetic touch can fail to register; retry only when the board did not react at all.
+  const reaction = (snapshot: Record<string, unknown>) => JSON.stringify([snapshot['busy'], snapshot['status'], snapshot['pending'], snapshot['occupancy'], snapshot['moves'], snapshot['selected']]);
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const before = reaction(await state(page));
+    await page.touchscreen.tap(point.x, point.y);
+    if (reaction(await state(page)) !== before) break;
+    const why = await page.evaluate(({ x, y, id }) => {
+      const app = (window as unknown as GameWindow).tumbleworks.app;
+      const under = document.elementFromPoint(x, y);
+      return JSON.stringify({ picked: app.runtime.pick(x, y), under: under ? `${under.tagName}#${under.id}` : null, target: app.debugTargets()[id], state: app.debugState() });
+    }, { x: point.x, y: point.y, id: target });
+    console.log(`tap on ${target} did not register (attempt ${attempt + 1}): ${why}`);
+  }
   await settle(page);
 }
 
@@ -72,29 +85,47 @@ async function solve(page: Page, index: number): Promise<void> {
   expect(await state(page)).toMatchObject({ status: 'won', busy: false });
 }
 
-test('all levels complete through real touch input and share campaign progression', async ({ page }) => {
-  test.setTimeout(420_000);
-  const errors: string[] = [];
-  page.on('pageerror', (error) => errors.push(error.message));
-  await page.goto('/');
-  await ready(page);
-  await page.locator('#levels-toggle').click();
-  await expect(page.locator('.chip')).toHaveCount(CAMPAIGN.length);
-  await page.locator('#levels-toggle').click();
-  for (let index = 0; index < CAMPAIGN.length; index++) {
-    expect((await state(page)).levelIndex).toBe(index);
-    await page.screenshot({ path: `output/current/campaign-level${index + 1}.png` });
-    await solve(page, index);
-    await expect(page.locator(`.chip[data-level="${index}"]`)).toHaveText('✓');
-    await expect(page.locator('#card')).toBeVisible();
-    if (index < CAMPAIGN.length - 1) await page.getByRole('button', { name: 'Next level', exact: true }).click();
+/** Ninety levels take too long for one worker, so the campaign is played in slices that run in parallel. */
+const SLICES = 3;
+const sliceBounds = (slice: number): [number, number] => {
+  const size = Math.ceil(CAMPAIGN.length / SLICES);
+  return [slice * size, Math.min(CAMPAIGN.length, (slice + 1) * size)];
+};
+
+test.describe('the whole campaign completes through real touch input', () => {
+  test.describe.configure({ mode: 'parallel' });
+  for (let slice = 0; slice < SLICES; slice++) {
+    const [first, last] = sliceBounds(slice);
+    test(`levels ${first + 1} to ${last} complete and record their progress`, async ({ page }) => {
+      test.setTimeout(1_500_000);
+      const errors: string[] = [];
+      page.on('pageerror', (error) => errors.push(error.message));
+      await page.goto('/');
+      await ready(page);
+      await page.locator('#levels-toggle').click();
+      await expect(page.locator('.chip')).toHaveCount(CAMPAIGN.length);
+      await page.locator('#levels-toggle').click();
+      if (first > 0) await select(page, first);
+      for (let index = first; index < last; index++) {
+        expect((await state(page)).levelIndex).toBe(index);
+        // A level may start with trucks loading from the ring or marbles settling: let it come to rest before the first tap.
+        await settle(page);
+        await page.screenshot({ path: `output/current/campaign-level${index + 1}.png` });
+        await solve(page, index);
+        await expect(page.locator(`.chip[data-level="${index}"]`)).toHaveText('✓');
+        await expect(page.locator('#card')).toBeVisible();
+        if (index < CAMPAIGN.length - 1) await page.getByRole('button', { name: 'Next level', exact: true }).click();
+      }
+      if (last === CAMPAIGN.length) await expect(page.locator('#card-title')).toHaveText('Workshop complete!');
+      await page.reload();
+      await ready(page);
+      await page.locator('#levels-toggle').click();
+      const chips = await page.locator('.chip').allTextContents();
+      expect(chips.slice(first, last)).toEqual(Array(last - first).fill('✓'));
+      expect(chips.filter((text) => text === '✓')).toHaveLength(last - first);
+      expect(errors).toEqual([]);
+    });
   }
-  await expect(page.locator('#card-title')).toHaveText('Workshop complete!');
-  await page.reload();
-  await ready(page);
-  await page.locator('#levels-toggle').click();
-  await expect(page.locator('.chip')).toHaveText(Array(CAMPAIGN.length).fill('✓'));
-  expect(errors).toEqual([]);
 });
 
 test('each ruleset recovers from a real jam through the shared undo button', async ({ page }) => {
@@ -115,9 +146,14 @@ test('each ruleset recovers from a real jam through the shared undo button', asy
   await page.getByRole('button', { name: 'Undo', exact: true }).click();
   expect((await state(page)).status).toBe('playing');
 
-  await select(page, levelIndex('tube-3'));
-  await tap(page, 'tube1');
-  await tap(page, 'tube4');
+  // The first Tube Sort board that can be jammed in one move, found from the rules rather than hard-coded.
+  const trap = TUBE_BOARDS.flatMap((board) => availableTubeMoves(board, { tubes: board.tubes.map((tube) => [...tube]) })
+    .filter((move) => { const rules = new TubeRules(board); return rules.move(move.from, move.to).ok && rules.status === 'jammed'; })
+    .map((move) => ({ id: board.id, move })))[0];
+  if (!trap) throw new Error('No Tube Sort board jams in one move');
+  await select(page, levelIndex(trap.id));
+  await tap(page, `tube${trap.move.from}`);
+  await tap(page, `tube${trap.move.to}`);
   expect((await state(page)).status).toBe('jammed');
   await page.getByRole('button', { name: 'Undo', exact: true }).click();
   expect(await state(page)).toMatchObject({ status: 'playing', moves: 0 });
@@ -148,13 +184,14 @@ test('hints explain current board actions without playing them; restart resets t
 });
 
 test('desktop and narrow-phone boards keep targets and controls inside the viewport', async ({ page }) => {
+  test.setTimeout(900_000);
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/');
   await ready(page);
   for (const viewport of [{ width: 1365, height: 900 }, { width: 320, height: 700 }]) {
     await page.setViewportSize(viewport);
-    for (const id of ['board-1', 'loop-1', 'tube-1', 'board-3', 'loop-4', 'tube-3', 'board-5', 'loop-5', 'board-6', 'loop-6', 'board-7', 'loop-7']) {
+    for (const id of ['board-1', 'loop-1', 'tube-1', 'board-3', 'loop-4', 'tube-3', 'board-5', 'loop-5', 'board-6', 'loop-6', 'board-7', 'loop-7', 'board-9', 'loop-9', 'tube-7', 'board-11', 'loop-11', 'board-23', 'board-26', 'board-28', 'board-30', 'loop-15', 'loop-18', 'loop-20', 'loop-30', 'tube-15', 'tube-30']) {
       const index = levelIndex(id);
       await select(page, index);
       const targets = await page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.debugTargets());

@@ -1,8 +1,8 @@
 # Tumbleworks
 
-Tumbleworks is a browser marble game with one seventeen-level campaign. It has seven levels each of Funnel Sort and Loop Sort, and three of Tube Sort. The campaign takes one level of each type per round. The level picker behind the top-left pill opens any level.
+Tumbleworks is a browser marble game with one ninety-level campaign: thirty levels each of Funnel Sort, Loop Sort and Tube Sort. Each round takes one level of each type in that order, preserving the original seventeen's order and existing save IDs. Orange first appears in `tube-6`, then `board-8` and `loop-8`. The difficulty tiers are Getting started, Finding a rhythm, Thinking ahead and Full spectrum; any board containing orange is Full spectrum. The scrolling level picker behind the top-left pill opens any level.
 
-Funnel Sort uses physics for the fall from a crate and for the pile in the funnel. A script moves marbles through the neck, along the belt and into the boxes. Loop Sort is fully scripted. Tube Sort uses the shared physics landing for their transfers.
+Funnel Sort uses physics for the fall from a crate and for the pile in the funnel. A script moves marbles through the neck, along the belt and into the boxes. Loop Sort is fully scripted. Tube Sort uses the shared physics landing for its transfers.
 
 ## Run
 
@@ -20,9 +20,9 @@ Choose **English** or **Français** in the level menu. The first launch follows 
 - **Loop Sort.** A truck takes the color at its loop end as that color passes. Tap a truck to pour that color onto the loop and reach the color behind it. The color and pattern on its cab show the final color it needs. Moving arrows at its open end mean unloading; a pause mark means the full loop is holding it up. A truck full of that color drives away. You lose if the loop is full and no truck can take anything from it.
 - **Tube Sort.** Drag a top group into an empty tube or onto the same color, or tap the two tubes. As many marbles as fit move in one action. You win when each color fills its own tube.
 
-Every type accepts the next legal action while earlier animation runs. Marbles are plain, glossy and naturally colored, and every pair of colors differs in brightness. Crates, boxes, cargo blocks, truck cabs and the slot rail beside each tube carry ring, diamond, triangle or star marks, and the level picker shows the legend.
+Every type accepts the next legal action while earlier animation runs. Marbles are plain, glossy and naturally colored, and every pair of colors differs in brightness. Crates, boxes, cargo blocks, truck cabs and the slot rail beside each tube carry ring, diamond, triangle, star or cross marks, and the level picker shows the legend.
 
-The first two Loop Sort boards start with an empty belt and room for the intended pours. Each conveyor game has two later figure-eight boards with a raised bridge; they occupy campaign levels 14–17.
+The first two Loop Sort boards start with an empty belt and room for the intended pours. Each conveyor game includes figure-eight boards with a raised bridge, including its final two levels.
 
 Funnel Sort and Loop Sort sit in an arcade loading yard with steady edge lighting. A filled box or truck gets a short completion stamp and sound at its loading point. Trucks leave across raised exit pads; they stay above the platform as they disappear.
 
@@ -49,7 +49,20 @@ docker compose --profile e2e run --rm e2e npx playwright test
 
 Browser tests tap real canvas targets and advance the game clock by hand. They check behavior and layout, not phone frame rates.
 
-To author levels, `scripts/board-tree.ts` and `scripts/loop-tree.ts` count the winning and losing tap orders of each conveyor level.
+The authoring scripts generate boards from seeded recipe tables and reject candidates that fail their solver checks. Funnel Sort boards 3–30 and Loop Sort levels 6–30 need a winning witness, a losing order, a recipe-specific winning share, jams from simple repeated pour orders and an opening hint within 250 ms. Their capacities are tightened to the least solvable value plus recipe slack, capped at the recipe maximum. Loop Sort builds backwards from solved trucks through mirrored legal moves. Tube Sort levels 2–30 need a verified shortest solution inside the recipe's move range, found within the default in-game solver budget and 250 ms; recipes can spread marbles over part-full tubes. Earlier boards stay hand-authored and keep their guides.
+
+```sh
+docker compose exec -T dev npx tsx scripts/funnel-author.ts stats
+docker compose exec -T dev npx tsx scripts/funnel-author.ts emit
+docker compose exec -T dev npx tsx scripts/loop-author.ts stats
+docker compose exec -T dev npx tsx scripts/loop-author.ts emit
+docker compose exec -T dev npx tsx scripts/tube-author.ts batch
+docker compose exec -T dev npx tsx scripts/tube-author.ts 5 5 2 1 12 22
+```
+
+Append level IDs to `stats` or `emit` to select recipes; omit them to process all recipes. Conveyor `emit` output supplies definitions for `src/sim/boards.ts` or `src/loop/boards.ts`, witness and jam orders for `tests/witnesses.ts`, and French titles for `src/i18n.ts`. Tube `batch` emits definitions with solutions for `src/puzzles/levels.ts` and French titles for `src/i18n.ts`. The single-board Tube Sort form takes colours, capacity, empties, seed, optional minimum and maximum moves, then optional spread. These commands print output for review and pasting; they do not edit the campaign.
+
+Tube Sort's bank ramps gently after the player found its early boards too hard. Funnel Sort boards 3–11 and Loop Sort levels 6–11 are re-rolled for tighter capacity and a minority of winning orders. `scripts/board-tree.ts` and `scripts/loop-tree.ts` remain available to inspect registered conveyor levels. [Verification](docs/verification.md) explains the authoring metrics and acceptance rules.
 
 ## Screenshots and video
 

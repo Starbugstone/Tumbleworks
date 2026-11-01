@@ -1,0 +1,132 @@
+import { solveTube } from '../src/puzzles/rules';
+import type { TubeDef, TubeMove } from '../src/puzzles/types';
+import type { Color } from '../src/sim/types';
+
+/**
+ * Random Tube Sort boards with a verified shortest solution, for authoring:
+ *   npx tsx scripts/tube-author.ts <colors> <capacity> <empties> <seed> [minMoves] [maxMoves] [spread]
+ *     prints the first seed at or after <seed> whose shortest solution falls in the move range;
+ *     <spread> starts the marbles in that many tubes instead of one full tube per colour.
+ *   npx tsx scripts/tube-author.ts batch      # evaluate every recipe below and print the TypeScript
+ */
+const PALETTE: Color[] = ['red', 'blue', 'green', 'yellow', 'orange'];
+
+export interface TubeRecipe {
+  readonly id: string;
+  readonly title: string;
+  readonly fr: string;
+  readonly note: string;
+  readonly colors: number;
+  readonly capacity: number;
+  readonly empties: number;
+  /** Tubes holding marbles at the start; more than the colour count leaves them part full. */
+  readonly spread?: number;
+  readonly seed: number;
+  readonly moves: readonly [number, number];
+}
+
+function random(seed: number): () => number {
+  let state = seed || 1;
+  return () => { state = (state * 16807) % 2147483647; return state / 2147483647; };
+}
+
+function generate(colors: Color[], capacity: number, empties: number, spread: number, seed: number): Color[][] | null {
+  const next = random(seed);
+  const pool = colors.flatMap((color) => Array.from({ length: capacity }, () => color));
+  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(next() * (i + 1)); [pool[i], pool[j]] = [pool[j]!, pool[i]!]; }
+  // Tube sizes: full tubes when spread equals the colour count, otherwise random sizes that still fit.
+  const sizes = Array.from({ length: spread }, () => 1);
+  for (let left = pool.length - spread; left > 0; left--) {
+    const open = sizes.map((size, index) => (size < capacity ? index : -1)).filter((index) => index >= 0);
+    if (!open.length) return null;
+    sizes[open[Math.floor(next() * open.length)]!]! += 1;
+  }
+  const tubes: Color[][] = [];
+  let cursor = 0;
+  for (const size of sizes) { tubes.push(pool.slice(cursor, cursor + size)); cursor += size; }
+  if (tubes.some((tube) => tube.length === capacity && tube.every((color) => color === tube[0]))) return null;
+  // Nothing should be solvable with one move: the top group must not already have a home.
+  if (tubes.some((tube) => tube.slice(-2).every((color) => color === tube.at(-1)) && tube.slice(0, -2).every((color) => color === tube[0]) && tube.at(-1) === tube[0])) return null;
+  for (let i = 0; i < empties; i++) tubes.push([]);
+  return tubes;
+}
+
+export interface TubeReport { readonly seed: number; readonly tubes: Color[][]; readonly solution: TubeMove[]; readonly solveMs: number }
+
+export function author(colors: number, capacity: number, empties: number, spread: number, seed: number, moves: readonly [number, number], attempts = 400, maxSolveMs = 250): TubeReport {
+  const palette = PALETTE.slice(0, colors);
+  for (let candidate = seed; candidate < seed + attempts; candidate++) {
+    const tubes = generate(palette, capacity, empties, spread, candidate);
+    if (!tubes) continue;
+    const board: TubeDef = { kind: 'tube', id: `candidate-${candidate}`, title: 'Candidate', capacity, tubes, solution: [] };
+    const started = Date.now();
+    // The default budget is what the in-game hint gets, so a board it cannot solve is rejected.
+    const solution = solveTube(board, { tubes: tubes.map((tube) => [...tube]), moves: 0, status: 'playing' });
+    const solveMs = Date.now() - started;
+    // A hint must answer quickly on a phone, so slow starting positions are rejected too.
+    if (!solution || solution.length < moves[0] || solution.length > moves[1] || solveMs > maxSolveMs) continue;
+    return { seed: candidate, tubes, solution, solveMs };
+  }
+  throw new Error(`No tube board for ${colors} colours, capacity ${capacity}, ${empties} empties within ${attempts} seeds`);
+}
+
+export function emitBoard(recipe: TubeRecipe, report: TubeReport): string {
+  const tubes = report.tubes.map((tube) => `      [${tube.map((color) => `'${color}'`).join(', ')}],`).join('\n');
+  const rows: string[] = [];
+  for (let i = 0; i < report.solution.length; i += 4) rows.push('      ' + report.solution.slice(i, i + 4).map((move) => `{ from: ${move.from}, to: ${move.to} },`).join(' '));
+  return `  /** ${recipe.note} */\n  {\n    kind: 'tube', id: '${recipe.id}', title: '${recipe.title.replace(/'/g, '\\\'')}', capacity: ${recipe.capacity},\n    tubes: [\n${tubes}\n    ],\n    solution: [\n${rows.join('\n')}\n    ],\n  },`;
+}
+
+export const TUBE_RECIPES: readonly TubeRecipe[] = [
+  // Tube Sort ramps gently: the player found the early boards too hard. Boards 2 to 7 keep their titles.
+  { id: 'tube-2', title: 'Crossed currents', fr: 'Courants croisés', note: 'Four colours, two spares, a few moves: the first real sort.', colors: 4, capacity: 4, empties: 2, seed: 1, moves: [6, 7] },
+  { id: 'tube-3', title: 'One spare', fr: 'Une place libre', note: 'Three colours and a single empty tube: the spare has to be used well.', colors: 3, capacity: 4, empties: 1, seed: 1, moves: [6, 8] },
+  { id: 'tube-4', title: 'Taller tubes', fr: 'Tubes plus hauts', note: 'Three colours five high with two spares: the groups are bigger.', colors: 3, capacity: 5, empties: 2, seed: 1, moves: [7, 9] },
+  { id: 'tube-5', title: 'One spare, five high', fr: 'Une place, cinq de haut', note: 'Four colours, one empty tube, five high.', colors: 4, capacity: 5, empties: 1, seed: 1, moves: [9, 11] },
+  { id: 'tube-6', title: 'A fifth colour', fr: 'Une cinquième couleur', note: 'Orange and its cross pattern arrive here, in the calmest game, before the belts see them.', colors: 5, capacity: 4, empties: 2, seed: 1, moves: [10, 12] },
+  { id: 'tube-7', title: 'Five by five', fr: 'Cinq sur cinq', note: 'Five colours, five high, two spares.', colors: 5, capacity: 5, empties: 2, seed: 1, moves: [12, 14] },
+  { id: 'tube-8', title: 'Loose fill', fr: 'Remplissage lâche', note: 'Four colours spread over five part-full tubes: more room, more ways to waste it.', colors: 4, capacity: 4, empties: 1, spread: 5, seed: 1, moves: [9, 11] },
+  { id: 'tube-9', title: 'Four, five, two', fr: 'Quatre, cinq, deux', note: 'Four colours five high with two spares.', colors: 4, capacity: 5, empties: 2, seed: 1, moves: [11, 13] },
+  { id: 'tube-10', title: 'Six high', fr: 'Six de haut', note: 'Tubes of six for the first time, three colours.', colors: 3, capacity: 6, empties: 2, seed: 1, moves: [10, 13] },
+  { id: 'tube-11', title: 'No slack', fr: 'Sans marge', note: 'Four colours, four high, one spare: every move must earn its place.', colors: 4, capacity: 4, empties: 1, seed: 1, moves: [10, 12] },
+  { id: 'tube-12', title: 'Scattered', fr: 'Éparpillé', note: 'Five colours spread over six part-full tubes.', colors: 5, capacity: 4, empties: 2, spread: 6, seed: 1, moves: [11, 14] },
+  { id: 'tube-13', title: 'Three colours, six high', fr: 'Trois couleurs, six de haut', note: 'Only three colours, one spare, but the groups run long.', colors: 3, capacity: 6, empties: 1, seed: 1, moves: [12, 15] },
+  { id: 'tube-14', title: 'Five colours, one spare', fr: 'Cinq couleurs, une place', note: 'Five colours and a single empty tube.', colors: 5, capacity: 4, empties: 1, seed: 1, moves: [12, 15] },
+  { id: 'tube-15', title: 'Four colours, six high', fr: 'Quatre couleurs, six de haut', note: 'Four colours six high with two spares.', colors: 4, capacity: 6, empties: 2, seed: 1, moves: [13, 16] },
+  { id: 'tube-16', title: 'Spread thin', fr: 'Étalé', note: 'Four colours five high spread over five tubes.', colors: 4, capacity: 5, empties: 2, spread: 5, seed: 1, moves: [12, 15] },
+  { id: 'tube-17', title: 'Four, five, one', fr: 'Quatre, cinq, un', note: 'Four colours, five high, one spare.', colors: 4, capacity: 5, empties: 1, seed: 1, moves: [14, 16] },
+  { id: 'tube-18', title: 'Thirty marbles', fr: 'Trente billes', note: 'Five colours six high with two spares.', colors: 5, capacity: 6, empties: 2, seed: 1, moves: [15, 18] },
+  { id: 'tube-19', title: 'Five and five', fr: 'Cinq et cinq', note: 'Five colours, five high, one spare.', colors: 5, capacity: 5, empties: 1, seed: 1, moves: [15, 18] },
+  { id: 'tube-20', title: 'Six tubes, five colours', fr: 'Six tubes, cinq couleurs', note: 'Five colours loosely spread over six tubes with two spares.', colors: 5, capacity: 4, empties: 2, spread: 6, seed: 100, moves: [13, 16] },
+  { id: 'tube-21', title: 'One spare, six high', fr: 'Une place, six de haut', note: 'Four colours six high and only one empty tube.', colors: 4, capacity: 6, empties: 1, seed: 1, moves: [16, 19] },
+  { id: 'tube-22', title: 'Long haul', fr: 'Longue route', note: 'Five colours five high with two spares and a long shortest solution.', colors: 5, capacity: 5, empties: 2, seed: 1, moves: [18, 21] },
+  { id: 'tube-23', title: 'Spread wide', fr: 'Largement étalé', note: 'Four colours spread over six part-full tubes with two spares.', colors: 4, capacity: 4, empties: 2, spread: 6, seed: 300, moves: [13, 17] },
+  { id: 'tube-24', title: 'Five colours, four high', fr: 'Cinq couleurs, quatre de haut', note: 'Five colours in a tight four-high rack with one spare.', colors: 5, capacity: 4, empties: 1, seed: 2000, moves: [16, 19] },
+  { id: 'tube-25', title: 'Tall and loose', fr: 'Grand et lâche', note: 'Five colours six high with two spares and a long way round.', colors: 5, capacity: 6, empties: 2, seed: 700, moves: [19, 23] },
+  { id: 'tube-26', title: 'Three colours, long way', fr: 'Trois couleurs, long chemin', note: 'Three colours six high with one spare and a long solution.', colors: 3, capacity: 6, empties: 1, seed: 3000, moves: [16, 20] },
+  { id: 'tube-27', title: 'Five high, no slack', fr: 'Cinq de haut, sans marge', note: 'Five colours five high, one spare.', colors: 5, capacity: 5, empties: 1, seed: 4000, moves: [19, 23] },
+  { id: 'tube-28', title: 'One spare, five colours, six high', fr: 'Une place, cinq couleurs, six de haut', note: 'Five colours six high and only one empty tube.', colors: 5, capacity: 6, empties: 1, seed: 1, moves: [20, 24] },
+  { id: 'tube-29', title: 'Thirty, two spares', fr: 'Trente, deux places', note: 'Five colours six high, two spares, a long solution.', colors: 5, capacity: 6, empties: 2, seed: 5000, moves: [22, 28] },
+  { id: 'tube-30', title: 'Grand finale', fr: 'Grand final', note: 'Five colours six high with one spare: the longest Tube Sort board.', colors: 5, capacity: 6, empties: 1, seed: 6000, moves: [24, 32] },
+];
+
+if (process.argv[1]?.endsWith('tube-author.ts')) {
+  if (process.argv[2] === 'batch') {
+    const only = process.argv.slice(3);
+    const emitted: string[] = [];
+    const french: string[] = [];
+    for (const recipe of TUBE_RECIPES.filter((candidate) => !only.length || only.includes(candidate.id))) {
+      const started = Date.now();
+      const report = author(recipe.colors, recipe.capacity, recipe.empties, recipe.spread ?? recipe.colors, recipe.seed, recipe.moves);
+      console.error(`${recipe.id} seed ${report.seed} moves ${report.solution.length} solve ${report.solveMs}ms (${Date.now() - started}ms)`);
+      emitted.push(emitBoard(recipe, report));
+      french.push(`'${recipe.id}': '${recipe.fr.replace(/'/g, '’')}'`);
+    }
+    console.log(emitted.join('\n'));
+    console.log(`// french\n${french.join(', ')}`);
+  } else {
+    const [colorsArg = '4', capacityArg = '4', emptiesArg = '2', seedArg = '1', minArg = '8', maxArg = '20', spreadArg] = process.argv.slice(2);
+    const report = author(Number(colorsArg), Number(capacityArg), Number(emptiesArg), Number(spreadArg ?? colorsArg), Number(seedArg), [Number(minArg), Number(maxArg)]);
+    console.log(JSON.stringify({ seed: report.seed, moves: report.solution.length, solveMs: report.solveMs, tubes: report.tubes, solution: report.solution }));
+  }
+}

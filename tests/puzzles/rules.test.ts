@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { TUBE_BOARDS } from '../../src/puzzles/levels';
-import { solveTube, TubeRules, validateTubeDef } from '../../src/puzzles/rules';
-import type { TubeDef } from '../../src/puzzles/types';
+import { availableTubeMoves, solveTube, TubeRules, validateTubeDef } from '../../src/puzzles/rules';
+import type { TubeDef, TubeState } from '../../src/puzzles/types';
 
 function tubeLevel(index = 0): TubeDef {
   const board = TUBE_BOARDS[index];
@@ -74,22 +74,35 @@ describe('tube sorting', () => {
     expect(rules.hint()).toBeNull();
   });
 
-  it('makes the hard board’s sole spare a real decision and lets undo recover its losing opening', () => {
-    const rules = new TubeRules(tubeLevel(2));
+  it('a one-spare board can be jammed in one move, hints say so, and undo recovers the losing opening', () => {
+    // Found from the rules rather than hard-coded, so re-rolled boards keep this check honest.
+    const trap = TUBE_BOARDS.flatMap((board) => availableTubeMoves(board, { tubes: board.tubes.map((tube) => [...tube]) })
+      .filter((move) => { const probe = new TubeRules(board); return probe.move(move.from, move.to).ok && probe.status === 'jammed'; })
+      .map((move) => ({ board, move })))[0];
+    if (!trap) throw new Error('No Tube Sort board jams in one move');
+    const rules = new TubeRules(trap.board);
     const initial = rules.snapshot();
-    expect(rules.move(1, 4).ok).toBe(true);
+    expect(rules.move(trap.move.from, trap.move.to).ok).toBe(true);
     expect(rules.status).toBe('jammed');
     expect(rules.hint()).toBeNull();
     expect(rules.undo()).toBe(true);
     expect(rules.state).toEqual(initial);
-    expect(rules.move(0, 4).ok).toBe(true);
+    const opening = trap.board.solution[0];
+    if (!opening) throw new Error('Trap board has no solution');
+    expect(rules.move(opening.from, opening.to).ok).toBe(true);
     expect(rules.status).toBe('playing');
     expect(rules.hint()).not.toBeNull();
   });
 
   it.each(TUBE_BOARDS)('$id can be solved by hints from its current state', (board) => {
     const rules = new TubeRules(board);
-    const differentOpening = board.id === 'tube-2' ? { from: 3, to: 4 } : board.solution[0];
+    // Open with a legal move that is not the authored one when one still leads to a win, so the hint has to think.
+    const fresh = (): TubeState => ({ tubes: board.tubes.map((tube) => [...tube]), moves: 0, status: 'playing' });
+    const differentOpening = availableTubeMoves(board, fresh()).find((move) => {
+      if (move.from === board.solution[0]?.from && move.to === board.solution[0]?.to) return false;
+      const trial = new TubeRules(board);
+      return trial.move(move.from, move.to).ok && solveTube(board, trial.state) !== null;
+    }) ?? board.solution[0];
     if (differentOpening) expect(rules.move(differentOpening.from, differentOpening.to).ok).toBe(true);
     for (let i = 0; rules.status === 'playing' && i < 60; i += 1) {
       const hint = rules.hint();
