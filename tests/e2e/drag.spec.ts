@@ -40,3 +40,32 @@ test('touch dragging transfers a whole top group quickly and cancellation change
   await page.getByRole('button', { name: 'Undo', exact: true }).click();
   expect(await state(page)).toEqual(before);
 });
+
+test('dragging from the hinted tube plays the move and dismisses the hint, as a tap does', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => Boolean((window as unknown as Partial<GameWindow>).tumbleworks?.app?.runtime));
+  await page.locator('#levels-toggle').click();
+  await page.locator(`.chip[data-level="${CAMPAIGN.findIndex((level) => level.id === 'tube-1')}"]`).click();
+  await page.evaluate(() => {
+    (window as unknown as GameWindow).tumbleworks.app.manualClock = true;
+    // Software rendering can outlast the hint's own timeouts, which would hide the ring whatever the drag did.
+    window.setTimeout = (() => 0) as unknown as typeof window.setTimeout;
+  });
+  const hint = page.getByRole('button', { name: 'Hint', exact: true });
+  const ring = page.locator('#focus-ring');
+  const message = page.locator('#message');
+
+  await hint.click();
+  await expect(ring).toBeVisible();
+  await expect(message).toBeVisible();
+  const before = await state(page);
+  await drag(page, 'tube0', 'tube3', true);
+  expect(await state(page)).toEqual(before);
+
+  await hint.click();
+  await expect(ring).toBeVisible();
+  await drag(page, 'tube0', 'tube3');
+  expect((await state(page)).moves).toBe(1);
+  await expect(ring).toBeHidden();
+  await expect(message).toBeHidden();
+});

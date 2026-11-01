@@ -61,7 +61,11 @@ export class App {
       unlock: () => sfx.unlock(),
       pick: (point) => this.runtime.pick(point.x, point.y),
       tap: (target) => this.activate(target),
-      start: (target, point) => this.runtime.drag?.start(target, point) ?? false,
+      start: (target, point) => {
+        const started = this.runtime.drag?.start(target, point) ?? false;
+        if (started) this.dismissPrompts();
+        return started;
+      },
       move: (point, target) => { this.runtime.drag?.move(point, target); this.runtime.render(0, 0); },
       end: (target) => { this.feedback(this.runtime.drag?.end(target) ?? []); this.runtime.render(0, 0); this.checkEnding(); this.refresh(); },
       cancel: () => { this.runtime.drag?.cancel(); this.runtime.render(0, 0); this.refresh(); },
@@ -215,13 +219,22 @@ export class App {
   }
 
   private activate(target: string, keepFocus = false): void {
-    this.ring.hidden = !keepFocus;
-    this.focusTarget = keepFocus ? target : null;
-    this.setMessage('');
-    element('instruction').hidden = true;
+    this.dismissPrompts();
+    if (keepFocus) {
+      this.focusTarget = target;
+      this.ring.hidden = false;
+    }
     this.feedback(this.runtime.activate(target));
     this.checkEnding();
     this.refresh();
+  }
+
+  /** Picking up a piece answers the hint and the instruction, whether by tap or by drag. */
+  private dismissPrompts(): void {
+    this.ring.hidden = true;
+    this.focusTarget = null;
+    this.setMessage('');
+    element('instruction').hidden = true;
   }
 
   private feedback(events: readonly Feedback[]): void {
