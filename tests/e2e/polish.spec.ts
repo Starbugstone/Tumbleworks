@@ -75,7 +75,7 @@ test('fast forward runs the machine three times faster only while held, and neve
   await page.goto('/');
   await page.waitForFunction(() => Boolean((window as unknown as Partial<GameWindow>).tumbleworks?.app?.runtime));
   await page.evaluate(() => { (window as unknown as GameWindow).tumbleworks.app.manualClock = true; });
-  const fast = page.getByRole('button', { name: 'Fast forward (hold)', exact: true });
+  const fast = page.getByRole('button', { name: 'Fast forward ×3 (hold)', exact: true });
   const ticks = () => page.evaluate(() => Number((window as unknown as GameWindow).tumbleworks.app.debugState()['tick']));
   const advance = (frames: number) => page.evaluate((n) => { for (let i = 0; i < n; i++) (window as unknown as GameWindow).tumbleworks.app.advance(1 / 60, i === n - 1); }, frames);
   await expect(fast).toBeEnabled();
@@ -102,6 +102,28 @@ test('fast forward runs the machine three times faster only while held, and neve
   await expect(fast).toHaveAttribute('aria-pressed', 'true');
   await page.keyboard.up('f');
   await expect(fast).toHaveAttribute('aria-pressed', 'false');
+  // The ×5 button holds the same way, wins while both are held, and falls back to ×3 when it lifts.
+  const faster = page.getByRole('button', { name: 'Fast forward ×5 (hold)', exact: true });
+  const fasterBox = await faster.boundingBox();
+  if (!fasterBox) throw new Error('Fast forward ×5 button is not visible');
+  expect(fasterBox.x).toBeGreaterThan(box.x + box.width);
+  await page.mouse.move(fasterBox.x + fasterBox.width / 2, fasterBox.y + fasterBox.height / 2);
+  await page.mouse.down();
+  await expect(faster).toHaveAttribute('aria-pressed', 'true');
+  await expect(fast).toHaveAttribute('aria-pressed', 'false');
+  const flat = await ticks();
+  await advance(10);
+  expect(await ticks() - flat).toBe(50);
+  await page.mouse.up();
+  await expect(faster).toHaveAttribute('aria-pressed', 'false');
+  await page.keyboard.down('f');
+  await page.keyboard.down('g');
+  await expect(faster).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.up('g');
+  await expect(fast).toHaveAttribute('aria-pressed', 'true');
+  await expect(faster).toHaveAttribute('aria-pressed', 'false');
+  await page.keyboard.up('f');
+  await expect(fast).toHaveAttribute('aria-pressed', 'false');
   // Holding through a jam stops accelerating as soon as the ending is reached.
   await page.evaluate(() => {
     const app = (window as unknown as GameWindow).tumbleworks.app;
@@ -114,6 +136,7 @@ test('fast forward runs the machine three times faster only while held, and neve
     app.advance(0);
   });
   await expect(fast).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Fast forward ×5 (hold)', exact: true })).toBeDisabled();
   await expect(fast).toHaveAttribute('aria-pressed', 'false');
   expect(await page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.debugState()['speed'])).toBe(1);
 });
@@ -122,7 +145,7 @@ test('a second finger can pour while the first holds fast forward', async ({ pag
   await page.goto('/');
   await page.waitForFunction(() => Boolean((window as unknown as Partial<GameWindow>).tumbleworks?.app?.runtime));
   await page.evaluate(() => { (window as unknown as GameWindow).tumbleworks.app.manualClock = true; });
-  const fast = page.getByRole('button', { name: 'Fast forward (hold)', exact: true });
+  const fast = page.getByRole('button', { name: 'Fast forward ×3 (hold)', exact: true });
   const box = await fast.boundingBox();
   if (!box) throw new Error('Fast forward button is not visible');
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);

@@ -83,34 +83,50 @@ export const LOOP = {
 export const RIDE_Y = LOOP.floorY + MARBLE_RADIUS;
 export const DECK_TOP = LOOP.floorY + LOOP.wallHeight;
 
-/** Up to three lanes face the front straight; more lanes add a second row facing the back. */
-export const LANE_SPACING = 1.25;
-export interface Bay { readonly row: 'front' | 'back'; readonly x: number }
+/**
+ * Every lane's docked lorry stands in one row with its open end at the top, against the belt. On an oval the ring goes
+ * round the row; on an eight the belt lies on its side above it. Waiting lorries are shown in the cards under the toy.
+ */
+export interface Bay { readonly x: number }
+export const laneSpacing = (lanes: number): number => (lanes <= 3 ? 1.5 : 1.12);
 export function bays(lanes: number): Bay[] {
-  const back = lanes <= 3 ? 0 : Math.ceil(lanes / 2);
-  const front = lanes - back;
-  const x = (index: number, count: number): number => (index - (count - 1) / 2) * LANE_SPACING;
-  return Array.from({ length: lanes }, (_, lane) => lane < back ? { row: 'back', x: x(lane, back) } : { row: 'front', x: x(lane - back, front) });
+  const spacing = laneSpacing(lanes);
+  return Array.from({ length: lanes }, (_, lane) => ({ x: (lane - (lanes - 1) / 2) * spacing }));
 }
 export const TRUCK = {
   bedWidth: 0.92,
   bedLength: 3.6,
   bedHeight: 0.28,
   cabLength: 0.82,
-  /** The bed's loop end, measured inward from the loop's centre line. */
-  mouthInset: LOOP.channelHalf + 0.4,
+  /** The bed's loop end, measured outward from the loop's centre line. */
+  mouthGap: LOOP.channelHalf + 0.4,
   arriveSeconds: 0.38,
   leaveSeconds: 0.85,
   /** A short dispatch pad beyond the rim: a leaving truck shrinks away over it. */
   exitLength: 1.7,
 } as const;
+/** A leaving lorry lifts clear of the belt while it shrinks away. */
+export const LIFT_OFF = 1.6;
+/** A share of a lorry's bed as a whole percentage. Plain rounding, so equal loads always print the same number. */
+export const sharePercent = (units: number, capacity: number): number => Math.round((units / capacity) * 100);
+/**
+ * Lengths of a bed's stretches. Each is proportional to its units, but never shorter than `least`, so its number
+ * always fits; what the short ones take comes out of the long ones. Stretches fading to nothing shrink smoothly.
+ */
+export function bedSpans(units: readonly number[], capacity: number, length: number, least: number): number[] {
+  const wanted = units.map((value) => (value / capacity) * length);
+  const floors = units.map((value) => least * Math.min(1, value));
+  const surplus = wanted.reduce((sum, value, index) => sum + Math.max(0, value - floors[index]!), 0);
+  const room = Math.max(0, length - floors.reduce((sum, value) => sum + value, 0));
+  const fit = surplus > 0 ? room / surplus : 0;
+  return wanted.map((value, index) => floors[index]! + Math.max(0, value - floors[index]!) * fit);
+}
+/** The ring fits its row of docked lorries exactly; waiting lorries live in the cards, not on the toy. */
 export const trackFor = (lanes: number, shape: BeltShape = 'oval'): RoundedTrack | FigureEightTrack => {
-  if (shape !== 'oval') return new FigureEightTrack(shape === 'wide-eight' ? 4.1 : 3.6, 9.5, 0, true);
-  const columns = Math.max(...[bays(lanes).filter((bay) => bay.row === 'front').length, bays(lanes).filter((bay) => bay.row === 'back').length]);
-  const rows = lanes <= 3 ? 1 : 2;
-  const halfWidth = Math.max(2.75, (columns * LANE_SPACING) / 2 + LOOP.channelHalf + 0.85);
-  const halfDepth = rows === 1 ? 3.6 : TRUCK.mouthInset + TRUCK.bedLength + TRUCK.cabLength + 0.35;
-  return new RoundedTrack(halfWidth, halfDepth, 1.15);
+  if (shape !== 'oval') return new FigureEightTrack(shape === 'wide-eight' ? 3.4 : 3.05, 1.5, 0, false, 1.25);
+  const corner = 0.95;
+  const halfWidth = Math.max(2.4, ((lanes - 1) * laneSpacing(lanes)) / 2 + TRUCK.bedWidth / 2 + 0.12 + LOOP.channelHalf);
+  return new RoundedTrack(halfWidth, (TRUCK.mouthGap + TRUCK.bedLength + TRUCK.cabLength + 0.2 + LOOP.channelHalf) / 2, corner);
 };
 /** One rules unit of cargo is this long on the bed. */
 export const unitLength = (capacity: number): number => TRUCK.bedLength / capacity;

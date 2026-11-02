@@ -3,13 +3,15 @@ import type { Point3 } from './physics';
 
 /** Fit projected 3D bounds inside the same HUD-safe viewport for every gameplay. */
 export function frameBoard(camera: THREE.PerspectiveCamera, width: number, height: number,
-  points: readonly Point3[], direction: THREE.Vector3): void {
+  points: readonly Point3[], direction: THREE.Vector3, area?: { readonly x: number; readonly y: number; readonly width: number; readonly height: number }): void {
   const compact = height < 600 && width > 600;
   const phone = width <= 600;
-  const top = compact ? 56 : phone ? 52 : 64;
-  const bottom = compact ? 64 : phone ? 80 : 92;
-  const safeWidth = Math.max(120, width - (phone ? 12 : 28));
-  const safeHeight = Math.max(160, height - top - bottom);
+  // A gameplay with its own panel on screen hands over the rectangle the toy may fill.
+  const top = area ? area.y : compact ? 56 : phone ? 52 : 64;
+  const bottom = area ? height - area.y - area.height : compact ? 64 : phone ? 80 : 92;
+  const safeWidth = Math.max(120, (area?.width ?? width) - (phone ? 12 : 28));
+  const safeHeight = Math.max(area ? 60 : 160, height - top - bottom);
+  const shiftX = area ? width / 2 - (area.x + area.width / 2) : 0;
   const forward = direction.clone().normalize();
   const right = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), forward).normalize();
   const up = new THREE.Vector3().crossVectors(forward, right);
@@ -43,7 +45,7 @@ export function frameBoard(camera: THREE.PerspectiveCamera, width: number, heigh
   camera.clearViewOffset();
   camera.position.copy(target).addScaledVector(forward, distance);
   camera.lookAt(target);
-  camera.setViewOffset(width, height, (bounds.left + bounds.right) * width / 4,
+  camera.setViewOffset(width, height, (bounds.left + bounds.right) * width / 4 + shiftX,
     (bottom - top) / 2 - (bounds.top + bounds.bottom) * height / 4, width, height);
   camera.updateProjectionMatrix();
   camera.updateMatrixWorld();

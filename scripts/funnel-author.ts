@@ -1,5 +1,6 @@
 import { MachineRules } from '../src/sim/rules';
 import { initPhysics, Machine } from '../src/machine/machine';
+import { MIN_CAPACITY } from '../src/machine/layout';
 import { hintConveyor, settle } from '../src/sim/solver';
 import { SHORT_TRAY, TRAY_COUNT } from '../src/sim/boards';
 import type { BoardDef, Color, Packet } from '../src/sim/types';
@@ -159,10 +160,10 @@ export function search(board: BoardDef, limit = 400_000): Search {
 
 /** The smallest belt that still has a winning order; room never hurts a winning order, so this is monotone. */
 /**
- * The floor leaves room for a tray and a little more, so a wrong pour is survivable rather than fatal, and
- * rises with the track so a full belt still looks reasonably full (the oval holds about 26 riders, the eights 35 to 39).
+ * The floor is the smallest track of that shape that still draws cleanly. The track is sized to the capacity,
+ * so every capacity at or above it fills its belt with no gaps.
  */
-export const floorFor = (shape: BeltShape | undefined): number => shape === 'wide-eight' ? 19 : shape === 'eight' ? 17 : 14;
+export const floorFor = (shape: BeltShape | undefined): number => MIN_CAPACITY[shape ?? 'oval'];
 export function tighten(board: BoardDef, floor = floorFor(board.trackShape)): BoardDef {
   let low = floor;
   let high = board.beltCapacity;
@@ -273,31 +274,31 @@ export const FUNNEL_RECIPES: readonly FunnelRecipe[] = [
   { id: 'board-3', title: 'Behind the lines', fr: 'Derrière les lignes', note: 'Seven trays and four docks; every column hides a colour the docks want behind one they do not.', colors: 4, columns: [3, 2, 2], shorts: 0, docks: 4, capacity: 18, seed: 1, win: [0.2, 0.45], slack: 4, naiveJams: true },
   { id: 'board-4', title: 'Two wrongs', fr: 'Deux erreurs', note: 'Nine trays; the belt forgives one wrong tray, never two.', colors: 4, columns: [3, 3, 3], shorts: 0, docks: 4, capacity: 18, seed: 1, win: [0.2, 0.4], slack: 3, naiveJams: true },
   { id: 'board-5', title: 'The long way round', fr: 'Le grand détour', note: 'Twelve trays, four columns, four docks: a long flowing level with real traps.', colors: 4, columns: [3, 3, 3, 3], shorts: 0, docks: 4, capacity: 18, seed: 1, win: [0.15, 0.35], slack: 3, naiveJams: true },
-  { id: 'board-6', title: 'First bridge', fr: 'Le premier pont', note: 'The first figure eight: five trays, three docks, and a belt that is longer than it looks.', colors: 4, columns: [2, 2, 1], shorts: 0, docks: 3, capacity: 21, shape: 'eight', seed: 1, win: [0.2, 0.45], slack: 4, naiveJams: true },
-  { id: 'board-7', title: 'The wide crossing', fr: 'La grande traversée', note: 'Seven trays over the wide crossing.', colors: 4, columns: [3, 2, 2], shorts: 0, docks: 4, capacity: 21, shape: 'wide-eight', seed: 1, win: [0.15, 0.35], slack: 3, naiveJams: true },
+  { id: 'board-6', title: 'First bridge', fr: 'Le premier pont', note: 'The first figure eight: seven trays, two docks, and a longer belt that fills up all the same.', colors: 4, columns: [3, 2, 2], shorts: 0, docks: 2, capacity: 28, shape: 'eight', seed: 1, win: [0.2, 0.7], slack: 0, naiveJams: true },
+  { id: 'board-7', title: 'The wide crossing', fr: 'La grande traversée', note: 'Seven trays over the wide crossing.', colors: 4, columns: [3, 2, 2], shorts: 0, docks: 3, capacity: 32, shape: 'wide-eight', seed: 1, win: [0.15, 0.5], slack: 0, naiveJams: true },
   { id: 'board-8', title: 'Orange arrives', fr: 'L’orange arrive', note: 'Orange arrives: five colours, three columns, eight trays, four docks.', colors: 5, columns: [3, 3, 2], shorts: 0, docks: 4, capacity: 18, seed: 1, win: [0.15, 0.35], slack: 3, naiveJams: true },
   { id: 'board-9', title: 'Short pours', fr: 'Petits versements', note: 'Short trays of six mix with full trays: a cheap pour is tempting, but every dock still wants three boxes.', colors: 5, columns: [3, 3, 2, 3], shorts: 5, docks: 4, capacity: 15, seed: 1, win: [0.1, 0.3], slack: 2, naiveJams: true },
-  { id: 'board-10', title: 'Five in the eight', fr: 'Cinq couleurs en huit', note: 'Five colours over the bridge: nine trays on a tight belt.', colors: 5, columns: [3, 3, 3], shorts: 0, docks: 4, capacity: 21, shape: 'eight', seed: 1, win: [0.1, 0.3], slack: 2, naiveJams: true },
-  { id: 'board-11', title: 'The grand tour', fr: 'Le grand tour', note: 'Twelve trays, five colours and the wide crossing.', colors: 5, columns: [3, 3, 3, 3], shorts: 0, docks: 4, capacity: 24, shape: 'wide-eight', seed: 1, win: [0.08, 0.25], slack: 2, naiveJams: true },
+  { id: 'board-10', title: 'Five in the eight', fr: 'Cinq couleurs en huit', note: 'Five colours over the bridge: nine trays on a tight belt.', colors: 5, columns: [3, 3, 3], shorts: 0, docks: 3, capacity: 28, shape: 'eight', seed: 1, win: [0.1, 0.45], slack: 0, naiveJams: true },
+  { id: 'board-11', title: 'The grand tour', fr: 'Le grand tour', note: 'Twelve trays, five colours and the wide crossing.', colors: 5, columns: [3, 3, 3, 3], shorts: 0, docks: 3, capacity: 32, shape: 'wide-eight', seed: 1, win: [0.08, 0.4], slack: 0, naiveJams: true },
   { id: 'board-12', title: 'Two tall stacks', fr: 'Deux hautes piles', note: 'Five colours from only two columns: every pour is a commitment three trays deep.', colors: 5, columns: [3, 3], shorts: 0, docks: 4, capacity: 15, seed: 1, win: [0.1, 0.3], slack: 2, naiveJams: true },
   { id: 'board-13', title: 'Tight belt', fr: 'Tapis serré', note: 'Four colours and a belt with no slack: one wrong tray is one too many.', colors: 4, columns: [2, 2, 2], shorts: 0, docks: 3, capacity: 14, seed: 1, win: [0.1, 0.3], slack: 0, naiveJams: true },
   { id: 'board-14', title: 'Uneven stacks', fr: 'Piles inégales', note: 'Columns of one, two and three trays; the short columns run out while the long ones are still blocking.', colors: 5, columns: [3, 1, 2, 3], shorts: 0, docks: 4, capacity: 18, seed: 1, win: [0.08, 0.3], slack: 2, naiveJams: true },
   { id: 'board-15', title: 'Short and sweet', fr: 'Court et doux', note: 'Half the trays are short: four columns of two, cheap pours, and docks that still want three boxes.', colors: 4, columns: [2, 2, 2, 2], shorts: 4, docks: 3, capacity: 15, seed: 1, win: [0.08, 0.2], slack: 2, naiveJams: true },
-  { id: 'board-16', title: 'Short crossing', fr: 'Petite traversée', note: 'Over the bridge with three short trays in the mix.', colors: 5, columns: [3, 2, 3], shorts: 3, docks: 4, capacity: 21, shape: 'eight', seed: 1, win: [0.08, 0.3], slack: 2, naiveJams: true },
+  { id: 'board-16', title: 'Short crossing', fr: 'Petite traversée', note: 'Over the bridge with three short trays in the mix.', colors: 5, columns: [3, 2, 3], shorts: 3, docks: 2, capacity: 28, shape: 'eight', seed: 1, win: [0.08, 0.4], slack: 0, naiveJams: true },
   { id: 'board-17', title: 'Narrow neck', fr: 'Goulot étroit', note: 'Three columns, three docks and no belt to spare: the tightest Funnel Sort board.', colors: 5, columns: [2, 2, 2], shorts: 0, docks: 3, capacity: 14, seed: 1, win: [0.08, 0.3], slack: 0, naiveJams: true },
-  { id: 'board-18', title: 'Wide and tight', fr: 'Large et serré', note: 'The wide crossing with a belt that holds very little.', colors: 5, columns: [3, 3, 3], shorts: 0, docks: 4, capacity: 18, shape: 'wide-eight', seed: 200, win: [0.08, 0.25], slack: 2, naiveJams: true },
+  { id: 'board-18', title: 'Wide and tight', fr: 'Large et serré', note: 'The wide crossing with two docks: most of the belt is always waiting.', colors: 5, columns: [3, 3, 3], shorts: 0, docks: 2, capacity: 32, shape: 'wide-eight', seed: 1, win: [0.08, 0.35], slack: 0, naiveJams: true },
   { id: 'board-19', title: 'Three by four', fr: 'Trois sur quatre', note: 'Four colours, four columns of three.', colors: 4, columns: [3, 3, 3, 3], shorts: 0, docks: 4, capacity: 16, seed: 1, win: [0.08, 0.25], slack: 2, naiveJams: true },
-  { id: 'board-20', title: 'Mixed measures', fr: 'Mesures mélangées', note: 'Four short trays among ten, over the wide crossing.', colors: 5, columns: [2, 3, 2, 3], shorts: 4, docks: 4, capacity: 24, shape: 'wide-eight', seed: 1, win: [0.05, 0.15], slack: 2, naiveJams: true },
+  { id: 'board-20', title: 'Mixed measures', fr: 'Mesures mélangées', note: 'Four short trays among ten, over the wide crossing.', colors: 5, columns: [2, 3, 2, 3], shorts: 4, docks: 2, capacity: 32, shape: 'wide-eight', seed: 1, win: [0.05, 0.35], slack: 0, naiveJams: true },
   { id: 'board-21', title: 'Colour pairs', fr: 'Paires de couleurs', note: 'Four colours, nine trays: each colour comes in pairs that must not meet on the belt.', colors: 4, columns: [3, 3, 3], shorts: 0, docks: 4, capacity: 15, seed: 1, win: [0.05, 0.2], slack: 1, naiveJams: true },
   { id: 'board-22', title: 'The squeeze', fr: 'La compression', note: 'Eight trays, five colours, a belt with nothing to spare.', colors: 5, columns: [2, 2, 2, 2], shorts: 0, docks: 4, capacity: 14, seed: 1, win: [0.05, 0.2], slack: 0, naiveJams: true },
-  { id: 'board-23', title: 'Thirteen trays', fr: 'Treize plateaux', note: 'One column goes four deep over the bridge.', colors: 5, columns: [4, 3, 3, 3], shorts: 0, docks: 4, capacity: 21, shape: 'eight', seed: 1, win: [0.05, 0.2], slack: 1, naiveJams: true },
+  { id: 'board-23', title: 'Thirteen trays', fr: 'Treize plateaux', note: 'One column goes four deep over the bridge.', colors: 5, columns: [4, 3, 3, 3], shorts: 0, docks: 3, capacity: 28, shape: 'eight', seed: 1, win: [0.05, 0.3], slack: 0, naiveJams: true },
   { id: 'board-24', title: 'Full house', fr: 'Maison pleine', note: 'Twelve trays on the oval, five colours.', colors: 5, columns: [3, 3, 3, 3], shorts: 0, docks: 4, capacity: 18, seed: 1, win: [0.05, 0.2], slack: 1, naiveJams: true },
-  { id: 'board-25', title: 'Short eight', fr: 'Huit en petit', note: 'Five short trays among nine on the bridge.', colors: 5, columns: [3, 3, 3], shorts: 5, docks: 4, capacity: 18, shape: 'eight', seed: 1, win: [0.05, 0.2], slack: 1, naiveJams: true },
+  { id: 'board-25', title: 'Short eight', fr: 'Huit en petit', note: 'Five short trays among nine on the bridge.', colors: 5, columns: [3, 3, 3], shorts: 5, docks: 2, capacity: 26, shape: 'eight', seed: 1, win: [0.05, 0.3], slack: 0, naiveJams: true },
   { id: 'board-26', title: 'Deep stacks', fr: 'Piles profondes', note: 'Two columns of four and a short third: ten trays, most of them blocking three more.', colors: 5, columns: [4, 4, 2], shorts: 0, docks: 4, capacity: 15, seed: 1, win: [0.05, 0.2], slack: 1, naiveJams: true },
   { id: 'board-27', title: 'Three docks, five colours', fr: 'Trois quais, cinq couleurs', note: 'Only three docks for five colours: two colours are always waiting their turn.', colors: 5, columns: [3, 3, 3], shorts: 0, docks: 3, capacity: 18, seed: 1, win: [0.05, 0.2], slack: 1, naiveJams: true },
-  { id: 'board-28', title: 'Fourteen trays', fr: 'Quatorze plateaux', note: 'The biggest pour so far: fourteen trays over the bridge.', colors: 5, columns: [4, 3, 4, 3], shorts: 0, docks: 4, capacity: 21, shape: 'eight', seed: 1, win: [0.05, 0.18], slack: 1, naiveJams: true },
-  { id: 'board-29', title: 'Short measures, wide belt', fr: 'Petites mesures, grand tapis', note: 'Six short trays among twelve on the wide crossing.', colors: 5, columns: [3, 3, 3, 3], shorts: 6, docks: 4, capacity: 21, shape: 'wide-eight', seed: 1, win: [0.05, 0.18], slack: 1, naiveJams: true },
-  { id: 'board-30', title: 'Grand finale', fr: 'Grand final', note: 'Fourteen trays, four deep in two columns, on the wide crossing.', colors: 5, columns: [4, 4, 3, 3], shorts: 2, docks: 4, capacity: 24, shape: 'wide-eight', seed: 1, win: [0.04, 0.15], slack: 0, naiveJams: true },
+  { id: 'board-28', title: 'Fourteen trays', fr: 'Quatorze plateaux', note: 'The biggest pour so far: fourteen trays over the bridge.', colors: 5, columns: [4, 3, 4, 3], shorts: 0, docks: 2, capacity: 28, shape: 'eight', seed: 1, win: [0.05, 0.3], slack: 0, naiveJams: true },
+  { id: 'board-29', title: 'Short measures, wide belt', fr: 'Petites mesures, grand tapis', note: 'Six short trays among twelve on the wide crossing.', colors: 5, columns: [3, 3, 3, 3], shorts: 6, docks: 2, capacity: 30, shape: 'wide-eight', seed: 1, win: [0.05, 0.3], slack: 0, naiveJams: true },
+  { id: 'board-30', title: 'Grand finale', fr: 'Grand final', note: 'Fourteen trays, four deep in two columns, on the wide crossing.', colors: 5, columns: [4, 4, 3, 3], shorts: 2, docks: 2, capacity: 32, shape: 'wide-eight', seed: 1, win: [0.04, 0.25], slack: 0, naiveJams: true },
 ];
 
 if (process.argv[1]?.endsWith('funnel-author.ts')) {

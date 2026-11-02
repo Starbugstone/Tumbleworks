@@ -4,7 +4,7 @@ import { MachineRules, type ReleaseResult, type RulesEvent } from '../sim/rules'
 import type { BoardDef, Color } from '../sim/types';
 import {
   BOX, columnX, conveyorTrack, CRATE, dockX, entryDistanceFor, FLIGHT, FUNNEL, funnelFaces, funnelHalfWidth, GRAVITY, MARBLE_RADIUS,
-  RACEWAY, RIDE_Y, RIDER_SPACING, STACK, TICK_SECONDS,
+  RACEWAY, RIDE_Y, STACK, TICK_SECONDS,
 } from './layout';
 
 export const initPhysics = (): Promise<void> => physics.init();
@@ -117,6 +117,8 @@ const easeOut = (t: number): number => 1 - (1 - t) * (1 - t);
 export class Machine {
   readonly rules: MachineRules;
   readonly track: ReturnType<typeof conveyorTrack>;
+  /** The belt is divided into capacity slots of this length, travelling with it. */
+  readonly slotPitch: number;
   readonly entryDistance: number;
   world: RAPIER.World;
   private control: Control;
@@ -129,7 +131,8 @@ export class Machine {
 
   constructor(readonly board: BoardDef, private readonly physicsService: PhysicsService = physics) {
     this.rules = new MachineRules(board);
-    this.track = conveyorTrack(board.trackShape);
+    this.track = conveyorTrack(board.trackShape, board.beltCapacity);
+    this.slotPitch = this.track.length / board.beltCapacity;
     this.entryDistance = entryDistanceFor(this.track);
     this.world = this.physicsService.createWorld(GRAVITY);
     this.dockDistances = board.docks.map((_, dock) => this.track.nearest(dockX(dock, board.docks.length), RACEWAY.centerZ + RACEWAY.radius).distance);
@@ -251,6 +254,10 @@ export class Machine {
   get recoveries(): Readonly<Control['recoveries']> { return this.control.recoveries; }
   get tick(): number { return this.control.tick; }
   get beltDistance(): number { return this.control.belt; }
+  /** Where each marble on the belt sits relative to the belt itself. */
+  riderOffsets(): number[] {
+    return this.control.marbles.filter((marble) => marble.phase === 'riding' || marble.phase === 'merging' || marble.phase === 'exiting').map((marble) => marble.offset);
+  }
   get marbleIds(): number[] { return this.control.marbles.map((marble) => marble.id); }
   marbleColor(id: number): Color {
     const marble = this.control.marbles[id];
@@ -438,26 +445,39 @@ export class Machine {
     return (((this.entryDistance - beltThen) % length) + length) % length;
   }
 
-  /** No rider, merging marble or reserved landing sits within a marble's spacing of this offset. */
+  /** The next belt slot to reach the landing point, and whether a marble picked on this tick would land in it. */
+  private nextSlot(): { readonly offset: number; readonly aligned: boolean } {
+    const landing = this.landingOffset();
+    const capacity = this.board.beltCapacity;
+    const nearest = Math.round(landing / this.slotPitch);
+    const error = landing - nearest * this.slotPitch;
+    const aligned = Math.abs(error) <= RACEWAY.speed * TICK_SECONDS / 2 + 1e-9;
+    // Landing offsets fall as the belt advances, so a slot already passed gives way to the one behind it.
+    const slot = aligned || error > 0 ? nearest : nearest - 1;
+    return { offset: (((slot % capacity) + capacity) % capacity) * this.slotPitch, aligned };
+  }
+
+  /** No rider, merging marble or reserved landing holds this slot. */
   private slotFree(offset: number, except: MarbleControl | null): boolean {
     const length = this.track.length;
     for (const other of this.control.marbles) {
       if (other === except) continue;
       if (other.phase !== 'riding' && other.phase !== 'merging' && other.phase !== 'exiting') continue;
       const gap = Math.abs((((other.offset - offset) % length) + length * 1.5) % length - length / 2);
-      if (gap < RIDER_SPACING * 1.05) return false;
+      if (gap < this.slotPitch / 2) return false;
     }
     return true;
   }
 
   /**
-   * One marble at a time through the neck, and only when the slot it will land in is still clear when
-   * it gets there. Marbles already in the chute hold their reserved slots, so two can never share one.
+   * One marble at a time through the neck, and only into a free slot. Marbles already in the chute hold
+   * their reserved slots, so two can never share one, and capacity riders always fit: free room in the
+   * rules always means a free slot, which comes round within a lap.
    */
   private canEnter(): boolean {
     if (this.rules.status !== 'playing' || this.rules.free <= 0) return false;
     if (this.control.marbles.some((other) => other.phase === 'exiting' && other.time < FUNNEL.exitSeconds)) return false;
-    return this.slotFree(this.landingOffset(), null);
+    return this.slotFree(this.nextSlot().offset, null);
   }
 
   /**
@@ -466,7 +486,8 @@ export class Machine {
    */
   private pickFromNeck(): void {
     this.control.neckOpen = this.canEnter();
-    if (!this.control.neckOpen) return;
+    const slot = this.nextSlot();
+    if (!this.control.neckOpen || !slot.aligned) return;
     let pick: MarbleControl | null = null;
     let best = Number.POSITIVE_INFINITY;
     const order = this.rules.state.pending;
@@ -491,7 +512,7 @@ export class Machine {
     pick.fromX = t.x; pick.fromY = t.y; pick.fromZ = t.z;
     pick.qx = q.x; pick.qy = q.y; pick.qz = q.z; pick.qw = q.w;
     pick.lateral = ((pick.id * 7) % 5 - 2) / 2 * RACEWAY.jitter;
-    pick.offset = this.landingOffset();
+    pick.offset = slot.offset;
     body.setLinvel({ x: 0, y: 0, z: 0 }, false);
     body.setAngvel({ x: 0, y: 0, z: 0 }, false);
     body.setBodyType(RAPIER.RigidBodyType.KinematicPositionBased, false);
@@ -534,7 +555,7 @@ export class Machine {
     if (!this.slotFree(marble.offset, marble)) {
       // The reservation should make this impossible. Step back behind the neighbour and count it, so soaks notice.
       for (let attempt = 0; attempt < 6 && !this.slotFree(marble.offset, marble); attempt++) {
-        marble.offset = (marble.offset - RIDER_SPACING + this.track.length) % this.track.length;
+        marble.offset = (marble.offset - this.slotPitch + this.track.length) % this.track.length;
       }
       this.control.recoveries.bounces += 1;
       this.lastRecovery = `landing slot taken at ${t.x.toFixed(2)},${t.z.toFixed(2)}`;

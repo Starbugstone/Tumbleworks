@@ -1,7 +1,7 @@
 import { LoopRules, type LoopEvent, type TapResult } from './rules';
 import type { LoopBoardDef } from './types';
 import type { Color } from '../sim/types';
-import { type Bay, bays, DECK_TOP, LOOP, RIDE_Y, ROW_PITCH, ROW_WIDTH, STREAM, TICK_SECONDS, trackFor, TRUCK, unitLength } from './layout';
+import { type Bay, bays, DECK_TOP, LIFT_OFF, LOOP, RIDE_Y, ROW_PITCH, ROW_WIDTH, sharePercent, STREAM, TICK_SECONDS, trackFor, TRUCK, unitLength } from './layout';
 
 export type LoopMachineEvent =
   | { readonly type: 'pour'; readonly lane: number; readonly color: Color }
@@ -60,6 +60,9 @@ interface Saved { readonly rules: ReturnType<LoopRules['snapshot']>; readonly co
 
 export interface UnitPose { x: number; y: number; z: number; roll: number; visible: boolean }
 
+/** A truck's bed as whole percentages of its capacity: colours from the loop end back, then what is free. */
+export interface TruckLoad { readonly shares: readonly { readonly color: Color; readonly percent: number }[]; readonly freePercent: number }
+
 const easeInOut = (t: number): number => t * t * (3 - 2 * t);
 
 /** Loop Sort's scripted machine: trucks pour units onto a loop that never stops and take their colour back. */
@@ -75,6 +78,7 @@ export class LoopMachine {
   private readonly history: Saved[] = [];
   private readonly events: LoopMachineEvent[] = [];
   private readonly mouthDistance: number[];
+  private readonly mouthZs: number[];
 
   constructor(readonly board: LoopBoardDef) {
     this.rules = new LoopRules(board);
@@ -83,7 +87,11 @@ export class LoopMachine {
     this.unitSpacing = this.track.length / board.loopCapacity;
     this.rowsPerUnit = Math.max(1, Math.round(this.unitSpacing / ROW_PITCH));
     this.marblesPerUnit = this.rowsPerUnit * ROW_WIDTH;
-    this.mouthDistance = this.bays.map((bay) => this.track.nearest(bay.x, bay.row === 'front' ? this.track.halfDepth : -this.track.halfDepth).distance);
+    // Mouths open on the back straight of an oval, whose travel runs from lane 0 up, the order the rules take marbles
+    // in. An eight lies above its columns, so they open on its near edge, where the lower pass wins the crossing.
+    const eight = board.trackShape !== undefined && board.trackShape !== 'oval';
+    this.mouthDistance = this.bays.map((bay) => this.track.nearest(bay.x, eight ? this.track.halfDepth + 3 : -this.track.halfDepth).distance);
+    this.mouthZs = this.mouthDistance.map((distance) => this.track.point(distance).z + TRUCK.mouthGap);
     const units: UnitControl[] = this.rules.state.marbles.map((marble) => ({
       id: marble.id, color: marble.color, phase: marble.status === 'on-loop' ? 'riding' : 'truck', slot: -1, offset: 0, time: 0, fromX: 0, fromY: 0, fromZ: 0,
       jitter: Array.from({ length: this.marblesPerUnit * 2 }, (_, k) => (Math.sin(marble.id * 12.9898 + k * 78.233) * 43758.5453) % 1),
@@ -110,13 +118,21 @@ export class LoopMachine {
   get beltDistance(): number { return this.control.belt; }
   get laneCount(): number { return this.board.lanes.length; }
   /** The bed's loop end for a lane, and the direction from the cab toward the mouth (+1 front, -1 back). */
-  mouthZ(lane: number): number { const bay = this.bays[lane]!; return bay.row === 'front' ? this.track.halfDepth - TRUCK.mouthInset : -this.track.halfDepth + TRUCK.mouthInset; }
-  facing(lane: number): number { return this.bays[lane]?.row === 'front' ? 1 : -1; }
+  mouthZ(lane: number): number { return this.mouthZs[lane]!; }
+  facing(_lane: number): number { return -1; }
 
   /** A truck's bed, front (loop end) first, as colour blocks in rules units, plus its position. */
   readTrucks(): { lane: number; index: number; x: number; y: number; z: number; scale: number; visible: boolean; docked: boolean; departing: boolean; finalColor: Color; unloading: 'pouring' | 'waiting' | null;
+    /** Its place in the lane's waiting line, 0 next; null once it has left the line. */
+    queueSlot: number | null;
     blocks: { color: Color; units: number; pouring: boolean }[] }[] {
+    const waitingAhead = new Map<number, number>();
     return this.control.trucks.map((truck) => {
+      let queueSlot: number | null = null;
+      if (truck.phase === 'queued') {
+        queueSlot = waitingAhead.get(truck.lane) ?? 0;
+        waitingAhead.set(truck.lane, queueSlot + 1);
+      }
       const state = this.rules.state.lanes[truck.lane]?.find((candidate) => candidate.index === truck.index) ??
         (truck.complete ? null : null);
       const blocks: { color: Color; units: number; pouring: boolean }[] = [];
@@ -133,10 +149,20 @@ export class LoopMachine {
       }
       return { lane: truck.lane, index: truck.index, x: this.bays[truck.lane]!.x, y: truck.y, z: truck.z, scale: truck.scale,
         visible: truck.phase !== 'gone' && truck.phase !== 'queued', docked: truck.phase === 'docked',
-        departing: truck.phase === 'leaving',
+        departing: truck.phase === 'leaving', queueSlot,
         unloading: state?.unloading.length ? (this.rules.free === 0 ? 'waiting' : 'pouring') : null,
         finalColor: this.board.lanes[truck.lane]![truck.index]!.segments.at(-1)!.color, blocks };
     });
+  }
+
+  /** What a truck read from `readTrucks` is carrying and what room it has left. */
+  loadOf(blocks: readonly { readonly color: Color; readonly units: number }[]): TruckLoad {
+    const capacity = this.board.truckCapacity;
+    const carried = blocks.filter((block) => block.units > 0);
+    return {
+      shares: carried.map((block) => ({ color: block.color, percent: sharePercent(block.units, capacity) })),
+      freePercent: sharePercent(capacity - carried.reduce((sum, block) => sum + block.units, 0), capacity),
+    };
   }
 
   /** World poses of every drawn marble of a unit: rows of three along its stretch of the loop. */
@@ -283,12 +309,12 @@ export class LoopMachine {
     this.events.push({ type: 'complete', lane: event.lane, color: event.color });
   }
 
-  /** Bed centre for a lane's docked truck; a leaving truck drives out over the rim; a new one rises into place. */
+  /** Bed centre for a lane's docked truck; a leaving truck lifts away over the belt; a new one rises into place. */
   private truckTarget(truck: TruckControl): { z: number; y: number; scale: number } {
     const facing = this.facing(truck.lane);
     const docked = this.mouthZ(truck.lane) - facing * TRUCK.bedLength / 2;
     if (truck.phase === 'docked' || truck.phase === 'arriving') return { z: docked, y: DECK_TOP, scale: 1 };
-    if (truck.phase === 'leaving') return { z: facing * (this.track.halfDepth + LOOP.channelHalf + LOOP.wallThickness + TRUCK.exitLength - 0.35), y: DECK_TOP, scale: 0 };
+    if (truck.phase === 'leaving') return { z: -(this.track.halfDepth + LOOP.channelHalf + LOOP.wallThickness), y: DECK_TOP, scale: 0 };
     return { z: docked, y: DECK_TOP - 1.4, scale: 0.3 };
   }
 
@@ -311,9 +337,11 @@ export class LoopMachine {
         truck.time = Math.min(truck.time + TICK_SECONDS, truck.duration);
         const t = easeInOut(truck.time / truck.duration);
         truck.z = truck.fromZ + (target.z - truck.fromZ) * t;
-        truck.y = truck.fromY + (target.y - truck.fromY) * t;
         // Keep the chassis above the deck; dispatch shrinks it away at the outer pad, never through the platform.
         const scaleT = truck.phase === 'leaving' ? easeInOut(Math.max(0, (truck.time / truck.duration - 0.5) * 2)) : t;
+        // A leaving lorry rises off its bay and away over the belt.
+        const rise = truck.phase === 'leaving' ? Math.min(1, t * 2.5) * LIFT_OFF : 0;
+        truck.y = truck.fromY + (target.y - truck.fromY) * t + rise;
         truck.scale = truck.fromScale + (target.scale - truck.fromScale) * scaleT;
         if (truck.time >= truck.duration && truck.phase === 'leaving') {
           truck.phase = 'gone';

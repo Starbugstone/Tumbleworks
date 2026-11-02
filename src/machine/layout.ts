@@ -80,13 +80,19 @@ export const RACEWAY = {
   wallHeight: 0.5,
   /** Belt speed. Marbles ride it without physics and it never stops. */
   speed: 5.2,
-  /** How far off the centre line a rider may sit. */
-  jitter: 0.1,
+  /** How far off the centre line a rider may sit: a hint of life that still reads as one tight string on a full belt. */
+  jitter: 0.04,
 } as const;
 export const TRACK = new Track(RACEWAY.straightHalf, RACEWAY.radius, RACEWAY.centerZ);
 export const RIDE_Y = RACEWAY.floorY + MARBLE_RADIUS;
 /** The least distance along the belt between two riders. */
 export const RIDER_SPACING = MARBLE_RADIUS * 2 * 1.08;
+/**
+ * The belt is sized to its capacity: capacity slots at this pitch close the loop, so a full belt is a
+ * full string of marbles with no gaps. The two limits are the smallest tracks that still draw cleanly.
+ */
+export const SLOT_PITCH = RIDER_SPACING * 1.02;
+export const MIN_CAPACITY: Readonly<Record<BeltShape, number>> = { oval: 14, eight: 26, 'wide-eight': 30 };
 /** Marbles drop onto the belt here, at the back centre. */
 export const ENTRY_DISTANCE = 0;
 export const OUTER_FRONT_Z = TRACK.frontZ + RACEWAY.channelHalf + RACEWAY.wallThickness;
@@ -174,7 +180,24 @@ export function entryDistanceFor(track: Track | FigureEightTrack): number {
   return track.nearest(0, FUNNEL.neck.z).distance;
 }
 
-export const conveyorTrack = (shape: BeltShape = 'oval'): Track | FigureEightTrack => shape === 'oval' ? TRACK : new FigureEightTrack(shape === 'wide-eight' ? 5 : 4.4, shape === 'wide-eight' ? 1.8 : 1.65, TRACK.centerZ, false);
+const EIGHT_DEPTH: Readonly<Record<'eight' | 'wide-eight', number>> = { eight: 1.2, 'wide-eight': 1.65 };
+const EIGHT_MIN_HALF_WIDTH = 3;
+
+/** The track for a belt of this capacity. The oval keeps its corners and depth, so the chute and docks stay put. */
+export function conveyorTrack(shape: BeltShape = 'oval', capacity: number = MIN_CAPACITY.oval): Track | FigureEightTrack {
+  const length = capacity * SLOT_PITCH;
+  if (shape === 'oval') return new Track(Math.max(0, (length - 2 * Math.PI * RACEWAY.radius) / 4), RACEWAY.radius, RACEWAY.centerZ);
+  const depth = EIGHT_DEPTH[shape];
+  const build = (halfWidth: number): FigureEightTrack => new FigureEightTrack(halfWidth, depth, RACEWAY.centerZ, false);
+  let low = EIGHT_MIN_HALF_WIDTH;
+  let high = 12;
+  if (build(low).length >= length) return build(low);
+  for (let step = 0; step < 30; step++) {
+    const middle = (low + high) / 2;
+    if (build(middle).length < length) low = middle; else high = middle;
+  }
+  return build(high);
+}
 
 /** Four tapered faces shared by the hopper mesh and its solid collision panels. */
 export function funnelFaces(columns: number): { x: number; y: number; z: number }[][] {

@@ -44,11 +44,11 @@
       #patterns { display: flex; flex-wrap: wrap; gap: 12px; font-size: 13px; opacity: 0.85; }
 
       /* Short-lived text over the board. */
-      #toasts { position: absolute; left: 10px; right: 10px; bottom: max(86px, calc(env(safe-area-inset-bottom) + 80px)); display: flex; flex-direction: column; align-items: center; gap: 6px; }
+      #toasts { position: absolute; left: 10px; right: 10px; bottom: var(--toast-bottom, max(86px, calc(env(safe-area-inset-bottom) + 80px))); display: flex; flex-direction: column; align-items: center; gap: 6px; }
       #instruction, #message { width: max-content; max-width: 100%; padding: 8px 14px; border-radius: 16px; background: rgb(255 249 238 / 0.94); font-size: 14px; line-height: 1.25; text-align: center; box-shadow: 0 4px 14px rgb(0 0 0 / 0.3); }
       #message.alarm { color: #c23a1a; }
 
-      /* Four round actions along the bottom; fast forward works while held. */
+      /* Five round actions along the bottom; the two fast forwards work while held. */
       #bottom { position: absolute; left: 0; right: 0; bottom: max(14px, env(safe-area-inset-bottom)); display: flex; justify-content: center; gap: 18px; }
       .action { width: 54px; height: 54px; border-radius: 50%; background: var(--cream); display: grid; place-items: center; box-shadow: 0 4px 0 #c9b597, 0 7px 12px rgb(0 0 0 / 0.3); font-size: 24px; font-weight: 600; }
       .action:active { transform: translateY(3px); box-shadow: 0 1px 0 #c9b597, 0 4px 8px rgb(0 0 0 / 0.3); }
@@ -74,6 +74,7 @@
       #board-controls button { border: 1px solid #c9b597; padding: 7px; border-radius: 6px; }
       #boot { position: fixed; top: 40%; left: 50%; transform: translateX(-50%); width: min(80%, 360px); padding: 24px; border-radius: 20px; background: var(--cream); text-align: center; font-size: 20px; }
       @media (max-height: 600px) and (min-width: 600px) { .action { width: 44px; height: 44px; } #bottom { bottom: 8px; } #toasts { bottom: 62px; } }
+      @media (max-width: 370px) { #bottom { gap: 8px; } .action { width: 50px; height: 50px; } }
       @media (max-width: 420px) { #top { gap: 5px; left: 8px; right: 8px; } .pill { font-size: 12px; padding: 0 9px; gap: 4px; } }
       @media (prefers-reduced-motion: reduce) { #confetti { display: none; } #focus-ring, #undo.attention { animation: none; } }
       /* The controls sit on the same dark enamel and amber buttons as the arcade machines. */
@@ -85,11 +86,10 @@
       .action { background: #ffce65; box-shadow: 0 4px 0 #a56b29, 0 7px 12px #0006; }
       .action:active { box-shadow: 0 1px 0 #a56b29, 0 4px 8px #0006; }
       #hint { background: #80ead8; box-shadow: 0 4px 0 #267c79, 0 7px 12px #0006; }
-      #fast { position: relative; background: #d9e3ff; box-shadow: 0 4px 0 #5e6fb0, 0 7px 12px #0006; touch-action: none; }
-      #fast.active, #fast:active { transform: translateY(3px); box-shadow: 0 1px 0 #5e6fb0, 0 4px 8px #0006; background: #fff; }
-      #fast.active::after { content: '×3'; position: absolute; top: -26px; left: 50%; transform: translateX(-50%); padding: 1px 7px; border-radius: 9px; background: var(--accent); color: #fff; font-size: 12px; font-weight: 600; line-height: 16px; }
-      #fast:disabled { opacity: 0.45; }
-      #fast svg { width: 24px; height: 24px; }
+      .fast { background: #d9e3ff; color: var(--ink); box-shadow: 0 4px 0 #5e6fb0, 0 7px 12px #0006; touch-action: none; font-size: 20px; font-weight: 700; }
+      #faster { background: #b9c8ff; }
+      .fast.active, .fast:active { transform: translateY(3px); box-shadow: 0 1px 0 #5e6fb0, 0 4px 8px #0006; background: #fff; }
+      .fast:disabled { opacity: 0.45; }
       #language { display: flex; align-items: center; gap: 8px; margin: 10px 0; }
       #language button, #guide-replay { background: #e1e9e6; border-radius: 8px; padding: 7px 10px; }
       #language button[aria-pressed='true'] { background: var(--ink); color: white; }
@@ -136,7 +136,8 @@
         <button id="restart" class="action" aria-label="Restart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 5v4h-4"/><path d="M19.5 9A8 8 0 1 0 20 14"/></svg></button>
         <button id="undo" class="action" aria-label="Undo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7H5V3"/><path d="M5.5 7.5A8 8 0 1 1 4 13"/></svg></button>
         <button id="hint" class="action" aria-label="Hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0 0 12 3z"/></svg></button>
-        <button id="fast" class="action" aria-label="Fast forward (hold)" aria-pressed="false"><svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3.5 6.5v11l7.5-5.5z"/><path d="M12.5 6.5v11l7.5-5.5z"/></svg></button>
+        <button id="fast" class="action fast" aria-label="Fast forward ×3 (hold)" aria-pressed="false">×3</button>
+        <button id="faster" class="action fast" aria-label="Fast forward ×5 (hold)" aria-pressed="false">×5</button>
       </div>
       <div id="card" hidden>
         <h2 id="card-title"></h2>

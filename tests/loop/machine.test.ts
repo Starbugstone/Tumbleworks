@@ -1,9 +1,10 @@
 import { QUEUED_LOOP as LOOP_1, CONGESTED_LOOP } from './fixtures';
 import { describe, expect, it } from 'vitest';
 import { LOOP_BOARDS } from '../../src/loop/boards';
-import { bays, DECK_TOP, RoundedTrack } from '../../src/loop/layout';
+import { bays, bedSpans, DECK_TOP, RoundedTrack, sharePercent, TRUCK } from '../../src/loop/layout';
 import { LoopMachine, type UnitPose } from '../../src/loop/machine';
 import type { LoopBoardDef } from '../../src/loop/types';
+import { hintLoop } from '../../src/loop/solver';
 import { LOOP_JAMS, LOOP_WITNESSES } from '../witnesses';
 
 /** Taps the next lane once the loop has stopped changing, like a patient player. */
@@ -34,10 +35,12 @@ describe('the rounded loop track', () => {
     expect(track.nearest(3.4, 0).lateral).toBeCloseTo(0.4, 6);
   });
 
-  it('puts up to three lanes in front and splits more into two rows', () => {
-    expect(bays(3).map((bay) => bay.row)).toEqual(['front', 'front', 'front']);
-    expect(bays(4).map((bay) => bay.row)).toEqual(['back', 'back', 'front', 'front']);
-    expect(bays(5).filter((bay) => bay.row === 'back')).toHaveLength(3);
+  it('stands every lane in one row of columns under the belt, in lane order', () => {
+    for (const lanes of [2, 3, 4, 5]) {
+      const xs = bays(lanes).map((bay) => bay.x);
+      expect(xs).toEqual([...xs].sort((a, b) => a - b));
+      expect(xs.reduce((sum, x) => sum + x, 0)).toBeCloseTo(0, 6);
+    }
   });
 });
 
@@ -93,8 +96,7 @@ describe('the Loop Sort machine agrees with the rules', () => {
     expect(machine.readTrucks().find((truck) => truck.lane === 1 && truck.docked)?.finalColor).toBe('yellow');
   });
 
-  it('dispatches above the deck and shrinks away before disappearing in both bay rows', { timeout: 300_000 }, () => {
-    const rows = new Set<string>();
+  it('dispatches above the deck and shrinks away before disappearing', { timeout: 300_000 }, () => {
     for (const board of LOOP_BOARDS) {
       const machine = new LoopMachine(board);
       const taps = [...(LOOP_WITNESSES[board.id] ?? '')].map((letter) => letter.charCodeAt(0) - 65);
@@ -106,7 +108,6 @@ describe('the Loop Sort machine agrees with the rules', () => {
         for (const truck of machine.readTrucks()) {
           const key = `${truck.lane}:${truck.index}`;
           if (truck.departing) {
-            rows.add(machine.bays[truck.lane]!.row);
             expect(truck.y).toBeGreaterThanOrEqual(DECK_TOP);
             lastVisible.set(key, truck.scale);
           } else if (!truck.visible && lastVisible.has(key) && !finished.has(key)) {
@@ -120,7 +121,6 @@ describe('the Loop Sort machine agrees with the rules', () => {
       }
       expect(finished.size).toBe(board.lanes.reduce((sum, lane) => sum + lane.length, 0));
     }
-    expect([...rows].sort()).toEqual(['back', 'front']);
   });
 
   it('sizes units so a full loop looks full: capacity units close the ring with no visible gap', () => {
@@ -165,4 +165,131 @@ describe('the Loop Sort machine agrees with the rules', () => {
     expect(machine.tap(0).ok).toBe(true);
     expect(machine.tap(1).ok).toBe(true);
   });
+});
+
+describe('the waiting line', () => {
+  it('numbers every waiting lorry in line on every level, and only the docked one appears on the toy', () => {
+    for (const board of LOOP_BOARDS) {
+      const machine = new LoopMachine(board);
+      for (const truck of machine.readTrucks()) {
+        expect(truck.queueSlot).toBe(truck.index === 0 ? null : truck.index - 1);
+        expect(truck.visible).toBe(truck.index === 0);
+      }
+    }
+  });
+
+  it('brings the next lorry into the bay as the finished one lifts away', () => {
+    const machine = new LoopMachine(LOOP_1);
+    const docked = machine.mouthZ(1) + TRUCK.bedLength / 2;
+    const read = () => machine.readTrucks().find((truck) => truck.lane === 1 && truck.index === 1)!;
+    expect(read().queueSlot).toBe(0);
+    let lifted = 0;
+    for (let tick = 0; tick < 900 && !read().docked; tick++) {
+      machine.step();
+      const leaving = machine.readTrucks().find((candidate) => candidate.lane === 1 && candidate.departing);
+      if (leaving) lifted = Math.max(lifted, leaving.y - DECK_TOP);
+    }
+    expect(lifted).toBeGreaterThan(0);
+    const settled = read();
+    expect(settled).toMatchObject({ docked: true, visible: true, scale: 1, queueSlot: null });
+    expect(settled.z).toBeCloseTo(docked, 6);
+  });
+
+  it('keeps every stretch of a bed long enough for its number, and the bed exactly full', () => {
+    for (const units of [[2, 2, 20], [2, 2, 2, 18], [2, 4, 6, 8, 4], [24], [12, 12], [1, 23]]) {
+      const spans = bedSpans(units, 24, TRUCK.bedLength, 0.36);
+      expect(spans.reduce((sum, span) => sum + span, 0)).toBeCloseTo(TRUCK.bedLength, 6);
+      spans.forEach((span, index) => expect(span).toBeGreaterThanOrEqual(0.36 * Math.min(1, units[index]!) - 1e-9));
+    }
+    expect(bedSpans([0, 24], 24, 3.6, 0.36)).toEqual([0, 3.6]);
+  });
+
+  it('closes the line up as lorries leave, and undo puts a lorry back in its place', { timeout: 60_000 }, () => {
+    const board = LOOP_BOARDS.find((candidate) => candidate.id === 'loop-12')!;
+    const machine = new LoopMachine(board);
+    const slots = () => machine.readTrucks().filter((truck) => truck.queueSlot !== null).map(({ lane, index, queueSlot }) => ({ lane, index, queueSlot }));
+    const taps = [...(LOOP_WITNESSES[board.id] ?? '')].map((letter) => letter.charCodeAt(0) - 65);
+    const start = slots();
+    let beforeTap = start, next = 0, changed = false;
+    for (let tick = 0; tick < 60 * 200 && !changed; tick++) {
+      machine.step();
+      const now = slots();
+      changed = now.length < start.length;
+      for (const lane of board.lanes.keys()) {
+        const line = now.filter((truck) => truck.lane === lane);
+        expect(line.map((truck) => truck.queueSlot)).toEqual(line.map((_, slot) => slot));
+      }
+      const tap = taps[next];
+      if (!changed && tap !== undefined && machine.rules.pending === 0 && !machine.rules.canDrain() && tick % 10 === 0) {
+        beforeTap = now;
+        if (machine.tap(tap).ok) next += 1;
+      }
+    }
+    expect(changed).toBe(true);
+    expect(machine.undo()).toBe(true);
+    expect(slots()).toEqual(beforeTap);
+  });
+
+  it('prints each colour as a whole percentage of the bed, and what is free', () => {
+    expect([1, 2, 6, 12, 24].map((units) => sharePercent(units, 24))).toEqual([4, 8, 25, 50, 100]);
+    const machine = new LoopMachine(LOOP_1);
+    const load = (lane: number, index: number) => machine.loadOf(machine.readTrucks().find((truck) => truck.lane === lane && truck.index === index)!.blocks);
+    expect(load(1, 0)).toEqual({ shares: [{ color: 'yellow', percent: 50 }], freePercent: 50 });
+    expect(load(1, 1)).toEqual({ shares: [{ color: 'blue', percent: 33 }, { color: 'red', percent: 67 }], freePercent: 0 });
+    for (const board of LOOP_BOARDS) {
+      const boardMachine = new LoopMachine(board);
+      for (const truck of boardMachine.readTrucks()) {
+        const { shares, freePercent } = boardMachine.loadOf(truck.blocks);
+        expect(shares.map((share) => share.color)).toEqual(truck.blocks.map((block) => block.color));
+        // Plain rounding is off by at most half a point a stretch.
+        const total = shares.reduce((sum, share) => sum + share.percent, freePercent);
+        expect(Math.abs(total - 100)).toBeLessThanOrEqual((shares.length + 1) / 2);
+      }
+    }
+  });
+
+  it('counts a pouring block down and the free room up', () => {
+    // The first level starts with an empty loop, so a pour leaves at once.
+    const machine = new LoopMachine(LOOP_BOARDS[0]!);
+    const load = () => machine.loadOf(machine.readTrucks().find((truck) => truck.lane === 0)!.blocks);
+    expect(load()).toEqual({ shares: [{ color: 'red', percent: 33 }, { color: 'blue', percent: 67 }], freePercent: 0 });
+    expect(machine.tap(0).ok).toBe(true);
+    for (let tick = 0; tick < 12; tick++) machine.step();
+    const pouring = load();
+    expect(pouring.shares[0]!.percent).toBeLessThan(33);
+    expect(pouring.freePercent).toBeGreaterThan(0);
+    expect(pouring.shares[1]).toEqual({ color: 'blue', percent: 67 });
+  });
+});
+
+describe('the rules and the machine tell the same story', () => {
+  // Marbles have to meet lanes in the order the rule model takes them, or a rule-correct order can lose in play.
+  it('takes marbles along the mouths in lane order on every oval', () => {
+    for (const board of LOOP_BOARDS.filter((candidate) => !candidate.trackShape || candidate.trackShape === 'oval')) {
+      const machine = new LoopMachine(board);
+      const mouths = board.lanes.map((_, lane) => machine.track.nearest(machine.bays[lane]!.x, -machine.track.halfDepth).distance);
+      expect(mouths).toEqual([...mouths].sort((a, b) => a - b));
+    }
+  });
+
+  for (const board of LOOP_BOARDS) {
+    it(`${board.id}: following the hint to the end wins`, { timeout: 120_000 }, () => {
+      const machine = new LoopMachine(board);
+      for (let tick = 0; tick < 60 * 400; tick++) {
+        machine.step();
+        if (machine.rules.status !== 'playing' && !machine.transferring) break;
+        if (machine.rules.pending !== 0 || machine.rules.canDrain() || tick % 10) continue;
+        const lane = hintLoop(machine.rules);
+        if (lane !== null) machine.tap(lane);
+      }
+      expect(machine.rules.status).toBe('won');
+    });
+  }
+
+  for (const [id, order] of Object.entries(LOOP_JAMS)) {
+    it(`${id}: the authored losing order really jams in the machine`, { timeout: 120_000 }, () => {
+      const machine = play(LOOP_BOARDS.find((board) => board.id === id)!, order);
+      expect(machine.rules.status).toBe('jammed');
+    });
+  }
 });

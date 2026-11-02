@@ -70,6 +70,33 @@ test('French is detected, changing language preserves the live puzzle, and the c
   await context.close();
 });
 
+test('the written instruction shows only during onboarding and stays readable behind the level pill', async ({ page }) => {
+  await ready(page);
+  const instruction = page.locator('#instruction');
+  // The first level's guide is unseen, so its instruction shows until the player acts.
+  await expect(instruction).toBeVisible();
+  await tap(page, 'supply0');
+  await expect(instruction).toBeHidden();
+  // Levels without a guide never show it, however they are opened.
+  for (const index of [3, 24, 89]) {
+    await select(page, index);
+    await expect(instruction).toBeHidden();
+    await page.getByRole('button', { name: 'Restart', exact: true }).click();
+    await expect(instruction).toBeHidden();
+  }
+  await page.locator('#levels-toggle').click();
+  await expect(page.locator('#level-help')).not.toBeEmpty();
+  await page.locator('#levels-toggle').click();
+  // Once a guide has been skipped, its level stops showing the instruction too.
+  await select(page, 0);
+  await expect(instruction).toBeVisible();
+  await page.locator('#guide-skip').click();
+  await expect(instruction).toBeHidden();
+  await page.reload();
+  await page.waitForFunction(() => Boolean((window as unknown as Partial<GameWindow>).tumbleworks?.app?.runtime));
+  await expect(instruction).toBeHidden();
+});
+
 test('tap icons guide the first three puzzles through real actions and remember completed introductions', async ({ page }) => {
   await ready(page);
   await expect(page.locator('#guide-pointer svg')).toBeVisible();

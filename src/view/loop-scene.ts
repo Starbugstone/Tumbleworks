@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { Sparks } from '../engine/sparks';
 import { lorry } from './lorry';
+import { LoopRoster, type RosterPick } from './loop-roster';
 import { MarbleCrowd } from '../engine/crowd';
 import { frameBoard } from '../engine/framing';
 import type { Stage } from '../engine/stage';
@@ -19,7 +20,6 @@ const PLATFORM = ARCADE.deck;
 const PLATFORM_DARK = ARCADE.edge;
 const CHANNEL = ARCADE.track;
 const MAX_BLOCKS = 6;
-
 const plastic = (color: number, roughness = 0.42): THREE.MeshStandardMaterial =>
   new THREE.MeshStandardMaterial({ color, roughness, metalness: 0, envMapIntensity: 0.7 });
 const shiny = (color: number): THREE.MeshPhysicalMaterial =>
@@ -65,16 +65,18 @@ function rounded(width: number, height: number, depth: number, material: THREE.M
 interface Block { readonly group: THREE.Group; readonly box: THREE.Mesh; readonly badge: THREE.Mesh; color: Color | null; units: number; previousUnits: number }
 interface TruckVisual { readonly group: THREE.Group; readonly blocks: Block[]; readonly setWheelTravel: (distance: number) => void; readonly setUnloading: (state: 'pouring' | 'waiting' | null, time: number) => void; pulse: number }
 
-/** The Loop Sort platform: a packed loop around truck bays, with dispatch pads for both rows. */
+/** The Loop Sort toy: the belt and the row of docked lorries. Numbers and waiting lorries live in the cards beneath it. */
 export class LoopScene {
   readonly scene: THREE.Scene;
-  readonly camera = new THREE.PerspectiveCamera(36, 1, 1, 200);
+  // A long lens, so lorries at the far side of the ring stay nearly as large as those at the near side.
+  readonly camera = new THREE.PerspectiveCamera(22, 1, 1, 400);
   private machine: LoopMachine | null = null;
   private crowd: MarbleCrowd | null = null;
   private readonly level = new THREE.Group();
   private belt: BeltSurface | null = null;
   private readonly dummy = new THREE.Object3D();
   private readonly trucks = new Map<string, TruckVisual>();
+  private roster: LoopRoster | null = null;
   private readonly previousTrucks = new Map<string, ReturnType<LoopMachine['readTrucks']>[number]>();
   private readonly currentTrucks = new Map<string, ReturnType<LoopMachine['readTrucks']>[number]>();
   private readonly hitTargets: THREE.Mesh[] = [];
@@ -84,7 +86,6 @@ export class LoopScene {
   private readonly sparks: Sparks;
   private readonly pops: ArcadePop;
   private yard: ArcadeYard | null = null;
-  private readonly bridges: THREE.Mesh[] = [];
   private perUnit = 3;
   private readonly previous = new Map<number, UnitPose[]>();
   private readonly current = new Map<number, UnitPose[]>();
@@ -108,10 +109,9 @@ export class LoopScene {
     const cornerOut = track.corner + LOOP.channelHalf + LOOP.wallThickness;
     const innerW = track.halfWidth - LOOP.channelHalf;
     const innerD = track.halfDepth - LOOP.channelHalf;
-    const base = rounded(outerW * 2 + 1.1, 1.1, outerD * 2 + 1.1, shiny(PLATFORM), 0.45);
-    base.position.set(0, -0.55, 0);
     const eight = machine.board.trackShape && machine.board.trackShape !== 'oval';
-    this.belt = new BeltSurface(track, LOOP.channelHalf - 0.03, LOOP.floorY, MARBLE_RADIUS * 8.4);
+    // Long enough that five ticks per frame at 30 fps still reads as forward travel.
+    this.belt = new BeltSurface(track, LOOP.channelHalf - 0.03, LOOP.floorY, MARBLE_RADIUS * 13);
     this.level.add(this.belt.mesh);
     if (!eight) {
     const deck = slab(roundedRect(outerW, outerD, cornerOut), 0, LOOP.floorY, plastic(PLATFORM_DARK), plastic(CHANNEL, 0.55));
@@ -119,31 +119,36 @@ export class LoopScene {
     const plateau = slab(roundedRect(innerW, innerD, Math.max(0.2, track.corner - LOOP.channelHalf)), LOOP.floorY, DECK_TOP, plastic(PLATFORM_DARK), shiny(PLATFORM));
     this.level.add(deck, rim, plateau);
     } else this.level.add(beltDeck(track, LOOP.channelHalf, LOOP.floorY, LOOP.wallHeight));
+    // One slab under the belt and every column: the toy, with no decorative margin.
+    const ends = machine.bays.map((_, lane) => this.columnEnd(machine, lane));
+    const front = Math.max(eight ? Math.max(...ends) : 0, outerD) + 0.2;
+    const width = Math.max(outerW * 2 + 0.3, (machine.bays.at(-1)!.x - machine.bays[0]!.x) + TRUCK.bedWidth + 0.6);
+    const base = rounded(width, 1.1, front + outerD + 0.3, shiny(PLATFORM), 0.3);
+    base.position.set(0, -0.55, (front - outerD - 0.3) / 2);
     this.level.add(base);
-    this.yard = new ArcadeYard(this.scene, outerW + 0.55, -outerD - 0.55, outerD + 0.55);
-    // Lane trays on the plateau, one per bay, and a warm pad on the rim where it pours and loads.
+    this.yard = new ArcadeYard(this.scene, outerW + 0.55, -outerD - 0.55, front);
     machine.bays.forEach((bay, lane) => {
-      const facing = machine.facing(lane);
-      const tray = rounded(TRUCK.bedWidth + 0.26, 0.05, TRUCK.bedLength + TRUCK.cabLength + 0.3, plastic(ARCADE.lane, 0.6), 0.05);
-      tray.position.set(bay.x, DECK_TOP + 0.02, machine.mouthZ(lane) - facing * (TRUCK.bedLength + TRUCK.cabLength) / 2);
-      this.level.add(tray);
+      const mouth = machine.mouthZ(lane);
+      const end = ends[lane]!;
       if (eight) {
-        const pier = rounded(TRUCK.bedWidth + 0.26, DECK_TOP, TRUCK.bedLength + TRUCK.cabLength + 0.3, plastic(PLATFORM), 0.05);
-        pier.position.set(tray.position.x, DECK_TOP / 2, tray.position.z);
-        this.level.add(pier);
+        // An eight has no plateau: its columns stand on raised strips running from its near edge.
+        const start = mouth - TRUCK.mouthGap + LOOP.channelHalf;
+        const strip = rounded(TRUCK.bedWidth + 0.14, DECK_TOP, end - start, plastic(PLATFORM), 0.05);
+        strip.position.set(bay.x, DECK_TOP / 2, (end + start) / 2);
+        this.level.add(strip);
       }
-      const pad = rounded(0.95, 0.06, LOOP.wallThickness + 0.1, shiny(ARCADE.gold), 0.03);
-      pad.position.set(bay.x, DECK_TOP + 0.02, facing * (track.halfDepth + LOOP.channelHalf + LOOP.wallThickness / 2));
+      const tray = rounded(TRUCK.bedWidth + 0.12, 0.04, end - mouth + 0.2, plastic(ARCADE.lane, 0.6), 0.02);
+      tray.position.set(bay.x, DECK_TOP + 0.015, (end + mouth - 0.2) / 2);
+      this.level.add(tray);
+      const pad = rounded(TRUCK.bedWidth * 0.86, 0.05, 0.16, shiny(ARCADE.gold), 0.02);
+      pad.position.set(bay.x, DECK_TOP + 0.03, mouth - 0.3);
       this.level.add(pad);
-      // Both rows have a real exit apron. A raised bridge closes over the loop only during dispatch.
-      const apron = rounded(1.14, 0.35, TRUCK.exitLength + 0.3, shiny(PLATFORM), 0.08);
-      apron.position.set(bay.x, DECK_TOP - 0.175, facing * (outerD + TRUCK.exitLength / 2 - 0.15));
-      this.level.add(apron);
-      const bridge = rounded(1.05, 0.06, LOOP.channelHalf * 2 + LOOP.wallThickness + 0.4, plastic(0x38566b), 0.02);
-      bridge.position.set(bay.x, DECK_TOP - 0.025, facing * machine.track.halfDepth);
-      bridge.visible = false;
-      this.bridges.push(bridge); this.level.add(bridge);
     });
+  }
+
+  /** Just past a docked lorry's cab. */
+  private columnEnd(machine: LoopMachine, lane: number): number {
+    return machine.mouthZ(lane) + TRUCK.bedLength + TRUCK.cabLength + 0.1;
   }
 
   private truckVisual(color: Color, facing: number): TruckVisual {
@@ -157,7 +162,7 @@ export class LoopScene {
       const box = new THREE.Mesh(new RoundedBoxGeometry(TRUCK.bedWidth - 0.16, 0.34, 1, 2, 0.05), this.blockMaterials.get('red')!);
       box.castShadow = true;
       block.add(box);
-      const badge = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.3), new THREE.MeshBasicMaterial({ map: this.symbols.get('red')!, transparent: true, depthWrite: false, toneMapped: false }));
+      const badge = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: this.symbols.get('red')!, transparent: true, depthWrite: false, toneMapped: false }));
       badge.rotation.x = -Math.PI / 2;
       badge.position.y = 0.18;
       block.add(badge);
@@ -186,6 +191,7 @@ export class LoopScene {
       this.trucks.set(`${truck.lane}:${truck.index}`, visual);
       this.level.add(visual.group);
     }
+    this.roster = new LoopRoster(machine);
     machine.bays.forEach((bay, lane) => {
       const facing = machine.facing(lane);
       const target = new THREE.Mesh(new THREE.BoxGeometry(TRUCK.bedWidth + 0.4, 1.6, TRUCK.bedLength + TRUCK.cabLength + 0.4), new THREE.MeshBasicMaterial({ visible: false }));
@@ -197,15 +203,11 @@ export class LoopScene {
     const { track } = machine;
     const w = track.halfWidth + LOOP.channelHalf + LOOP.wallThickness + 0.05;
     const d = track.halfDepth + LOOP.channelHalf + LOOP.wallThickness;
-    this.framing = [
-      { x: -w, y: 0, z: -d }, { x: w, y: 0, z: -d }, { x: -w, y: DECK_TOP + 0.9, z: -d }, { x: w, y: DECK_TOP + 0.9, z: -d },
-      { x: -w, y: 0, z: d }, { x: w, y: 0, z: d }, { x: 0, y: DECK_TOP + 0.9, z: d },
-    ];
+    this.framing = [{ x: -w, y: DECK_TOP, z: -d }, { x: w, y: DECK_TOP, z: -d }, { x: -w, y: DECK_TOP + 0.4, z: -d }, { x: w, y: DECK_TOP + 0.4, z: -d }];
+    if (!machine.board.trackShape || machine.board.trackShape === 'oval') this.framing.push({ x: -w, y: 0, z: d + 0.2 }, { x: w, y: 0, z: d + 0.2 });
     for (const [lane, bay] of machine.bays.entries()) {
-      const z = machine.facing(lane) * (track.halfDepth + LOOP.channelHalf + LOOP.wallThickness + TRUCK.exitLength + 0.3);
-      for (const x of [bay.x - 0.65, bay.x + 0.65]) {
-        this.framing.push({ x, y: DECK_TOP, z }, { x, y: DECK_TOP + 1.1, z });
-      }
+      const z = this.columnEnd(machine, lane);
+      for (const x of [bay.x - 0.5, bay.x + 0.5]) this.framing.push({ x, y: 0, z: z + 0.2 }, { x, y: DECK_TOP + 0.9, z });
     }
     for (let i = 0; i < 64; i++) {
       const point = track.point(i / 64 * track.length);
@@ -218,10 +220,11 @@ export class LoopScene {
   private clearLevel(): void {
     this.yard?.dispose();
     this.yard = null;
-    this.bridges.length = 0;
     this.crowd?.dispose();
     this.crowd = null;
     this.trucks.clear();
+    this.roster?.dispose();
+    this.roster = null;
     this.previousTrucks.clear();
     this.currentTrucks.clear();
     this.previous.clear();
@@ -315,6 +318,7 @@ export class LoopScene {
 
     const machine = this.machine;
     if (!machine) return;
+    this.roster?.sync();
     for (const [id, poses] of this.current) {
       const previous = this.previous.get(id);
       if (!previous) continue;
@@ -331,6 +335,7 @@ export class LoopScene {
     for (const visual of this.trucks.values()) visual.pulse = 0;
     const machine = this.machine;
     if (!machine) return;
+    this.roster?.sync();
     for (const [id, poses] of this.current) {
       machine.readUnit(id, poses);
       const previous = this.previous.get(id);
@@ -365,7 +370,6 @@ export class LoopScene {
     }
     this.crowd.commit();
     const unit = machine.unitLength;
-    this.bridges.forEach((bridge, lane) => { bridge.visible = [...this.currentTrucks.values()].some((truck) => truck.lane === lane && truck.departing); });
     for (const truck of this.currentTrucks.values()) {
       const visual = this.trucks.get(`${truck.lane}:${truck.index}`);
       if (!visual) continue;
@@ -382,6 +386,7 @@ export class LoopScene {
       visual.setWheelTravel(z);
       visual.setUnloading(truck.unloading, (machine.tick + alpha) * TICK_SECONDS);
       // Cargo packs against the cab; the mouth end stays open. Blocks are listed loop end first.
+      const unit = machine.unitLength;
       let edge = -facing * TRUCK.bedLength / 2;
       visual.blocks.forEach((block) => {
         const length = (block.previousUnits + (block.units - block.previousUnits) * alpha) * unit;
@@ -389,7 +394,9 @@ export class LoopScene {
         if (!block.group.visible) return;
         block.group.position.set(0, TRUCK.bedHeight + 0.17, edge + facing * length / 2);
         block.box.scale.z = Math.max(length - 0.04, 0.005);
-        block.badge.visible = length > 0.36;
+        const side = Math.min(0.34, length - 0.05);
+        block.badge.visible = side > 0.06;
+        block.badge.scale.setScalar(side);
         edge += facing * length;
       });
     }
@@ -397,14 +404,22 @@ export class LoopScene {
     this.stage.renderer.render(this.scene, this.camera);
   }
 
-  pick(x: number, y: number): number | null {
+  /** What is under a point: a lorry card, or a docked lorry on the toy. */
+  pick(x: number, y: number): RosterPick | null {
+    const card = this.roster?.pick(x, y);
+    if (card) return card;
     const rect = this.stage.renderer.domElement.getBoundingClientRect();
     const ndc = new THREE.Vector2(((x - rect.left) / rect.width) * 2 - 1, -((y - rect.top) / rect.height) * 2 + 1);
     this.raycaster.setFromCamera(ndc, this.camera);
-    const hit = this.raycaster.intersectObjects(this.hitTargets, false)[0];
-    const lane: unknown = hit?.object.userData['lane'];
-    return typeof lane === 'number' ? lane : null;
+    const lane: unknown = this.raycaster.intersectObjects(this.hitTargets, false)[0]?.object.userData['lane'];
+    return typeof lane === 'number' ? { lane, kind: 'now' } : null;
   }
+
+  togglePeek(lane: number): void { this.roster?.togglePeek(lane); }
+  closePeek(): void { this.roster?.closePeek(); }
+  waitingBounds(): ReturnType<LoopRoster['waitingBounds']> { return this.roster?.waitingBounds() ?? []; }
+  printedNumbers(): ReturnType<LoopRoster['printedNumbers']> { return this.roster?.printedNumbers() ?? []; }
+  dockedCardHeight(): number { return this.roster?.dockedCardHeight() ?? 0; }
 
   toScreen(x: number, y: number, z: number): { x: number; y: number } {
     const v = new THREE.Vector3(x, y, z).project(this.camera);
@@ -417,6 +432,11 @@ export class LoopScene {
     const width = element.clientWidth || window.innerWidth;
     const height = element.clientHeight || window.innerHeight;
     this.stage.renderer.setSize(width, height, false);
-    if (this.framing.length) frameBoard(this.camera, width, height, this.framing, width <= 600 ? new THREE.Vector3(0, 0.9, 0.436).normalize() : CAMERA_DIRECTION);
+    if (!this.framing.length || !this.machine) return;
+    const area = this.roster?.layout(width, height);
+    frameBoard(this.camera, width, height, this.framing, width <= 600 ? new THREE.Vector3(0, 0.94, 0.34).normalize() : CAMERA_DIRECTION, area);
+    const machine = this.machine;
+    // Each lane's number sits just behind its lorry's cab, where it covers no cargo.
+    this.roster?.placePins((lane) => this.toScreen(machine.bays[lane]!.x, DECK_TOP + 0.3, machine.mouthZ(lane) + TRUCK.bedLength + TRUCK.cabLength + 0.05));
   }
 }

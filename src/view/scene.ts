@@ -8,7 +8,7 @@ import { MarbleCrowd } from '../engine/crowd';
 import { frameBoard } from '../engine/framing';
 import type { Stage } from '../engine/stage';
 import type { Machine, MachineEvent, Pose } from '../machine/machine';
-import { BOX, columnX, CRATE, FUNNEL, funnelFaces, funnelHalfWidth, MARBLE_RADIUS, RACEWAY, RIDE_Y, STACK, TRACK, dockX } from '../machine/layout';
+import { BOX, columnX, CRATE, FUNNEL, funnelFaces, funnelHalfWidth, MARBLE_RADIUS, RACEWAY, RIDE_Y, STACK, Track, dockX } from '../machine/layout';
 import type { Color } from '../sim/types';
 import { COLORS, decal } from './art';
 import { ARCADE, ArcadePop, ArcadeYard } from './arcade';
@@ -26,8 +26,8 @@ const plastic = (color: number, roughness = 0.42): THREE.MeshStandardMaterial =>
 const shiny = (color: number): THREE.MeshPhysicalMaterial =>
   new THREE.MeshPhysicalMaterial({ color, roughness: 0.3, clearcoat: 0.6, clearcoatRoughness: 0.2, envMapIntensity: 0.9 });
 
-function stadium(radius: number): THREE.Shape {
-  const { straightHalf: s, centerZ: cz } = TRACK;
+function stadium(track: Track, radius: number): THREE.Shape {
+  const { straightHalf: s, centerZ: cz } = track;
   // Drawn in x-y and laid flat, so shape y becomes world -z.
   const shape = new THREE.Shape();
   shape.moveTo(-s, -cz + radius);
@@ -37,10 +37,10 @@ function stadium(radius: number): THREE.Shape {
   shape.absarc(-s, -cz, radius, -Math.PI / 2, Math.PI / 2, true);
   return shape;
 }
-function ring(outer: number, inner: number): THREE.Shape {
-  const shape = stadium(outer);
+function ring(track: Track, outer: number, inner: number): THREE.Shape {
+  const shape = stadium(track, outer);
   const hole = new THREE.Path();
-  const { straightHalf: s, centerZ: cz } = TRACK;
+  const { straightHalf: s, centerZ: cz } = track;
   hole.moveTo(-s, -cz + inner);
   hole.lineTo(s, -cz + inner);
   hole.absarc(s, -cz, inner, Math.PI / 2, -Math.PI / 2, true);
@@ -106,18 +106,20 @@ export class MachineScene {
   private buildPlatform(): void {
     if (!this.machine) return;
     // The belt is one textured strip whose plates scroll with belt travel: motion without heavy marks.
-    // Plates are long enough that three ticks per frame at 30 fps still reads as forward travel.
-    this.belt = new BeltSurface(this.machine.track, RACEWAY.channelHalf - 0.03, DECK_TOP, MARBLE_RADIUS * 5.2);
+    // Plates are long enough that three ticks per frame at 30 fps still reads as forward travel,
+    // and a whole number of them closes the loop, so no seam jumps at the join.
+    const track = this.machine.track;
+    this.belt = new BeltSurface(track, RACEWAY.channelHalf - 0.03, DECK_TOP, this.machine.slotPitch * 3);
     this.level.add(this.belt.mesh);
-    if (this.machine.board.trackShape && this.machine.board.trackShape !== 'oval') {
-      this.level.add(beltDeck(this.machine.track, RACEWAY.channelHalf, DECK_TOP, RACEWAY.wallHeight));
+    if (!(track instanceof Track)) {
+      this.level.add(beltDeck(track, RACEWAY.channelHalf, DECK_TOP, RACEWAY.wallHeight));
       return;
     }
-    const outer = TRACK.radius + RACEWAY.channelHalf + RACEWAY.wallThickness;
-    const inner = TRACK.radius - RACEWAY.channelHalf;
-    const deck = slab(stadium(outer), 0, DECK_TOP, plastic(PLATFORM_DARK), plastic(CHANNEL, 0.55));
-    const rim = slab(ring(outer, TRACK.radius + RACEWAY.channelHalf), DECK_TOP, RIM_TOP, plastic(PLATFORM_DARK), shiny(PLATFORM));
-    const island = slab(stadium(inner), DECK_TOP, RIM_TOP, plastic(PLATFORM_DARK), shiny(PLATFORM));
+    const outer = track.radius + RACEWAY.channelHalf + RACEWAY.wallThickness;
+    const inner = track.radius - RACEWAY.channelHalf;
+    const deck = slab(stadium(track, outer), 0, DECK_TOP, plastic(PLATFORM_DARK), plastic(CHANNEL, 0.55));
+    const rim = slab(ring(track, outer, track.radius + RACEWAY.channelHalf), DECK_TOP, RIM_TOP, plastic(PLATFORM_DARK), shiny(PLATFORM));
+    const island = slab(stadium(track, inner), DECK_TOP, RIM_TOP, plastic(PLATFORM_DARK), shiny(PLATFORM));
     this.level.add(deck, rim, island);
   }
 

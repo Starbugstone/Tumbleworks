@@ -1,0 +1,74 @@
+import { describe, expect, it } from 'vitest';
+import { LOOP_BOARDS } from '../../src/loop/boards';
+import { cardNeed, placeLane, ROSTER, rosterLayout } from '../../src/loop/roster-layout';
+
+const linesOf = (board: (typeof LOOP_BOARDS)[number]): number[][] => board.lanes.map((line) => line.map((truck) => truck.segments.length + (truck.segments.reduce((sum, s) => sum + s.count, 0) < board.truckCapacity ? 1 : 0)));
+/** Levels that do not exist yet: later levels will have more lanes and longer queues. */
+const invented = (lanes: number, depth: number, stretches: number): number[][] => Array.from({ length: lanes }, () => Array.from({ length: depth }, () => stretches));
+const phone = { width: 375, height: 690 };
+
+describe('the lorry card layout', () => {
+  const shapes: [string, number[][]][] = [...LOOP_BOARDS.map((board): [string, number[][]] => [board.id, linesOf(board)]), ['6 lanes of 4', invented(6, 4, 4)], ['8 lanes of 5', invented(8, 5, 4)], ['8 lanes of 8', invented(8, 8, 5)]];
+
+  for (const [name, lines] of shapes) {
+    it(`${name}: fits the player's phone with the toy, readable numbers and a real tap target`, () => {
+      const layout = rosterLayout(lines, phone.width, phone.height);
+      expect(layout.numberSize).toBeGreaterThanOrEqual(11);
+      expect(layout.rowHeight).toBeGreaterThanOrEqual(40);
+      expect(layout.toy.height).toBeGreaterThanOrEqual(ROSTER.toyFloor);
+      expect(layout.panel.y + layout.panel.height).toBeLessThanOrEqual(phone.height - ROSTER.bottom);
+      expect(layout.toy.y + layout.toy.height).toBeLessThanOrEqual(layout.panel.y);
+      for (const line of lines) {
+        const placed = placeLane(line, layout);
+        // The docked lorry and the next one always keep their numbers; the rest may fold, and none is lost.
+        expect(placed.cards.length).toBe(Math.min(line.length, Math.max(2, placed.cards.length)));
+        const folded = placed.foldedFrom === null ? 0 : line.length - placed.foldedFrom;
+        expect(placed.cards.length + folded).toBe(line.length);
+        const last = placed.cards.at(-1)!;
+        const right = folded ? placed.foldX + ROSTER.foldWidth : last.x + last.width;
+        expect(right).toBeLessThanOrEqual(layout.cardsWidth + 0.5);
+      }
+    });
+  }
+
+  it('shows every lorry with its numbers on every current level', () => {
+    for (const board of LOOP_BOARDS) {
+      const layout = rosterLayout(linesOf(board), phone.width, phone.height);
+      for (const line of linesOf(board)) expect(placeLane(line, layout).foldedFrom, board.id).toBeNull();
+    }
+  });
+
+  it('gives cards room for their numbers on every current level', () => {
+    for (const board of LOOP_BOARDS) {
+      const layout = rosterLayout(linesOf(board), phone.width, phone.height);
+      for (const line of linesOf(board)) {
+        for (const card of placeLane(line, layout).cards) {
+          const stretches = line[card.truck]!;
+          expect(card.width + 0.5, board.id).toBeGreaterThanOrEqual(cardNeed(stretches, card.truck === 0 ? ROSTER.cabNow : ROSTER.cabWaiting));
+        }
+      }
+    }
+  });
+
+  it('gives way in order as a level grows: the toy first, then row height, then folding', () => {
+    const toy = (lanes: number): number => rosterLayout(invented(lanes, 2, 3), phone.width, phone.height).toy.height;
+    expect(toy(2)).toBeGreaterThan(toy(4));
+    expect(toy(4)).toBeGreaterThan(toy(6));
+    // Folding only starts when a line no longer fits.
+    const short = rosterLayout(invented(4, 2, 3), phone.width, phone.height);
+    expect(placeLane([3, 3], short).foldedFrom).toBeNull();
+    const long = rosterLayout(invented(4, 6, 3), phone.width, phone.height);
+    const placed = placeLane([3, 3, 3, 3, 3, 3], long);
+    expect(placed.foldedFrom).not.toBeNull();
+    expect(placed.cards.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('moves the cards beside the toy on wide screens', () => {
+    for (const [width, height] of [[1365, 900], [844, 390]] as const) {
+      const layout = rosterLayout(invented(4, 2, 3), width, height);
+      expect(layout.wide).toBe(true);
+      expect(layout.toy.x + layout.toy.width).toBeLessThanOrEqual(layout.panel.x);
+      expect(layout.toy.height).toBeGreaterThan(200);
+    }
+  });
+});

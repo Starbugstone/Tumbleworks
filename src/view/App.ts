@@ -23,8 +23,9 @@ const button = (id: string): HTMLButtonElement => {
 
 /** Campaign, controls and feedback only. Gameplay rules and entities belong to registered runtimes. */
 export class App {
-  /** Held fast forward runs this many ticks per real tick: a lap of a full belt in a third of the time. */
+  /** Held fast forward runs this many ticks per real tick: a lap of a full belt in a third or a fifth of the time. */
   static readonly FAST_SPEED = 3;
+  static readonly FASTER_SPEED = 5;
   readonly stage: Stage;
   readonly services: GameServices;
   runtime!: GameRuntime;
@@ -48,7 +49,12 @@ export class App {
   private speed = 1;
   private readonly message = element('message');
   private readonly undoButton = button('undo');
-  private readonly fastButton = button('fast');
+  private readonly fastButtons: readonly { readonly speed: number; readonly element: HTMLButtonElement }[] = [
+    { speed: App.FAST_SPEED, element: button('fast') },
+    { speed: App.FASTER_SPEED, element: button('faster') },
+  ];
+  /** The speeds being held right now; the fastest wins, and releasing it falls back to the other. */
+  private readonly heldSpeeds = new Set<number>();
   private readonly card = element('card');
   private readonly chips = element('chips');
   private readonly ring = element('focus-ring');
@@ -92,7 +98,10 @@ export class App {
     document.addEventListener('visibilitychange', () => { this.pointer.cancel(); this.setFast(false); this.lastFrame = performance.now(); this.accumulator = 0; });
     window.addEventListener('blur', () => this.setFast(false));
     document.addEventListener('keydown', (event) => this.key(event));
-    document.addEventListener('keyup', (event) => { if (event.key === 'f' || event.key === 'F') this.setFast(false); });
+    document.addEventListener('keyup', (event) => {
+      if (event.key === 'f' || event.key === 'F') this.holdSpeed(App.FAST_SPEED, false);
+      if (event.key === 'g' || event.key === 'G') this.holdSpeed(App.FASTER_SPEED, false);
+    });
     button('language-en').addEventListener('click', () => setLocale('en'));
     button('language-fr').addEventListener('click', () => setLocale('fr'));
     button('guide-skip').addEventListener('click', () => this.finishGuide());
@@ -114,31 +123,48 @@ export class App {
 
   /** Press and hold, on any pointer: capture keeps the release even when the finger slides off. */
   private bindFastForward(): void {
-    const fast = this.fastButton;
-    fast.addEventListener('contextmenu', (event) => event.preventDefault());
-    fast.addEventListener('touchstart', (event) => event.preventDefault(), { passive: false });
-    fast.addEventListener('pointerdown', (event) => {
-      if (fast.disabled) return;
-      event.preventDefault();
-      sfx.unlock();
-      fast.setPointerCapture(event.pointerId);
-      this.setFast(true);
-    });
-    for (const type of ['pointerup', 'pointercancel', 'lostpointercapture'] as const) fast.addEventListener(type, () => this.setFast(false));
-    fast.addEventListener('keydown', (event) => { if ((event.key === ' ' || event.key === 'Enter') && !event.repeat) { event.preventDefault(); this.setFast(true); } });
-    fast.addEventListener('keyup', (event) => { if (event.key === ' ' || event.key === 'Enter') this.setFast(false); });
-    fast.addEventListener('blur', () => this.setFast(false));
+    for (const { speed, element: fast } of this.fastButtons) {
+      fast.addEventListener('contextmenu', (event) => event.preventDefault());
+      fast.addEventListener('touchstart', (event) => event.preventDefault(), { passive: false });
+      fast.addEventListener('pointerdown', (event) => {
+        if (fast.disabled) return;
+        event.preventDefault();
+        sfx.unlock();
+        fast.setPointerCapture(event.pointerId);
+        this.holdSpeed(speed, true);
+      });
+      for (const type of ['pointerup', 'pointercancel', 'lostpointercapture'] as const) fast.addEventListener(type, () => this.holdSpeed(speed, false));
+      fast.addEventListener('keydown', (event) => { if ((event.key === ' ' || event.key === 'Enter') && !event.repeat) { event.preventDefault(); this.holdSpeed(speed, true); } });
+      fast.addEventListener('keyup', (event) => { if (event.key === ' ' || event.key === 'Enter') this.holdSpeed(speed, false); });
+      fast.addEventListener('blur', () => this.holdSpeed(speed, false));
+    }
   }
 
   get fastForward(): boolean { return this.speed > 1; }
 
-  setFast(on: boolean): void {
-    const allowed = on && Boolean(this.runtime) && this.runtime.status === 'playing' && !this.fastButton.disabled;
-    const next = allowed ? App.FAST_SPEED : 1;
-    if (next === this.speed) return;
-    this.speed = next;
-    this.fastButton.classList.toggle('active', allowed);
-    this.fastButton.setAttribute('aria-pressed', String(allowed));
+  private holdSpeed(speed: number, on: boolean): void {
+    if (on) this.heldSpeeds.add(speed); else this.heldSpeeds.delete(speed);
+    this.applySpeed();
+  }
+
+  /** Hold at this speed, or release every held speed. */
+  setFast(on: boolean, speed: number = App.FAST_SPEED): void {
+    if (on) this.holdSpeed(speed, true);
+    else {
+      this.heldSpeeds.clear();
+      this.applySpeed();
+    }
+  }
+
+  private applySpeed(): void {
+    const playing = Boolean(this.runtime) && this.runtime.status === 'playing';
+    if (!playing) this.heldSpeeds.clear();
+    this.speed = Math.max(1, ...this.heldSpeeds);
+    for (const { speed, element: fast } of this.fastButtons) {
+      const active = this.speed === speed;
+      fast.classList.toggle('active', active);
+      fast.setAttribute('aria-pressed', String(active));
+    }
   }
 
   static async start(canvas: HTMLCanvasElement): Promise<App> {
@@ -177,7 +203,8 @@ export class App {
     this.setMessage('');
     element('confetti').replaceChildren();
     this.localize();
-    element('instruction').hidden = this.guiding;
+    // The written instruction belongs to onboarding: every other level lives behind the level pill.
+    element('instruction').hidden = !this.guiding;
     window.clearTimeout(this.instructionTimer);
     this.instructionTimer = window.setTimeout(() => { element('instruction').hidden = true; }, 6000);
     this.showLevels(false);
@@ -307,8 +334,9 @@ export class App {
     this.undoButton.disabled = !this.runtime.canUndo;
     this.undoButton.classList.toggle('attention', this.runtime.status === 'jammed');
     button('hint').disabled = this.runtime.status !== 'playing';
-    this.fastButton.disabled = this.runtime.status !== 'playing';
-    if (this.fastButton.disabled) this.setFast(false);
+    const ended = this.runtime.status !== 'playing';
+    for (const { element: fast } of this.fastButtons) fast.disabled = ended;
+    if (ended) this.setFast(false);
     const key = this.runtime.preview.join(',');
     if (key !== this.previewKey) {
       this.previewKey = key;
@@ -346,6 +374,7 @@ export class App {
     this.guiding = false;
     element('guide').hidden = true;
     element('guide-pointer').hidden = true;
+    element('instruction').hidden = true;
   }
 
   private refreshGuide(targets: Record<string, ScreenPoint>): void {
@@ -355,7 +384,6 @@ export class App {
     if (!step) { panel.hidden = pointer.hidden = true; return; }
     if (step.done) { element('guide-text').textContent = step.text; this.finishGuide(); return; }
     panel.hidden = !element('levels').hidden || !this.card.hidden;
-    element('instruction').hidden = true;
     const copy = element('guide-text');
     if (copy.textContent !== step.text) copy.textContent = step.text;
     const at = step.target ? targets[step.target] : undefined;
@@ -366,7 +394,7 @@ export class App {
   private localize(): void {
     document.documentElement.lang = locale();
     for (const [id, label] of Object.entries({
-      undo: t('Undo', 'Annuler'), restart: t('Restart', 'Recommencer'), hint: t('Hint', 'Indice'), fast: t('Fast forward (hold)', 'Avance rapide (maintenir)'), mute: t('Sound', 'Son'),
+      undo: t('Undo', 'Annuler'), restart: t('Restart', 'Recommencer'), hint: t('Hint', 'Indice'), fast: t('Fast forward ×3 (hold)', 'Avance rapide ×3 (maintenir)'), faster: t('Fast forward ×5 (hold)', 'Avance rapide ×5 (maintenir)'), mute: t('Sound', 'Son'),
       scene: t('Puzzle board', 'Plateau de jeu'), chips: t('Campaign levels', 'Niveaux'), 'board-controls': t('Board pieces', 'Pièces du plateau'), patterns: t('Container patterns', 'Motifs des contenants'),
     })) element(id).setAttribute('aria-label', label);
     element('language-label').textContent = t('Language', 'Langue');
@@ -460,7 +488,8 @@ export class App {
     if (event.ctrlKey || event.metaKey || event.altKey) return;
     if (event.target instanceof HTMLButtonElement && (event.key === 'Enter' || event.key === ' ')) return;
     if (event.key === 'u') this.undo();
-    else if (event.key === 'f' || event.key === 'F') { if (!event.repeat) { sfx.unlock(); this.setFast(true); } }
+    else if (event.key === 'f' || event.key === 'F') { if (!event.repeat) { sfx.unlock(); this.holdSpeed(App.FAST_SPEED, true); } }
+    else if (event.key === 'g' || event.key === 'G') { if (!event.repeat) { sfx.unlock(); this.holdSpeed(App.FASTER_SPEED, true); } }
     else if (event.key === 'h') this.feedback(this.runtime.hint());
     else if (event.key === 'r') this.loadBoard(this.boardIndex);
     else if (event.key.startsWith('Arrow')) {
@@ -478,7 +507,7 @@ export class App {
   }
   debugTargets(): Record<string, ScreenPoint> {
     const targets = this.runtime.targets();
-    for (const id of ['undo', 'restart', 'hint', 'fast', 'card-action']) {
+    for (const id of ['undo', 'restart', 'hint', 'fast', 'faster', 'card-action']) {
       const rect = element(id).getBoundingClientRect();
       targets[id === 'card-action' ? 'card' : id] = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
     }

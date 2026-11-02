@@ -1,7 +1,7 @@
 import { t } from '../i18n';
 import type { Feedback, GameRuntime, GameServices } from '../engine/contracts';
 import { DECK_TOP, TRUCK } from '../loop/layout';
-import { LoopMachine } from '../loop/machine';
+import { LoopMachine, type TruckLoad } from '../loop/machine';
 import { hintLoop } from '../loop/solver';
 import type { LoopBoardDef } from '../loop/types';
 import { marbleName } from '../view/art';
@@ -33,6 +33,12 @@ export class LoopRuntime implements GameRuntime {
   }
 
   activate(target: string): readonly Feedback[] {
+    const more = /^more(\d+)$/.exec(target);
+    if (more) { this.view.togglePeek(Number(more[1])); return []; }
+    this.view.closePeek();
+    // A waiting lorry cannot be tapped. Answer with the sound and a ring round the one that can, not with words.
+    const waiting = /^waiting(\d+)$/.exec(target);
+    if (waiting) return this.status === 'playing' && this.machine.rules.front(Number(waiting[1])) ? [{ type: 'blocked', target: `lane${waiting[1]}` }] : [];
     if (!/^lane\d+$/.test(target) || this.status !== 'playing') return [];
     const result = this.machine.tap(Number(target.slice(4)));
     if (result.ok) return [{ type: 'move' }];
@@ -58,8 +64,9 @@ export class LoopRuntime implements GameRuntime {
   render(alpha: number): void { this.view.render(alpha); }
   resize(): void { this.view.resize(); }
   pick(x: number, y: number): string | null {
-    const lane = this.view.pick(x, y);
-    return lane === null ? null : `lane${lane}`;
+    const picked = this.view.pick(x, y);
+    if (!picked) return null;
+    return `${picked.kind === 'now' ? 'lane' : picked.kind}${picked.lane}`;
   }
   hint(): readonly Feedback[] {
     if (this.status !== 'playing') return [];
@@ -83,9 +90,23 @@ export class LoopRuntime implements GameRuntime {
       const at = this.view.toScreen(bay.x, DECK_TOP + 0.4, this.machine.mouthZ(lane) - facing * (TRUCK.bedLength + TRUCK.cabLength) / 2);
       const color = truck.segments[0]?.color;
       const finalColor = this.board.lanes[lane]?.[truck.index]?.segments.at(-1)?.color;
+      const trucks = this.machine.readTrucks();
+      const docked = trucks.find((candidate) => candidate.lane === lane && candidate.index === truck.index);
+      const load = docked ? t(`. Load: ${this.describeLoad(this.machine.loadOf(docked.blocks))}`, `. Chargement : ${this.describeLoad(this.machine.loadOf(docked.blocks))}`) : '';
+      const next = this.queue(lane)[0];
+      const coming = next ? t(`. Next truck finishes with ${marbleName(next.finalColor)}: ${this.describeLoad(this.machine.loadOf(next.blocks))}`, `. Le camion suivant termine avec ${marbleName(next.finalColor)} : ${this.describeLoad(this.machine.loadOf(next.blocks))}`) : '';
       const unloading = truck.unloading.length ? (this.machine.rules.free === 0 ? t('. Unloading paused: loop full', '. Déchargement en pause : circuit plein') : t('. Unloading', '. Déchargement')) : '';
-      return [[`lane${lane}`, { ...at, label: t(`Truck ${lane + 1}: ${color ? marbleName(color) : ''} at the loop end. Finish with ${finalColor ? marbleName(finalColor) : ''}`, `Camion ${lane + 1} : ${color ? marbleName(color) : ''} au bout de la benne. Terminer avec ${finalColor ? marbleName(finalColor) : ''}`) + unloading }]];
+      return [[`lane${lane}`, { ...at, label: t(`Truck ${lane + 1}: ${color ? marbleName(color) : ''} at the loop end. Finish with ${finalColor ? marbleName(finalColor) : ''}`, `Camion ${lane + 1} : ${color ? marbleName(color) : ''} au bout de la benne. Terminer avec ${finalColor ? marbleName(finalColor) : ''}`) + load + coming + unloading }]];
     }));
+  }
+  /** A truck's load in words, for the screen-reader labels of the board controls. */
+  private describeLoad(load: TruckLoad): string {
+    const shares = load.shares.map((share) => t(`${marbleName(share.color)} ${share.percent}%`, `${marbleName(share.color)} ${share.percent} %`));
+    return [...shares, t(`${load.freePercent}% free`, `${load.freePercent} % libre`)].join(', ');
+  }
+  /** Every truck still in a lane's line, the next one first. */
+  private queue(lane: number) {
+    return this.machine.readTrucks().filter((truck) => truck.lane === lane && truck.queueSlot !== null).sort((a, b) => a.queueSlot! - b.queueSlot!);
   }
   get guideId() { return this.board.id === 'loop-1' ? 'loop-basics' : undefined; }
   guide() {
@@ -108,6 +129,13 @@ export class LoopRuntime implements GameRuntime {
         return truck ? this.board.lanes[lane]?.[truck.index]?.segments.at(-1)?.color : null;
       }),
       wants: this.board.lanes.map((_, lane) => rules.wants(lane)), tick: this.machine.tick,
+      loads: this.board.lanes.map((_, lane) => {
+        const truck = rules.front(lane);
+        const docked = truck && this.machine.readTrucks().find((candidate) => candidate.lane === lane && candidate.index === truck.index);
+        return docked ? this.machine.loadOf(docked.blocks) : null;
+      }),
+      queues: this.board.lanes.map((_, lane) => this.queue(lane).map((truck) => ({ finalColor: truck.finalColor, ...this.machine.loadOf(truck.blocks) }))),
+      queueBounds: this.view.waitingBounds(), printedNumbers: this.view.printedNumbers(), dockedCardHeight: this.view.dockedCardHeight(),
       settling: this.busy || rules.canDrain() };
   }
   dispose() { this.view.dispose(); }

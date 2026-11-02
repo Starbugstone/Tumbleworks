@@ -7,11 +7,11 @@ The recorded check results below are from 1 November 2026 against the Docker dev
 | Check | Result |
 | --- | --- |
 | `npm run typecheck` | Pass |
-| `npm test` | 226 tests pass across 13 files, including every Funnel Sort witness through Rapier physics and every Loop Sort witness through the scripted machine |
+| `npm test` | 359 tests pass across 14 files, including every Funnel Sort witness through Rapier physics and every Loop Sort witness through the scripted machine |
 | `npm run build` | Pass, with Vite's large-chunk warning for the Three.js and Rapier bundle |
-| `scripts/machine-soak.ts` | 30 of 30 Funnel Sort witnesses won with zero nudges, teleports and bounces; the longest took 75 simulated seconds |
+| `scripts/machine-soak.ts` | 30 of 30 Funnel Sort witnesses won with zero nudges, teleports and bounces; the longest took 102 simulated seconds |
 | `scripts/loop-soak.ts` | 30 of 30 Loop Sort witnesses won with no rejected taps; the longest took 169 simulated seconds |
-| `npx playwright test` | 20 journeys pass in Chromium with SwiftShader in 23 minutes, including all ninety levels through real touch input in three parallel slices (18 to 22 minutes each) |
+| `npx playwright test` | 27 of 28 pass in Chromium with SwiftShader in 21 minutes, including all ninety levels through real touch input in three parallel slices. The instruction-toast test in `tests/e2e/learning.spec.ts` failed under that load and passes alone: its toast's six-second timer can run out before a loaded page checks it |
 
 ## Campaign and authoring
 
@@ -25,7 +25,7 @@ The author scripts provide the rule-level solvability proof for every generated 
 | `scripts/loop-author.ts`, `LOOP_RECIPES` | `loop-6`…`loop-30` | Build backwards from solved trucks through mirrored legal moves, then require the same search, witness, losing order, `win` band and opening-hint checks. Lane-by-lane and round-robin tapping must both jam. |
 | `scripts/tube-author.ts`, `TUBE_RECIPES` | `tube-2`…`tube-30` | Fix colours, capacity, empties, optional part-full `spread` and a shortest-solution move range. `solveTube` must find a shortest solution in that range within its default in-game search budget and 250 ms. |
 
-Funnel Sort tightens the belt to the least solvable capacity at or above one full tray plus three, then adds recipe `slack`. Loop Sort tightens in steps of two, with a floor of 20 and room above its starting loop load, then adds `slack` (4 by default). Both cap the result at the recipe's maximum capacity and check the final board again. Exact accepted capacities depend on the generated board.
+Funnel Sort tightens the belt to the least solvable capacity at or above the shape's `MIN_CAPACITY` (oval 14, eight 26, wide eight 30), then adds recipe `slack`. The track is sized to that capacity, and `tests/machine/machine.test.ts` drives every board's jam order to a full belt and checks that every slot is held, evenly spaced, with no two marbles overlapping. Loop Sort tightens in steps of two, with a floor of 20 and room above its starting loop load, then adds `slack` (4 by default). Both cap the result at the recipe's maximum capacity and check the final board again. Exact accepted capacities depend on the generated board.
 
 Random Loop Sort boards are rarely solvable. Its reverse construction brings finished trucks back to the front of a lane, exchanges loop-end marbles between front trucks, exchanges while dropping onto the loop, takes waiting colours from the loop, swaps and merges segments. Between reverse steps the loop holds no colour wanted by a front truck. The exhaustive search still verifies the resulting board.
 
@@ -66,6 +66,11 @@ Tube Sort's recipes ramp gently after the player found the early boards too hard
 | Tube Sort accepts successive moves before animation finishes | `tests/e2e/overlap.spec.ts` |
 | Funnel Sort accepts every crate before motion, keeps overflow in the funnel, drains and undoes. It also holds three marbles behind a full fifteen-marble belt with no rescues. | `tests/e2e/reservoir.spec.ts` |
 | Loop Sort explains a refused tap and marks unloading versus waiting for space | `tests/e2e/loop.spec.ts` |
+| Every printed number on all thirty Loop Sort levels stays readable at the player's 375×690, nothing clips, and the cards print no words | `tests/e2e/loop.spec.ts` |
+| The ivory card pours, a waiting card answers without pouring, a card moves up when the lorry ahead leaves, and a `+n` tile opens on one tap | `tests/e2e/loop.spec.ts` |
+| Every Loop Sort level keeps each waiting lorry on screen and clear of the controls at 375×690, 1365×900 and 844×390 | `tests/e2e/loop.spec.ts` |
+| Level 38 reports what each lorry carries and what is coming, advances the line through real taps, restores it on Undo and reprints it on a language change | `tests/e2e/loop.spec.ts` |
+| Waiting lorries and percentage labels release their geometry and textures between levels | `tests/e2e/loop.spec.ts` |
 | French browser detection, live language switching without resetting the board, and saved language choice | `tests/e2e/learning.spec.ts` |
 | Tap-hand introductions on the first three puzzles, invalid taps, completion, replay, skipping, reload, unseen guides on previously completed levels, and reduced-motion support | `tests/e2e/learning.spec.ts` |
 
@@ -100,6 +105,10 @@ Tube Sort now has a pattern rail with one marker per occupied slot. Lorry cabs c
 ## Rendering checks
 
 `node scripts/polish-live.mjs` drives Loop Sort with the real browser clock and checks that geometry and texture counts stay stable through repeated level changes. Hidden marbles are excluded from instance draws; lorry body details are batched by material, and wheels and completion sparks are instanced. These checks use SwiftShader and do not establish a phone frame rate.
+
+Loop Sort's layout was chosen with a four-model panel at the player's request, and revised after the player tried versions on their phone; proposals, mock-ups and critiques are in `output/current/panel/`. Percentages sit in the lorry cards, drawn by the browser at a fixed size: 13 CSS px at the player's 375×690 on every current level, with every lorry shown and none folded.
+
+`tests/loop/machine.test.ts` follows the hint to the end on all thirty boards and replays all twenty-eight authored losing orders through the real machine, so rule-level claims are held to what happens in play.
 
 Funnel Sort crates and boxes interpolate between simulation steps, as the marbles and Loop Sort lorries do. The ground is one gradient plane with no props; belt motion is one textured strip per board whose plates scroll with belt travel, so there are no per-marker draws for movement. Completion stamps are pooled and perimeter lighting is steady. Undo clears the stamps and particles.
 
