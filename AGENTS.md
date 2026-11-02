@@ -44,12 +44,15 @@ Reference material: Voodoo's Marble Sort! (funnel, belt, box columns) and Loop S
 
 The project uses TypeScript, Three.js and Rapier. Use the versions pinned in `package.json`. The development server runs through Docker Compose on port 5180 and is reachable by phones on the same LAN.
 
+A push to `main` deploys to <https://tumbleworks.starbugstone.com> once `.github/workflows/ci.yml` passes on that commit; a cron job on o2switch pulls and builds it. See `docs/deployment.md`. `scripts/o2switch/` and the template's tests in `tests/o2switch/` are unchanged copies of `Starbugstone/test-auto-deploy`: fix them there first. `public/.htaccess` must keep its certificate-renewal rule and must not gain a fallback to `index.html`, because a removed bundle answered with HTML leaves a black page.
+
 ```sh
 docker compose up --build
 docker compose exec -T dev npm run typecheck
 docker compose exec -T dev npm test
 docker compose exec -T dev npm run build
 docker compose --profile e2e run --rm e2e npx playwright test
+bash tests/o2switch/site-test.sh                              # real hosting build, Apache rules and browser smoke; needs PHP, Node and Docker on the machine
 docker compose exec -T dev npx tsx scripts/board-tree.ts      # Funnel Sort release trees, for authoring
 docker compose exec -T dev npx tsx scripts/loop-tree.ts       # Loop Sort tap trees, for authoring
 docker compose exec -T dev npx tsx scripts/machine-soak.ts    # physical Funnel Sort witnesses, recoveries must stay 0

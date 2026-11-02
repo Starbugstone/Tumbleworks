@@ -36,6 +36,7 @@ The browser stores completed levels, the selected level and the mute setting. An
 - [Campaign architecture](docs/campaign-architecture.md) explains which module owns what and how to add a gameplay type.
 - [The POC plan](docs/poc-plan.md) records the levels, transport design and test coverage.
 - [Verification](docs/verification.md) records the latest check results and known gaps.
+- [Deployment](docs/deployment.md) explains how a push to `main` reaches <https://tumbleworks.starbugstone.com> and holds the o2switch setup and maintenance commands.
 - [The mechanics research](docs/research/loop-sort-marble-sort-mechanics.md) records what is known about Marble Sort! and Loop Sort.
 
 ## Checks

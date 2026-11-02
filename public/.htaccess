@@ -1,0 +1,23 @@
+# Vite copies this file into every release, so the hosting controller keeps it
+# instead of writing its generic single-page-app fallback.
+Options -Indexes -MultiViews
+DirectoryIndex index.html
+
+RewriteEngine On
+# Certificate renewal (HTTP-01) needs this exception; other hidden paths stay blocked.
+RewriteRule ^\.well-known/acme-challenge/[A-Za-z0-9_-]+$ - [END]
+RewriteRule (^|/)\. - [F,L]
+
+# The game has no client routes, so a missing file stays a 404. A fallback to
+# index.html would answer a removed bundle with HTML and leave a black page.
+
+<IfModule mod_headers.c>
+  # The page names the current bundle: phones must recheck it to pick up a release.
+  <FilesMatch "\.html$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+  # Vite puts a content hash in these names, so a given name never changes.
+  <FilesMatch "-[A-Za-z0-9_-]{8}\.(js|css|woff2?)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+</IfModule>
