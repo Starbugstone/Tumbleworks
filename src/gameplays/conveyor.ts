@@ -18,6 +18,7 @@ export class ConveyorRuntime implements GameRuntime {
     this.view = new MachineScene(services.stage);
     this.view.setMachine(this.machine);
   }
+  get game() { return this.machine; }
   get status() { return this.machine.rules.status; }
   get busy() { return this.machine.transferring; }
   get canUndo() { return this.machine.canUndo; }

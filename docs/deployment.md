@@ -20,7 +20,7 @@ Every job in `ci.yml` gates deployment.
 
 | Job | Checks |
 | --- | --- |
-| `game` | `npm ci`, typecheck, unit tests including the physics and scripted witnesses, build |
+| `game` | `npm ci`, typecheck, lint, unit tests including the physics and scripted witnesses, build with its first-download budget |
 | `hosting` | The controller's own tests, then `tests/o2switch/site-test.sh` |
 
 `site-test.sh` builds the commit with the real controller and the settings below, and serves the release with Apache. It checks the cache headers, the 404 and 403 rules, the HTTPS redirect and certificate renewal, then runs `tests/e2e/smoke.spec.ts` in Chromium: the page boots, the board draws, a real tap reaches the game and all ninety levels are listed.

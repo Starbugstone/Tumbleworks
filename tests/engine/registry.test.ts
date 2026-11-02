@@ -8,6 +8,7 @@ import { LOOP_BOARDS } from '../../src/loop/boards';
 import { TUBE_BOARDS } from '../../src/puzzles/levels';
 
 class SpinRuntime implements GameRuntime {
+  readonly game = { steps: 0, actions: [], step: () => undefined, perform: () => false, fingerprint: () => '' };
   private turns = 0;
   readonly busy = false;
   readonly preview: readonly Color[] = [];

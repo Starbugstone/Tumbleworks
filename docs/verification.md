@@ -13,6 +13,30 @@ The recorded check results below are from 1 November 2026 against the Docker dev
 | `scripts/loop-soak.ts` | 30 of 30 Loop Sort witnesses won with no rejected taps; the longest took 169 simulated seconds |
 | `npx playwright test` | 27 of 28 pass in Chromium with SwiftShader in 21 minutes, including all ninety levels through real touch input in three parallel slices. The instruction-toast test in `tests/e2e/learning.spec.ts` failed under that load and passes alone: its toast's six-second timer can run out before a loaded page checks it |
 
+## Replay, models and budgets
+
+Added 2 November 2026 with [the development workflow](development-workflow.md).
+
+| Check | Result |
+| --- | --- |
+| `tests/e2e/replay.spec.ts` | A game played by touch in Chromium replays in Node to the same physics snapshot, run past 500 ticks |
+| `bash scripts/check-models.sh` | [Funnel Sort's belt slots](models/funnel-belt/README.md) hold in every config and every deliberate break is caught |
+| `tests/machine/slot-invariants.test.ts` | The same guarantees hold on the real machine under seeded arbitrary play, and fail when the code is deliberately broken |
+| `npm run build` | First download 1.896 MB gzipped against a 2.000 MB ceiling: page, script, stylesheet and two Latin font files |
+
+**Engine differences.** The first replay test diverged on long runs: Chromium 156's `Math.cos(2.3)` is `-0.6662760212798241` and Node 24's is `-0.666276021279824`, and physics grew that last bit into a different game. Every failing log replayed exactly inside Chromium, which placed the cause. Rules now use `src/engine/exact-math.ts`, built only from operations that are exact in every engine, and lint rejects the `Math` functions that aren't. All thirty witnesses of each conveyor type still win with zero recoveries. Safari and physical phones haven't been checked yet: a log copied from a phone tests that with `scripts/replay.ts`.
+
+**Frame cost.** `tests/e2e/performance.spec.ts` plays the busiest levels with a real clock and a 4x CPU slowdown, in SwiftShader on one development machine, and holds the game's own work per tick and draw. It guards against our code getting slower and doesn't measure a phone. Frame intervals, 250 to 350 ms here, mostly measure the software renderer, so nothing is claimed about frame rate.
+
+| Level | Tick p50 | Tick and draw p50 | Ceilings: tick, tick and draw |
+| --- | --- | --- | --- |
+| `board-28`, most marbles | 6.5–7.0 ms | 19.4–23.1 ms | 10 ms, 26 ms |
+| `board-30`, longest belt | 6.1–6.6 ms | 19.7–21.4 ms | 10 ms, 26 ms |
+| `loop-5`, fullest loop | 0.7–0.8 ms | 12.9–13.6 ms | 10 ms, 26 ms |
+| `loop-30`, longest | 1.1–1.4 ms | 14.5–16.3 ms | 10 ms, 26 ms |
+
+At that slowdown a typical tick and draw on the busiest Funnel Sort boards takes more than one 16.7 ms frame. Much of the draw figure is software rendering, so this isn't evidence of a phone problem, but it's the first place to look if one appears.
+
 ## Campaign and authoring
 
 The campaign contains thirty levels of each type, ninety total, interleaved by round as `board-n`, `loop-n`, `tube-n`. `tests/engine/registry.test.ts` expects all ninety IDs in order, preserves existing save IDs and checks that Full spectrum matches orange in the board content. Orange first appears in `tube-6`, then `board-8` and `loop-8`; later boards without orange keep another difficulty tier.

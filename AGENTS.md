@@ -1,5 +1,24 @@
 # Tumbleworks development reference
 
+## Default development workflow
+
+Follow [the game development workflow](docs/development-workflow.md) for changes.
+Use the stages relevant to the task; a documentation edit needs content and link
+checks, while gameplay changes need proof through the real machine and input.
+
+- Define the player-visible result and a check that can fail before implementing.
+- When fixing a recurring mistake or protecting a permanent rule, add the smallest
+  useful lint rule, type constraint or regression check. Demonstrate that it rejects
+  the failure and accepts valid behavior; prefer behavioral checks over source-text matching.
+- Reproduce simulation bugs from a replay log (the level picker copies one; `scripts/replay.ts` plays it), and keep it as the regression. Rules code must stay replayable: no randomness, clocks, browser access or engine-dependent maths such as `Math.sin` (use `src/engine/exact-math.ts`), enforced by `npm run lint`.
+- For consequential state transitions, write the invariant and check relevant
+  interleavings. Major state machines get a checked model in `docs/models/`; update it
+  with the transitions it covers, and replay counterexamples against the implementation
+  before calling them game bugs.
+- Profile before optimizing frame or tick code. `tests/e2e/performance.spec.ts` and the
+  first-download budget in `npm run build` must keep passing; raise a ceiling only with a
+  recorded baseline. Browser measurements are not phone measurements. Report checks actually run.
+
 ## Supported devices
 
 **Hard rule: we only develop for modern phones held upright.** Landscape phones and small phones about 320 px wide are not supported. Do not design for them, spend code or screen space on them, test them, or weigh any decision against them. The reference is the player's phone: about 375x690 CSS px with the browser's bars showing.
@@ -49,9 +68,13 @@ A push to `main` deploys to <https://tumbleworks.starbugstone.com> once `.github
 ```sh
 docker compose up --build
 docker compose exec -T dev npm run typecheck
+docker compose exec -T dev npm run lint                       # determinism rules for src/sim, src/machine, src/loop, src/puzzles
 docker compose exec -T dev npm test
 docker compose exec -T dev npm run build
 docker compose --profile e2e run --rm e2e npx playwright test
+docker compose --profile e2e run --rm e2e npx playwright test tests/e2e/performance.spec.ts   # busiest levels at 4x CPU slowdown; run it alone
+docker compose exec -T dev npx tsx scripts/replay.ts <log.json>   # plays a game copied from the level picker and checks it reproduces
+bash scripts/check-models.sh                                  # TLC in Docker: every model holds and every deliberate break is caught
 bash tests/o2switch/site-test.sh                              # real hosting build, Apache rules and browser smoke; needs PHP, Node and Docker on the machine
 docker compose exec -T dev npx tsx scripts/board-tree.ts      # Funnel Sort release trees, for authoring
 docker compose exec -T dev npx tsx scripts/loop-tree.ts       # Loop Sort tap trees, for authoring

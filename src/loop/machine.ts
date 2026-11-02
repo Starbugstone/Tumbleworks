@@ -1,3 +1,5 @@
+import { sin } from '../engine/exact-math';
+import { fingerprintOf, type Replayable, type ReplayAction } from '../engine/replay';
 import { LoopRules, type LoopEvent, type TapResult } from './rules';
 import type { LoopBoardDef } from './types';
 import type { Color } from '../sim/types';
@@ -66,7 +68,7 @@ export interface TruckLoad { readonly shares: readonly { readonly color: Color; 
 const easeInOut = (t: number): number => t * t * (3 - 2 * t);
 
 /** Loop Sort's scripted machine: trucks pour units onto a loop that never stops and take their colour back. */
-export class LoopMachine {
+export class LoopMachine implements Replayable {
   readonly rules: LoopRules;
   readonly track: ReturnType<typeof trackFor>;
   readonly bays: Bay[];
@@ -76,6 +78,8 @@ export class LoopMachine {
   readonly marblesPerUnit: number;
   private control: Control;
   private readonly history: Saved[] = [];
+  readonly actions: ReplayAction[] = [];
+  steps = 0;
   private readonly events: LoopMachineEvent[] = [];
   private readonly mouthDistance: number[];
   private readonly mouthZs: number[];
@@ -94,7 +98,7 @@ export class LoopMachine {
     this.mouthZs = this.mouthDistance.map((distance) => this.track.point(distance).z + TRUCK.mouthGap);
     const units: UnitControl[] = this.rules.state.marbles.map((marble) => ({
       id: marble.id, color: marble.color, phase: marble.status === 'on-loop' ? 'riding' : 'truck', slot: -1, offset: 0, time: 0, fromX: 0, fromY: 0, fromZ: 0,
-      jitter: Array.from({ length: this.marblesPerUnit * 2 }, (_, k) => (Math.sin(marble.id * 12.9898 + k * 78.233) * 43758.5453) % 1),
+      jitter: Array.from({ length: this.marblesPerUnit * 2 }, (_, k) => (sin(marble.id * 12.9898 + k * 78.233) * 43758.5453) % 1),
       lane: marble.lane ?? -1,
     }));
     const riding = units.filter((unit) => unit.phase === 'riding');
@@ -190,13 +194,13 @@ export class LoopMachine {
       if (unit.phase === 'streaming') {
         const t = Math.max(0, Math.min((unit.time / STREAM.hopSeconds - stagger) / (1 - stagger), 1));
         pose.x = mouthX + (point.x - mouthX) * t;
-        pose.y = mouthY + (RIDE_Y + point.y - mouthY) * t * t + Math.sin(t * Math.PI) * 0.25;
+        pose.y = mouthY + (RIDE_Y + point.y - mouthY) * t * t + sin(t * Math.PI) * 0.25;
         pose.z = mouthZ + (point.z - mouthZ) * t;
       } else {
         const t = Math.max(0, Math.min((unit.time / STREAM.absorbSeconds - stagger) / (1 - stagger), 1));
         const fromX = unit.fromX + (across - 1) * 0.26;
         pose.x = fromX + (mouthX - fromX) * t;
-        pose.y = unit.fromY + (mouthY - unit.fromY) * t + Math.sin(t * Math.PI) * 0.35;
+        pose.y = unit.fromY + (mouthY - unit.fromY) * t + sin(t * Math.PI) * 0.35;
         pose.z = unit.fromZ + (mouthZ - unit.fromZ) * t;
       }
     }
@@ -207,6 +211,7 @@ export class LoopMachine {
     const result = this.rules.tap(lane);
     if (!result.ok) return result;
     this.history.push(before);
+    this.actions.push({ step: this.steps, type: 'tap', at: lane });
     this.events.push({ type: 'pour', lane, color: result.color });
     return result;
   }
@@ -217,10 +222,21 @@ export class LoopMachine {
     if (!saved) return false;
     this.rules.restore(saved.rules);
     this.control = structuredClone(saved.control);
+    this.actions.push({ step: this.steps, type: 'undo' });
     return true;
   }
 
+  perform(action: ReplayAction): boolean {
+    if (action.type === 'undo') return this.undo();
+    return action.type === 'tap' && this.tap(action.at).ok;
+  }
+
+  fingerprint(): string {
+    return fingerprintOf(JSON.stringify(this.rules.state), JSON.stringify(this.control));
+  }
+
   step(): LoopMachineEvent[] {
+    this.steps += 1;
     const { control } = this;
     control.tick += 1;
     control.belt = (control.belt + LOOP.speed * TICK_SECONDS) % this.track.length;

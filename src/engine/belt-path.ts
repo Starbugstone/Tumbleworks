@@ -1,3 +1,4 @@
+import { hypot, sin } from './exact-math';
 export type BeltShape = 'oval' | 'eight' | 'wide-eight';
 export interface BeltPoint { readonly x: number; readonly y: number; readonly z: number; readonly tx: number; readonly tz: number }
 export interface BeltPath {
@@ -17,13 +18,13 @@ export class FigureEightTrack implements BeltPath {
     readonly vertical = true, readonly bridgeHeight = 2.1) {
     for (let i = 0; i <= 1024; i++) {
       const angle = i / 1024 * TAU;
-      const x = halfWidth * Math.sin(angle * (vertical ? 2 : 1));
-      const z = centerZ + halfDepth * Math.sin(angle * (vertical ? 1 : 2));
+      const x = halfWidth * sin(angle * (vertical ? 2 : 1));
+      const z = centerZ + halfDepth * sin(angle * (vertical ? 1 : 2));
       const nearBridge = Math.min(angle, TAU - angle);
       const slope = Math.max(0, 1 - nearBridge / (Math.PI * 0.36));
       const y = bridgeHeight * slope * slope * (3 - 2 * slope);
       const previous = this.samples.at(-1);
-      const distance = previous ? previous.distance + Math.hypot(x - previous.x, y - previous.y, z - previous.z) : 0;
+      const distance = previous ? previous.distance + hypot(x - previous.x, y - previous.y, z - previous.z) : 0;
       this.samples.push({ x, y, z, distance });
     }
     this.length = this.samples.at(-1)!.distance;
@@ -37,7 +38,7 @@ export class FigureEightTrack implements BeltPath {
     }
     const a = this.samples[low]!, b = this.samples[high]!;
     const ratio = (d - a.distance) / (b.distance - a.distance);
-    const span = Math.hypot(b.x - a.x, b.z - a.z);
+    const span = hypot(b.x - a.x, b.z - a.z);
     const tx = (b.x - a.x) / span, tz = (b.z - a.z) / span;
     return { x: a.x + (b.x - a.x) * ratio + tz * offset, y: a.y + (b.y - a.y) * ratio,
       z: a.z + (b.z - a.z) * ratio - tx * offset, tx, tz };
@@ -50,11 +51,11 @@ export class FigureEightTrack implements BeltPath {
       const dx = b.x - a.x, dz = b.z - a.z;
       const ratio = Math.max(0, Math.min(1, ((x - a.x) * dx + (z - a.z) * dz) / (dx * dx + dz * dz)));
       const px = a.x + dx * ratio, pz = a.z + dz * ratio, py = a.y + (b.y - a.y) * ratio;
-      const error = (x - px) ** 2 + (z - pz) ** 2 + py ** 2;
+      const error = (x - px) * (x - px) + (z - pz) * (z - pz) + py * py;
       if (error >= best) continue;
       best = error;
       distance = a.distance + (b.distance - a.distance) * ratio;
-      lateral = ((x - px) * dz - (z - pz) * dx) / Math.hypot(dx, dz);
+      lateral = ((x - px) * dz - (z - pz) * dx) / hypot(dx, dz);
     }
     return { distance, lateral };
   }

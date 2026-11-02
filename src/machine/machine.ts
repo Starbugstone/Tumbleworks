@@ -1,5 +1,7 @@
+import { cos, hypot, sin } from '../engine/exact-math';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { FALLING_GROUPS, PARKED_GROUPS, PLACED_GROUPS, physics, type PhysicsService } from '../engine/physics';
+import { fingerprintOf, type Replayable, type ReplayAction } from '../engine/replay';
 import { MachineRules, type ReleaseResult, type RulesEvent } from '../sim/rules';
 import type { BoardDef, Color } from '../sim/types';
 import {
@@ -114,7 +116,7 @@ const FALL_RESCUE_SECONDS = 8;
 const easeInOut = (t: number): number => t * t * (3 - 2 * t);
 const easeOut = (t: number): number => 1 - (1 - t) * (1 - t);
 
-export class Machine {
+export class Machine implements Replayable {
   readonly rules: MachineRules;
   readonly track: ReturnType<typeof conveyorTrack>;
   /** The belt is divided into capacity slots of this length, travelling with it. */
@@ -123,6 +125,8 @@ export class Machine {
   world: RAPIER.World;
   private control: Control;
   private readonly history: Saved[] = [];
+  readonly actions: ReplayAction[] = [];
+  steps = 0;
   private readonly marbleHandles = new Map<number, number>();
   private beltFloorHandle = -1;
   private readonly events: MachineEvent[] = [];
@@ -302,6 +306,7 @@ export class Machine {
     const result = this.rules.release(supply);
     if (!result.ok) return result;
     this.history.push(before);
+    this.actions.push({ step: this.steps, type: 'tap', at: supply });
     const crate = this.control.crates.find((candidate) => candidate.key === result.marbles[0]?.id);
     if (crate) crate.released = true;
     return result;
@@ -316,7 +321,17 @@ export class Machine {
     this.world.timestep = TICK_SECONDS;
     this.rules.restore(saved.rules);
     this.control = structuredClone(saved.control);
+    this.actions.push({ step: this.steps, type: 'undo' });
     return true;
+  }
+
+  perform(action: ReplayAction): boolean {
+    if (action.type === 'undo') return this.undo();
+    return action.type === 'tap' && this.tap(action.at).ok;
+  }
+
+  fingerprint(): string {
+    return fingerprintOf(this.world.takeSnapshot(), JSON.stringify(this.rules.state), JSON.stringify(this.control));
   }
 
   private saveState(): Saved {
@@ -334,6 +349,7 @@ export class Machine {
   // ---- The fixed tick ----
 
   step(): MachineEvent[] {
+    this.steps += 1;
     const { control } = this;
     control.tick += 1;
     control.belt = (control.belt + RACEWAY.speed * TICK_SECONDS) % this.track.length;
@@ -494,7 +510,7 @@ export class Machine {
     for (const marble of this.control.marbles) {
       if (marble.phase !== 'falling') continue;
       const at = this.marbleBody(marble.id).translation();
-      const reach = Math.hypot(at.x, at.z - FUNNEL.neck.z);
+      const reach = hypot(at.x, at.z - FUNNEL.neck.z);
       if (at.y > FUNNEL.neckY + FUNNEL.pickHeight || reach > FUNNEL.pickRadius) continue;
       const bottom = reach < FUNNEL.pickRadius * 0.5 && at.y < FUNNEL.neckY + MARBLE_RADIUS * 1.6;
       const score = bottom ? order.indexOf(marble.id) : 1000 + at.y;
@@ -621,7 +637,7 @@ export class Machine {
     const to = this.boxSlot(marble);
     body.setNextKinematicTranslation({
       x: marble.fromX + (to.x - marble.fromX) * t,
-      y: marble.fromY + (to.y - marble.fromY) * t * t + Math.sin(t * Math.PI) * FLIGHT.arc,
+      y: marble.fromY + (to.y - marble.fromY) * t * t + sin(t * Math.PI) * FLIGHT.arc,
       z: marble.fromZ + (to.z - marble.fromZ) * t,
     });
     this.roll(marble, 0, RACEWAY.speed * 0.8);
@@ -635,20 +651,20 @@ export class Machine {
 
   private placeInBox(marble: MarbleControl): void {
     if (marble.hop > 0) marble.hop = Math.max(marble.hop - TICK_SECONDS, 0);
-    const lift = Math.sin((marble.hop / FLIGHT.hopSeconds) * Math.PI) * FLIGHT.hopHeight;
+    const lift = sin((marble.hop / FLIGHT.hopSeconds) * Math.PI) * FLIGHT.hopHeight;
     const to = this.boxSlot(marble);
     this.marbleBody(marble.id).setNextKinematicTranslation({ x: to.x, y: to.y + lift, z: to.z });
   }
 
   /** Turns the marble as if it were rolling at this velocity. */
   private roll(marble: MarbleControl, vx: number, vz: number): void {
-    const speed = Math.hypot(vx, vz);
+    const speed = hypot(vx, vz);
     if (speed === 0) return;
     const angle = (speed * TICK_SECONDS) / MARBLE_RADIUS;
     const ax = vz / speed;
     const az = -vx / speed;
-    const s = Math.sin(angle / 2);
-    const c = Math.cos(angle / 2);
+    const s = sin(angle / 2);
+    const c = cos(angle / 2);
     const { qx, qy, qz, qw } = marble;
     const dx = ax * s;
     const dz = az * s;
@@ -689,14 +705,14 @@ export class Machine {
       const at = body.translation();
       if (at.y > FUNNEL.neckY + FUNNEL.shakeHeight) continue;
       const v = body.linvel();
-      if (Math.hypot(v.x, v.z) > 1.2) continue;
+      if (hypot(v.x, v.z) > 1.2) continue;
       const phase = (this.control.tick * 0.37 + marble.id * 1.7) % (Math.PI * 2);
       const mass = body.mass();
       const toNeck = { x: -at.x, z: FUNNEL.neck.z - at.z };
       body.applyImpulse({
-        x: (toNeck.x * 0.5 + Math.cos(phase) * 0.6) * FUNNEL.shakeImpulse * mass,
-        y: (0.35 + 0.25 * Math.sin(phase * 2)) * FUNNEL.shakeImpulse * mass,
-        z: (toNeck.z * 0.5 + Math.sin(phase) * 0.6) * FUNNEL.shakeImpulse * mass,
+        x: (toNeck.x * 0.5 + cos(phase) * 0.6) * FUNNEL.shakeImpulse * mass,
+        y: (0.35 + 0.25 * sin(phase * 2)) * FUNNEL.shakeImpulse * mass,
+        z: (toNeck.z * 0.5 + sin(phase) * 0.6) * FUNNEL.shakeImpulse * mass,
       }, true);
     }
   }
@@ -706,7 +722,7 @@ export class Machine {
     for (const marble of this.control.marbles) {
       if (marble?.phase !== 'falling') continue;
       const v = this.marbleBody(marble.id).linvel();
-      const speed = Math.hypot(v.x, v.y, v.z);
+      const speed = hypot(v.x, v.y, v.z);
       const change = Math.abs(speed - marble.lastSpeed);
       marble.lastSpeed = speed;
       marble.impactCooldown = Math.max(marble.impactCooldown - TICK_SECONDS, 0);

@@ -1,0 +1,170 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": {
+    "correctness": "off",
+    "suspicious": "off",
+    "pedantic": "off",
+    "perf": "off",
+    "style": "off",
+    "restriction": "off",
+    "nursery": "off"
+  },
+  "overrides": [
+    {
+      "files": [
+        "src/sim/**",
+        "src/machine/**",
+        "src/loop/**",
+        "src/puzzles/**",
+        "src/engine/belt-path.ts",
+        "src/engine/physics.ts"
+      ],
+      "rules": {
+        "no-restricted-properties": [
+          "error",
+          {
+            "object": "Math",
+            "property": "random",
+            "message": "Rules replay from their inputs: a random choice here breaks every saved replay. Derive it from the board or the tick."
+          },
+          {
+            "object": "Date",
+            "property": "now",
+            "message": "Rules replay from their inputs: count ticks instead of reading the clock."
+          },
+          {
+            "object": "performance",
+            "property": "now",
+            "message": "Rules replay from their inputs: count ticks instead of reading the clock."
+          },
+          {
+            "object": "crypto",
+            "property": "getRandomValues",
+            "message": "Rules replay from their inputs: a random choice here breaks every saved replay."
+          },
+          {
+            "object": "Math",
+            "property": "sin",
+            "message": "Math.sin can differ in the last bit between browsers, and physics grows that into a different game. Use src/engine/exact-math.ts."
+          },
+          {
+            "object": "Math",
+            "property": "cos",
+            "message": "Math.cos can differ in the last bit between browsers, and physics grows that into a different game. Use src/engine/exact-math.ts."
+          },
+          {
+            "object": "Math",
+            "property": "tan",
+            "message": "Math.tan can differ in the last bit between browsers, and physics grows that into a different game. Use src/engine/exact-math.ts."
+          },
+          {
+            "object": "Math",
+            "property": "asin",
+            "message": "Math.asin can differ in the last bit between browsers, and physics grows that into a different game. Use src/engine/exact-math.ts."
+          },
+          {
+            "object": "Math",
+            "property": "acos",
+            "message": "Math.acos can differ in the last bit between browsers, and physics grows that into a different game. Use src/engine/exact-math.ts."
+          },
+          {
+            "object": "Math",
+            "property": "atan",
+            "message": "Math.atan can differ in the last bit between browsers, and physics grows that into a different game. Use src/engine/exact-math.ts."
+          },
+          {
+            "object": "Math",
+            "property": "atan2",
+            "message": "Math.atan2 can differ in the last bit between browsers, and physics grows that into a different game. Use src/engine/exact-math.ts."
+          },
+          {
+            "object": "Math",
+            "property": "hypot",
+            "message": "Math.hypot can differ in the last bit between browsers, and physics grows that into a different game. Use src/engine/exact-math.ts."
+          },
+          {
+            "object": "Math",
+            "property": "pow",
+            "message": "Math.pow can differ in the last bit between browsers, and physics grows that into a different game. Use src/engine/exact-math.ts."
+          },
+          {
+            "object": "Math",
+            "property": "exp",
+            "message": "Math.exp can differ in the last bit between browsers, and physics grows that into a different game. Use src/engine/exact-math.ts."
+          },
+          {
+            "object": "Math",
+            "property": "log",
+            "message": "Math.log can differ in the last bit between browsers, and physics grows that into a different game. Use src/engine/exact-math.ts."
+          },
+          {
+            "object": "Math",
+            "property": "log2",
+            "message": "Math.log2 can differ in the last bit between browsers, and physics grows that into a different game. Use src/engine/exact-math.ts."
+          },
+          {
+            "object": "Math",
+            "property": "log10",
+            "message": "Math.log10 can differ in the last bit between browsers, and physics grows that into a different game. Use src/engine/exact-math.ts."
+          },
+          {
+            "object": "Math",
+            "property": "cbrt",
+            "message": "Math.cbrt can differ in the last bit between browsers, and physics grows that into a different game. Use src/engine/exact-math.ts."
+          },
+          {
+            "object": "Math",
+            "property": "sinh",
+            "message": "Math.sinh can differ in the last bit between browsers, and physics grows that into a different game. Use src/engine/exact-math.ts."
+          },
+          {
+            "object": "Math",
+            "property": "cosh",
+            "message": "Math.cosh can differ in the last bit between browsers, and physics grows that into a different game. Use src/engine/exact-math.ts."
+          },
+          {
+            "object": "Math",
+            "property": "tanh",
+            "message": "Math.tanh can differ in the last bit between browsers, and physics grows that into a different game. Use src/engine/exact-math.ts."
+          },
+          {
+            "object": "Math",
+            "property": "expm1",
+            "message": "Math.expm1 can differ in the last bit between browsers, and physics grows that into a different game. Use src/engine/exact-math.ts."
+          },
+          {
+            "object": "Math",
+            "property": "log1p",
+            "message": "Math.log1p can differ in the last bit between browsers, and physics grows that into a different game. Use src/engine/exact-math.ts."
+          }
+        ],
+        "no-restricted-globals": [
+          "error",
+          {
+            "name": "Date",
+            "message": "Rules replay from their inputs: count ticks instead of reading the clock."
+          },
+          {
+            "name": "window",
+            "message": "Rules run headless in tests and replays: keep browser access in src/view."
+          },
+          {
+            "name": "document",
+            "message": "Rules run headless in tests and replays: keep browser access in src/view."
+          }
+        ],
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "three",
+                "message": "Rules run headless in tests and replays: drawing belongs in src/view."
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -2,6 +2,7 @@ import { sfx } from '../audio';
 import { CAMPAIGN } from '../campaign';
 import type { Feedback, GameRuntime, GameServices, ScreenPoint } from '../engine/contracts';
 import { FIXED_SECONDS, physics } from '../engine/physics';
+import { replayLog, type ReplayLog } from '../engine/replay';
 import { Stage } from '../engine/stage';
 import { BoardPointer } from '../engine/pointer';
 import { currentLevel, isCompleted, markCompleted, selectLevel } from '../progress';
@@ -111,6 +112,7 @@ export class App {
       setGuideSeen(id, false);
       this.loadBoard(this.boardIndex);
     });
+    button('copy-replay').addEventListener('click', () => void this.copyReplay());
     onLocaleChange(() => {
       this.pointer.cancel();
       this.setMessage('');
@@ -402,6 +404,7 @@ export class App {
     button('guide-skip').textContent = t('Skip guide', 'Passer le guide');
     button('guide-replay').textContent = t('Restart with guide', 'Recommencer avec le guide');
     button('guide-replay').hidden = !this.runtime.guideId;
+    button('copy-replay').textContent = t('Copy this game for a bug report', 'Copier cette partie pour signaler un bug');
     element('guide-pointer-label').textContent = t('Tap here', 'Touchez ici');
     element('patterns').replaceChildren(...(['red', 'blue', 'green', 'yellow', 'orange'] as Color[]).map((color, index) => {
       const item = document.createElement('span');
@@ -425,6 +428,25 @@ export class App {
       next ? t(`Up next: ${next.name}.`, `À suivre : ${next.name}.`) : t('Every puzzle sorted. Pick a level above to play again.', 'Tous les puzzles sont triés. Choisissez un niveau pour rejouer.'),
       next ? t('Next level', 'Niveau suivant') : t('Play again', 'Rejouer'), 'win');
     else this.showCard(t('A little tangled!', 'Ça coince !'), this.runtime.jamReason, t('Keep looking', 'Continuer à chercher'), 'jam');
+  }
+
+  replay(): ReplayLog {
+    const level = CAMPAIGN[this.boardIndex];
+    if (!level) throw new Error(`No campaign level ${this.boardIndex}`);
+    return replayLog(level.id, this.runtime.game);
+  }
+
+  /** The clipboard needs HTTPS. The development server on a phone falls back to a box to copy from. */
+  private async copyReplay(): Promise<void> {
+    sfx.unlock();
+    const text = JSON.stringify(this.replay());
+    this.showLevels(false);
+    try {
+      await navigator.clipboard.writeText(text);
+      this.setMessage(t('Game copied. Paste it into your bug report.', 'Partie copiée. Collez-la dans votre signalement.'), 3000);
+    } catch {
+      window.prompt(t('Copy this game for your bug report', 'Copiez cette partie pour votre signalement'), text);
+    }
   }
 
   private showLevels(open: boolean): void {

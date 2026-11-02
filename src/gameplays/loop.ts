@@ -17,6 +17,7 @@ export class LoopRuntime implements GameRuntime {
     this.view = new LoopScene(services.stage);
     this.view.setMachine(this.machine);
   }
+  get game() { return this.machine; }
   get status() { return this.machine.rules.status; }
   get busy() { return this.machine.transferring; }
   get canUndo() { return this.machine.canUndo; }

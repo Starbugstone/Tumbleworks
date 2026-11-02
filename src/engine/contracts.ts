@@ -1,4 +1,5 @@
 import type { Color } from '../sim/types';
+import type { Replayable } from './replay';
 import type { PhysicsService } from './physics';
 import type { Stage } from './stage';
 
@@ -34,6 +35,8 @@ export interface GameRuntime {
     end(target: string | null): readonly Feedback[];
     cancel(): void;
   };
+  /** The rule state underneath, recording every accepted action. */
+  readonly game: Replayable;
   readonly status: GameStatus;
   readonly busy: boolean;
   readonly canUndo: boolean;

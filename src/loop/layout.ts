@@ -1,3 +1,4 @@
+import { atan2, cos, hypot, sin } from '../engine/exact-math';
 import { FigureEightTrack, type BeltShape } from '../engine/belt-path';
 /**
  * Loop Sort geometry, in world units: x right, y up, z toward the viewer. A portrait platform with
@@ -32,20 +33,20 @@ export class RoundedTrack {
     const r = rc + offset;
     if (d < sx) return { x: -(hw - rc) + d, z: -hd - offset, tx: 1, tz: 0 };
     d -= sx;
-    if (d < q) { const a = d / rc; return { x: hw - rc + r * Math.sin(a), z: -hd + rc - r * Math.cos(a), tx: Math.cos(a), tz: Math.sin(a) }; }
+    if (d < q) { const a = d / rc; return { x: hw - rc + r * sin(a), z: -hd + rc - r * cos(a), tx: cos(a), tz: sin(a) }; }
     d -= q;
     if (d < sz) return { x: hw + offset, z: -(hd - rc) + d, tx: 0, tz: 1 };
     d -= sz;
-    if (d < q) { const a = d / rc; return { x: hw - rc + r * Math.cos(a), z: hd - rc + r * Math.sin(a), tx: -Math.sin(a), tz: Math.cos(a) }; }
+    if (d < q) { const a = d / rc; return { x: hw - rc + r * cos(a), z: hd - rc + r * sin(a), tx: -sin(a), tz: cos(a) }; }
     d -= q;
     if (d < sx) return { x: hw - rc - d, z: hd + offset, tx: -1, tz: 0 };
     d -= sx;
-    if (d < q) { const a = d / rc; return { x: -(hw - rc) - r * Math.sin(a), z: hd - rc + r * Math.cos(a), tx: -Math.cos(a), tz: -Math.sin(a) }; }
+    if (d < q) { const a = d / rc; return { x: -(hw - rc) - r * sin(a), z: hd - rc + r * cos(a), tx: -cos(a), tz: -sin(a) }; }
     d -= q;
     if (d < sz) return { x: -hw - offset, z: hd - rc - d, tx: 0, tz: -1 };
     d -= sz;
     const a = d / rc;
-    return { x: -(hw - rc) - r * Math.cos(a), z: -hd + rc - r * Math.sin(a), tx: Math.sin(a), tz: -Math.cos(a) };
+    return { x: -(hw - rc) - r * cos(a), z: -hd + rc - r * sin(a), tx: sin(a), tz: -cos(a) };
   }
 
   /** How far along the loop the nearest centre-line point is, and how far outward (x, z) sits from it. */
@@ -63,11 +64,11 @@ export class RoundedTrack {
         ? { distance: sx + q + (z + hd - rc), lateral: x - hw }
         : { distance: 2 * sx + 3 * q + sz + (hd - rc - z), lateral: -x - hw };
     }
-    const lateral = Math.hypot(x - cx, z - cz) - rc;
-    if (x > 0 && z < 0) return { distance: sx + Math.atan2(x - cx, -(z - cz)) * rc, lateral };
-    if (x > 0 && z > 0) return { distance: sx + q + sz + Math.atan2(z - cz, x - cx) * rc, lateral };
-    if (x < 0 && z > 0) return { distance: 2 * sx + 2 * q + sz + Math.atan2(-(x - cx), z - cz) * rc, lateral };
-    return { distance: 2 * sx + 3 * q + 2 * sz + Math.atan2(-(z - cz), -(x - cx)) * rc, lateral };
+    const lateral = hypot(x - cx, z - cz) - rc;
+    if (x > 0 && z < 0) return { distance: sx + atan2(x - cx, -(z - cz)) * rc, lateral };
+    if (x > 0 && z > 0) return { distance: sx + q + sz + atan2(z - cz, x - cx) * rc, lateral };
+    if (x < 0 && z > 0) return { distance: 2 * sx + 2 * q + sz + atan2(-(x - cx), z - cz) * rc, lateral };
+    return { distance: 2 * sx + 3 * q + 2 * sz + atan2(-(z - cz), -(x - cx)) * rc, lateral };
   }
 }
 

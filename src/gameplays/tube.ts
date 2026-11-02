@@ -52,6 +52,7 @@ export class TubeRuntime implements GameRuntime {
     this.rules = new TubeRules(board);
     this.view = new TubeView(services, board, this.rules.state);
   }
+  get game() { return this.rules; }
   get status() { return this.rules.status; }
   get busy() { return this.view.busy; }
   get canUndo() { return this.rules.canUndo; }

@@ -24,7 +24,7 @@ export class PhysicsService {
     const body = world.createRigidBody(description.setTranslation(at.x, at.y, at.z)
       .setCcdEnabled(true).setCanSleep(false).setLinearDamping(0.02).setAngularDamping(0.12));
     world.createCollider(RAPIER.ColliderDesc.ball(radius)
-      .setDensity(1 / ((4 / 3) * Math.PI * radius ** 3)).setFriction(0.32)
+      .setDensity(1 / ((4 / 3) * Math.PI * radius * radius * radius)).setFriction(0.32)
       .setRestitution(restitution).setCollisionGroups(dynamic ? FALLING_GROUPS : PLACED_GROUPS), body);
     return body;
   }

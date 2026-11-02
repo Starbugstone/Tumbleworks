@@ -33,6 +33,7 @@ The browser stores completed levels, the selected level and the mute setting. An
 ## Project documents
 
 - [AGENTS.md](AGENTS.md) sets the permanent names, rules and development requirements.
+- [Development workflow](docs/development-workflow.md) defines acceptance checks, replaying failures, prevention of recurring bugs, state models and performance budgets.
 - [Campaign architecture](docs/campaign-architecture.md) explains which module owns what and how to add a gameplay type.
 - [The POC plan](docs/poc-plan.md) records the levels, transport design and test coverage.
 - [Verification](docs/verification.md) records the latest check results and known gaps.

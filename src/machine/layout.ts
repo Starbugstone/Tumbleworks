@@ -1,3 +1,4 @@
+import { atan2, cos, hypot, sin } from '../engine/exact-math';
 import { FigureEightTrack, type BeltShape } from '../engine/belt-path';
 /**
  * Funnel Sort geometry, in world units: x right, y up, z toward the viewer. Physics and drawing
@@ -39,14 +40,14 @@ export class Track {
     d -= S;
     if (d < ARC) {
       const a = d / R;
-      return { x: S + r * Math.sin(a), z: CZ - r * Math.cos(a), tx: Math.cos(a), tz: Math.sin(a) };
+      return { x: S + r * sin(a), z: CZ - r * cos(a), tx: cos(a), tz: sin(a) };
     }
     d -= ARC;
     if (d < 2 * S) return { x: S - d, z: CZ + r, tx: -1, tz: 0 };
     d -= 2 * S;
     if (d < ARC) {
       const a = d / R;
-      return { x: -S - r * Math.sin(a), z: CZ + r * Math.cos(a), tx: -Math.cos(a), tz: -Math.sin(a) };
+      return { x: -S - r * sin(a), z: CZ + r * cos(a), tx: -cos(a), tz: -sin(a) };
     }
     d -= ARC;
     return { x: -S + d, z: CZ - r, tx: 1, tz: 0 };
@@ -57,12 +58,12 @@ export class Track {
     const { straightHalf: S, radius: R, centerZ: CZ, arc: ARC, length } = this;
     const dz = z - CZ;
     if (x > S) {
-      const a = Math.atan2(x - S, -dz);
-      return { distance: S + a * R, lateral: Math.hypot(x - S, dz) - R };
+      const a = atan2(x - S, -dz);
+      return { distance: S + a * R, lateral: hypot(x - S, dz) - R };
     }
     if (x < -S) {
-      const a = Math.atan2(-S - x, dz);
-      return { distance: S + ARC + 2 * S + a * R, lateral: Math.hypot(x + S, dz) - R };
+      const a = atan2(-S - x, dz);
+      return { distance: S + ARC + 2 * S + a * R, lateral: hypot(x + S, dz) - R };
     }
     if (dz < 0) return { distance: x >= 0 ? x : length + x, lateral: -dz - R };
     return { distance: S + ARC + (S - x), lateral: dz - R };
@@ -175,7 +176,7 @@ export const FLIGHT = { seconds: 0.22, arc: 0.95, hopSeconds: 0.14, hopHeight: 0
 export function entryDistanceFor(track: Track | FigureEightTrack): number {
   if (track instanceof FigureEightTrack) {
     const a = 0.35;
-    return track.nearest(track.halfWidth * Math.sin(a), track.centerZ - track.halfDepth * Math.sin(2 * a)).distance;
+    return track.nearest(track.halfWidth * sin(a), track.centerZ - track.halfDepth * sin(2 * a)).distance;
   }
   return track.nearest(0, FUNNEL.neck.z).distance;
 }

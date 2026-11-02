@@ -1,3 +1,4 @@
+import { fingerprintOf, type Replayable, type ReplayAction } from '../engine/replay';
 import type { Color } from '../sim/types';
 import type {
   PuzzleStatus,
@@ -134,9 +135,12 @@ export function solveTube(board: TubeDef, state: TubeState, limit = DEFAULT_SEAR
   return null;
 }
 
-export class TubeRules {
+export class TubeRules implements Replayable {
   state: TubeState;
   private readonly history: TubeState[] = [];
+  readonly actions: ReplayAction[] = [];
+  /** Tube Sort has no clock: its rules change only on a move, whatever the marbles are doing on screen. */
+  readonly steps = 0;
 
   constructor(readonly board: TubeDef) {
     validateTubeDef(board);
@@ -150,7 +154,10 @@ export class TubeRules {
   move(from: number, to: number): TubeMoveResult {
     const before = this.snapshot();
     const result = tubeMove(this.board, this.state, from, to);
-    if (result.ok) this.history.push(before);
+    if (result.ok) {
+      this.history.push(before);
+      this.actions.push({ step: 0, type: 'move', from, to });
+    }
     return result;
   }
 
@@ -158,8 +165,18 @@ export class TubeRules {
     const before = this.history.pop();
     if (!before) return false;
     this.state = before;
+    this.actions.push({ step: 0, type: 'undo' });
     return true;
   }
+
+  step(): void {}
+
+  perform(action: ReplayAction): boolean {
+    if (action.type === 'undo') return this.undo();
+    return action.type === 'move' && this.move(action.from, action.to).ok;
+  }
+
+  fingerprint(): string { return fingerprintOf(JSON.stringify(this.state)); }
 
   hint(): TubeMove | null { return solveTube(this.board, this.state)?.[0] ?? null; }
   snapshot(): TubeState { return structuredClone(this.state); }
