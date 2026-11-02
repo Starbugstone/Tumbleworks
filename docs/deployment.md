@@ -23,7 +23,7 @@ Every job in `ci.yml` gates deployment.
 | `game` | `npm ci`, typecheck, unit tests including the physics and scripted witnesses, build |
 | `hosting` | The controller's own tests, then `tests/o2switch/site-test.sh` |
 
-`site-test.sh` builds the commit with the real controller and the settings below, and serves the release with Apache. It checks the cache headers, the 404 and 403 rules and certificate renewal, then runs `tests/e2e/smoke.spec.ts` in Chromium: the page boots, the board draws, a real tap reaches the game and all ninety levels are listed.
+`site-test.sh` builds the commit with the real controller and the settings below, and serves the release with Apache. It checks the cache headers, the 404 and 403 rules, the HTTPS redirect and certificate renewal, then runs `tests/e2e/smoke.spec.ts` in Chromium: the page boots, the board draws, a real tap reaches the game and all ninety levels are listed.
 
 The full Playwright suite is not in the gate. It takes about 21 minutes, and its instruction-toast test can fail under load, which would hold back a good release. Run it locally before a change you consider risky.
 
@@ -98,7 +98,7 @@ An invalid answer stops the tool before it saves anything, so you can run it aga
 
 In cPanel's **Domains** tool, create `tumbleworks.starbugstone.com` with the document root `apps/tumbleworks/current/public`. Turn off the option that shares the document root with the main domain. Opening the site over HTTP should show **Awaiting first deployment**.
 
-In **Let's Encrypt SSL**, issue a certificate for this subdomain only, with **http-01** validation. Then enable **Force HTTPS Redirect** for it in **Domains**. Expected: `curl --fail https://tumbleworks.starbugstone.com/` prints the placeholder page.
+In **Let's Encrypt SSL**, issue a certificate for this subdomain only, with **http-01** validation. Expected: `curl --fail https://tumbleworks.starbugstone.com/` prints the placeholder page. Skip cPanel's **Force HTTPS Redirect**: `public/.htaccess` redirects HTTP to HTTPS from the first deployment on.
 
 A 403 usually means `~/apps` can't be traversed. Check with `ls -ld ~/apps`, and if needed run `chmod o+x ~/apps`, without recursion.
 
@@ -180,7 +180,7 @@ The template's [setup guide](https://github.com/Starbugstone/test-auto-deploy/bl
 These files are specific to Tumbleworks:
 
 - `.github/workflows/ci.yml`
-- `public/.htaccess`, which Vite copies into each release so the controller keeps it. It rechecks the page on every visit and caches hashed bundles for good, so phones pick up a release straight away. It has no fallback to `index.html`, because a removed bundle answered with HTML would leave a black page. Keep its certificate-renewal rule.
+- `public/.htaccess`, which Vite copies into each release so the controller keeps it. It rechecks the page on every visit and caches hashed bundles for good, so phones pick up a release straight away. It redirects HTTP to HTTPS on the real host only, so the local test Apache stays on HTTP. It has no fallback to `index.html`, because a removed bundle answered with HTML would leave a black page. Keep its certificate-renewal rule.
 - `tests/o2switch/site-build.php`, `tests/o2switch/site-test.sh`, `tests/e2e/smoke.spec.ts`
 
 The template repository is private, so its links need your GitHub login.

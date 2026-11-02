@@ -94,6 +94,12 @@ for path in /.htaccess /.env /.git/config /.well-known/private /.well-known/acme
   expect_status 403 "$path"
 done
 
+live_host='Host: tumbleworks.starbugstone.com'
+redirect() { curl --silent --output /dev/null --write-out '%{http_code} %{redirect_url}' --header "$live_host" "$@"; }
+[[ "$(redirect "$base/level?x=1%20y")" == '301 https://tumbleworks.starbugstone.com/level?x=1%20y' ]] || fail 'HTTP must redirect to HTTPS, keeping the path and query'
+[[ "$(redirect --header 'X-Forwarded-Proto: https' "$base/")" == '200 ' ]] || fail 'a request already on HTTPS must not redirect, or the site loops'
+[[ "$(redirect "$base/.well-known/acme-challenge/$token")" == '200 ' ]] || fail 'HTTP-01 tokens must be served without a redirect'
+
 php tests/o2switch/site-build.php ready "$source_dir" "$root" "$id" "$base" || { tail -n 10 "$root/logs/control.log"; exit 1; }
 tail -n 1 "$root/logs/control.log" | grep -q '"result":"ready"' || fail 'static readiness did not report ready'
 echo 'Hosting build and Apache checks passed.'

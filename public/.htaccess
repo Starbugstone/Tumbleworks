@@ -8,6 +8,12 @@ RewriteEngine On
 RewriteRule ^\.well-known/acme-challenge/[A-Za-z0-9_-]+$ - [END]
 RewriteRule (^|/)\. - [F,L]
 
+# Limited to the real host so the local Apache in tests/o2switch/site-test.sh stays on HTTP.
+RewriteCond %{HTTP_HOST} ^(www\.)?tumbleworks\.starbugstone\.com$ [NC]
+RewriteCond %{HTTPS} !=on
+RewriteCond %{HTTP:X-Forwarded-Proto} !https [NC]
+RewriteRule ^ https://tumbleworks.starbugstone.com%{REQUEST_URI} [R=301,L,NE]
+
 # The game has no client routes, so a missing file stays a 404. A fallback to
 # index.html would answer a removed bundle with HTML and leave a black page.
 
