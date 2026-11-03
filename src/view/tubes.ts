@@ -49,6 +49,10 @@ export class TubeView extends BoardView {
     definition.tubes.forEach((_, index) => {
       const at = this.position(index, 0);
       const height = definition.capacity * STEP + 0.2;
+      // A slate backing separates white cargo from the pale deck and from unfilled slots.
+      const backing = toyBox(1.28, height, 0.1, 0x596887, 0.05);
+      backing.position.set(at.x, 0.7 + height / 2, at.z - 0.64);
+      this.board.add(backing);
       const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.67, 0.67, height, 32, 1, true), glass);
       tube.position.set(at.x, 0.7 + height / 2, at.z);
       this.board.add(tube);
