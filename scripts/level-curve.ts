@@ -16,20 +16,33 @@ export interface Stretch {
   readonly peakMax: number | null;
   /** `FM <= F1 + gap` on Loop Sort. */
   readonly gap: number | null;
+  /** Most that cheese or spam may win, as a share; relief and lessons get 0.10 more. Null means no ceiling. */
+  readonly ceiling: number | null;
 }
 
+/** The last round of the campaign. */
+export const LAST_ROUND = 120;
+
+/**
+ * Rounds 1-12 are the owner's accepted opening; 13-40 continue its feel; 41-120 climb to the ending. Bands from round 41 are
+ * provisional until the strong planner's H is calibrated against the owner's play (docs/levelling.md).
+ */
 export const CURVE: readonly Stretch[] = [
-  { first: 1, last: 3, ordinary: [0, 15], relief: null, peakMax: null, gap: null },
-  { first: 4, last: 6, ordinary: [30, 45], relief: [20, 30], peakMax: 52, gap: 25 },
-  { first: 7, last: 12, ordinary: [40, 55], relief: [28, 40], peakMax: 62, gap: 25 },
-  { first: 13, last: 20, ordinary: [46, 60], relief: [34, 46], peakMax: 68, gap: 30 },
-  { first: 21, last: 30, ordinary: [52, 66], relief: [38, 52], peakMax: 74, gap: 30 },
-  { first: 31, last: 45, ordinary: [57, 71], relief: [42, 56], peakMax: 80, gap: 35 },
-  { first: 46, last: 60, ordinary: [62, 76], relief: [46, 60], peakMax: 85, gap: 40 },
-  { first: 61, last: 75, ordinary: [67, 81], relief: [50, 64], peakMax: 90, gap: 45 },
-  { first: 76, last: 88, ordinary: [72, 86], relief: [54, 68], peakMax: 95, gap: 50 },
-  { first: 89, last: 90, ordinary: [78, 92], relief: null, peakMax: 95, gap: 50 },
+  { first: 1, last: 3, ordinary: [0, 15], relief: null, peakMax: null, gap: null, ceiling: null },
+  { first: 4, last: 6, ordinary: [30, 45], relief: [20, 30], peakMax: 52, gap: 25, ceiling: 0.85 },
+  { first: 7, last: 12, ordinary: [40, 55], relief: [28, 40], peakMax: 62, gap: 25, ceiling: 0.8 },
+  { first: 13, last: 20, ordinary: [44, 58], relief: [32, 44], peakMax: 64, gap: 25, ceiling: 0.78 },
+  { first: 21, last: 30, ordinary: [50, 64], relief: [36, 48], peakMax: 70, gap: 28, ceiling: 0.74 },
+  { first: 31, last: 40, ordinary: [56, 70], relief: [40, 52], peakMax: 76, gap: 30, ceiling: 0.7 },
+  { first: 41, last: 60, ordinary: [60, 76], relief: [44, 58], peakMax: 84, gap: 30, ceiling: 0.65 },
+  { first: 61, last: 80, ordinary: [66, 82], relief: [48, 62], peakMax: 90, gap: 30, ceiling: 0.6 },
+  { first: 81, last: 100, ordinary: [70, 88], relief: [54, 68], peakMax: 96, gap: 30, ceiling: 0.55 },
+  { first: 101, last: 110, ordinary: [74, 90], relief: [58, 72], peakMax: 98, gap: 30, ceiling: 0.52 },
+  { first: 111, last: 118, ordinary: [76, 92], relief: [60, 74], peakMax: 99, gap: 30, ceiling: 0.5 },
+  { first: 119, last: 120, ordinary: [80, 94], relief: [64, 76], peakMax: 100, gap: 30, ceiling: 0.5 },
 ];
+/** From this round a lesson may not rise more than any other level, and Funnel Sort's ceiling binds spam as well as cheese. */
+export const STRICT_FROM = 13;
 
 export function stretchOf(round: number): Stretch {
   const stretch = CURVE.find((candidate) => round >= candidate.first && round <= candidate.last);
@@ -37,18 +50,8 @@ export function stretchOf(round: number): Stretch {
   return stretch;
 }
 
-/** Cheese win ceiling and Loop Sort's spam ceiling, as a share. Null means no ceiling. */
-export function winCeiling(round: number): number | null {
-  if (round <= 3) return null;
-  if (round <= 6) return 0.85;
-  if (round <= 12) return 0.8;
-  if (round <= 20) return 0.75;
-  if (round <= 30) return 0.7;
-  if (round <= 45) return 0.65;
-  if (round <= 60) return 0.6;
-  if (round <= 75) return 0.55;
-  return 0.5;
-}
+/** Cheese and spam win ceiling, as a share. Null means no ceiling. */
+export const winCeiling = (round: number): number | null => stretchOf(round).ceiling;
 
 const clamp = (value: number, low: number, high: number): number => Math.min(high, Math.max(low, value));
 const tempo = (f1: number, fast: number): number => clamp(0.25 * (fast - f1), -10, 12);
@@ -189,6 +192,7 @@ export function levelViolations(level: Placement): string[] {
   if (game === 'funnel') {
     if (allowed !== null) {
       if (cheese > allowed + 1e-9) say(`cheese wins ${cheese.toFixed(2)}, ceiling ${allowed.toFixed(2)}: an auto win`);
+      if (round >= STRICT_FROM && spam > allowed + 1e-9) say(`spam wins ${spam.toFixed(2)}, ceiling ${allowed.toFixed(2)}: an auto win`);
       if (100 * cheese > 100 - row.F1 + 40 + 1e-9) say(`cheese wins ${(100 * cheese).toFixed(0)} against planner ${(100 - row.F1).toFixed(0)} + 40: an auto win`);
     }
     if (round >= 4 && Math.max(cheese, spam) - brisk < 0.1 - 1e-9) say(`cheese or spam ${Math.max(cheese, spam).toFixed(2)} does not beat careful ${brisk.toFixed(2)} by 0.10`);
@@ -242,7 +246,8 @@ export function curveViolations(levels: readonly Placement[]): string[] {
       if (!previous) return;
       const label = `${previous.row.id} to ${level.row.id}`;
       const rise = level.row.S - previous.row.S;
-      const excepted = level.slot === 'lesson' || level.slot === 'tutorial' || previous.slot === 'tutorial';
+      // Early lessons may jump, because the opening teaches; from STRICT_FROM a lesson climbs like any other level.
+      const excepted = (level.slot === 'lesson' && level.round < STRICT_FROM) || level.slot === 'tutorial' || previous.slot === 'tutorial';
       if (rise > MAX_RISE && !excepted) out.push(`${label}: rise ${rise.toFixed(1)} over ${MAX_RISE}`);
       if (rise < -MAX_FALL && previous.slot !== 'tutorial') out.push(`${label}: fall ${rise.toFixed(1)} under -${MAX_FALL}`);
       if (previous.slot === 'peak') {

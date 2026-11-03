@@ -49,13 +49,20 @@ All games share one table of S. No band builds in a ranking of the games.
 | 1-3 | 0-15 | none | none | none | none |
 | 4-6 | 30-45 | 20-30 | 52 | 25 | 85% |
 | 7-12 | 40-55 | 28-40 | 62 | 25 | 80% |
-| 13-20 | 46-60 | 34-46 | 68 | 30 | 75% |
-| 21-30 | 52-66 | 38-52 | 74 | 30 | 70% |
-| 31-45 | 57-71 | 42-56 | 80 | 35 | 65% |
-| 46-60 | 62-76 | 46-60 | 85 | 40 | 60% |
-| 61-75 | 67-81 | 50-64 | 90 | 45 | 55% |
-| 76-88 | 72-86 | 54-68 | 95 | 50 | 50% |
-| 89-90 | 78-92 | none | 95 | 50 | 50% |
+| 13-20 | 44-58 | 32-44 | 64 | 25 | 78% |
+| 21-30 | 50-64 | 36-48 | 70 | 28 | 74% |
+| 31-40 | 56-70 | 40-52 | 76 | 30 | 70% |
+| 41-60 | 60-76 | 44-58 | 84 | 30 | 65% |
+| 61-80 | 66-82 | 48-62 | 90 | 30 | 60% |
+| 81-100 | 70-88 | 54-68 | 96 | 30 | 55% |
+| 101-110 | 74-90 | 58-72 | 98 | 30 | 52% |
+| 111-118 | 76-92 | 60-74 | 99 | 30 | 50% |
+| 119-120 | 80-94 | 64-76 | 100 | 30 | 50% |
+
+The campaign has 120 rounds, 360 levels: rounds 1-40 continue the accepted opening's feel and rounds 41-120 climb to the
+ending (decided 3 November 2026; the reasoning is in `output/current/levelling/expansion/decision.md`, not tracked). Bands
+from round 41 are provisional until the strong planner's H is calibrated. From round 13 a lesson is held to the +20 rise like
+any other level, G stops at 30, and Funnel Sort's ceiling binds spam as well as cheese.
 
 The curve was set twice on 3 November 2026, both times from the owner's play.
 

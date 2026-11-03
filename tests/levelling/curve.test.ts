@@ -33,6 +33,11 @@ describe('one level against its band and gates', () => {
     const beatsPlanner = { ...valid, F1: 60, S: 35, wins: { ...valid.wins, cheese: { win: 0.85, n: 200 } } };
     expect(levelViolations(placed(beatsPlanner)).join()).toMatch(/against planner 40 \+ 40: an auto win/);
   });
+  it('holds Funnel Sort spam to the same ceiling as cheese from round 13', () => {
+    const spammy = { ...valid, wins: { ...valid.wins, spam: { win: 0.95, n: 200 } } };
+    expect(levelViolations(placed(spammy, 8)).join()).not.toMatch(/spam wins/);
+    expect(levelViolations(placed(spammy, 14)).join()).toMatch(/spam wins 0\.95, ceiling 0\.78: an auto win/);
+  });
   it('rejects a board that does not reward fast play, never one for being hard to cheese alone', () => {
     const flat = { ...valid, wins: { cheese: { win: 0.2, n: 200 }, spam: { win: 0.2, n: 200 }, brisk: { win: 0.2, n: 200 } } };
     expect(levelViolations(placed(flat)).join()).toMatch(/does not beat careful/);
@@ -88,6 +93,10 @@ describe('the steps between levels', () => {
     expect(curveViolations(misplaced).join()).toMatch(/no lesson displacing it/);
     const apart = all().map((level) => (level.game === 'tube' ? { ...level, row: { ...level.row, S: 0 } } : level));
     expect(curveViolations(apart).join()).toMatch(/differ by/);
+  });
+  it('lets an opening lesson jump, but holds a lesson from round 13 to the rise rule', () => {
+    expect(curveViolations([easy('tube', 9, 20), easy('tube', 10, 45, 'lesson')]).join()).not.toMatch(/rise/);
+    expect(curveViolations([easy('tube', 24, 38, 'relief'), easy('tube', 25, 59, 'lesson')]).join()).toMatch(/rise 21\.0 over 20/);
   });
   it('rejects three games peaking in one round and a repeated structure', () => {
     const together = all().map((level) => (level.round === 9 ? { ...level, slot: 'peak' as const } : level));
