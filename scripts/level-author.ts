@@ -164,8 +164,9 @@ export const TUBE_TARGETS: readonly TubeTarget[] = [
   { id: 'fam-t25d', want: [44, 78], round: 31, slot: 'ordinary', title: 'Short and sharp', fr: 'Court et vif', note: 'Four colours, one spare, few moves, many traps.', colors: 4, capacity: 4, empties: 1, moves: [8, 13], f1: [44, 78] },
 ];
 
-interface Log { seed: number; capacity?: number; outcome: string; F1?: number; FM?: number; FMmixed?: number; S?: number; spam?: number; cheese?: number; brisk?: number; gatePassed?: boolean; mixedGatePassed?: boolean; trap?: TubeTrap | null; scored?: ScoredFile }
-const log = (id: string, entry: Log): void => { appendFileSync(`${CANDIDATE_DIR}/${id}.jsonl`, `${JSON.stringify(entry)}\n`); };
+interface Log { seed: number; capacity?: number; outcome: string; /** Milliseconds since this seed began, for finding where authoring time goes. */ ms?: number; F1?: number; FM?: number; FMmixed?: number; S?: number; spam?: number; cheese?: number; brisk?: number; gatePassed?: boolean; mixedGatePassed?: boolean; trap?: TubeTrap | null; scored?: ScoredFile }
+let seedStarted = Date.now();
+const log = (id: string, entry: Log): void => { appendFileSync(`${CANDIDATE_DIR}/${id}.jsonl`, `${JSON.stringify({ ...entry, ms: Date.now() - seedStarted })}\n`); };
 const logged = (id: string): Log[] => {
   try { return readFileSync(`${CANDIDATE_DIR}/${id}.jsonl`, 'utf8').trim().split('\n').filter(Boolean).map((line) => JSON.parse(line) as Log); } catch { return []; }
 };
@@ -358,6 +359,7 @@ if (process.argv[1]?.endsWith('level-author.ts')) {
     const started = progress;
     let seed = progress;
     for (; found < want && Date.now() < deadline; seed++) {
+      seedStarted = Date.now();
       try {
         found += funnel ? await funnelCandidate(funnel, seed) : loop ? loopCandidate(loop, seed) : tubeCandidate(tube!, seed);
       } catch (error) { log(id, { seed, outcome: `error ${String(error).slice(0, 160)}` }); }
