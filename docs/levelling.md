@@ -74,7 +74,7 @@ The curve was set twice on 3 November 2026, both times from the owner's play.
 
 The owner will test with other players, so these numbers stay open.
 
-A human who finishes levels the bots lose 77 to 100% of the time is much stronger than the reference planner, so S loses resolution near the top. Before rounds 31 to 90 are authored, add a stronger reference planner (deeper lookahead, fewer lapses) and check that it still separates the late bands; a scale where every late level reads 95 or more cannot steer the curve.
+A human who finishes levels the bots lose 77 to 100% of the time is much stronger than the reference planner, so S loses resolution near the top. The strong reference H below adds deeper lookahead and fewer lapses. It is measured alongside S, not enforced; calibration and the owner’s blind pairs must establish useful late bands before H becomes a gate. A scale where every late level reads 95 or more cannot steer the curve.
 
 A slot chooses the band: tutorials are exempt, a lesson sits between relief's low and the middle of ordinary, a peak between ordinary's low and its maximum.
 
@@ -234,7 +234,8 @@ is evaluated again; only an already observed identical tap path can reuse a mach
 full trial count. CPU time is logged for authoring cost and never used as a stopping rule.
 
 Run `npx tsx scripts/calibrate-h.ts [ids...]` for the 36 registered boards plus old finale anchors; results are resumable
-under `output/current/levelling/expansion/h/`. `--smoke` uses three seeds in a separate folder. The calibration report
+under `output/current/levelling/expansion/h/`. `--smoke` uses three seeds in a separate folder.
+`npx tsx scripts/report-h.ts [report-path]` validates the complete calibration and writes its tables and provisional bands. The calibration report
 chooses provisional bands for playtesting; H is not a human failure rate.
 
 The H introduction migrated all 139 existing score hashes without rescoring, by explicit owner instruction. Those
