@@ -121,7 +121,7 @@ docker compose exec -T dev npx tsx scripts/level-author.ts run <id> <want> <minu
 docker compose exec -T dev npx tsx scripts/level-emit.ts <id:seed[:capacity]>...       # writes chosen candidates into the banks
 ```
 
-Every candidate an author tries leaves a line in `output/current/levelling/first-stretch/candidates/<id>.jsonl`. Scores are keyed by a hash of the board's rules: changing a board without a re-score fails `tests/levelling/curve.test.ts`. A full re-score takes hours, so CI checks the table and replays six recorded games per game.
+Every candidate an author tries leaves a line in `output/current/levelling/first-stretch/candidates/<id>.jsonl`. Scores are keyed by a versioned hash of the scorer policy, seed sets and board rules (excluding ID, title and stored solution): changing a board without a re-score fails `tests/levelling/curve.test.ts`. A full re-score takes hours, so CI checks the table and replays six recorded games per game.
 
 ## The first stretch
 
@@ -205,4 +205,39 @@ Each was found while building and is recorded here rather than worked around.
 9. **Not built:** the Next button that skips completed levels (section 6) is left as it is, so the owner plays the thirty-six
    in order; the definite "can't be sorted" hint text (section 8) is left, though its proof test exists; tiers still come from
    `hasOrange` and position (section 9 ships later).
-10. **The hash covers the rules only.** A board's title and Tube Sort's stored solution do not change its score.
+10. **The hash now includes scorer identity.** `scripts/level-policy.ts` holds the scorer version, policies, budgets and seed sets. IDs, titles and stored Tube Sort solutions do not change the hash.
+
+
+## Strong reference H (measured, not gated)
+
+`scripts/level-strong.ts` runs depths 4 and 6 with 3% uniform legal-action lapses and the existing observable heuristic.
+H is their mean failure percentage. Tube Sort uses its exact graph modulo interchangeable tubes; conveyors use the
+real physics `Machine` and scripted `LoopMachine`, with settled-rule lookahead as the older players do. A conveyor
+row's H is the patient result. Settled, patient, burst2 and burst3 measurements, each depth and matching zero-lapse
+runs are retained in `row.strong`. Nothing here changes S or a gate.
+
+The fixed samples are seeds 1–60 for each conveyor setting and 1–1000 for each Tube Sort setting. Every setting reports
+terminal jams, proven silent losses, censored runs, oracle exhaustion and the first action that changes a solvable
+position into an unsolvable one (0 means the starting position was already lost). The Tube Sort diagnosis is exact;
+conveyor diagnoses are explicitly settled-model proxies, and wins after a proxy loss are reported. The diagnostic
+oracle never supplies a planner value. A null diagnostic is not evidence that no mistake happened.
+
+Search caches state/depth values with their path context and prunes immediate reversals and forecast-path cycles.
+A lapse still samples all legal actions. Logical node work is charged even on cache hits, so cache warmth cannot change
+a budget result. Search is capped at 100,000 logical nodes per choice, the oracle at 40,000 states per query, the retained
+graph at 200,000 states (40,000 for tubes), and play at 120 actions or 14,400 ticks. Every budget exit is `exhausted`,
+never a loss. A measurement with any censored trial has H `null` and explicit lower/upper failure bounds. Proven lost
+Tube positions may still have legal moves: these are silent losses, not budget exits.
+
+Machine traces are reusable because physics and timing are deterministic given the taps. Every seeded planner decision
+is evaluated again; only an already observed identical tap path can reuse a machine outcome. The caller still gets a
+full trial count. CPU time is logged for authoring cost and never used as a stopping rule.
+
+Run `npx tsx scripts/calibrate-h.ts [ids...]` for the 36 registered boards plus old finale anchors; results are resumable
+under `output/current/levelling/expansion/h/`. `--smoke` uses three seeds in a separate folder. The calibration report
+chooses provisional bands for playtesting; H is not a human failure rate.
+
+The H introduction migrated all 139 existing score hashes without rescoring, by explicit owner instruction. Those
+historical rows deliberately lack H; this migration does not claim they were measured with H. Future scorer changes
+must invalidate stale rows and trigger measurement. `scripts/rehash-scores.ts` is an explicit migration tool, not a
+substitute for rescoring changed rules or scoring semantics.

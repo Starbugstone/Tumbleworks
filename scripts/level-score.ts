@@ -10,9 +10,11 @@ import { MachineRules } from '../src/sim/rules';
 import { hintConveyorSearch, settle } from '../src/sim/solver';
 import { COLOR_CODE, COLORS, type BoardDef, type Color } from '../src/sim/types';
 import { naiveOrders, play as playFunnelOrder, playMachine as playFunnel, search as searchFunnel, tighten as tightenFunnel } from './funnel-author';
-import { chooseF1, funnelRating, hashBoard, loopRating, multiTapFailure, tubeRating, type ScoreRow } from './level-curve';
+import { chooseF1, funnelRating, hashBoard, loopRating, multiTapFailure, tubeRating, TUBE_GRAPH_CAP, type ScoreRow } from './level-curve';
 import { laneByLane, playMachine as playLoop, roundRobin, search as searchLoop, tighten as tightenLoop } from './loop-author';
 import { reachableTubeStates } from './tube-author';
+import { strongFunnel, strongLoop, strongTube } from './level-strong';
+import { scorePolicy } from './level-policy';
 
 /**
  * Scores a board with fixed seeds and no clocks, so a result is a function of board, player and seed.
@@ -376,6 +378,7 @@ export const settledLoop = (board: LoopBoardDef): SettledScore => settledFrom(lo
 export interface TubeScore { readonly F1: number; readonly moves: number; readonly shape: GraphShape; readonly graphStates: number; readonly hintStates: number }
 export function scoreTube(board: TubeDef): TubeScore | null {
   const graphStates = reachableTubeStates(board);
+  if (graphStates > TUBE_GRAPH_CAP) return null;
   const { moves, states: hintStates } = solveTubeSearch(board, { tubes: board.tubes.map((tube) => [...tube]), moves: 0, status: 'playing' });
   if (!moves) return null;
   const snapshots: ReturnType<TubeRules['snapshot']>[] = [];
@@ -586,8 +589,10 @@ export async function scoreFunnel(board: BoardDef, witness: string | undefined, 
   const naive = naiveOrders(board).map((taps) => playFunnelOrder(board, taps) === 'jammed');
   const share = await funnelShare(board);
   const fast = players['burst2'].fast ?? players['burst3'].fast;
+  const strong = await strongFunnel(board);
   const row: ScoreRow = {
-    id: board.id, game: 'funnel', hash: hashBoard(board), A: order.length, F1, F1settled: settled.F1, F1machine,
+    H: strong.H, strong,
+    id: board.id, game: 'funnel', hash: hashBoard(board, scorePolicy({ funnelGames: games, machineGames })), A: order.length, F1, F1settled: settled.F1, F1machine,
     FM: multiTapFailure(players['burst2'].win, players['burst3'].win),
     S: funnelRating(F1, players['burst2'].win, players['burst3'].win, players['cheese'].win),
     states: settled.shape.states, risk: settled.shape.risk, lostShare: settled.shape.lostShare, silent: settled.shape.silent,
@@ -615,8 +620,10 @@ export function scoreLoop(board: LoopBoardDef, witness: string | undefined, game
   const share = loopShare(board);
   const fast = players['burst2']!.fast ?? players['burst3']!.fast;
   const both = [false, true].every((patient) => { const game = playLoop(board, order, 185, patient); return game.status === 'won' && game.done; });
+  const strong = strongLoop(board);
   const row: ScoreRow = {
-    id: board.id, game: 'loop', hash: hashBoard(board), A: order.length, F1, F1settled: settled.F1, F1machine, FM, S: loopRating(F1, FM),
+    H: strong.H, strong,
+    id: board.id, game: 'loop', hash: hashBoard(board, scorePolicy({ loopGames: games })), A: order.length, F1, F1settled: settled.F1, F1machine, FM, S: loopRating(F1, FM),
     states: settled.shape.states, risk: settled.shape.risk, lostShare: settled.shape.lostShare, silent: settled.shape.silent,
     hintStates: hintLoopSearch(new LoopRules(board)).states, wins: winsOf(players), probe: players['burst2']!.first,
     hasJam: Boolean(found.jam), naiveJams: naive.filter(Boolean).length, naiveOrders: naive.length, witnessWins: both,
@@ -629,9 +636,11 @@ export function scoreLoop(board: LoopBoardDef, witness: string | undefined, game
 
 export function scoreTubeRow(board: TubeDef): ScoredFile {
   const score = scoreTube(board);
-  if (!score) throw new Error(`${board.id} has no solution within the hint's budget`);
+  if (!score) throw new Error(`${board.id} exceeds the reachable graph cap or has no solution within the hint's budget`);
   const S = tubeRating(score.F1, score.moves);
+  const strong = strongTube(board);
   const row: ScoreRow = {
+    H: strong.H, strong,
     id: board.id, game: 'tube', hash: hashBoard(board), A: score.moves, F1: score.F1, F1settled: score.F1, F1machine: null, FM: score.F1, S,
     states: score.shape.states, risk: score.shape.risk, lostShare: score.shape.lostShare, silent: score.shape.silent, hintStates: score.hintStates, wins: {}, graphStates: score.graphStates,
   };
@@ -666,7 +675,7 @@ if (process.argv[1]?.endsWith('level-score.ts')) {
       if (!board) throw new Error(`No level ${id}`);
       try {
         const existing = JSON.parse(readFileSync(file, 'utf8')) as ScoredFile;
-        if (existing.row.hash === hashBoard(board) && !process.env['FORCE']) { console.error(id, 'already scored'); continue; }
+        if (existing.row.hash === hashBoard(board, scorePolicy(funnel ? { funnelGames: games ?? 60, machineGames } : loop ? { loopGames: games ?? 200 } : {})) && !process.env['FORCE']) { console.error(id, 'already scored'); continue; }
       } catch { /* not scored yet */ }
       const scored = funnel ? await scoreFunnel(funnel, FUNNEL_WITNESSES[id], games, machineGames) : loop ? scoreLoop(loop, LOOP_WITNESSES[id], games) : scoreTubeRow(tube!);
       writeFileSync(file, JSON.stringify(scored));
