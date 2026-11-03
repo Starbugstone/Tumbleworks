@@ -22,6 +22,8 @@ export interface LoopRecipe {
   readonly fr: string;
   readonly note: string;
   readonly colors: number;
+  /** The colours to use; the first `colors` of the palette when absent. */
+  readonly palette?: readonly Color[];
   /** Trucks per lane, front first. */
   readonly lanes: readonly number[];
   /** Most segments a truck carries; the deepest fixes its colour. */
@@ -77,7 +79,7 @@ export let lastState = '';
 export function generate(recipe: LoopRecipe, seed: number): LoopBoardDef | null {
   const next = random(seed);
   lastReason = '';
-  const colors = PALETTE.slice(0, recipe.colors);
+  const colors = recipe.palette ? [...recipe.palette] : PALETTE.slice(0, recipe.colors);
   const count = recipe.lanes.reduce((a, b) => a + b, 0);
   if (count < colors.length) return null;
   const homes = shuffle([...colors, ...Array.from({ length: count - colors.length }, () => pick(colors, next))], next);

@@ -30,6 +30,8 @@ const SCREEN_GAMES = 60;
 
 interface Named {
   readonly id: string;
+  /** The colours to use, for lessons that bring in one new colour among familiar ones; the first `colors` when absent. */
+  readonly palette?: readonly Color[];
   readonly round: number;
   readonly slot: Slot;
   readonly title: string;
@@ -83,6 +85,15 @@ export const FUNNEL_TARGETS: readonly FunnelTarget[] = [
   { id: 'fam-f21b', want: [34, 72], round: 21, slot: 'ordinary', title: 'Nine on three', fr: 'Neuf sur trois', note: 'Nine trays, five colours, three docks.', colors: 5, columns: [3, 3, 3], docks: 3, slack: [0, 1, 2] },
   { id: 'fam-f21c', want: [34, 72], round: 21, slot: 'ordinary', title: 'All sizes', fr: 'Toutes les tailles', note: 'Crates of three, six and nine in four columns.', colors: 4, columns: [3, 3, 2, 2], docks: 3, slack: [0, 1, 2], shorts: 2, smalls: 2 },
   { id: 'fam-f21d', want: [34, 72], round: 21, slot: 'ordinary', title: 'Eleven over the bridge', fr: 'Onze par le pont', note: 'Eleven trays on a figure eight.', colors: 5, columns: [3, 3, 3, 2], docks: 3, slack: [0, 1, 2, 3], shape: 'eight' },
+  // Families for rounds 25-40. Black comes in on lessons (Tube 25, Funnel 26, Loop 28) beside three familiar colours; six
+  // colours together are taught later (Tube 33, Funnel 36, Loop 38).
+  { id: 'fam-f26k', want: [36, 63], round: 26, slot: 'lesson', title: 'Black arrives', fr: 'Le noir arrive', note: 'Black and its three dots, with three familiar colours.', colors: 4, palette: ['black', 'red', 'green', 'yellow'], columns: [3, 3, 2], docks: 3, slack: [0, 1, 2] },
+  { id: 'fam-f36s', want: [40, 66], round: 36, slot: 'lesson', title: 'Six colours', fr: 'Six couleurs', note: 'Every colour so far on one board.', colors: 6, columns: [3, 3, 3], docks: 4, slack: [0, 1, 2] },
+  { id: 'fam-f25a', want: [44, 78], round: 31, slot: 'ordinary', title: 'Twelve trays', fr: 'Douze plateaux', note: 'Four columns of three, four docks.', colors: 5, columns: [3, 3, 3, 3], docks: 4, slack: [0, 1, 2] },
+  { id: 'fam-f25b', want: [44, 78], round: 31, slot: 'ordinary', title: 'A deep column', fr: 'Une colonne profonde', note: 'One column four deep.', colors: 5, columns: [4, 3, 3], docks: 3, slack: [0, 1, 2] },
+  { id: 'fam-f25c', want: [44, 78], round: 31, slot: 'ordinary', title: 'The wide crossing', fr: 'La grande traversée', note: 'Nine trays over the wide eight, two docks.', colors: 5, columns: [3, 3, 3], docks: 2, slack: [0, 1, 2, 3], shape: 'wide-eight' },
+  { id: 'fam-f25d', want: [44, 78], round: 31, slot: 'ordinary', title: 'Black in the mix', fr: 'Du noir dans le lot', note: 'Black among four other colours, crates of all sizes.', colors: 5, palette: ['black', 'red', 'blue', 'green', 'orange'], columns: [3, 3, 2, 2], docks: 3, slack: [0, 1, 2], shorts: 2, smalls: 1 },
+  { id: 'fam-f25e', want: [44, 78], round: 31, slot: 'ordinary', title: 'Eight with black', fr: 'Un huit avec du noir', note: 'Ten trays on a figure eight, black included.', colors: 5, palette: ['black', 'blue', 'green', 'yellow', 'orange'], columns: [3, 3, 2, 2], docks: 3, slack: [0, 1, 2, 3], shape: 'eight' },
 ];
 export const LOOP_TARGETS: readonly LoopTarget[] = [
   { id: 'loop-32', want: [5, 18], round: 4, slot: 'lesson', title: 'One behind', fr: 'Un derrière', note: 'The first queued truck, with room to spare.', colors: 3, lanes: [2, 1, 1], segments: 2, ringMin: 0, ringMax: 0 },
@@ -112,6 +123,12 @@ export const LOOP_TARGETS: readonly LoopTarget[] = [
   { id: 'fam-l13g', want: [30, 66], round: 13, slot: 'ordinary', title: 'Four lanes, empty loop', fr: 'Quatre files, anneau vide', note: 'Four lanes and nothing on the loop yet.', colors: 5, lanes: [2, 2, 1, 1], segments: 3, ringMin: 0, ringMax: 0 },
   { id: 'fam-l21a', want: [34, 72], round: 21, slot: 'ordinary', title: 'Eight trucks', fr: 'Huit camions', note: 'Three lanes, one of them three deep.', colors: 5, lanes: [3, 3, 2], segments: 3, ringMin: 2, ringMax: 12 },
   { id: 'fam-l21b', want: [34, 72], round: 21, slot: 'ordinary', title: 'Four full lanes', fr: 'Quatre files pleines', note: 'Eight trucks in four lanes.', colors: 5, lanes: [2, 2, 2, 2], segments: 3, ringMin: 2, ringMax: 12 },
+  { id: 'fam-l28k', want: [36, 63], round: 28, slot: 'lesson', title: 'A black truck', fr: 'Un camion noir', note: 'Black and its three dots, with three familiar colours.', colors: 4, palette: ['black', 'red', 'blue', 'green'], lanes: [2, 2, 2], segments: 3, ringMin: 2, ringMax: 12 },
+  { id: 'fam-l38s', want: [40, 66], round: 38, slot: 'lesson', title: 'Six colours on the road', fr: 'Six couleurs sur la route', note: 'Every colour so far, seven trucks.', colors: 6, lanes: [2, 2, 2, 1], segments: 3, ringMin: 2, ringMax: 12 },
+  { id: 'fam-l25a', want: [44, 78], round: 31, slot: 'ordinary', title: 'Ten trucks', fr: 'Dix camions', note: 'Four lanes, two of them three deep.', colors: 5, lanes: [3, 3, 2, 2], segments: 3, ringMin: 2, ringMax: 12 },
+  { id: 'fam-l25b', want: [44, 78], round: 31, slot: 'ordinary', title: 'Three deep everywhere', fr: 'Trois partout', note: 'Three lanes, three trucks each.', colors: 4, lanes: [3, 3, 3], segments: 3, ringMin: 2, ringMax: 12 },
+  { id: 'fam-l25c', want: [44, 78], round: 31, slot: 'ordinary', title: 'Black on a busy loop', fr: 'Du noir sur un anneau chargé', note: 'Black among four colours, the loop already busy.', colors: 5, palette: ['black', 'red', 'blue', 'yellow', 'orange'], lanes: [2, 2, 2, 1], segments: 3, ringMin: 13, ringMax: 24 },
+  { id: 'fam-l25d', want: [44, 78], round: 31, slot: 'ordinary', title: 'Two long lanes', fr: 'Deux longues files', note: 'Two lanes of four trucks.', colors: 5, lanes: [4, 4], segments: 3, ringMin: 0, ringMax: 12 },
 ];
 export const TUBE_TARGETS: readonly TubeTarget[] = [
   { id: 'tube-31', round: 2, slot: 'ordinary', title: 'Short shuffle', fr: 'Petit mélange', note: 'A few moves with two spares.', colors: 3, capacity: 4, empties: 2, moves: [5, 6] },
@@ -139,6 +156,12 @@ export const TUBE_TARGETS: readonly TubeTarget[] = [
   { id: 'fam-t21a', want: [34, 72], round: 21, slot: 'ordinary', title: 'Five colours, five high', fr: 'Cinq couleurs, cinq de haut', note: 'Five colours in tubes of five, one spare.', colors: 5, capacity: 5, empties: 1, moves: [12, 22], f1: [34, 72] },
   { id: 'fam-t21b', want: [34, 72], round: 21, slot: 'ordinary', title: 'Four tall colours', fr: 'Quatre hautes couleurs', note: 'Four colours in tubes of six.', colors: 4, capacity: 6, empties: 1, moves: [12, 22], f1: [34, 72] },
   { id: 'fam-t21c', want: [34, 72], round: 21, slot: 'ordinary', title: 'Seven part-full', fr: 'Sept à moitié', note: 'Five colours spread over seven tubes, no empty one.', colors: 5, capacity: 4, empties: 0, spread: 7, moves: [10, 20], f1: [34, 72] },
+  { id: 'fam-t25k', want: [36, 63], round: 25, slot: 'lesson', title: 'Black in the tubes', fr: 'Du noir dans les tubes', note: 'Black and its three dots, with three familiar colours.', colors: 4, palette: ['black', 'red', 'blue', 'yellow'], capacity: 4, empties: 1, moves: [9, 16], f1: [36, 63] },
+  { id: 'fam-t33s', want: [40, 66], round: 33, slot: 'lesson', title: 'Six colours', fr: 'Six couleurs', note: 'Every colour so far, one spare.', colors: 6, capacity: 4, empties: 1, moves: [12, 22], f1: [40, 66] },
+  { id: 'fam-t25a', want: [44, 78], round: 31, slot: 'ordinary', title: 'Five tall colours', fr: 'Cinq hautes couleurs', note: 'Five colours in tubes of six.', colors: 5, capacity: 6, empties: 1, moves: [14, 24], f1: [44, 78] },
+  { id: 'fam-t25b', want: [44, 78], round: 31, slot: 'ordinary', title: 'Black and five high', fr: 'Noir et cinq de haut', note: 'Five colours with black, tubes of five.', colors: 5, palette: ['black', 'red', 'green', 'yellow', 'orange'], capacity: 5, empties: 1, moves: [12, 22], f1: [44, 78] },
+  { id: 'fam-t25c', want: [44, 78], round: 31, slot: 'ordinary', title: 'Spread across eight', fr: 'Sur huit tubes', note: 'Six colours over eight part-full tubes.', colors: 6, capacity: 4, empties: 0, spread: 8, moves: [12, 22], f1: [44, 78] },
+  { id: 'fam-t25d', want: [44, 78], round: 31, slot: 'ordinary', title: 'Short and sharp', fr: 'Court et vif', note: 'Four colours, one spare, few moves, many traps.', colors: 4, capacity: 4, empties: 1, moves: [8, 13], f1: [44, 78] },
 ];
 
 interface Log { seed: number; capacity?: number; outcome: string; F1?: number; FM?: number; FMmixed?: number; S?: number; spam?: number; cheese?: number; brisk?: number; gatePassed?: boolean; mixedGatePassed?: boolean; scored?: ScoredFile }
@@ -148,7 +171,7 @@ const logged = (id: string): Log[] => {
 };
 
 async function funnelCandidate(target: FunnelTarget, seed: number): Promise<number> {
-  const recipe: FunnelRecipe = { id: target.id, title: target.title, fr: target.fr, note: target.note, colors: target.colors, columns: target.columns, shorts: target.shorts ?? 0, ...(target.smalls ? { smalls: target.smalls } : {}), docks: target.docks, capacity: 40, seed, win: [0, 1], slack: 0, naiveJams: false, ...(target.shape ? { shape: target.shape } : {}) };
+  const recipe: FunnelRecipe = { id: target.id, title: target.title, fr: target.fr, note: target.note, colors: target.colors, columns: target.columns, shorts: target.shorts ?? 0, ...(target.smalls ? { smalls: target.smalls } : {}), ...(target.palette ? { palette: target.palette } : {}), docks: target.docks, capacity: 40, seed, win: [0, 1], slack: 0, naiveJams: false, ...(target.shape ? { shape: target.shape } : {}) };
   const loose = generateFunnel(recipe, seed);
   if (!loose) { log(target.id, { seed, outcome: 'ungenerated' }); return 0; }
   const probe = searchFunnel(loose, 60_000);
@@ -214,7 +237,7 @@ async function funnelCandidate(target: FunnelTarget, seed: number): Promise<numb
 }
 
 function loopCandidate(target: LoopTarget, seed: number): number {
-  const recipe: LoopRecipe = { id: target.id, title: target.title, fr: target.fr, note: target.note, colors: target.colors, lanes: target.lanes, segments: target.segments, capacity: LOOP_CAPACITY_MAX, ringMax: target.ringMax, seed, win: [0, 1], naiveJams: false };
+  const recipe: LoopRecipe = { id: target.id, title: target.title, fr: target.fr, note: target.note, colors: target.colors, ...(target.palette ? { palette: target.palette } : {}), lanes: target.lanes, segments: target.segments, capacity: LOOP_CAPACITY_MAX, ringMax: target.ringMax, seed, win: [0, 1], naiveJams: false };
   const loose = generateLoop(recipe, seed);
   if (!loose) return 0;
   const trucks = loose.lanes.flat();
@@ -278,7 +301,7 @@ function loopCandidate(target: LoopTarget, seed: number): number {
 
 function tubeCandidate(target: TubeTarget, seed: number): number {
   if (target.colors > COLORS.length) throw new Error(`${target.id} asks for ${target.colors} colours; the palette has ${COLORS.length}`);
-  const palette: Color[] = COLORS.slice(0, target.colors);
+  const palette: Color[] = target.palette ? [...target.palette] : COLORS.slice(0, target.colors);
   const tubes = generateTube(palette, target.capacity, target.empties, target.spread ?? target.colors, seed);
   if (!tubes) return 0;
   const key = tubes.map((tube) => tube.join()).sort().join('|');
