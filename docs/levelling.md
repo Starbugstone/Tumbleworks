@@ -106,7 +106,7 @@ These are the owner's rule that a conveyor board is resolvable by planning, rewa
 | Gate | Rule |
 | --- | --- |
 | Resolvable | The witness wins clean on the machine in both timings; from round 4 also at least 90% under 20 seeded tap delays of 0 to 1.5 s, and 12 rule-winning orders sampled uniformly win at least 60% in each timing |
-| Cheese rewarded, Funnel Sort | `max(cheese, spam) − brisk ≥ 0.10` from round 4 |
+| Cheese rewarded, Funnel Sort | `max(cheese, spam) − brisk ≥ 0.10` from round 4; from round 13 also passed by `max(cheese, spam) ≥ 2 × brisk + 0.03`, because on hard boards every random line wins rarely and a fixed ten points becomes impossible |
 | Not an auto win, Funnel Sort | Cheese at most the round's ceiling and at most planner win + 40 points. Relief and lesson get +10 on the ceiling |
 | Fast tapping not fatal, Loop Sort | `FM ≤ F1 + G` up to round 12; from round 13 the mixed player's failure (bursts on about one turn in four) ≤ F1 + G, the owner's choice on 3 November 2026 |
 | Not an auto win, Loop Sort | Spam at most the same ceiling |

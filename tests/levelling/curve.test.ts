@@ -33,6 +33,13 @@ describe('one level against its band and gates', () => {
     const beatsPlanner = { ...valid, F1: 60, S: 35, wins: { ...valid.wins, cheese: { win: 0.85, n: 200 } } };
     expect(levelViolations(placed(beatsPlanner)).join()).toMatch(/against planner 40 \+ 40: an auto win/);
   });
+  it('rewards cheese on hard boards by a ratio from round 13, never when it does not beat careful play', () => {
+    const hard = { ...valid, wins: { cheese: { win: 0.07, n: 200 }, spam: { win: 0.02, n: 200 }, brisk: { win: 0.005, n: 200 } } };
+    expect(levelViolations(placed(hard, 8)).join()).toMatch(/does not beat careful/);
+    expect(levelViolations(placed(hard, 14)).join()).not.toMatch(/does not beat careful/);
+    const flat = { ...valid, wins: { cheese: { win: 0.09, n: 200 }, spam: { win: 0.01, n: 200 }, brisk: { win: 0.065, n: 200 } } };
+    expect(levelViolations(placed(flat, 14)).join()).toMatch(/does not beat careful 0\.07 by 0\.10, nor double it/);
+  });
   it('holds Funnel Sort spam to the same ceiling as cheese from round 13', () => {
     const spammy = { ...valid, wins: { ...valid.wins, spam: { win: 0.95, n: 200 } } };
     expect(levelViolations(placed(spammy, 8)).join()).not.toMatch(/spam wins/);

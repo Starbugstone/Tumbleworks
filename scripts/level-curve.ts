@@ -64,6 +64,12 @@ export const loopRating = (f1: number, fm: number): number => f1 + tempo(f1, fm)
 export const TUBE_LENGTH_CAP = 25;
 export const tubeRating = (f1: number, moves: number): number => Math.max(f1, Math.min(TUBE_LENGTH_CAP, 2.5 * (moves - 4)));
 export const multiTapFailure = (burst2: number, burst3: number): number => 100 * (1 - (burst2 + burst3) / 2);
+/**
+ * The owner's rule that cheese pays: cheese or spam must beat careful random play by ten points. On hard boards every random
+ * line wins rarely, so from STRICT_FROM a board also passes when the best fast line wins at least double plus three points.
+ */
+export const cheeseRewarded = (round: number, best: number, careful: number): boolean =>
+  best - careful >= 0.1 - 1e-9 || (round >= STRICT_FROM && best >= 2 * careful + 0.03 - 1e-9);
 /** Failure of the planner who bursts two or three taps on about one turn in four; 100 when it was never measured. */
 export const mixedFailure = (row: { readonly wins: Readonly<Record<string, { readonly win: number }>> }): number => 100 * (1 - (row.wins['mixed']?.win ?? 0));
 /** Settled planners set F1 unless the same planners on the machine differ by more than this. */
@@ -207,7 +213,7 @@ export function levelViolations(level: Placement): string[] {
       if (round >= STRICT_FROM && spam > allowed + 1e-9) say(`spam wins ${spam.toFixed(2)}, ceiling ${allowed.toFixed(2)}: an auto win`);
       if (100 * cheese > 100 - row.F1 + 40 + 1e-9) say(`cheese wins ${(100 * cheese).toFixed(0)} against planner ${(100 - row.F1).toFixed(0)} + 40: an auto win`);
     }
-    if (round >= 4 && Math.max(cheese, spam) - brisk < 0.1 - 1e-9) say(`cheese or spam ${Math.max(cheese, spam).toFixed(2)} does not beat careful ${brisk.toFixed(2)} by 0.10`);
+    if (round >= 4 && !cheeseRewarded(round, Math.max(cheese, spam), brisk)) say(`cheese or spam ${Math.max(cheese, spam).toFixed(2)} does not beat careful ${brisk.toFixed(2)} by 0.10${round >= STRICT_FROM ? ', nor double it plus 0.03' : ''}`);
   } else {
     if (allowed !== null && spam > allowed + 1e-9) say(`spam wins ${spam.toFixed(2)}, ceiling ${allowed.toFixed(2)}: an auto win`);
     const gap = stretchOf(round).gap;
