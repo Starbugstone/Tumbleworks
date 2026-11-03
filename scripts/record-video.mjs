@@ -16,7 +16,7 @@ rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
 const url = process.env.TUMBLEWORKS_URL ?? 'http://game-server:5180';
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
-const context = await browser.newContext({ ...devices['Pixel 7'], viewport: { width: 375, height: 690 } });
+const context = await browser.newContext({ ...devices['Pixel 7'], viewport: { width: 375, height: 690 }, deviceScaleFactor: 2 });
 const page = await context.newPage();
 const errors = [];
 page.on('pageerror', (error) => errors.push(error.message));
