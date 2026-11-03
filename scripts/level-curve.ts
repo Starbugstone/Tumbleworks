@@ -24,11 +24,11 @@ export const CURVE: readonly Stretch[] = [
   { first: 7, last: 12, ordinary: [20, 40], relief: [10, 25], peakMax: 50, gap: 25 },
   { first: 13, last: 20, ordinary: [25, 45], relief: [15, 30], peakMax: 55, gap: 30 },
   { first: 21, last: 30, ordinary: [30, 50], relief: [20, 35], peakMax: 60, gap: 30 },
-  { first: 31, last: 45, ordinary: [35, 55], relief: [25, 40], peakMax: 65, gap: 35 },
-  { first: 46, last: 60, ordinary: [40, 60], relief: [30, 45], peakMax: 72, gap: 40 },
-  { first: 61, last: 75, ordinary: [45, 65], relief: [35, 50], peakMax: 78, gap: 45 },
-  { first: 76, last: 88, ordinary: [50, 70], relief: [40, 55], peakMax: 85, gap: 50 },
-  { first: 89, last: 90, ordinary: [55, 80], relief: null, peakMax: 85, gap: 50 },
+  { first: 31, last: 45, ordinary: [38, 58], relief: [28, 42], peakMax: 70, gap: 35 },
+  { first: 46, last: 60, ordinary: [48, 68], relief: [35, 50], peakMax: 80, gap: 40 },
+  { first: 61, last: 75, ordinary: [58, 78], relief: [42, 58], peakMax: 88, gap: 45 },
+  { first: 76, last: 88, ordinary: [65, 85], relief: [48, 65], peakMax: 95, gap: 50 },
+  { first: 89, last: 90, ordinary: [75, 92], relief: null, peakMax: 95, gap: 50 },
 ];
 
 export function stretchOf(round: number): Stretch {

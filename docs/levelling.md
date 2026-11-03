@@ -51,11 +51,15 @@ All games share one table of S. No band builds in a ranking of the games.
 | 7-12 | 20-40 | 10-25 | 50 | 25 | 90% |
 | 13-20 | 25-45 | 15-30 | 55 | 30 | 85% |
 | 21-30 | 30-50 | 20-35 | 60 | 30 | 80% |
-| 31-45 | 35-55 | 25-40 | 65 | 35 | 75% |
-| 46-60 | 40-60 | 30-45 | 72 | 40 | 70% |
-| 61-75 | 45-65 | 35-50 | 78 | 45 | 65% |
-| 76-88 | 50-70 | 40-55 | 85 | 50 | 60% |
-| 89-90 | 55-80 | none | 85 | 50 | 60% |
+| 31-45 | 38-58 | 28-42 | 70 | 35 | 75% |
+| 46-60 | 48-68 | 35-50 | 80 | 40 | 70% |
+| 61-75 | 58-78 | 42-58 | 88 | 45 | 65% |
+| 76-88 | 65-85 | 48-65 | 95 | 50 | 60% |
+| 89-90 | 75-92 | none | 95 | 50 | 60% |
+
+Rounds 31 to 90 were raised on 3 November 2026 at the owner's request. The owner completed the live campaign's last levels, which score S 70 to 100 (most Loop Sort and Tube Sort finales 77 to 100), and judged them about right or a little easy for the end of the game. The old top band of 50 to 70 would have ended the new campaign easier than the old one. Rounds 1 to 30 are unchanged until the owner has played the first stretch. The owner will also test with other players, so these numbers stay open.
+
+A human who finishes levels the bots lose 77 to 100% of the time is much stronger than the reference planner, so S loses resolution near the top. Before rounds 46 to 90 are authored, add a stronger reference planner (deeper lookahead, fewer lapses) and check that it still separates the late bands; a scale where every late level reads 95 or more cannot steer the curve.
 
 A slot chooses the band: tutorials are exempt, a lesson sits between relief's low and the middle of ordinary, a peak between ordinary's low and its maximum.
 
