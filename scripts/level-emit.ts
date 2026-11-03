@@ -83,8 +83,11 @@ for (const choice of process.argv.slice(2)) {
   let scored: ScoredFile = seed ? accepted(from, Number(seed), capacity ? Number(capacity) : undefined) : JSON.parse(readFileSync(`${SCORE_DIR}/${from}.json`, 'utf8')) as ScoredFile;
   if (rename) {
     const board = { ...(scored.board as object), id, title: target.title };
-    scored = { ...scored, board: board as ScoredFile['board'], row: { ...scored.row, id, hash: hashBoard(board) } };
+    scored = { ...scored, board: board as ScoredFile['board'], row: { ...scored.row, id } };
   }
+  // Candidates scored before the policy entered the hash keep their measured S; only the hash moves, as in
+  // scripts/rehash-scores.ts. H stays absent until scripts/level-score.ts measures it.
+  scored = { ...scored, row: { ...scored.row, hash: hashBoard(scored.board as object) } };
   writeFileSync(`${SCORE_DIR}/${id}.json`, JSON.stringify(scored));
   french.push(`${quote(id)}: ${quote(target.fr.replace(/'/g, '’'))}`);
   const witness = String(scored.extra?.['witness'] ?? '');
