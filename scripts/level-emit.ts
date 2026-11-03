@@ -30,7 +30,9 @@ const color = (value: Color): string => `'${value}'`;
 
 function funnelSource(board: BoardDef, note: string): { name: string; code: string } {
   const name = `BOARD_${board.id.split('-')[1]}`;
-  const supplies = board.supplies.map((queue) => `trays(${queue.map((tray) => color(tray.color)).join(', ')})`).join(', ');
+  // A crate of another size than nine must keep its count, or the bank would hold a different board from the one scored.
+  const crate = (packet: Packet): string => (packet.count === 9 ? `tray(${color(packet.color)})` : `tray(${color(packet.color)}, ${packet.count === 6 ? 'SHORT_TRAY' : packet.count === 3 ? 'SMALL_TRAY' : packet.count})`);
+  const supplies = board.supplies.map((queue) => (queue.every((packet) => packet.count === 9) ? `trays(${queue.map((packet) => color(packet.color)).join(', ')})` : `[${queue.map(crate).join(', ')}]`)).join(', ');
   const order: Color[] = [];
   const longest = Math.max(...board.docks.map((queue) => queue.length));
   for (let row = 0; row < longest; row++) for (const queue of board.docks) if (queue[row]) order.push(queue[row]!);

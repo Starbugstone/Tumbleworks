@@ -38,7 +38,7 @@ interface Named {
   /** Narrower than the slot's band where the neighbours need it; the band alone would let a peak sit at its bottom. */
   readonly want?: readonly [number, number];
 }
-export interface FunnelTarget extends Named { readonly colors: number; readonly columns: readonly number[]; readonly docks: number; readonly slack: readonly number[]; readonly shape?: BeltShape }
+export interface FunnelTarget extends Named { readonly colors: number; readonly columns: readonly number[]; readonly docks: number; readonly slack: readonly number[]; readonly shape?: BeltShape; /** Short trays of six among the nine-marble ones. */ readonly shorts?: number; /** Small crates of three. */ readonly smalls?: number }
 export interface LoopTarget extends Named {
   readonly colors: number;
   readonly lanes: readonly number[];
@@ -48,7 +48,7 @@ export interface LoopTarget extends Named {
   readonly ringMin: number;
   readonly ringMax: number;
 }
-export interface TubeTarget extends Named { readonly colors: number; readonly capacity: number; readonly empties: number; readonly moves: readonly [number, number]; readonly f1?: readonly [number, number] }
+export interface TubeTarget extends Named { readonly colors: number; readonly capacity: number; readonly empties: number; readonly moves: readonly [number, number]; readonly f1?: readonly [number, number]; /** Part-full tubes holding the colours; more than `colors` spreads the spare room across them. */ readonly spread?: number }
 
 export const FUNNEL_TARGETS: readonly FunnelTarget[] = [
   { id: 'board-31', round: 2, slot: 'ordinary', title: 'Two by two', fr: 'Deux par deux', note: 'Two columns of two: nothing to lose yet, just the order of things.', colors: 3, columns: [2, 2], docks: 3, slack: [4, 5, 6] },
@@ -69,6 +69,20 @@ export const FUNNEL_TARGETS: readonly FunnelTarget[] = [
   { id: 'board-45', want: [48, 62], round: 9, slot: 'peak', title: 'Five on three', fr: 'Cinq sur trois', note: 'Five colours share three docks.', colors: 5, columns: [3, 3, 2], docks: 3, slack: [0, 1, 2] },
   { id: 'board-46', want: [30, 46], round: 10, slot: 'lesson', title: 'The first eight', fr: 'Le premier huit', note: 'The belt crosses itself: a longer lap, the same rules.', colors: 4, columns: [3, 3, 2], docks: 3, slack: [0, 1, 2, 3], shape: 'eight' },
   { id: 'board-47', round: 12, slot: 'ordinary', title: 'Nine trays', fr: 'Neuf plateaux', note: 'Nine trays, five colours, four docks.', colors: 5, columns: [3, 3, 3], docks: 4, slack: [0, 1, 2] },
+  // Families for rounds 13-20: one structure each, searched once; the assembler places them into slots and gives them IDs.
+  { id: 'fam-f13a', want: [30, 66], round: 13, slot: 'ordinary', title: 'Deeper columns', fr: 'Colonnes profondes', note: 'Four colours, eight trays, three docks.', colors: 4, columns: [3, 3, 2], docks: 3, slack: [0, 1, 2] },
+  { id: 'fam-f13b', want: [30, 66], round: 13, slot: 'ordinary', title: 'Five on three', fr: 'Cinq sur trois', note: 'Five colours share three docks.', colors: 5, columns: [3, 3, 2], docks: 3, slack: [0, 1, 2] },
+  { id: 'fam-f13c', want: [30, 66], round: 13, slot: 'ordinary', title: 'Four columns', fr: 'Quatre colonnes', note: 'Ten trays in four columns, four docks.', colors: 5, columns: [3, 3, 2, 2], docks: 4, slack: [0, 1, 2] },
+  { id: 'fam-f13d', want: [30, 66], round: 13, slot: 'ordinary', title: 'Six-marble crates', fr: 'Caisses de six', note: 'Short crates of six among full ones: a cheap pour that still has to fit.', colors: 4, columns: [3, 3, 3], docks: 3, slack: [0, 1, 2], shorts: 3 },
+  { id: 'fam-f13e', want: [30, 66], round: 13, slot: 'ordinary', title: 'Over the bridge', fr: 'Par le pont', note: 'Nine trays on a figure eight.', colors: 4, columns: [3, 3, 3], docks: 3, slack: [0, 1, 2, 3], shape: 'eight' },
+  { id: 'fam-f13f', want: [30, 66], round: 13, slot: 'ordinary', title: 'Uneven stacks', fr: 'Piles inégales', note: 'Columns of one to three trays: the short ones run out first.', colors: 5, columns: [3, 1, 2, 3], docks: 4, slack: [0, 1, 2] },
+  { id: 'fam-f13g', want: [30, 66], round: 13, slot: 'ordinary', title: 'Two by four', fr: 'Deux sur quatre', note: 'Four columns of two, three docks.', colors: 5, columns: [2, 2, 2, 2], docks: 3, slack: [0, 1, 2] },
+  { id: 'fam-f13h', want: [30, 66], round: 13, slot: 'ordinary', title: 'Short and full', fr: 'Courts et pleins', note: 'Mixed crates in four columns.', colors: 5, columns: [3, 2, 3, 2], docks: 3, slack: [0, 1, 2], shorts: 4 },
+  // Families for rounds 21-24.
+  { id: 'fam-f21a', want: [34, 72], round: 21, slot: 'ordinary', title: 'Crates of three', fr: 'Caisses de trois', note: 'Small crates of three: one box each, the cheapest pour of all.', colors: 4, columns: [3, 3, 3], docks: 3, slack: [0, 1, 2], smalls: 3 },
+  { id: 'fam-f21b', want: [34, 72], round: 21, slot: 'ordinary', title: 'Nine on three', fr: 'Neuf sur trois', note: 'Nine trays, five colours, three docks.', colors: 5, columns: [3, 3, 3], docks: 3, slack: [0, 1, 2] },
+  { id: 'fam-f21c', want: [34, 72], round: 21, slot: 'ordinary', title: 'All sizes', fr: 'Toutes les tailles', note: 'Crates of three, six and nine in four columns.', colors: 4, columns: [3, 3, 2, 2], docks: 3, slack: [0, 1, 2], shorts: 2, smalls: 2 },
+  { id: 'fam-f21d', want: [34, 72], round: 21, slot: 'ordinary', title: 'Eleven over the bridge', fr: 'Onze par le pont', note: 'Eleven trays on a figure eight.', colors: 5, columns: [3, 3, 3, 2], docks: 3, slack: [0, 1, 2, 3], shape: 'eight' },
 ];
 export const LOOP_TARGETS: readonly LoopTarget[] = [
   { id: 'loop-32', want: [5, 18], round: 4, slot: 'lesson', title: 'One behind', fr: 'Un derrière', note: 'The first queued truck, with room to spare.', colors: 3, lanes: [2, 1, 1], segments: 2, ringMin: 0, ringMax: 0 },
@@ -89,6 +103,15 @@ export const LOOP_TARGETS: readonly LoopTarget[] = [
   { id: 'loop-47', want: [28, 38], round: 12, slot: 'relief', title: 'Two stretches each', fr: 'Deux tronçons chacun', note: 'Six trucks with two stretches each, after the rush.', colors: 4, lanes: [2, 2, 2], segments: 2, ringMin: 2, ringMax: 12 },
   { id: 'loop-48', want: [48, 62], round: 10, slot: 'peak', title: 'Rush hour', fr: 'L’heure de pointe', note: 'Seven trucks in four lanes, five colours.', colors: 5, lanes: [2, 2, 2, 1], segments: 3, ringMin: 2, ringMax: 12 },
   { id: 'loop-49', round: 12, slot: 'relief', title: 'After the rush', fr: 'Après la pointe', note: 'Three lanes again, with a little room.', colors: 4, lanes: [2, 2, 2], segments: 3, ringMin: 0, ringMax: 12 },
+  { id: 'fam-l13a', want: [30, 66], round: 13, slot: 'ordinary', title: 'Five colours, six trucks', fr: 'Cinq couleurs, six camions', note: 'Every lane queued, five colours.', colors: 5, lanes: [2, 2, 2], segments: 3, ringMin: 2, ringMax: 12 },
+  { id: 'fam-l13b', want: [30, 66], round: 13, slot: 'ordinary', title: 'Rush hour', fr: 'L’heure de pointe', note: 'Seven trucks in four lanes.', colors: 5, lanes: [2, 2, 2, 1], segments: 3, ringMin: 2, ringMax: 12 },
+  { id: 'fam-l13c', want: [30, 66], round: 13, slot: 'ordinary', title: 'Four bays', fr: 'Quatre quais', note: 'Four lanes, four colours.', colors: 4, lanes: [2, 2, 2, 1], segments: 3, ringMin: 2, ringMax: 12 },
+  { id: 'fam-l13d', want: [30, 66], round: 13, slot: 'ordinary', title: 'Three deep', fr: 'Trois de profondeur', note: 'Two lanes, three trucks in each.', colors: 4, lanes: [3, 3], segments: 3, ringMin: 0, ringMax: 12 },
+  { id: 'fam-l13e', want: [30, 66], round: 13, slot: 'ordinary', title: 'A long queue', fr: 'Une longue file', note: 'One lane three deep beside two shorter ones.', colors: 5, lanes: [3, 2, 2], segments: 3, ringMin: 2, ringMax: 12 },
+  { id: 'fam-l13f', want: [30, 66], round: 13, slot: 'ordinary', title: 'A loaded loop', fr: 'Un anneau chargé', note: 'The loop starts busy.', colors: 4, lanes: [2, 2, 2], segments: 3, ringMin: 13, ringMax: 24 },
+  { id: 'fam-l13g', want: [30, 66], round: 13, slot: 'ordinary', title: 'Four lanes, empty loop', fr: 'Quatre files, anneau vide', note: 'Four lanes and nothing on the loop yet.', colors: 5, lanes: [2, 2, 1, 1], segments: 3, ringMin: 0, ringMax: 0 },
+  { id: 'fam-l21a', want: [34, 72], round: 21, slot: 'ordinary', title: 'Eight trucks', fr: 'Huit camions', note: 'Three lanes, one of them three deep.', colors: 5, lanes: [3, 3, 2], segments: 3, ringMin: 2, ringMax: 12 },
+  { id: 'fam-l21b', want: [34, 72], round: 21, slot: 'ordinary', title: 'Four full lanes', fr: 'Quatre files pleines', note: 'Eight trucks in four lanes.', colors: 5, lanes: [2, 2, 2, 2], segments: 3, ringMin: 2, ringMax: 12 },
 ];
 export const TUBE_TARGETS: readonly TubeTarget[] = [
   { id: 'tube-31', round: 2, slot: 'ordinary', title: 'Short shuffle', fr: 'Petit mélange', note: 'A few moves with two spares.', colors: 3, capacity: 4, empties: 2, moves: [5, 6] },
@@ -107,6 +130,15 @@ export const TUBE_TARGETS: readonly TubeTarget[] = [
   { id: 'tube-44', want: [30, 46], round: 10, slot: 'lesson', title: 'Orange in the tubes', fr: 'De l’orange dans les tubes', note: 'Five colours and a single spare.', colors: 5, capacity: 4, empties: 1, moves: [10, 15], f1: [30, 46] },
   { id: 'tube-45', round: 11, slot: 'relief', title: 'Room to think', fr: 'Le temps de réfléchir', note: 'Four colours, five high, one spare.', colors: 4, capacity: 5, empties: 1, moves: [9, 15], f1: [28, 40] },
   { id: 'tube-46', want: [50, 62], round: 12, slot: 'peak', title: 'The last spare', fr: 'Le dernier tube libre', note: 'Five colours, one spare, few safe openings.', colors: 5, capacity: 4, empties: 1, moves: [10, 15], f1: [50, 62] },
+  { id: 'fam-t13a', want: [30, 66], round: 13, slot: 'ordinary', title: 'Plan the spare', fr: 'Prévoir le tube libre', note: 'Four colours, one spare.', colors: 4, capacity: 4, empties: 1, moves: [10, 16], f1: [30, 66] },
+  { id: 'fam-t13b', want: [30, 66], round: 13, slot: 'ordinary', title: 'Five colours, one spare', fr: 'Cinq couleurs, un tube libre', note: 'Five colours and a single spare.', colors: 5, capacity: 4, empties: 1, moves: [11, 18], f1: [30, 66] },
+  { id: 'fam-t13c', want: [30, 66], round: 13, slot: 'ordinary', title: 'Five high', fr: 'Cinq de haut', note: 'Four colours in tubes of five.', colors: 4, capacity: 5, empties: 1, moves: [10, 18], f1: [30, 66] },
+  { id: 'fam-t13d', want: [30, 66], round: 13, slot: 'ordinary', title: 'Six high', fr: 'Six de haut', note: 'Three colours in tall tubes.', colors: 3, capacity: 6, empties: 1, moves: [10, 18], f1: [30, 66] },
+  { id: 'fam-t13e', want: [30, 66], round: 13, slot: 'ordinary', title: 'Room spread thin', fr: 'La place éparpillée', note: 'No empty tube: the spare room is spread over part-full tubes.', colors: 4, capacity: 4, empties: 0, spread: 5, moves: [8, 16], f1: [30, 66] },
+  { id: 'fam-t13f', want: [30, 66], round: 13, slot: 'ordinary', title: 'Spread and spare', fr: 'Éparpillé et libre', note: 'Five colours over six part-full tubes.', colors: 5, capacity: 4, empties: 0, spread: 6, moves: [10, 18], f1: [30, 66] },
+  { id: 'fam-t21a', want: [34, 72], round: 21, slot: 'ordinary', title: 'Five colours, five high', fr: 'Cinq couleurs, cinq de haut', note: 'Five colours in tubes of five, one spare.', colors: 5, capacity: 5, empties: 1, moves: [12, 22], f1: [34, 72] },
+  { id: 'fam-t21b', want: [34, 72], round: 21, slot: 'ordinary', title: 'Four tall colours', fr: 'Quatre hautes couleurs', note: 'Four colours in tubes of six.', colors: 4, capacity: 6, empties: 1, moves: [12, 22], f1: [34, 72] },
+  { id: 'fam-t21c', want: [34, 72], round: 21, slot: 'ordinary', title: 'Seven part-full', fr: 'Sept à moitié', note: 'Five colours spread over seven tubes, no empty one.', colors: 5, capacity: 4, empties: 0, spread: 7, moves: [10, 20], f1: [34, 72] },
 ];
 
 interface Log { seed: number; capacity?: number; outcome: string; F1?: number; FM?: number; FMmixed?: number; S?: number; spam?: number; cheese?: number; brisk?: number; gatePassed?: boolean; mixedGatePassed?: boolean; scored?: ScoredFile }
@@ -116,7 +148,7 @@ const logged = (id: string): Log[] => {
 };
 
 async function funnelCandidate(target: FunnelTarget, seed: number): Promise<number> {
-  const recipe: FunnelRecipe = { id: target.id, title: target.title, fr: target.fr, note: target.note, colors: target.colors, columns: target.columns, shorts: 0, docks: target.docks, capacity: 40, seed, win: [0, 1], slack: 0, naiveJams: false, ...(target.shape ? { shape: target.shape } : {}) };
+  const recipe: FunnelRecipe = { id: target.id, title: target.title, fr: target.fr, note: target.note, colors: target.colors, columns: target.columns, shorts: target.shorts ?? 0, ...(target.smalls ? { smalls: target.smalls } : {}), docks: target.docks, capacity: 40, seed, win: [0, 1], slack: 0, naiveJams: false, ...(target.shape ? { shape: target.shape } : {}) };
   const loose = generateFunnel(recipe, seed);
   if (!loose) { log(target.id, { seed, outcome: 'ungenerated' }); return 0; }
   const probe = searchFunnel(loose, 60_000);
@@ -247,7 +279,7 @@ function loopCandidate(target: LoopTarget, seed: number): number {
 function tubeCandidate(target: TubeTarget, seed: number): number {
   if (target.colors > COLORS.length) throw new Error(`${target.id} asks for ${target.colors} colours; the palette has ${COLORS.length}`);
   const palette: Color[] = COLORS.slice(0, target.colors);
-  const tubes = generateTube(palette, target.capacity, target.empties, target.colors, seed);
+  const tubes = generateTube(palette, target.capacity, target.empties, target.spread ?? target.colors, seed);
   if (!tubes) return 0;
   const key = tubes.map((tube) => tube.join()).sort().join('|');
   if (TUBE_BOARDS.some((board) => board.tubes.map((tube) => tube.join()).sort().join('|') === key)) return 0;

@@ -3,7 +3,7 @@ import { initPhysics, Machine } from '../src/machine/machine';
 import { MIN_CAPACITY } from '../src/machine/layout';
 import { hintConveyorSearch, settle } from '../src/sim/solver';
 import { HINT_STATE_CAP } from './level-curve';
-import { SHORT_TRAY, TRAY_COUNT } from '../src/sim/boards';
+import { SHORT_TRAY, SMALL_TRAY, TRAY_COUNT } from '../src/sim/boards';
 import { COLOR_CODE, COLORS, type BoardDef, type Color, type Packet } from '../src/sim/types';
 import type { BeltShape } from '../src/engine/belt-path';
 
@@ -26,6 +26,10 @@ export interface FunnelRecipe {
   readonly columns: readonly number[];
   /** How many of those trays are short trays of six. */
   readonly shorts: number;
+  /** How many are small crates of three, one box's worth. */
+  readonly smalls?: number;
+  /** The colours to use; the first `colors` of the palette when absent. */
+  readonly palette?: readonly Color[];
   readonly docks: number;
   readonly capacity: number;
   readonly shape?: BeltShape;
@@ -64,11 +68,13 @@ export const shuffle = <T>(items: T[], next: () => number): T[] => {
 
 export function generate(recipe: FunnelRecipe, seed: number): BoardDef | null {
   const next = random(seed);
-  const colors = PALETTE.slice(0, recipe.colors);
+  const colors = recipe.palette ? [...recipe.palette] : PALETTE.slice(0, recipe.colors);
   const total = recipe.columns.reduce((a, b) => a + b, 0);
   if (total < colors.length) return null;
   const trayColors = shuffle([...colors, ...Array.from({ length: total - colors.length }, () => colors[Math.floor(next() * colors.length)]!)], next);
-  const sizes = shuffle([...Array.from({ length: recipe.shorts }, () => SHORT_TRAY), ...Array.from({ length: total - recipe.shorts }, () => TRAY_COUNT)], next);
+  const smalls = recipe.smalls ?? 0;
+  if (smalls + recipe.shorts > total) return null;
+  const sizes = shuffle([...Array.from({ length: smalls }, () => SMALL_TRAY), ...Array.from({ length: recipe.shorts }, () => SHORT_TRAY), ...Array.from({ length: total - recipe.shorts - smalls }, () => TRAY_COUNT)], next);
   const trays: Packet[] = trayColors.map((color, index) => ({ color, count: sizes[index]! }));
   const supplies: Packet[][] = [];
   let cursor = 0;

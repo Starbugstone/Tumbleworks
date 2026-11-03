@@ -6,6 +6,8 @@ export const BOX_SIZE = 3;
 const trays = (...colors: Color[]): Packet[] => colors.map((color) => ({ color, count: TRAY_COUNT }));
 /** A short tray: six marbles, two boxes' worth, so a pour is cheaper but a dock still needs three boxes. */
 export const SHORT_TRAY = 6;
+/** A small crate: three marbles, one box's worth. */
+export const SMALL_TRAY = 3;
 const tray = (color: Color, count = TRAY_COUNT): Packet => ({ color, count });
 /** Boxes in the order the player meets them, dealt round-robin into dock columns (top first). */
 const docks = (count: number, ...order: Color[]): Color[][] =>
