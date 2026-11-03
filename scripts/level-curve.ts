@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto';
+import { SCORE_POLICY } from './level-policy';
+import type { StrongScore } from './level-strong';
 
 /**
  * The difficulty curve as data and pure checks, so `tests/levelling/curve.test.ts` and the authors judge a level the same way.
@@ -75,9 +77,12 @@ export const LOOP_CAPACITY_MAX = 56;
 export const OVAL_CAPACITY_MAX = 22;
 export const MIN_RISK_POSITIONS = 2;
 
-export const hashBoard = (board: object): string => {
-  const { title: _title, solution: _solution, ...rules } = board as Record<string, unknown>;
-  return createHash('sha256').update(JSON.stringify(rules)).digest('hex').slice(0, 16);
+/** Stable property order as well as stable identity: labels and stored witnesses are not rules. */
+export const hashBoard = (board: object, policy: object = SCORE_POLICY): string => {
+  const { id: _id, title: _title, solution: _solution, ...rules } = board as Record<string, unknown>;
+  const canonical = (value: unknown): unknown => Array.isArray(value) ? value.map(canonical)
+    : value !== null && typeof value === 'object' ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => [key, canonical(item)])) : value;
+  return createHash('sha256').update(JSON.stringify(canonical({ rules, policy }))).digest('hex').slice(0, 16);
 };
 
 /** Everything measured about one board. Conveyor figures are absent on Tube Sort. */
@@ -93,6 +98,9 @@ export interface ScoreRow {
   readonly F1machine: number | null;
   readonly FM: number;
   readonly S: number;
+  /** Strong reference failure; measured only, never an S input or a gate. Null means censored. */
+  readonly H?: number | null;
+  readonly strong?: StrongScore;
   readonly states: number;
   readonly risk: number;
   readonly lostShare: number;
