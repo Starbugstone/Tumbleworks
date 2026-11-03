@@ -1,6 +1,6 @@
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { LoopMachine } from '../src/loop/machine';
-import { LoopRules } from '../src/loop/rules';
+import { LoopRules, loopStateKey } from '../src/loop/rules';
 import { hintLoopSearch, settleLoop } from '../src/loop/solver';
 import type { LoopBoardDef } from '../src/loop/types';
 import { initPhysics, Machine } from '../src/machine/machine';
@@ -135,7 +135,7 @@ function loopValue(rules: LoopRules, trucks: number, extras0: number): number {
   if (rules.status === 'jammed') return -SETTLED;
   const left = rules.state.lanes.flat();
   const cleared = trucks - left.length;
-  const home = left.reduce((sum, truck) => sum + (truck.segments.at(-1)?.marbles.length ?? 0), 0) / rules.board.truckCapacity + cleared;
+  const home = left.reduce((sum, truck) => sum + (truck.segments.at(-1)?.marbles.length ?? 0) / truck.capacity, 0) + cleared;
   const extras = left.reduce((sum, truck) => sum + truck.segments.length - 1, 0);
   return 2 * cleared + home + 0.5 * (extras0 - extras) - 2 * (rules.occupancy + rules.pending) / rules.board.loopCapacity;
 }
@@ -154,12 +154,7 @@ function loopForecast(from: LoopRules, lane: number, depth: number, trucks: numb
   return best === -Infinity ? loopValue(first, trucks, extras) : best;
 }
 function openLanes(rules: LoopRules): number[] {
-  const out: number[] = [];
-  for (let lane = 0; lane < rules.board.lanes.length; lane++) {
-    const truck = rules.front(lane);
-    if (truck && !truck.unloading.length && truck.segments.length >= 2) out.push(lane);
-  }
-  return out;
+  return rules.actions();
 }
 /**
  * The share of turns the mixed players burst on, with 2 or 3 taps. `mixed` is the planner of F1 otherwise: one tap, then wait
@@ -332,12 +327,10 @@ function funnelGraph(board: BoardDef): GraphNode[] {
   return nodes;
 }
 export function loopOrderKey(state: LoopRules['state']): string {
-  const loop: Record<string, number> = {};
-  for (const marble of state.marbles) if (marble.status === 'on-loop') loop[marble.color] = (loop[marble.color] ?? 0) + 1;
-  return `${state.lanes.map((queue) => queue.map((truck) => truck.segments.map((segment) => `${COLOR_CODE[segment.color]}${segment.marbles.length}`).join('.') + (truck.unloading.length ? `u${truck.unloading.length}` : '')).join('/')).join('|')}#${JSON.stringify(loop)}`;
+  return loopStateKey(state);
 }
 export function loopGraphKey(rules: LoopRules): string {
-  return `${rules.state.lanes.map((queue) => queue.map((truck) => `${truck.index}:${truck.segments.map((segment) => `${COLOR_CODE[segment.color]}${segment.marbles.length}`).join('.')}u${truck.unloading.length}`).join('/')).join('|')}#${COLORS.map((color) => rules.state.marbles.filter((marble) => marble.status === 'on-loop' && marble.color === color).length).join()}`;
+  return loopStateKey(rules.state);
 }
 function loopGraph(board: LoopBoardDef): GraphNode[] {
   const snapshots: ReturnType<LoopRules['snapshot']>[] = [];
@@ -354,7 +347,7 @@ function loopGraph(board: LoopBoardDef): GraphNode[] {
     snapshots.push(rules.snapshot());
     const left = rules.state.lanes.flat();
     const cleared = trucks - left.length;
-    const home = sum(left.map((truck) => truck.segments.at(-1)!.marbles.length)) / board.truckCapacity + cleared;
+    const home = sum(left.map((truck) => truck.segments.at(-1)!.marbles.length / truck.capacity)) + cleared;
     const extras = sum(left.map((truck) => truck.segments.length - 1));
     nodes.push({ status: rules.status, value: 2 * cleared + home + 0.5 * (extras0 - extras) - 2 * (rules.occupancy + rules.pending) / board.loopCapacity, edges: [] });
     return id;
@@ -364,7 +357,8 @@ function loopGraph(board: LoopBoardDef): GraphNode[] {
   add(rules);
   for (let id = 0; id < nodes.length; id++) {
     if (nodes[id]!.status !== 'playing') continue;
-    for (let lane = 0; lane < board.lanes.length; lane++) {
+    rules.restore(snapshots[id]!);
+    for (const lane of rules.actions()) {
       rules.restore(snapshots[id]!);
       if (!rules.tap(lane).ok) continue;
       settleLoop(rules);
@@ -522,7 +516,7 @@ function loopOrders(board: LoopBoardDef, wanted: number): string[] {
     start: start.snapshot(), count: board.lanes.length,
     status: (state) => state.status,
     key: loopOrderKey,
-    act: (state, choice) => { rules.restore(state); if (!rules.tap(choice).ok) return null; settleLoop(rules); return rules.snapshot(); },
+    act: (state, choice) => { rules.restore(state); if (!rules.actions().includes(choice) || !rules.tap(choice).ok) return null; settleLoop(rules); return rules.snapshot(); },
   }, wanted);
 }
 export async function funnelShare(board: BoardDef, wanted = 12): Promise<{ brisk: number; patient: number; orders: number }> {
@@ -557,7 +551,7 @@ export function tally(play: (seed: number) => GameResult, games: number, keepWin
   for (let seed = 1; seed <= games; seed++) {
     const game = play(seed);
     const won = game.status === 'won';
-    if (won) { wins += 1; seconds += game.seconds; if (keepWin) fast ??= game; }
+    if (won) { wins += 1; seconds += game.seconds; if (keepWin && game.actions.some(([tick], at) => at > 0 && tick - game.actions[at - 1]![0] <= 12)) fast ??= game; }
     recoveries += game.recoveries;
     if (seed <= 6) first += won ? 'W' : 'L';
   }

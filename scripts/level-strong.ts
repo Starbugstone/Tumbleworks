@@ -186,11 +186,11 @@ function loopGraph(board: LoopBoardDef) {
       rules.restore(state);
       const left = state.lanes.flat();
       const cleared = trucks - left.length;
-      const home = left.reduce((n, truck) => n + (truck.segments.at(-1)?.marbles.length ?? 0), 0) / board.truckCapacity + cleared;
+      const home = left.reduce((n, truck) => n + (truck.segments.at(-1)?.marbles.length ?? 0) / truck.capacity, 0) + cleared;
       const extras = left.reduce((n, truck) => n + truck.segments.length - 1, 0);
       return { status: rules.status, value: 2 * cleared + home + 0.5 * (extras0 - extras) - 2 * (rules.occupancy + rules.pending) / board.loopCapacity };
     },
-    moves: (state) => state.lanes.flatMap((queue, index) => queue[0] && !queue[0].unloading.length && queue[0].segments.length >= 2 ? [index] : []),
+    moves: (state) => { rules.restore(state); return rules.actions(); },
     after(state, action) {
       rules.restore(state); rules.tap(action);
       if (!settleLoop(rules)) throw new Exhausted('settle');
@@ -436,7 +436,7 @@ export function strongLoop(board: LoopBoardDef, seeds: readonly number[] = STRON
   const settled = measurement((depth, lapse, seed) => settledRun(graph, planner, depth, lapse, seed), seeds);
   const run = (timing: StrongTiming) => cachedMachineMeasurement(graph, planner, seeds, (depth, lapse, seed, trace) => {
     const machine = new LoopMachine(board);
-    return machineRun(machine, graph, planner, () => machine.rules.pending, () => machine.rules.state.lanes.filter((queue) => queue[0] && !queue[0].unloading.length && queue[0].segments.length >= 2).length, (state) => { const copy = new LoopRules(board); copy.restore(state); if (!settleLoop(copy)) throw new Exhausted('settle'); return copy.snapshot(); }, timing, depth, lapse, seed, trace);
+    return machineRun(machine, graph, planner, () => machine.rules.pending, () => machine.rules.actions().length, (state) => { const copy = new LoopRules(board); copy.restore(state); if (!settleLoop(copy)) throw new Exhausted('settle'); return copy.snapshot(); }, timing, depth, lapse, seed, trace);
   });
   const machine = { patient: run('patient'), burst2: run('burst2'), burst3: run('burst3') };
   return { H: machine.patient.H, settled, machine, policy: { ...STRONG_POLICY, seeds: [...seeds] }, diagnosis: 'settled-proxy' };

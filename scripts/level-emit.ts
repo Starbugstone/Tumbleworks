@@ -42,6 +42,7 @@ function funnelSource(board: BoardDef, note: string): { name: string; code: stri
 }
 function loopSource(board: LoopBoardDef, note: string): { name: string; code: string } {
   const name = `LOOP_${board.id.split('-')[1]}`;
+  if (board.couplings?.length || board.lanes.flat().some((truck) => truck.id || truck.capacity !== undefined || truck.pourAfter)) return { name, code: `/** ${note} */\nexport const ${name}: LoopBoardDef = ${JSON.stringify(board)};` };
   const seg = (packet: Packet): string => `seg(${color(packet.color)}, ${packet.count})`;
   const lanes = board.lanes.map((queue) => `[${queue.map((truck) => `truck(${truck.segments.map(seg).join(', ')})`).join(', ')}]`).join(', ');
   return { name, code: `/** ${note} */\nexport const ${name}: LoopBoardDef = board(${quote(board.id)}, ${quote(board.title)}, ${board.loopCapacity},\n  [${lanes}],\n  ring(${board.loop.map(seg).join(', ')}));` };

@@ -1,3 +1,4 @@
+import { featureTrap, type LoopFeature } from './loop-features';
 import { appendFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { hintLoopSearch } from '../src/loop/solver';
 import { LoopRules } from '../src/loop/rules';
@@ -40,6 +41,10 @@ interface Named {
 }
 export interface FunnelTarget extends Named { readonly colors: number; readonly columns: readonly number[]; readonly docks: number; readonly slack: readonly number[]; readonly shape?: BeltShape; /** Short trays of six among the nine-marble ones. */ readonly shorts?: number; /** Small crates of three. */ readonly smalls?: number }
 export interface LoopTarget extends Named {
+  readonly feature?: LoopFeature;
+  readonly capacities?: LoopRecipe['capacities'];
+  readonly latch?: LoopRecipe['latch'];
+  readonly coupling?: LoopRecipe['coupling'];
   readonly colors: number;
   readonly lanes: readonly number[];
   readonly segments: 2 | 3;
@@ -85,6 +90,9 @@ export const FUNNEL_TARGETS: readonly FunnelTarget[] = [
   { id: 'fam-f21d', want: [34, 72], round: 21, slot: 'ordinary', title: 'Eleven over the bridge', fr: 'Onze par le pont', note: 'Eleven trays on a figure eight.', colors: 5, columns: [3, 3, 3, 2], docks: 3, slack: [0, 1, 2, 3], shape: 'eight' },
 ];
 export const LOOP_TARGETS: readonly LoopTarget[] = [
+  { id: 'loop-200', round: 43, slot: 'lesson', title: 'Open the latch', fr: 'Ouvrir le verrou', note: 'A receiving latch opened by the red cab.', colors: 3, lanes: [2, 1, 1], segments: 3, ringMin: 0, ringMax: 20, feature: 'latch', latch: ['0:0', '1:0'] },
+  { id: 'loop-201', round: 59, slot: 'lesson', title: 'Half the bed', fr: 'La moitié de la benne', note: 'One twelve-unit truck among full beds.', colors: 3, lanes: [2, 1, 1], segments: 3, ringMin: 0, ringMax: 20, feature: 'short', capacities: [[12, 24], [24], [24]] },
+  { id: 'loop-202', round: 75, slot: 'lesson', title: 'Unload together', fr: 'Décharger ensemble', note: 'One tap commits both linked tailboards.', colors: 3, lanes: [2, 1, 1], segments: 3, ringMin: 0, ringMax: 20, feature: 'coupling', coupling: ['0:0', '1:0'] },
   { id: 'loop-32', want: [5, 18], round: 4, slot: 'lesson', title: 'One behind', fr: 'Un derrière', note: 'The first queued truck, with room to spare.', colors: 3, lanes: [2, 1, 1], segments: 2, ringMin: 0, ringMax: 0 },
   { id: 'loop-33', want: [12, 35], round: 5, slot: 'peak', title: 'Two queues', fr: 'Deux files', note: 'Five trucks and a little traffic already on the loop.', colors: 3, lanes: [2, 2, 1], segments: 2, ringMin: 2, ringMax: 8 },
   { id: 'loop-34', want: [10, 20], round: 6, slot: 'ordinary', title: 'Five on the move', fr: 'Cinq en route', note: 'Five trucks and an empty loop that does not stay empty.', colors: 3, lanes: [2, 2, 1], segments: 2, ringMin: 0, ringMax: 0 },
@@ -214,7 +222,7 @@ async function funnelCandidate(target: FunnelTarget, seed: number): Promise<numb
 }
 
 function loopCandidate(target: LoopTarget, seed: number): number {
-  const recipe: LoopRecipe = { id: target.id, title: target.title, fr: target.fr, note: target.note, colors: target.colors, lanes: target.lanes, segments: target.segments, capacity: LOOP_CAPACITY_MAX, ringMax: target.ringMax, seed, win: [0, 1], naiveJams: false };
+  const recipe: LoopRecipe = { id: target.id, title: target.title, fr: target.fr, note: target.note, colors: target.colors, lanes: target.lanes, segments: target.segments, capacity: LOOP_CAPACITY_MAX, ringMax: target.ringMax, seed, win: [0, 1], naiveJams: false, capacities: target.capacities, latch: target.latch, coupling: target.coupling };
   const loose = generateLoop(recipe, seed);
   if (!loose) return 0;
   const trucks = loose.lanes.flat();
@@ -236,6 +244,7 @@ function loopCandidate(target: LoopTarget, seed: number): number {
     const say = (outcome: string, more: Partial<Log> = {}): void => { log(target.id, { seed, capacity, outcome, ...more }); };
     const found = searchLoop(board, 60_000);
     if (!found.solvable) { say('unsolvable'); continue; }
+    if (target.feature && (!found.jam || !featureTrap(board, target.feature, found.jam))) { say('no causal rule trap'); continue; }
     if (target.round >= 4 && !found.jam) { say('no losing order'); continue; }
     if (target.round >= 7 && laneByLane(board) !== 'jammed' && roundRobin(board) !== 'jammed') { say('no naive jam'); continue; }
     const settled = settledLoop(board);
