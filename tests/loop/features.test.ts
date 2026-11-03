@@ -240,3 +240,10 @@ it('all three lessons retain a winning rapid-tap replay', () => {
     expect(machine.rules.status).toBe('won');
   }
 });
+
+it('names the exact prerequisite lane when two cabs share its pattern', () => {
+  const machine = new LoopMachine(LOOP_200);
+  expect(machine.readTrucks().filter((truck) => truck.finalColor === 'red')).toHaveLength(2);
+  expect(machine.readTrucks()[0]).toMatchObject({ latchColor: 'red', latchLane: 1 });
+  expect(machine.truckReference('1:0')).toEqual({ lane: 1, index: 0, color: 'red' });
+});

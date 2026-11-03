@@ -43,7 +43,13 @@ export class LoopRuntime implements GameRuntime {
     if (!/^lane\d+$/.test(target) || this.status !== 'playing') return [];
     const result = this.machine.tap(Number(target.slice(4)));
     if (result.ok) return [{ type: 'move' }];
-    if (result.reason === 'latched') return [{ type: 'blocked', target, text: t('Finish the truck shown on the latch first.', 'Terminez d’abord le camion indiqué sur le verrou.') }];
+    if (result.reason === 'latched') {
+      const prerequisite = this.machine.rules.front(Number(target.slice(4)))?.pourAfter;
+      const reference = prerequisite ? this.machine.truckReference(prerequisite) : null;
+      return [{ type: 'blocked', target: reference ? `lane${reference.lane}` : target, text: reference
+        ? t(`Finish the marked truck in lane ${reference.lane + 1} first.`, `Terminez d’abord le camion indiqué dans la file ${reference.lane + 1}.`)
+        : t('Finish the truck shown on the latch first.', 'Terminez d’abord le camion indiqué sur le verrou.') }];
+    }
     if (result.reason === 'coupled') return [{ type: 'blocked', target, text: t('Both linked trucks must be ready to pour.', 'Les deux camions reliés doivent pouvoir décharger.') }];
     if (result.reason === 'single') return [{ type: 'blocked', target, text: t('That truck is one color: it only needs to fill up.', 'Ce camion n’a qu’une couleur : il lui reste à se remplir.') }];
     if (result.reason === 'busy') return [{ type: 'blocked', target, text: this.machine.rules.free <= 0 ? t('The loop is full: a truck has to take some before more can pour.', 'Le circuit est plein : un camion doit prendre des billes pour libérer de la place.') : t('Still pouring.', 'Déchargement en cours.') }];

@@ -257,6 +257,10 @@ and **coupled unload at 75**. The implementation fixtures are `loop-200`,
 `loop-201` and `loop-202`. They are bank boards, not campaign placements. Open
 `/?try=loop-200`, `/?try=loop-201` or `/?try=loop-202` to play them.
 
+The card latch includes its prerequisite lane number, so two cabs with the same
+pattern are unambiguous. Refusal feedback names and points to that lane. The toy
+latch carries only the pattern.
+
 A truck may declare `id`, `capacity` and `pourAfter`. Without an explicit ID its
 identity is its original `lane:index`, unaffected by departures. A latch names
 another truck's identity; unknown IDs and dependency cycles are rejected. The

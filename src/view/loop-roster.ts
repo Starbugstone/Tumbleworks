@@ -54,12 +54,13 @@ const STYLE = `
 .lr-peek .lr-card { position: relative; }
 .lr-latch { position:absolute; right:5px; top:12px; width:20px; height:21px; border-radius:3px; background:#fff7e5; border:2px solid #20363b; box-sizing:border-box; }
 .lr-latch::before { content:''; position:absolute; width:10px; height:8px; border:2px solid #20363b; border-bottom:0; border-radius:7px 7px 0 0; left:3px; top:-9px; box-sizing:border-box; }
+.lr-latch b { position:absolute; right:-4px; top:-11px; min-width:12px; height:12px; line-height:12px; font-size:11px; text-align:center; border-radius:50%; color:#20363b; background:#fff7e5; }
 .lr-latch img { width:16px; height:16px; }
 @media (prefers-reduced-motion: reduce) { .lr-card, .lr-fill, .lr-number, .lr-fold { transition: none; } }
 `;
 
 interface Stretch { readonly color: Color | null; readonly units: number }
-interface Lorry { readonly capacity: number; readonly latchColor: Color | null; readonly truck: number; readonly finalColor: Color; readonly stretches: readonly Stretch[]; readonly state: 'pouring' | 'waiting' | null }
+interface Lorry { readonly capacity: number; readonly latchColor: Color | null; readonly latchLane: number | null; readonly truck: number; readonly finalColor: Color; readonly stretches: readonly Stretch[]; readonly state: 'pouring' | 'waiting' | null }
 interface CardView { readonly element: HTMLElement; readonly cab: HTMLElement; readonly rail: HTMLElement; readonly numbers: HTMLElement; signature: string; truckKey: string }
 export interface RosterPick { readonly lane: number; readonly kind: 'now' | 'waiting' | 'more' }
 const CHEVRONS = 'data:image/svg+xml,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12"><path fill="none" stroke="${INK}" stroke-width="2" d="M2 2l4 4-4 4M6.5 2l4 4-4 4"/></svg>`);
@@ -130,7 +131,7 @@ export class LoopRoster {
         const stretches: Stretch[] = [...truck.blocks].reverse().filter((block) => block.units > 0).map((block) => ({ color: block.color, units: block.units }));
         const load = stretches.reduce((sum, stretch) => sum + stretch.units, 0);
         if (load < capacity) stretches.push({ color: null, units: capacity - load });
-        return { capacity, latchColor: truck.latchColor, truck: truck.index, finalColor: truck.finalColor, stretches, state: truck === docked ? truck.unloading : null };
+        return { capacity, latchColor: truck.latchColor, latchLane: truck.latchLane, truck: truck.index, finalColor: truck.finalColor, stretches, state: truck === docked ? truck.unloading : null };
       });
     });
   }
@@ -247,7 +248,7 @@ export class LoopRoster {
     let latch = view.element.querySelector<HTMLElement>('.lr-latch');
     if (lorry.latchColor) {
       if (!latch) { latch = document.createElement('span'); latch.className = 'lr-latch'; view.element.append(latch); }
-      latch.innerHTML = `<img alt="" src="${pattern(lorry.latchColor, INK)}">`;
+      latch.innerHTML = `<img alt="" src="${pattern(lorry.latchColor, INK)}"><b>${lorry.latchLane! + 1}</b>`;
     } else latch?.remove();
     let state = view.element.querySelector<HTMLImageElement>('.lr-state');
     if (lorry.state) {

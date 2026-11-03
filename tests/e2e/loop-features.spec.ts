@@ -28,8 +28,9 @@ for (const id of [200, 201, 202]) test(`Loop Sort feature ${id}: phone input, un
     const before = await state(page);
     await tap(page, 'lane0');
     expect((await state(page)).pending).toBe(before.pending);
-    await expect(page.locator('#message')).toContainText('Finish the truck');
+    await expect(page.locator('#message')).toContainText('lane 2 first');
     expect(await page.locator('.lr-latch').count()).toBe(1);
+    await expect(page.locator('.lr-latch b')).toHaveText('2');
     await tap(page, 'lane1'); await advance(page, 300);
     await tap(page, 'lane1'); await advance(page, 360);
     expect(await page.locator('.lr-latch').count()).toBe(0);

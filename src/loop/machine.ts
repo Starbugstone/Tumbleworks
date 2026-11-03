@@ -126,7 +126,7 @@ export class LoopMachine implements Replayable {
   facing(_lane: number): number { return -1; }
 
   /** A truck's bed, front (loop end) first, as colour blocks in rules units, plus its position. */
-  readTrucks(): { lane: number; index: number; x: number; y: number; z: number; scale: number; visible: boolean; docked: boolean; departing: boolean; capacity: number; bedLength: number; latchColor: Color | null; coupledWith: string | null; finalColor: Color; unloading: 'pouring' | 'waiting' | null;
+  readTrucks(): { lane: number; index: number; x: number; y: number; z: number; scale: number; visible: boolean; docked: boolean; departing: boolean; capacity: number; bedLength: number; latchColor: Color | null; latchLane: number | null; coupledWith: string | null; finalColor: Color; unloading: 'pouring' | 'waiting' | null;
     /** Its place in the lane's waiting line, 0 next; null once it has left the line. */
     queueSlot: number | null;
     blocks: { color: Color; units: number; pouring: boolean }[] }[] {
@@ -139,6 +139,7 @@ export class LoopMachine implements Replayable {
       }
       const state = this.rules.state.lanes[truck.lane]?.find((candidate) => candidate.index === truck.index) ??
         (truck.complete ? null : null);
+      const prerequisite = state?.pourAfter ? this.truckReference(state.pourAfter) : null;
       const blocks: { color: Color; units: number; pouring: boolean }[] = [];
       if (state) {
         if (state.unloading.length) blocks.push({ color: this.rules.state.marbles[state.unloading[0]!]!.color, units: state.unloading.length, pouring: true });
@@ -155,7 +156,7 @@ export class LoopMachine implements Replayable {
         visible: truck.phase !== 'gone' && truck.phase !== 'queued', docked: truck.phase === 'docked',
         departing: truck.phase === 'leaving', queueSlot,
         capacity: this.capacity(truck.lane, truck.index), bedLength: this.bedLength(truck.lane, truck.index),
-        latchColor: state?.pourAfter ? this.board.lanes.flatMap((queue, lane) => queue.map((def, index) => ({ def, id: def.id ?? `${lane}:${index}` }))).find(({ id }) => id === state.pourAfter)!.def.segments.at(-1)!.color : null,
+        latchColor: prerequisite?.color ?? null, latchLane: prerequisite?.lane ?? null,
         coupledWith: state?.coupledWith ?? null,
         unloading: state?.unloading.length ? (this.rules.free === 0 ? 'waiting' : 'pouring') : null,
         finalColor: this.board.lanes[truck.lane]![truck.index]!.segments.at(-1)!.color, blocks };
@@ -375,6 +376,15 @@ export class LoopMachine implements Replayable {
     truck.phase = phase;
     truck.time = 0;
     truck.duration = duration;
+  }
+
+  truckReference(id: string): { lane: number; index: number; color: Color } | null {
+    for (let lane = 0; lane < this.board.lanes.length; lane++) {
+      const queue = this.board.lanes[lane]!;
+      const index = queue.findIndex((truck, at) => (truck.id ?? `${lane}:${at}`) === id);
+      if (index >= 0) return { lane, index, color: queue[index]!.segments.at(-1)!.color };
+    }
+    return null;
   }
 
   capacity(lane: number, index: number): number { return this.board.lanes[lane]![index]!.capacity ?? this.board.truckCapacity; }
