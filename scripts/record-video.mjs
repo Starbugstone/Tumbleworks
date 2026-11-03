@@ -3,11 +3,12 @@
 //   docker compose --profile e2e run --rm e2e node scripts/record-video.mjs <name> <query> <seconds> <tap,tap,...> [gap]
 // <query> opens the level, e.g. "try=tube-60" for a bank board or "level=12" for a campaign index.
 // Taps are debug target IDs (supply0, lane1, tube3, ...), one every <gap> seconds (default 1.2) after a one-second look.
-import { mkdirSync, rmSync } from 'node:fs';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { chromium, devices } from 'playwright';
 
 const [name = 'clip', query = '', secondsArg = '15', tapsArg = '', gapArg = '1.2'] = process.argv.slice(2);
-const FPS = 30;
+const FPS = Number(process.env.VIDEO_FPS ?? 30);
+const scale = Number(process.env.VIDEO_SCALE ?? 2);
 const seconds = Number(secondsArg);
 const gap = Number(gapArg);
 const taps = tapsArg.split(',').filter(Boolean);
@@ -16,8 +17,9 @@ rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
 const url = process.env.TUMBLEWORKS_URL ?? 'http://game-server:5180';
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
-const context = await browser.newContext({ ...devices['Pixel 7'], viewport: { width: 375, height: 690 }, deviceScaleFactor: 2 });
+const context = await browser.newContext({ ...devices['Pixel 7'], viewport: { width: 375, height: 690 }, deviceScaleFactor: scale });
 const page = await context.newPage();
+const client = await context.newCDPSession(page);
 const errors = [];
 page.on('pageerror', (error) => errors.push(error.message));
 await page.addInitScript(() => localStorage.setItem('tumbleworks.progress.v1', JSON.stringify({ completed: [], current: null, muted: true })));
@@ -25,6 +27,8 @@ const level = new URLSearchParams(query).get('level');
 await page.goto(`${url}/${level === null && query ? `?${query}` : ''}`);
 await page.waitForFunction(() => Boolean(window.tumbleworks?.app?.runtime), undefined, { timeout: 90000 });
 await page.evaluate(() => { window.tumbleworks.app.manualClock = true; });
+await page.clock.install({ time: 0 });
+await page.clock.pauseAt(3600000);
 if (level !== null) {
   await page.locator('#levels-toggle').click();
   await page.locator(`.chip[data-level="${level}"]`).click();
@@ -40,8 +44,11 @@ for (let frame = 0; frame < seconds * FPS; frame++) {
     if (!point) throw new Error(`No target ${target}`);
     await page.touchscreen.tap(point.x, point.y);
   }
-  await page.evaluate(() => window.tumbleworks.app.advance(1 / 30));
-  await page.screenshot({ path: `${out}/f${String(frame).padStart(4, '0')}.jpg`, type: 'jpeg', quality: 88 });
+  await page.evaluate((fps) => window.tumbleworks.app.advance(1 / fps), FPS);
+  await page.clock.runFor(1000 / FPS);
+  if (frame % FPS === 0) console.log(`frame ${frame}/${seconds * FPS}`);
+  const capture = await client.send('Page.captureScreenshot', { format: 'jpeg', quality: 88 });
+  writeFileSync(`${out}/f${String(frame).padStart(4, '0')}.jpg`, Buffer.from(capture.data, 'base64'));
 }
 const status = await page.evaluate(() => window.tumbleworks.app.debugState().status);
 console.log(JSON.stringify({ name, frames: seconds * FPS, taps: next, status, errors }));

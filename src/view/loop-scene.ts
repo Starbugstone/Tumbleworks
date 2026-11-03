@@ -410,7 +410,7 @@ export class LoopScene {
     }
     for (const { pair, mesh } of this.couplingBars) {
       const lanes = pair.map((id) => machine.rules.state.lanes.findIndex((queue) => queue[0]?.id === id && queue[0].coupledWith !== null));
-      mesh.visible = lanes.every((lane) => lane >= 0 && [...this.currentTrucks.values()].some((truck) => truck.lane === lane && truck.docked && !truck.departing));
+      mesh.visible = lanes.every((lane) => lane >= 0 && [...this.currentTrucks.values()].some((truck) => truck.lane === lane && truck.index === machine.rules.front(lane)?.index && truck.docked && !truck.departing));
       if (!mesh.visible) continue;
       const a = lanes[0]!, b = lanes[1]!;
       const x1 = machine.bays[a]!.x, x2 = machine.bays[b]!.x;

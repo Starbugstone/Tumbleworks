@@ -131,6 +131,35 @@ describe('latch transitions and jams', () => {
     const allLatched = { ...LOOP_200, lanes: LOOP_200.lanes.map((queue, lane) => queue.map((truck, index) => index === 0 && lane > 0 ? { ...truck, pourAfter: '0:1' } : truck)) };
     expect(new LoopRules(allLatched).status).toBe('jammed');
   });
+  it('a full loop whose only receiver is latched remains live', () => {
+    const board: LoopBoardDef = { id: 'only-latch-drains', title: '', truckCapacity: 4, loopCapacity: 2, lanes: [
+      [{ id: 'locked', pourAfter: 'key', segments: [{ color: 'red', count: 2 }] }],
+      [{ id: 'key', segments: [{ color: 'green', count: 2 }, { color: 'blue', count: 2 }] }],
+      [{ segments: [{ color: 'blue', count: 2 }, { color: 'green', count: 2 }] }],
+    ], loop: [{ color: 'red', count: 2 }] };
+    const rules = new LoopRules(board);
+    expect(rules.free).toBe(0);
+    expect([rules.wants(0), rules.wants(1), rules.wants(2)]).toEqual(['red', null, null]);
+    expect(rules.status).toBe('playing');
+    settleLoop(rules);
+    expect(rules.front(0)).toBeNull();
+    expect(rules.status).toBe('playing');
+  });
+  it('opens all dependencies before checking the otherwise terminal no-pour state', () => {
+    const board: LoopBoardDef = { id: 'unlock-before-jam', title: '', truckCapacity: 4, loopCapacity: 2, lanes: [
+      [{ id: 'a', capacity: 2, pourAfter: 'key', segments: [{ color: 'green', count: 1 }, { color: 'red', count: 1 }] }],
+      [{ id: 'b', capacity: 2, pourAfter: 'key', segments: [{ color: 'red', count: 1 }, { color: 'green', count: 1 }] }],
+      [{ id: 'key', segments: [{ color: 'blue', count: 3 }] }],
+    ], loop: [{ color: 'blue', count: 1 }] };
+    const rules = new LoopRules(board);
+    expect(rules.canPour()).toBe(false);
+    const unit = rules.state.marbles.find((marble) => marble.status === 'on-loop')!;
+    expect(rules.pass(unit.id, 2)).toMatchObject({ events: [{ type: 'complete' }] });
+    expect(rules.status).toBe('playing');
+    expect(rules.actions()).toEqual([0, 1]);
+    play(rules, 'AB');
+    expect(rules.status).toBe('won');
+  });
   it('rejects cycles, unknown identities and overlapping couplings', () => {
     expect(() => new LoopRules({ ...latchedExchange, lanes: [[{ ...latchedExchange.lanes[0]![0]!, pourAfter: 'unknown' }], latchedExchange.lanes[1]!] })).toThrow(/Unknown/);
     expect(() => new LoopRules({ ...latchedExchange, lanes: [latchedExchange.lanes[0]!, [{ ...latchedExchange.lanes[1]![0]!, pourAfter: 'latched' }]] })).toThrow(/Cyclic/);
