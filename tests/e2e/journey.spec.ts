@@ -148,7 +148,7 @@ test('each ruleset recovers from a real jam through the shared undo button', asy
   expect((await state(page)).status).toBe('playing');
 
   // The first Tube Sort board that can be jammed in one move, found from the rules rather than hard-coded.
-  const trap = TUBE_BOARDS.filter((board) => CAMPAIGN.some((level) => level.id === board.id)).flatMap((board) => availableTubeMoves(board, { tubes: board.tubes.map((tube) => [...tube]) })
+  const trap = TUBE_BOARDS.filter((board) => CAMPAIGN.some((level) => level.id === board.id)).flatMap((board) => availableTubeMoves(board, new TubeRules(board).state)
     .filter((move) => { const rules = new TubeRules(board); return rules.move(move.from, move.to).ok && rules.status === 'jammed'; })
     .map((move) => ({ id: board.id, move })))[0];
   if (!trap) throw new Error('No Tube Sort board jams in one move');

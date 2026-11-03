@@ -778,4 +778,48 @@ export const TUBE_BOARDS: readonly TubeDef[] = [
     ],
   },
 // END first stretch
+  /** Rule lesson in the bank only; see docs/levelling.md. */
+  {
+    kind: 'tube', id: 'tube-200', title: 'The capped spare', capacity: 4,
+    containers: [
+      { role: 'ordinary', capacity: 4 },
+      { role: 'ordinary', capacity: 4 },
+      { role: 'ordinary', capacity: 4 },
+      { role: 'ordinary', capacity: 4 },
+      { role: 'capped', capacity: 4, opensOn: 'red' },
+    ],
+    tubes: [
+      ['blue', 'blue', 'green', 'red'],
+      ['red', 'green', 'green', 'green'],
+      ['blue', 'blue', 'red', 'red'],
+      [],
+      [],
+    ],
+    solution: [
+      { from: 1, to: 3 }, { from: 0, to: 1 }, { from: 0, to: 3 }, { from: 2, to: 1 },
+      { from: 0, to: 2 },
+    ],
+  },
+  /** Rule lesson in the bank only; see docs/levelling.md. */
+  {
+    kind: 'tube', id: 'tube-201', title: 'One use of the cup', capacity: 4,
+    containers: [
+      { role: 'ordinary', capacity: 4 },
+      { role: 'ordinary', capacity: 4 },
+      { role: 'ordinary', capacity: 4 },
+      { role: 'ordinary', capacity: 4 },
+      { role: 'cup', capacity: 2 },
+    ],
+    tubes: [
+      ['blue', 'blue', 'green', 'red'],
+      ['red', 'green', 'green', 'green'],
+      ['blue', 'blue', 'red', 'red'],
+      [],
+      [],
+    ],
+    solution: [
+      { from: 1, to: 3 }, { from: 0, to: 1 }, { from: 0, to: 3 }, { from: 2, to: 1 },
+      { from: 0, to: 2 },
+    ],
+  },
 ];

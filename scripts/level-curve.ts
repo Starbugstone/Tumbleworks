@@ -121,7 +121,7 @@ export interface ScoreRow {
 export interface Placement { readonly round: number; readonly game: Game; readonly slot: Slot; readonly row: ScoreRow; readonly signature?: string }
 
 /** A level's structure: the same structure may not recur within five rounds of itself. */
-export function signatureOf(board: { readonly supplies?: readonly (readonly { readonly count: number }[])[]; readonly docks?: readonly unknown[]; readonly trackShape?: string; readonly lanes?: readonly (readonly { readonly segments: readonly { readonly color: string }[] }[])[]; readonly loop?: readonly { readonly color: string; readonly count: number }[]; readonly tubes?: readonly (readonly string[])[]; readonly capacity?: number }): string {
+export function signatureOf(board: { readonly supplies?: readonly (readonly { readonly count: number }[])[]; readonly docks?: readonly unknown[]; readonly trackShape?: string; readonly lanes?: readonly (readonly { readonly segments: readonly { readonly color: string }[] }[])[]; readonly loop?: readonly { readonly color: string; readonly count: number }[]; readonly tubes?: readonly (readonly string[])[]; readonly capacity?: number; readonly containers?: readonly unknown[] }): string {
   const sorted = (values: readonly number[]): string => [...values].sort((a, b) => b - a).join();
   const shape = board.trackShape ?? 'oval';
   if (board.supplies) {
@@ -137,7 +137,7 @@ export function signatureOf(board: { readonly supplies?: readonly (readonly { re
   }
   const tubes = board.tubes ?? [];
   const colors = new Set(tubes.flat()).size;
-  return `c${colors} h${board.capacity} F${tubes.length - colors} spread${tubes.filter((tube) => tube.length).length}`;
+  return `c${colors} h${board.capacity} F${tubes.length - colors} spread${tubes.filter((tube) => tube.length).length}${board.containers ? ` roles${JSON.stringify(board.containers)}` : ''}`;
 }
 
 const PEAK_PHASE: Readonly<Record<Game, number>> = { funnel: 4, loop: 0, tube: 2 };

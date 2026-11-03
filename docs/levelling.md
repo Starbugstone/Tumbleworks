@@ -213,3 +213,65 @@ Each was found while building and is recorded here rather than worked around.
    in order; the definite "can't be sorted" hint text (section 8) is left, though its proof test exists; tiers still come from
    `hasOrange` and position (section 9 ships later).
 10. **The hash covers the rules only.** A board's title and Tube Sort's stored solution do not change its score.
+
+## Tube Sort commitments (bank lessons)
+
+The capped spare is planned for round 45; the closing cup for round 61.
+They are bank boards only, available in development at `/?try=tube-200` and
+`/?try=tube-201`. Neither is placed in `PLAY_ORDER`.
+
+- **Capped spare:** an empty full-size tube with a cap bearing another colour's
+  container pattern. It can neither give nor receive until that colour first
+  fills a full one-colour home anywhere. The completing move opens it before
+  status is evaluated. It stays open if that completion is poured out later.
+  An initially completed home also counts. A two-place cup never earns an unlock.
+- **Closing cup:** an initially empty two-place container. Normal matching and
+  maximum-run transfers apply. Its first nonempty→empty transition folds it
+  permanently shut, without deleting marbles. It must be empty at victory;
+  an unused cup may remain open. Undo of the emptying move reopens it.
+
+Definitions may declare `containers`, one role and capacity per tube; omission
+preserves classic boards and their score hashes. Ordinary and capped homes use
+`board.capacity`, with exactly that many of each colour. Cups hold two and never
+serve as final homes. Validation checks starting contents, references and enough
+final homes. Snapshots, undo and replay fingerprints include indexed `opened` and
+`spent` flags. Rejected actions leave every part of state and the replay unchanged.
+
+`withTubeRule` and optional `rule` on `TubeRecipe` / `TubeTarget` replace the final
+spare with the requested role. Cap lessons retain an open spare. For example:
+
+```sh
+npx tsx scripts/tube-author.ts rule capped 1
+npx tsx scripts/tube-author.ts rule cup 1
+```
+
+Candidates must pass the existing hint and whole-graph ceilings and
+`findRuleTrap`: a winning position has an attractive losing action, proved by
+reverse reachability of the entire graph, and the same lost position wins when
+only the new restriction is relaxed. For the cup the relaxation restores its
+spent allowance; for the cap it opens the spare. Lesson 200 loses by moving
+`2→3` first (zero-based); lesson 201 loses by `0→4, 4→3`, spending the cup too
+soon. Their stored solutions are shortest; the demonstration videos deliberately
+use the special container as well.
+
+Hints, authoring reachability, scoring and emitted boards all preserve roles,
+capacities, latches and spent state. Only ordinary homes of equal capacity are
+interchangeable. Empty-destination pruning applies only to those homes.
+`solveTubeSearch.exhaustive` distinguishes a proved result from budget exhaustion;
+a null result is a loss proof only when exhaustive. Scoring rejects a graph above
+`TUBE_GRAPH_CAP` before constructing the scoring graph. Old classic score inputs
+and board hashes are unchanged.
+
+The **collector**, proposed for round 77, is not shipped. A prototype accepted
+only its badge colour, never gave and required a full finish. No qualifying
+rule-specific trap was found among seeds 1–400 for three colours/four high/one
+collector, or seeds 1–50 of each of these recipes: three colours three high spread
+across four tubes; three colours four high spread across four; four colours four
+high with a spare and collector; four colours three high spread across five.
+This bounded negative result does not prove no such puzzle exists. Its production
+role, view and boards were left out rather than assigning difficulty credit
+without the required fixture. The local probe transcript is in
+`output/current/levelling/tube-rules/collector-probe.txt`.
+
+The checked commitment model and its limits are described in
+[the Tube Sort model](models/tube-commitments/README.md).
