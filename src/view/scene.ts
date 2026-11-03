@@ -249,8 +249,8 @@ export class MachineScene {
     const columns = machine.sourceColumns;
     const targets = machine.rules.crateActions ? machine.readCrates() : machine.readCrates().filter((crate) => crate.accessible);
     for (const crate of targets) {
-      const target = new THREE.Mesh(new THREE.BoxGeometry(CRATE.halfWidth * 2 + 0.1, 0.9, CRATE.halfDepth * 2 + 0.2), new THREE.MeshBasicMaterial({ visible: false }));
-      target.position.set(crate.x, crate.y + 0.4, crate.z);
+      const target = new THREE.Mesh(new THREE.BoxGeometry(CRATE.halfWidth * 2 + 0.1, 0.9, 1.0), new THREE.MeshBasicMaterial({ visible: false }));
+      target.position.set(crate.x, crate.y + 0.4, crate.z + CRATE.halfDepth * 0.65);
       target.userData['supply'] = crate.action;
       this.scene.add(target);
       this.hitTargets.push(target);
@@ -283,7 +283,7 @@ export class MachineScene {
       key.rotation.x = -Math.PI / 2;
       key.position.set(0, BOX.height + 0.08, -BOX.halfDepth * 0.7);
       prerequisite?.group.add(key);
-      group.position.set(dockX(seal.dock, machine.board.docks.length), BOX.height + 0.45, BOX.z + BOX.halfDepth + 0.15);
+      group.position.set(dockX(seal.dock, machine.board.docks.length), BOX.height + 0.45, BOX.z - BOX.halfDepth - 0.15);
       this.shutters.set(seal.dock, { group, lift: 0 });
       this.level.add(group);
     }
@@ -436,7 +436,7 @@ export class MachineScene {
       const action = Number(target.userData['supply']);
       const at = machine.frontCrate(action);
       target.visible = Boolean(at);
-      if (at) target.position.set(at.x, at.y + 0.4, at.z);
+      if (at) target.position.set(at.x, at.y + 0.4, at.z + CRATE.halfDepth * 0.65);
     }
     for (const link of this.links) {
       const from = this.currentCrates.find((crate) => crate.id === link.from);
@@ -476,12 +476,8 @@ export class MachineScene {
     const rect = this.stage.renderer.domElement.getBoundingClientRect();
     const ndc = new THREE.Vector2(((x - rect.left) / rect.width) * 2 - 1, -((y - rect.top) / rect.height) * 2 + 1);
     this.raycaster.setFromCamera(ndc, this.camera);
-    const hits = this.raycaster.intersectObjects(this.hitTargets.filter((target) => target.visible), false);
-    // The rear shelf overlaps its supports in projection; it must not steal their live tap area.
-    const hit = hits.find((entry) => {
-      const packet = this.machine?.rules.packet(Number(entry.object.userData['supply']));
-      return packet && this.machine?.rules.accessible(packet.id);
-    }) ?? hits[0];
+    // Only the visible front of each crate is a target; an overlapping shelf cannot steal its support's tap.
+    const hit = this.raycaster.intersectObjects(this.hitTargets.filter((target) => target.visible), false)[0];
     const supply: unknown = hit?.object.userData['supply'];
     return typeof supply === 'number' ? supply : null;
   }

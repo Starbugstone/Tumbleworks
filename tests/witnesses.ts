@@ -1,7 +1,7 @@
 /** Authored tap orders, shared by the rule, machine and browser specs. Letters are supply columns or truck lanes. */
 export const FUNNEL_WITNESSES: Record<string, string> = {
   'board-202': 'ACCABB',
-  'board-201': 'CDABEF',
+  'board-201': 'EFCDAB',
   'board-200': 'ABEFD',
   'board-1': 'AAB', 'board-2': 'AABBC', 'board-3': 'AAABCCB', 'board-4': 'ABCAABBCC', 'board-5': 'AAABBBDCCCDD', 'board-6': 'AAACBBC',
   'board-7': 'AAACCBB', 'board-8': 'AAACBBBC', 'board-9': 'AABDBDCCDAB', 'board-10': 'AABBABCCC', 'board-11': 'AAABBCCCDDDB', 'board-12': 'ABBAAB',

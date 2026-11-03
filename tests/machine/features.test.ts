@@ -3,6 +3,7 @@ import { BOARD_200, BOARD_201, BOARD_202 } from '../../src/sim/boards';
 import { funnelStateKey, MachineRules } from '../../src/sim/rules';
 import { hintConveyor, settle } from '../../src/sim/solver';
 import { initPhysics, Machine } from '../../src/machine/machine';
+import { CRATE, FUNNEL, MARBLE_RADIUS, funnelHalfWidth } from '../../src/machine/layout';
 import { replayLog, replayOnto } from '../../src/engine/replay';
 import { funnelFeatureTrap } from '../../scripts/funnel-features';
 import { generate, search, stateKey, winsEitherWay, FUNNEL_RULE_RECIPES, naiveOrders, play } from '../../scripts/funnel-author';
@@ -149,4 +150,37 @@ it('rejects cycles, bad references and overlapping pairs', () => {
 it('rejects a shelf wider than four exposed crates', () => {
   const board: BoardDef = { id:'too-wide',title:'',beltCapacity:14,boxSize:3,supplies:Array.from({length:5},()=>[{color:'red',count:3}]),docks:[Array.from({length:5},()=> 'red')],predecessors:{} };
   expect(()=>new MachineRules(board)).toThrow(/more than four/);
+});
+it('distinguishes reachable shelf states with equal queue lengths, belt, pending and receiver progress', () => {
+  const board: BoardDef = {id:'equal-counts',title:'',beltCapacity:14,boxSize:3,
+    supplies:[[{color:'red',count:3},{color:'red',count:3}],[{color:'red',count:3}]],
+    docks:[['red','red','red']],predecessors:{0:[],1:[],2:[0]}};
+  const a=new MachineRules(board), b=new MachineRules(board);
+  a.release(0);settle(a);b.release(1);settle(b);
+  expect(a.state.supplies.map(q=>q.length)).toEqual(b.state.supplies.map(q=>q.length));
+  expect(a.state.pending).toEqual(b.state.pending);
+  expect(a.state.dockNext).toEqual(b.state.dockNext);
+  expect(a.occupancy).toBe(b.occupancy);
+  expect(a.actions()).toContain(2);
+  expect(b.actions()).not.toContain(2);
+  expect(stateKey(a)).not.toBe(stateKey(b));
+});
+
+it('spaces sibling shelves and catches every initial marble, including a four-wide graph', () => {
+  const wide: BoardDef = {id:'four-wide',title:'',beltCapacity:14,boxSize:3,
+    supplies:[[{color:'red',count:3},{color:'blue',count:3}],[{color:'green',count:3},{color:'yellow',count:3}],[{color:'red',count:3}]],
+    docks:[['red','red','blue','green','yellow']],predecessors:{0:[],1:[],2:[],3:[],4:[0,2]}};
+  for(const board of [BOARD_201,wide]) {
+    const machine=new Machine(board);
+    if(board===wide) expect(machine.sourceColumns).toBe(4);
+    const crates=machine.readCrates();
+    for(const a of crates) for(const b of crates) if(a.id!==b.id && a.y===b.y) expect(Math.abs(a.x-b.x)).toBeGreaterThanOrEqual(CRATE.halfWidth*2);
+    for(const id of machine.marbleIds){
+      const pose={x:0,y:0,z:0,qx:0,qy:0,qz:0,qw:1};machine.readMarble(id,pose);
+      expect(Math.abs(pose.x)+MARBLE_RADIUS).toBeLessThan(funnelHalfWidth(machine.sourceColumns));
+      expect(pose.z-MARBLE_RADIUS).toBeGreaterThan(FUNNEL.mouth.back);
+      expect(pose.z+MARBLE_RADIUS).toBeLessThan(FUNNEL.mouth.front);
+    }
+    machine.world.free();
+  }
 });

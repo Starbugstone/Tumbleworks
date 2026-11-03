@@ -212,8 +212,8 @@ export const BOARD_200: BoardDef = {
 /** Rule lesson for round 57; bank only. */
 export const BOARD_201: BoardDef = {
   id: 'board-201', title: 'Two supports', beltCapacity: 14, boxSize: 3,
-  supplies: [[tray('red', 9), tray('blue', 9)], [tray('green', 9), tray('blue', 9)], [tray('red', 9), tray('blue', 9)]],
-  docks: [["red", "blue", "blue", "green", "red", "red"], ["blue", "blue", "red", "blue", "red", "red"], ["blue", "blue", "green", "blue", "green", "blue"]],
+  supplies: [[tray('green', 9), tray('red', 9)], [tray('green', 9), tray('blue', 9)], [tray('green', 9), tray('red', 9)]],
+  docks: [["blue", "red", "green", "red", "blue", "green"], ["blue", "green", "green", "red", "green", "red"], ["red", "green", "red", "green", "green", "green"]],
   predecessors: {"0": [], "1": [0, 2], "2": [], "3": [2], "4": [], "5": [4]},
 };
 

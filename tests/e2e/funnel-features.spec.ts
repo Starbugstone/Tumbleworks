@@ -30,6 +30,8 @@ for (const id of [200,201,202]) test(`Funnel Sort ${id}: real phone input, rapid
     await tap(page,'undo');await tap(page,'undo');
     expect((await state(page)).released).toEqual([]);
   } else if(id===201){
+    await tap(page,'supply1');
+    expect((await state(page)).released).toEqual([]);
     await tap(page,'supply2');await tap(page,'supply0');
     await advance(page,1);
     await tap(page,'supply1');

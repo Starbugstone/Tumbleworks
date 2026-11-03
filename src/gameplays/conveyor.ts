@@ -1,6 +1,7 @@
 import { t } from '../i18n';
 import type { Feedback, GameRuntime, GameServices } from '../engine/contracts';
 import { Machine } from '../machine/machine';
+import { CRATE } from '../machine/layout';
 import { hintConveyor } from '../sim/solver';
 import type { BoardDef } from '../sim/types';
 import { marbleName } from '../view/art';
@@ -76,11 +77,14 @@ export class ConveyorRuntime implements GameRuntime {
     return true;
   }
   targets() {
-    return Object.fromEntries(this.machine.rules.actions().flatMap((action) => {
+    const actions = this.machine.rules.crateActions
+      ? this.machine.readCrates().filter((crate) => crate.visible && !this.machine.rules.state.released.includes(crate.id)).map((crate) => crate.action)
+      : this.machine.rules.actions();
+    return Object.fromEntries(actions.flatMap((action) => {
       const at = this.machine.frontCrate(action);
       if (!at) return [];
       const color = this.machine.rules.packet(action)?.color;
-      return [[`supply${action}`, { ...this.view.toScreen(at.x, at.y + 0.4, at.z), label: color ? marbleName(color) : '' }]];
+      return [[`supply${action}`, { ...this.view.toScreen(at.x, at.y + 0.4, at.z + CRATE.halfDepth * 0.65), label: color ? marbleName(color) : '' }]];
     }));
   }
 

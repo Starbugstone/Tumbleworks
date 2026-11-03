@@ -302,7 +302,7 @@ export function emitBoard(report: FunnelReport): string {
 /** Reproducible rule lessons; kept outside the campaign and its ordinary authoring batch. */
 export const FUNNEL_RULE_RECIPES: readonly FunnelRecipe[] = [
   { id: 'board-200', title: 'One shared handle', fr: 'Une poignée pour deux', note: 'Round 41: a six and a three share one release.', colors: 3, columns: [2,2,2], shorts: 1, smalls: 1, docks: 3, capacity: 14, seed: 10920, win: [0,1], slack: 0, naiveJams: true, pairs: [[0,2]] },
-  { id: 'board-201', title: 'Two supports', fr: 'Deux appuis', note: 'Round 57: the central shelf needs both accepted releases.', colors: 3, columns: [2,2,2], shorts: 0, docks: 3, capacity: 14, seed: 19, win: [0,1], slack: 0, naiveJams: true, predecessors: {0:[],1:[0,2],2:[],3:[2],4:[],5:[4]} },
+  { id: 'board-201', title: 'Two supports', fr: 'Deux appuis', note: 'Round 57: the central shelf needs both accepted releases.', colors: 3, columns: [2,2,2], shorts: 0, docks: 3, capacity: 14, seed: 226, win: [0,1], slack: 0, naiveJams: true, predecessors: {0:[],1:[0,2],2:[],3:[2],4:[],5:[4]} },
   { id: 'board-202', title: 'Open the shutter', fr: 'Le volet se lève', note: 'Round 73: fill the blue box to open the green dock.', colors: 3, columns: [2,2,2], shorts: 0, docks: 3, capacity: 14, seed: 7, win: [0,1], slack: 0, naiveJams: true, seals: [{dock:0,after:{dock:1,box:0}}] },
 ];
 
