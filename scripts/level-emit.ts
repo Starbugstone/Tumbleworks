@@ -72,6 +72,17 @@ const loopJam: string[] = [];
 const fast: string[] = [];
 const french: string[] = [];
 const noJam: string[] = [];
+const { hintConveyorSearch } = await import('../src/sim/solver');
+const { MachineRules } = await import('../src/sim/rules');
+const { hintLoopSearch } = await import('../src/loop/solver');
+const { LoopRules } = await import('../src/loop/rules');
+/** The opening hint's search changes with the rules code, so it is measured as the board is written, never copied. */
+function openingHintStates(scored: ScoredFile): number {
+  if (scored.row.game === 'funnel') return hintConveyorSearch(new MachineRules(scored.board as BoardDef)).states;
+  if (scored.row.game === 'loop') return hintLoopSearch(new LoopRules(scored.board as LoopBoardDef)).states;
+  const board = scored.board as TubeDef;
+  return solveTubeSearch(board, new TubeRules(board).state).states;
+}
 const { search: searchFunnel } = await import('./funnel-author');
 const { search: searchLoop } = await import('./loop-author');
 const { solveTubeSearch, TubeRules } = await import('../src/puzzles/rules');
@@ -88,7 +99,7 @@ for (const choice of process.argv.slice(2)) {
   }
   // Candidates scored before the policy entered the hash keep their measured S; only the hash moves, as in
   // scripts/rehash-scores.ts. H stays absent until scripts/level-score.ts measures it.
-  scored = { ...scored, row: { ...scored.row, hash: hashBoard(scored.board as object) } };
+  scored = { ...scored, row: { ...scored.row, hash: hashBoard(scored.board as object), hintStates: openingHintStates(scored) } };
   writeFileSync(`${SCORE_DIR}/${id}.json`, JSON.stringify(scored));
   french.push(`${quote(id)}: ${quote(target.fr.replace(/'/g, '’'))}`);
   const witness = String(scored.extra?.['witness'] ?? '');
