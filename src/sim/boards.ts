@@ -133,4 +133,42 @@ export const BOARD_29: BoardDef = { ...board('board-29', 'Short measures, wide b
 export const BOARD_30: BoardDef = { ...board('board-30', 'Grand finale', 30,
   [[tray('blue', SHORT_TRAY), tray('orange'), tray('yellow'), tray('green')], [tray('green'), tray('orange', SHORT_TRAY), tray('red'), tray('red')], trays('orange', 'yellow', 'red'), trays('red', 'red', 'red')],
   docks(2, 'red', 'red', 'red', 'red', 'red', 'red', 'orange', 'red', 'orange', 'green', 'orange', 'green', 'red', 'blue', 'red', 'red', 'green', 'red', 'green', 'red', 'red', 'orange', 'red', 'orange', 'green', 'yellow', 'red', 'orange', 'yellow', 'blue', 'yellow', 'green', 'red', 'yellow', 'red', 'red', 'orange', 'yellow', 'yellow', 'orange')), trackShape: 'wide-eight' };
-export const BOARDS: readonly BoardDef[] = [BOARD_1, BOARD_2, BOARD_3, BOARD_4, BOARD_5, BOARD_6, BOARD_7, BOARD_8, BOARD_9, BOARD_10, BOARD_11, BOARD_12, BOARD_13, BOARD_14, BOARD_15, BOARD_16, BOARD_17, BOARD_18, BOARD_19, BOARD_20, BOARD_21, BOARD_22, BOARD_23, BOARD_24, BOARD_25, BOARD_26, BOARD_27, BOARD_28, BOARD_29, BOARD_30];
+// BEGIN first stretch
+/** Two columns of two: nothing to lose yet, just the order of things. */
+export const BOARD_31: BoardDef = board('board-31', 'Two by two', 19,
+  [trays('blue', 'red'), trays('green', 'red')],
+  docks(3, 'red', 'green', 'green', 'red', 'blue', 'red', 'red', 'red', 'red', 'green', 'blue', 'blue'));
+/** Five trays in three columns, with plenty of belt. */
+export const BOARD_32: BoardDef = board('board-32', 'A third column', 19,
+  [trays('green', 'red'), trays('red', 'blue'), trays('red')],
+  docks(3, 'blue', 'red', 'red', 'red', 'red', 'green', 'red', 'green', 'red', 'green', 'blue', 'red', 'blue', 'red', 'red'));
+/** The first real trap: one tray too early and the belt fills. */
+export const BOARD_33: BoardDef = board('board-33', 'The wrong tray', 17,
+  [trays('red', 'green'), trays('red', 'blue'), trays('red', 'blue')],
+  docks(3, 'blue', 'red', 'red', 'red', 'blue', 'blue', 'red', 'red', 'blue', 'red', 'blue', 'green', 'blue', 'green', 'red', 'red', 'green', 'red'));
+/** Six trays and only two docks: think two pours ahead. */
+export const BOARD_34: BoardDef = board('board-34', 'Two docks', 17,
+  [trays('blue', 'red'), trays('red', 'blue'), trays('red', 'green')],
+  docks(2, 'red', 'blue', 'green', 'red', 'blue', 'red', 'red', 'red', 'red', 'blue', 'blue', 'green', 'green', 'blue', 'red', 'blue', 'red', 'red'));
+/** A breather after the two docks: fewer trays, a roomy belt. */
+export const BOARD_35: BoardDef = board('board-35', 'Breathing room', 17,
+  [trays('blue', 'green'), trays('red', 'red'), trays('green')],
+  docks(2, 'green', 'green', 'green', 'blue', 'red', 'blue', 'green', 'blue', 'red', 'green', 'red', 'red', 'green', 'red', 'red'));
+/** Yellow and its star on a small board with four docks. */
+export const BOARD_36: BoardDef = board('board-36', 'Yellow joins in', 18,
+  [trays('red', 'yellow'), trays('red', 'green'), trays('blue', 'red')],
+  docks(4, 'yellow', 'red', 'yellow', 'blue', 'red', 'green', 'yellow', 'red', 'red', 'red', 'red', 'green', 'red', 'blue', 'red', 'green', 'blue', 'red'));
+/** Four colours share three docks: one colour always waits. */
+export const BOARD_37: BoardDef = board('board-37', 'Four colours, three docks', 18,
+  [trays('red', 'yellow'), trays('red', 'blue'), trays('green', 'yellow')],
+  docks(3, 'red', 'red', 'yellow', 'yellow', 'blue', 'green', 'red', 'yellow', 'yellow', 'yellow', 'green', 'red', 'red', 'red', 'blue', 'yellow', 'blue', 'green'));
+/** Seven trays with a roomy belt, after the deeper column. */
+export const BOARD_38: BoardDef = board('board-38', 'Taking turns', 17,
+  [trays('red', 'yellow', 'blue'), trays('blue', 'green'), trays('red', 'green')],
+  docks(3, 'blue', 'red', 'blue', 'green', 'blue', 'red', 'green', 'yellow', 'green', 'yellow', 'yellow', 'blue', 'blue', 'green', 'red', 'green', 'red', 'green', 'red', 'blue', 'red'));
+/** Eight trays, two deep columns: the longest so far. */
+export const BOARD_39: BoardDef = board('board-39', 'Eight trays', 18,
+  [trays('red', 'green', 'red'), trays('green', 'yellow', 'yellow'), trays('red', 'blue')],
+  docks(4, 'red', 'green', 'red', 'yellow', 'yellow', 'red', 'red', 'blue', 'green', 'yellow', 'red', 'yellow', 'blue', 'yellow', 'blue', 'red', 'red', 'yellow', 'green', 'red', 'green', 'green', 'red', 'green'));
+// END first stretch
+export const BOARDS: readonly BoardDef[] = [BOARD_1, BOARD_2, BOARD_3, BOARD_4, BOARD_5, BOARD_6, BOARD_7, BOARD_8, BOARD_9, BOARD_10, BOARD_11, BOARD_12, BOARD_13, BOARD_14, BOARD_15, BOARD_16, BOARD_17, BOARD_18, BOARD_19, BOARD_20, BOARD_21, BOARD_22, BOARD_23, BOARD_24, BOARD_25, BOARD_26, BOARD_27, BOARD_28, BOARD_29, BOARD_30, BOARD_31, BOARD_32, BOARD_33, BOARD_34, BOARD_35, BOARD_36, BOARD_37, BOARD_38, BOARD_39];

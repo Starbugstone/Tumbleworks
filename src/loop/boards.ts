@@ -127,4 +127,45 @@ export const LOOP_29: LoopBoardDef = { ...board('loop-29', 'Rush hour eight', 34
 export const LOOP_30: LoopBoardDef = { ...board('loop-30', 'Grand finale', 34,
   [[truck(seg('yellow', 8), seg('green', 16)), truck(seg('yellow', 2), seg('red', 22))], [truck(seg('green', 8), seg('yellow', 4), seg('blue', 6)), truck(seg('orange', 12), seg('red', 6))], [truck(seg('orange', 6), seg('green', 16), seg('yellow', 2)), truck(seg('orange', 10), seg('green', 8))], [truck(seg('red', 14), seg('yellow', 8), seg('red', 2)), truck(seg('red', 10), seg('orange', 14))], [truck(seg('red', 2), seg('orange', 22)), truck(seg('red', 16), seg('orange', 8))]],
   ring(seg('blue', 18))), trackShape: 'wide-eight' };
-export const LOOP_BOARDS: readonly LoopBoardDef[] = [LOOP_1, LOOP_2, LOOP_3, LOOP_4, LOOP_5, LOOP_6, LOOP_7, LOOP_8, LOOP_9, LOOP_10, LOOP_11, LOOP_12, LOOP_13, LOOP_14, LOOP_15, LOOP_16, LOOP_17, LOOP_18, LOOP_19, LOOP_20, LOOP_21, LOOP_22, LOOP_23, LOOP_24, LOOP_25, LOOP_26, LOOP_27, LOOP_28, LOOP_29, LOOP_30];
+/** A third colour with room to spare: half of every truck has to come out and find its way home. */
+export const LOOP_31: LoopBoardDef = board('loop-31', 'Half and half', 40,
+  [[truck(seg('green', 12), seg('blue', 12))], [truck(seg('blue', 12), seg('red', 12))], [truck(seg('red', 12), seg('green', 12))]], []);
+// BEGIN first stretch
+/** The first queued truck, with room to spare. */
+export const LOOP_32: LoopBoardDef = board('loop-32', 'One behind', 26,
+  [[truck(seg('blue', 16), seg('red', 8)), truck(seg('green', 18), seg('red', 6))], [truck(seg('red', 18), seg('green', 6))], [truck(seg('red', 16), seg('blue', 8))]],
+  ring());
+/** Five trucks and a little traffic already on the loop. */
+export const LOOP_33: LoopBoardDef = board('loop-33', 'Two queues', 36,
+  [[truck(seg('green', 2), seg('red', 22)), truck(seg('red', 2), seg('green', 22))], [truck(seg('red', 4), seg('blue', 20)), truck(seg('blue', 6), seg('red', 18))], [truck(seg('red', 2), seg('blue', 18))]],
+  ring(seg('blue', 4)));
+/** Five trucks and an empty loop that does not stay empty. */
+export const LOOP_34: LoopBoardDef = board('loop-34', 'Five on the move', 26,
+  [[truck(seg('green', 6), seg('red', 18)), truck(seg('blue', 20), seg('green', 4))], [truck(seg('red', 10), seg('green', 14)), truck(seg('green', 4), seg('red', 20))], [truck(seg('green', 20), seg('blue', 4))]],
+  ring());
+/** Yellow and its star, five trucks. */
+export const LOOP_35: LoopBoardDef = board('loop-35', 'Yellow on the loop', 26,
+  [[truck(seg('red', 4), seg('green', 20)), truck(seg('yellow', 22), seg('red', 2))], [truck(seg('blue', 4), seg('red', 20)), truck(seg('blue', 18), seg('yellow', 2))], [truck(seg('red', 22), seg('blue', 2))]],
+  ring(seg('green', 4)));
+/** Six trucks, every lane queued. */
+export const LOOP_36: LoopBoardDef = board('loop-36', 'Six trucks', 42,
+  [[truck(seg('green', 6), seg('yellow', 18)), truck(seg('blue', 20), seg('red', 4))], [truck(seg('green', 20), seg('red', 4)), truck(seg('red', 14), seg('blue', 4))], [truck(seg('red', 6), seg('green', 18)), truck(seg('red', 20), seg('green', 4))]],
+  ring(seg('yellow', 6)));
+/** Nothing on the loop at the start, and it fills all the same. */
+export const LOOP_37: LoopBoardDef = board('loop-37', 'A clear start', 20,
+  [[truck(seg('blue', 10), seg('red', 14)), truck(seg('yellow', 18), seg('red', 6))], [truck(seg('green', 4), seg('red', 20)), truck(seg('red', 4), seg('green', 20))], [truck(seg('red', 10), seg('blue', 14)), truck(seg('red', 18), seg('yellow', 6))]],
+  ring());
+/** One truck carries three stretches: dig twice to reach its colour. */
+export const LOOP_38: LoopBoardDef = board('loop-38', 'Three in one', 22,
+  [[truck(seg('red', 10), seg('yellow', 14)), truck(seg('green', 16), seg('red', 8))], [truck(seg('red', 8), seg('blue', 16)), truck(seg('yellow', 10), seg('red', 14))], [truck(seg('blue', 8), seg('red', 8), seg('green', 8))]],
+  ring());
+/** Several trucks carry three stretches and the loop is never quite clear. */
+export const LOOP_39: LoopBoardDef = board('loop-39', 'Deep loads', 24,
+  [[truck(seg('yellow', 2), seg('blue', 4), seg('yellow', 14)), truck(seg('red', 10), seg('blue', 14))], [truck(seg('yellow', 8), seg('red', 6), seg('green', 10)), truck(seg('blue', 14), seg('red', 10))], [truck(seg('red', 12), seg('blue', 2), seg('red', 10)), truck(seg('green', 14), seg('blue', 10))]],
+  ring(seg('blue', 4)));
+/** A wider loop after the deep loads. */
+export const LOOP_40: LoopBoardDef = board('loop-40', 'Easy does it', 20,
+  [[truck(seg('green', 2), seg('red', 2), seg('blue', 20)), truck(seg('red', 16), seg('yellow', 8))], [truck(seg('red', 2), seg('green', 4), seg('red', 18)), truck(seg('yellow', 16), seg('red', 2), seg('green', 6))], [truck(seg('red', 2), seg('green', 12), seg('red', 6))]],
+  ring(seg('blue', 4)));
+// END first stretch
+export const LOOP_BOARDS: readonly LoopBoardDef[] = [LOOP_1, LOOP_2, LOOP_3, LOOP_4, LOOP_5, LOOP_6, LOOP_7, LOOP_8, LOOP_9, LOOP_10, LOOP_11, LOOP_12, LOOP_13, LOOP_14, LOOP_15, LOOP_16, LOOP_17, LOOP_18, LOOP_19, LOOP_20, LOOP_21, LOOP_22, LOOP_23, LOOP_24, LOOP_25, LOOP_26, LOOP_27, LOOP_28, LOOP_29, LOOP_30, LOOP_31, LOOP_32, LOOP_33, LOOP_34, LOOP_35, LOOP_36, LOOP_37, LOOP_38, LOOP_39, LOOP_40];

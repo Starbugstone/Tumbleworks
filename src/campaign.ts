@@ -17,8 +17,23 @@ const difficulty = (index: number, colors: readonly Color[]): Difficulty => hasO
 /** Conveyor banks begin with two easy levels, then one middle level, the harder layouts, and orange from the eighth. */
 const conveyorDifficulty = (index: number, colors: readonly Color[]): Difficulty => hasOrange(colors) ? 'Full spectrum' : difficulties[index < 2 ? 0 : index < 3 ? 1 : 2] ?? 'Thinking ahead';
 
+/**
+ * Play order, per game. IDs carry no order: a save stores IDs, so a level can move or leave the campaign and progress stays
+ * keyed to the same board. Every definition stays in its bank until the owner has played and confirmed what retires.
+ */
+export const PLAY_ORDER = {
+  conveyor: ['board-1', 'board-31', 'board-32', 'board-33', 'board-34', 'board-35', 'board-36', 'board-37', 'board-2', 'board-3', 'board-38', 'board-39'],
+  loop: ['loop-1', 'loop-2', 'loop-31', 'loop-32', 'loop-33', 'loop-34', 'loop-35', 'loop-36', 'loop-37', 'loop-38', 'loop-39', 'loop-40'],
+  tube: ['tube-1', 'tube-31', 'tube-32', 'tube-33', 'tube-34', 'tube-2', 'tube-35', 'tube-36', 'tube-3', 'tube-4', 'tube-9', 'tube-37'],
+} as const;
+const inOrder = <T extends { readonly id: string }>(bank: readonly T[], ids: readonly string[]): T[] => ids.map((id) => {
+  const board = bank.find((candidate) => candidate.id === id);
+  if (!board) throw new Error(`No board ${id}`);
+  return board;
+});
+
 const conveyor: GameplayPack = {
-  kind: 'conveyor', levels: BOARDS.map((board, index) => ({
+  kind: 'conveyor', levels: inOrder(BOARDS, PLAY_ORDER.conveyor).map((board, index) => ({
     id: board.id, kind: 'conveyor', name: GAME_NAMES.conveyor, get title() { return levelTitle(board.id, board.title); },
     difficulty: conveyorDifficulty(index, board.supplies.flat().map((tray) => tray.color)),
     get instructions() { return t('Tap a crate to pour it. Boxes fill as their color passes. Keep room on the belt.', 'Touchez une caisse pour la vider. Les boîtes prennent leur couleur au passage. Gardez de la place sur le tapis.'); },
@@ -26,7 +41,7 @@ const conveyor: GameplayPack = {
   })),
 };
 const loop: GameplayPack = {
-  kind: 'loop', levels: LOOP_BOARDS.map((board, index) => ({
+  kind: 'loop', levels: inOrder(LOOP_BOARDS, PLAY_ORDER.loop).map((board, index) => ({
     id: board.id, kind: 'loop', name: GAME_NAMES.loop, get title() { return levelTitle(board.id, board.title); },
     difficulty: conveyorDifficulty(index, board.lanes.flat().flatMap((truck) => truck.segments.map((segment) => segment.color))),
     get instructions() { return t('Tap to pour. Trucks collect their open-end color. Fill each truck with the color marked on its cab.', 'Touchez un camion pour le vider. Il prend la couleur au bout de sa benne. Remplissez-le avec la couleur indiquée sur sa cabine.'); },
@@ -34,7 +49,7 @@ const loop: GameplayPack = {
   })),
 };
 const tube: GameplayPack = {
-  kind: 'tube', levels: TUBE_BOARDS.map((board, index) => ({
+  kind: 'tube', levels: inOrder(TUBE_BOARDS, PLAY_ORDER.tube).map((board, index) => ({
     id: board.id, kind: 'tube', name: GAME_NAMES.tube, get title() { return levelTitle(board.id, board.title); }, difficulty: difficulty(index, board.tubes.flat()),
     get instructions() { return t('Drag a top group to an empty tube or matching color. Tapping two tubes works too.', 'Glissez un groupe du haut vers un tube vide ou la même couleur. Vous pouvez aussi toucher les deux tubes.'); },
     create: (services) => new TubeRuntime(board, services),

@@ -20,6 +20,10 @@ const frenchTitles: Record<string, string> = {
   'loop-16': 'Neuf sur le pont', 'loop-17': 'Demi-charges', 'loop-18': 'Dix camions', 'loop-19': 'Anneau étroit', 'loop-20': 'Grande traversée, trois de fond',
   'loop-21': 'Départ encombré', 'loop-22': 'Trois voies, trois de fond', 'loop-23': 'Huit serré', 'loop-24': 'Trois voies, quatre couleurs', 'loop-25': 'Cinq voies, neuf camions',
   'loop-26': 'Grande traversée serrée', 'loop-27': 'Dix sur l’ovale', 'loop-28': 'Trois couleurs, trois charges', 'loop-29': 'Heure de pointe en huit', 'loop-30': 'Grand final',
+  // BEGIN first stretch
+  'board-31': 'Deux par deux', 'board-32': 'Une troisième colonne', 'board-33': 'Le mauvais plateau', 'board-34': 'Deux quais', 'board-35': 'Un peu d’air', 'board-36': 'Le jaune s’invite', 'board-37': 'Quatre couleurs, trois quais', 'board-38': 'Chacun son tour', 'board-39': 'Huit plateaux', 'loop-32': 'Un derrière', 'loop-33': 'Deux files', 'loop-34': 'Cinq en route', 'loop-35': 'Du jaune sur l’anneau', 'loop-36': 'Six camions', 'loop-37': 'Un départ dégagé', 'loop-38': 'Trois en un', 'loop-39': 'Charges profondes', 'loop-40': 'Tout en douceur', 'tube-31': 'Petit mélange', 'tube-32': 'Aller-retour', 'tube-33': 'Plus mélangé', 'tube-34': 'À dix coups', 'tube-35': 'Quatre bien mêlées', 'tube-36': 'Long démêlage', 'tube-37': 'La voie étroite',
+// END first stretch
+  'loop-31': 'Moitié-moitié',
   'tube-1': 'Un peu de place', 'tube-2': 'Courants croisés', 'tube-3': 'Une place libre', 'tube-4': 'Tubes plus hauts', 'tube-5': 'Une place, cinq de haut',
   'tube-6': 'Une cinquième couleur', 'tube-7': 'Cinq sur cinq', 'tube-8': 'Remplissage lâche', 'tube-9': 'Quatre, cinq, deux', 'tube-10': 'Six de haut',
   'tube-11': 'Sans marge', 'tube-12': 'Éparpillé', 'tube-13': 'Trois couleurs, six de haut', 'tube-14': 'Cinq couleurs, une place', 'tube-15': 'Quatre couleurs, six de haut',

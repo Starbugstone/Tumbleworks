@@ -3,7 +3,7 @@ import { BOARD_1, BOARD_2, BOARDS } from '../../src/sim/boards';
 import { MachineRules } from '../../src/sim/rules';
 import { hintConveyor, releaseTree, settle } from '../../src/sim/solver';
 import type { BoardDef } from '../../src/sim/types';
-import { FUNNEL_JAMS as JAMS, FUNNEL_WITNESSES as WITNESSES } from '../witnesses';
+import { FUNNEL_JAMS as JAMS, FUNNEL_NO_JAM, FUNNEL_WITNESSES as WITNESSES } from '../witnesses';
 
 const play = (board: BoardDef, order: string): MachineRules => {
   const rules = new MachineRules(board);
@@ -93,7 +93,7 @@ describe('Funnel Sort rules', () => {
   it('plays every authored witness to a win and every authored jam to a jam', () => {
     for (const board of BOARDS) {
       expect(play(board, WITNESSES[board.id] ?? '').status, board.id).toBe('won');
-      expect(play(board, JAMS[board.id] ?? '').status, board.id).toBe('jammed');
+      if (!FUNNEL_NO_JAM.includes(board.id)) expect(play(board, JAMS[board.id] ?? '').status, board.id).toBe('jammed');
     }
   });
 

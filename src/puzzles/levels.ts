@@ -537,4 +537,117 @@ export const TUBE_BOARDS: readonly TubeDef[] = [
       { from: 3, to: 2 }, { from: 4, to: 3 }, { from: 0, to: 4 }, { from: 0, to: 1 },
     ],
   },
+  // BEGIN first stretch
+  /** A few moves with two spares. */
+  {
+    kind: 'tube', id: 'tube-31', title: 'Short shuffle', capacity: 4,
+    tubes: [
+      ['blue', 'blue', 'green', 'blue'],
+      ['red', 'red', 'green', 'green'],
+      ['green', 'blue', 'red', 'red'],
+      [],
+      [],
+    ],
+    solution: [
+      { from: 1, to: 3 }, { from: 2, to: 1 }, { from: 0, to: 2 }, { from: 0, to: 3 },
+      { from: 2, to: 0 }, { from: 2, to: 3 },
+    ],
+  },
+  /** Two spares, one colour has to wait. */
+  {
+    kind: 'tube', id: 'tube-32', title: 'Over and back', capacity: 4,
+    tubes: [
+      ['blue', 'green', 'green', 'blue'],
+      ['green', 'green', 'red', 'red'],
+      ['red', 'blue', 'blue', 'red'],
+      [],
+      [],
+    ],
+    solution: [
+      { from: 1, to: 3 }, { from: 2, to: 3 }, { from: 0, to: 2 }, { from: 0, to: 1 },
+      { from: 2, to: 0 }, { from: 2, to: 3 },
+    ],
+  },
+  /** More mixing, more choice, the same three colours. */
+  {
+    kind: 'tube', id: 'tube-33', title: 'More mixed up', capacity: 4,
+    tubes: [
+      ['red', 'red', 'green', 'blue'],
+      ['blue', 'red', 'blue', 'green'],
+      ['green', 'green', 'blue', 'red'],
+      [],
+      [],
+    ],
+    solution: [
+      { from: 0, to: 3 }, { from: 1, to: 0 }, { from: 1, to: 3 }, { from: 2, to: 1 },
+      { from: 2, to: 3 }, { from: 0, to: 2 }, { from: 1, to: 0 }, { from: 1, to: 3 },
+    ],
+  },
+  /** Three colours as mixed as they get with two spares. */
+  {
+    kind: 'tube', id: 'tube-34', title: 'Ten moves away', capacity: 4,
+    tubes: [
+      ['blue', 'green', 'green', 'red'],
+      ['blue', 'green', 'red', 'blue'],
+      ['green', 'red', 'blue', 'red'],
+      [],
+      [],
+    ],
+    solution: [
+      { from: 0, to: 3 }, { from: 2, to: 3 }, { from: 1, to: 2 }, { from: 1, to: 3 },
+      { from: 0, to: 1 }, { from: 2, to: 0 }, { from: 2, to: 3 }, { from: 1, to: 2 },
+      { from: 0, to: 1 },
+    ],
+  },
+  /** Four colours and a long shortest sort. */
+  {
+    kind: 'tube', id: 'tube-35', title: 'Four, well mixed', capacity: 4,
+    tubes: [
+      ['yellow', 'red', 'blue', 'yellow'],
+      ['green', 'blue', 'yellow', 'green'],
+      ['red', 'yellow', 'green', 'blue'],
+      ['red', 'green', 'blue', 'red'],
+      [],
+      [],
+    ],
+    solution: [
+      { from: 2, to: 4 }, { from: 1, to: 2 }, { from: 0, to: 1 }, { from: 0, to: 4 },
+      { from: 3, to: 0 }, { from: 3, to: 4 }, { from: 2, to: 3 }, { from: 1, to: 2 },
+      { from: 1, to: 4 }, { from: 3, to: 1 }, { from: 0, to: 3 }, { from: 2, to: 0 },
+      { from: 2, to: 3 },
+    ],
+  },
+  /** Four colours again, a shorter way through. */
+  {
+    kind: 'tube', id: 'tube-36', title: 'A long unpick', capacity: 4,
+    tubes: [
+      ['yellow', 'blue', 'green', 'red'],
+      ['blue', 'yellow', 'green', 'yellow'],
+      ['green', 'yellow', 'red', 'blue'],
+      ['blue', 'green', 'red', 'red'],
+      [],
+      [],
+    ],
+    solution: [
+      { from: 0, to: 4 }, { from: 3, to: 4 }, { from: 0, to: 3 }, { from: 2, to: 0 },
+      { from: 2, to: 4 }, { from: 1, to: 2 }, { from: 1, to: 3 }, { from: 1, to: 2 },
+      { from: 0, to: 1 }, { from: 2, to: 0 }, { from: 3, to: 2 }, { from: 1, to: 3 },
+    ],
+  },
+  /** One spare again, and most ways of using it lose. */
+  {
+    kind: 'tube', id: 'tube-37', title: 'The narrow way', capacity: 4,
+    tubes: [
+      ['red', 'green', 'red', 'blue'],
+      ['red', 'blue', 'green', 'blue'],
+      ['green', 'blue', 'green', 'red'],
+      [],
+    ],
+    solution: [
+      { from: 0, to: 3 }, { from: 1, to: 3 }, { from: 2, to: 0 }, { from: 1, to: 2 },
+      { from: 1, to: 3 }, { from: 0, to: 1 }, { from: 2, to: 0 }, { from: 2, to: 3 },
+      { from: 0, to: 2 }, { from: 0, to: 1 },
+    ],
+  },
+// END first stretch
 ];

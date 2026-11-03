@@ -3,7 +3,7 @@ import { initPhysics, Machine } from '../../src/machine/machine';
 import { BOARD_1, BOARD_6, BOARDS } from '../../src/sim/boards';
 import { MARBLE_RADIUS, MIN_CAPACITY, RIDE_Y, RIDER_SPACING, TRACK } from '../../src/machine/layout';
 import type { BoardDef } from '../../src/sim/types';
-import { FUNNEL_JAMS as JAMS, FUNNEL_WITNESSES as WITNESSES } from '../witnesses';
+import { FUNNEL_JAMS as JAMS, FUNNEL_NO_JAM, FUNNEL_WITNESSES as WITNESSES } from '../witnesses';
 
 beforeAll(initPhysics);
 
@@ -108,7 +108,7 @@ describe('the physical machine agrees with the rules', () => {
       }
     });
 
-    for (const board of BOARDS) {
+    for (const board of BOARDS.filter((candidate) => !FUNNEL_NO_JAM.includes(candidate.id))) {
       it(`${board.id}: a jammed belt holds every slot, evenly spaced and never overlapping`, { timeout: 120_000 }, () => {
         const machine = play(board, JAMS[board.id] ?? '');
         expect(machine.rules.status).toBe('jammed');
