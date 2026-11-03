@@ -10,10 +10,10 @@ export interface Palette {
 }
 
 /**
- * Chosen so that no pair relies on hue alone: yellow is the brightest colour by far, green is a deep
+ * Chosen so that no pair relies on hue alone: yellow is the brightest chromatic colour, green is a deep
  * teal, red and blue sit between. Red-green and yellow-green confusions still leave a luminance gap.
  * Orange, the late fifth colour, sits halfway up in luminance (about 0.40 against 0.15–0.21 for the
- * dark three and 0.73 for yellow), so it never shares a brightness band with a neighbour on its hue line.
+ * dark three and 0.73 for yellow). White is a separate, lighter neutral; black sits below the dark three.
  */
 export const COLORS: Record<Color, Palette> = {
   red: { base: '#e4332f', light: '#ff9b86', dark: '#7c0d18', hex: 0xe4332f },
@@ -21,7 +21,13 @@ export const COLORS: Record<Color, Palette> = {
   green: { base: '#0b8f7a', light: '#7fe0cc', dark: '#044a40', hex: 0x0b8f7a },
   yellow: { base: '#ffdc52', light: '#fff8c8', dark: '#b58a05', hex: 0xffdc52 },
   orange: { base: '#ff8a1c', light: '#ffc48a', dark: '#8a3f00', hex: 0xff8a1c },
+  black: { base: '#141821', light: '#606978', dark: '#06090f', hex: 0x141821 },
+  white: { base: '#f3f5f0', light: '#fffefd', dark: '#b8c2c8', hex: 0xf3f5f0 },
 };
+/** Ink for a pattern printed directly on coloured plastic. */
+export const cargoInk = (color: Color): string =>
+  color === 'yellow' || color === 'orange' || color === 'white' ? '#202335' : '#fff9ee';
+
 export const marbleName = (color: Color): string => `${patternName(color)} (${colorName(color)})`;
 
 type Ctx = CanvasRenderingContext2D;
@@ -168,7 +174,7 @@ export function drawSymbol(ctx: Ctx, color: Color, cx: number, cy: number, r: nu
       ctx.lineTo(Math.cos(a) * radius, Math.sin(a) * radius);
     }
     ctx.closePath();
-  } else {
+  } else if (color === 'orange') {
     // A bold cross: four arms read at every size and never look like the ring, diamond, triangle or star.
     const arm = r * 0.4;
     const reach = r * 1.08;
@@ -176,6 +182,19 @@ export function drawSymbol(ctx: Ctx, color: Color, cx: number, cy: number, r: nu
     ctx.lineTo(reach, arm); ctx.lineTo(arm, arm); ctx.lineTo(arm, reach); ctx.lineTo(-arm, reach);
     ctx.lineTo(-arm, arm); ctx.lineTo(-reach, arm); ctx.lineTo(-reach, -arm); ctx.lineTo(-arm, -arm);
     ctx.closePath();
+  } else if (color === 'black') {
+    for (const x of [-r * 0.78, 0, r * 0.78]) {
+      ctx.moveTo(x + r * 0.3, 0);
+      ctx.arc(x, 0, r * 0.3, 0, Math.PI * 2);
+    }
+  } else if (color === 'white') {
+    ctx.moveTo(0, r);
+    ctx.bezierCurveTo(-r * 1.5, -r * 0.1, -r * 0.6, -r * 1.25, 0, -r * 0.45);
+    ctx.bezierCurveTo(r * 0.6, -r * 1.25, r * 1.5, -r * 0.1, 0, r);
+    ctx.closePath();
+  } else {
+    const missing: never = color;
+    throw new Error(`Missing container pattern: ${missing}`);
   }
   ctx.fill('evenodd');
   ctx.restore();

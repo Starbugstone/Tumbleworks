@@ -329,15 +329,22 @@ function funnelGraph(board: BoardDef): GraphNode[] {
   }
   return nodes;
 }
+export function loopOrderKey(state: LoopRules['state']): string {
+  const loop: Record<string, number> = {};
+  for (const marble of state.marbles) if (marble.status === 'on-loop') loop[marble.color] = (loop[marble.color] ?? 0) + 1;
+  return `${state.lanes.map((queue) => queue.map((truck) => truck.segments.map((segment) => `${COLOR_CODE[segment.color]}${segment.marbles.length}`).join('.') + (truck.unloading.length ? `u${truck.unloading.length}` : '')).join('/')).join('|')}#${JSON.stringify(loop)}`;
+}
+export function loopGraphKey(rules: LoopRules): string {
+  return `${rules.state.lanes.map((queue) => queue.map((truck) => `${truck.index}:${truck.segments.map((segment) => `${COLOR_CODE[segment.color]}${segment.marbles.length}`).join('.')}u${truck.unloading.length}`).join('/')).join('|')}#${COLORS.map((color) => rules.state.marbles.filter((marble) => marble.status === 'on-loop' && marble.color === color).length).join()}`;
+}
 function loopGraph(board: LoopBoardDef): GraphNode[] {
   const snapshots: ReturnType<LoopRules['snapshot']>[] = [];
   const nodes: (GraphNode & { edges: number[] })[] = [];
   const index = new Map<string, number>();
   const trucks = board.lanes.flat().length;
   const extras0 = sum(board.lanes.flat().map((truck) => truck.segments.length - 1));
-  const colors = COLORS;
   const add = (rules: LoopRules): number => {
-    const key = `${rules.state.lanes.map((queue) => queue.map((truck) => `${truck.index}:${truck.segments.map((segment) => `${COLOR_CODE[segment.color]}${segment.marbles.length}`).join('.')}u${truck.unloading.length}`).join('/')).join('|')}#${colors.map((color) => rules.state.marbles.filter((marble) => marble.status === 'on-loop' && marble.color === color).length).join()}`;
+    const key = loopGraphKey(rules);
     const known = index.get(key);
     if (known !== undefined) return known;
     const id = nodes.length;
@@ -511,7 +518,7 @@ function loopOrders(board: LoopBoardDef, wanted: number): string[] {
   return sampleWinningOrders({
     start: start.snapshot(), count: board.lanes.length,
     status: (state) => state.status,
-    key: (state) => { const loop: Record<string, number> = {}; for (const marble of state.marbles) if (marble.status === 'on-loop') loop[marble.color] = (loop[marble.color] ?? 0) + 1; return `${state.lanes.map((queue) => queue.map((truck) => truck.segments.map((segment) => `${COLOR_CODE[segment.color]}${segment.marbles.length}`).join('.') + (truck.unloading.length ? `u${truck.unloading.length}` : '')).join('/')).join('|')}#${JSON.stringify(loop)}`; },
+    key: loopOrderKey,
     act: (state, choice) => { rules.restore(state); if (!rules.tap(choice).ok) return null; settleLoop(rules); return rules.snapshot(); },
   }, wanted);
 }

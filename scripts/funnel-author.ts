@@ -98,7 +98,7 @@ function clone(rules: MachineRules): MachineRules {
 }
 
 /** Marbles of a colour are interchangeable, so the state is the trays left, the funnel queue, the belt load and the boxes. */
-function stateKey(rules: MachineRules): string {
+export function stateKey(rules: MachineRules): string {
   const state = rules.state;
   const belt: Record<string, number> = {};
   for (const marble of state.marbles) if (marble.status === 'on-belt') belt[marble.color] = (belt[marble.color] ?? 0) + 1;

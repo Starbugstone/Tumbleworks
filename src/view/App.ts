@@ -6,8 +6,8 @@ import { replayLog, type ReplayLog } from '../engine/replay';
 import { Stage } from '../engine/stage';
 import { BoardPointer } from '../engine/pointer';
 import { currentLevel, isCompleted, markCompleted, selectLevel } from '../progress';
-import { COLORS, drawSymbol } from './art';
-import type { Color } from '../sim/types';
+import { COLORS, cargoInk, drawSymbol } from './art';
+import { COLORS as PALETTE, type Color } from '../sim/types';
 import { colorName, difficultyName, patternName, t } from '../i18n';
 import { guideSeen, locale, onLocaleChange, setGuideSeen, setLocale } from '../preferences';
 
@@ -410,9 +410,16 @@ export class App {
     button('guide-replay').hidden = !this.runtime.guideId;
     button('copy-replay').textContent = t('Copy this game for a bug report', 'Copier cette partie pour signaler un bug');
     element('guide-pointer-label').textContent = t('Tap here', 'Touchez ici');
-    element('patterns').replaceChildren(...(['red', 'blue', 'green', 'yellow', 'orange'] as Color[]).map((color, index) => {
+    element('patterns').replaceChildren(...PALETTE.map((color) => {
       const item = document.createElement('span');
-      item.textContent = `${['○', '◆', '▲', '★', '✚'][index]} ${patternName(color)} = ${colorName(color)}`;
+      const icon = document.createElement('canvas');
+      icon.width = icon.height = 64;
+      icon.style.width = icon.style.height = '16px';
+      icon.style.verticalAlign = 'middle';
+      icon.setAttribute('aria-hidden', 'true');
+      const context = icon.getContext('2d');
+      if (context) { context.fillStyle = '#202335'; drawSymbol(context, color, 32, 32, 26); }
+      item.append(icon, ` ${patternName(color)} = ${colorName(color)}`);
       return item;
     }));
     const level = CAMPAIGN[this.boardIndex];
@@ -510,7 +517,7 @@ export class App {
     chip.style.backgroundColor = COLORS[color].base;
     chip.setAttribute('aria-label', colorName(color));
     const context = chip.getContext('2d');
-    if (context) { context.fillStyle = '#fff'; drawSymbol(context, color, 32, 33, 18); }
+    if (context) { context.fillStyle = cargoInk(color); drawSymbol(context, color, 32, 33, 18); }
     return chip;
   }
   private setMessage(text: string, hold = 0, alarm = false): void {
