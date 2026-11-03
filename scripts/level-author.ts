@@ -178,6 +178,11 @@ export const TUBE_TARGETS: readonly TubeTarget[] = [
 
 interface Log { seed: number; capacity?: number; outcome: string; /** Milliseconds since this seed began, for finding where authoring time goes. */ ms?: number; F1?: number; FM?: number; FMmixed?: number; S?: number; spam?: number; cheese?: number; brisk?: number; gatePassed?: boolean; mixedGatePassed?: boolean; trap?: TubeTrap | null; scored?: ScoredFile }
 let seedStarted = Date.now();
+/**
+ * A family is searched once for the assembler to place into whichever slot it fits, so its own `want` range replaces the
+ * nominal slot's band; every other gate still applies, and the assembler checks the band of the slot it is placed in.
+ */
+const slotGates = (target: Named, violations: string[]): string[] => (target.id.startsWith('fam-') ? violations.filter((text) => !/: S [\d.]+ outside /.test(text)) : violations);
 const log = (id: string, entry: Log): void => { appendFileSync(`${CANDIDATE_DIR}/${id}.jsonl`, `${JSON.stringify({ ...entry, ms: Date.now() - seedStarted })}\n`); };
 const logged = (id: string): Log[] => {
   try { return readFileSync(`${CANDIDATE_DIR}/${id}.jsonl`, 'utf8').trim().split('\n').filter(Boolean).map((line) => JSON.parse(line) as Log); } catch { return []; }
@@ -245,7 +250,7 @@ async function funnelCandidate(target: FunnelTarget, seed: number): Promise<numb
       for (const name of ['cheese', 'spam', 'brisk'] as const) players[name] = extendTally(players[name]!, play(name), CONFIRM_GAMES);
     }
     const scored = await scoreFunnel(board, witness, SCREEN_GAMES, SCREEN_GAMES, players);
-    const violations = levelViolations({ round: target.round, game: 'funnel', slot: target.slot, row: scored.row });
+    const violations = slotGates(target, levelViolations({ round: target.round, game: 'funnel', slot: target.slot, row: scored.row }));
     if (scored.row.S < band[0] || scored.row.S > band[1]) violations.push(`S ${scored.row.S.toFixed(1)} off target`);
     if (violations.length) { say(`gates: ${violations.join('; ')}`, { F1: scored.row.F1, S: scored.row.S, ...wins() }); continue; }
     say('accepted', { F1: scored.row.F1, S: scored.row.S, ...wins(), scored });
@@ -309,7 +314,7 @@ function loopCandidate(target: LoopTarget, seed: number): number {
     }
     if (!witness) { say('no machine witness', figures); continue; }
     const scored = scoreLoop(board, witness);
-    const violations = levelViolations({ round: target.round, game: 'loop', slot: target.slot, row: scored.row });
+    const violations = slotGates(target, levelViolations({ round: target.round, game: 'loop', slot: target.slot, row: scored.row }));
     if (scored.row.S < band[0] || scored.row.S > band[1]) violations.push(`S ${scored.row.S.toFixed(1)} off target`);
     if (violations.length) { say(`gates: ${violations.join('; ')}`, figures); continue; }
     say('accepted', { ...figures, F1: scored.row.F1, FM: scored.row.FM, S: scored.row.S, FMmixed: 100 * (1 - scored.row.wins['mixed']!.win), scored });
