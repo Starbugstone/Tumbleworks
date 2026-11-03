@@ -1,10 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import { hashBoard } from '../../scripts/level-curve';
 import { SCORE_POLICY, scorePolicy, seeded } from '../../scripts/level-policy';
-import { StrongPlanner, strongTube, strongTubeGraph, summarizeStrong, type StrongNode, type StrongRun } from '../../scripts/level-strong';
+import { StrongPlanner, funnelStrongKey, strongTube, strongTubeGraph, summarizeStrong, type StrongNode, type StrongRun } from '../../scripts/level-strong';
 import { scoreTube } from '../../scripts/level-score';
 import * as tubeAuthor from '../../scripts/tube-author';
 import * as tubeRules from '../../src/puzzles/rules';
+import { BOARD_1 } from '../../src/sim/boards';
+import { MachineRules } from '../../src/sim/rules';
+import { settle } from '../../src/sim/solver';
 import { LOOP_BOARDS } from '../../src/loop/boards';
 import { LoopMachine } from '../../src/loop/machine';
 import { strongLoop } from '../../scripts/level-strong';
@@ -89,6 +92,29 @@ describe('strong planner', () => {
     const result = strongTube(board, [1, 2, 3]);
     expect(result.H).toBe(0);
     expect(result.settled.parts.every((part) => part.exhausted === 0)).toBe(true);
+  });
+  it('forgets finished box assignments while preserving subsequent Funnel Sort behavior', () => {
+    const rules = new MachineRules(BOARD_1);
+    rules.release(0); settle(rules); rules.release(0); settle(rules);
+    const original = rules.snapshot();
+    const equivalent = rules.snapshot();
+    const a = equivalent.marbles[0]!;
+    const b = equivalent.marbles[3]!;
+    if (a.status !== 'in-box' || b.status !== 'in-box') throw new Error('Fixture did not fill its boxes');
+    equivalent.marbles[0] = { ...a, dock: b.dock, box: b.box, slot: b.slot };
+    equivalent.marbles[3] = { ...b, dock: a.dock, box: a.box, slot: a.slot };
+    expect(equivalent).not.toEqual(original);
+    expect(funnelStrongKey(equivalent)).toBe(funnelStrongKey(original));
+    const next = [original, equivalent].map((state) => {
+      const copy = new MachineRules(BOARD_1); copy.restore(state);
+      expect(copy.release(1).ok).toBe(true); settle(copy);
+      expect(copy.status).toBe('won');
+      return funnelStrongKey(copy.snapshot());
+    });
+    expect(next[0]).toBe(next[1]);
+    const active = new MachineRules(BOARD_1); active.release(0);
+    const reversed = active.snapshot(); reversed.pending.reverse();
+    expect(funnelStrongKey(reversed)).not.toBe(funnelStrongKey(active.snapshot()));
   });
   it('reuses deterministic machine traces while preserving every seeded trial', () => {
     const step = vi.spyOn(LoopMachine.prototype, 'step');

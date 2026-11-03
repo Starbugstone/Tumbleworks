@@ -148,13 +148,21 @@ function rulesGraph<S, A>(start: S, adapter: Adapter<S, A>, cap: number = STRONG
   return graph;
 }
 
+/** Finished box assignments never influence another rule transition; active marble identity still does. */
+export function funnelStrongKey(state: ReturnType<MachineRules['snapshot']>): string {
+  const statuses = { 'in-supply': 's', pouring: 'p', 'on-belt': 'b', dropping: 'd', 'in-box': 'i' } as const;
+  const reserved = state.dockNext.map((box, dock) => state.marbles.filter((marble) => marble.dock === dock && marble.box === box).length);
+  return JSON.stringify([state.status, state.supplies.map((queue) => queue.length), state.pending,
+    state.dockNext, reserved, state.marbles.map((marble) => statuses[marble.status]).join('')]);
+}
+
 function funnelGraph(board: BoardDef) {
   const rules = new MachineRules(board);
   const tray = board.supplies.flat().reduce((n, packet) => n + packet.count, 0) / board.supplies.flat().length;
   settle(rules);
   return rulesGraph(rules.snapshot(), {
-    // Preserve marble identity/order: the settled model iterates marbles in that order.
-    key: (state) => JSON.stringify(state),
+    // Preserve active identity/order without retaining the history of which finished box took each marble.
+    key: funnelStrongKey,
     describe(state) {
       rules.restore(state);
       return { status: rules.status, value: state.marbles.filter((m) => m.status === 'in-box' || m.status === 'dropping').length / tray - 2 * (rules.occupancy + rules.funnelCount) / board.beltCapacity };
@@ -364,7 +372,7 @@ function machineRun<S>(machine: ConveyorMachine<S>, graph: RulesGraph<S, number>
   let nodes = 0;
   const finish = (outcome: StrongOutcome, reason?: string): StrongRun => {
     const result = { outcome, reason, actions, nodes, recoveries: recoveries(), ...diagnostic.result() };
-    if (outcome !== 'exhausted' || reason === 'tick-limit' || reason === 'action-limit') cursor.result = result;
+    if (outcome !== 'exhausted' || reason === 'tick-limit') cursor.result = result;
     return result;
   };
   try {
