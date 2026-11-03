@@ -5,7 +5,7 @@ import type { LoopBoardDef } from '../src/loop/types';
 import { MIN_CAPACITY } from '../src/machine/layout';
 import { initPhysics } from '../src/machine/machine';
 import { TUBE_BOARDS } from '../src/puzzles/levels';
-import type { TubeDef } from '../src/puzzles/types';
+import { tubeKey, TubeRules } from '../src/puzzles/rules';
 import { MachineRules } from '../src/sim/rules';
 import { hintConveyorSearch } from '../src/sim/solver';
 import { COLORS, type BoardDef, type Color } from '../src/sim/types';
@@ -14,7 +14,7 @@ import { generate as generateFunnel, naiveOrders, play as playOrder, search as s
 import { bandFor, funnelRating, HINT_STATE_CAP, levelViolations, LOOP_CAPACITY_MAX, loopRating, MIN_RISK_POSITIONS, multiTapFailure, OVAL_CAPACITY_MAX, STRICT_FROM, stretchOf, TUBE_GRAPH_CAP, tubeRating, winCeiling, type Slot } from './level-curve';
 import { funnelGame, funnelJitter, loopGame, loopJitter, scoreFunnel, scoreLoop, scoreTube, scoreTubeRow, settledFunnel, settledLoop, tally, type FunnelPlayer, type LoopPlayer, type ScoredFile, type Tally } from './level-score';
 import { generate as generateLoop, laneByLane, roundRobin, search as searchLoop, tighten as tightenLoop, winsEitherWay as loopWitnessWins, type LoopRecipe } from './loop-author';
-import { generate as generateTube } from './tube-author';
+import { findRuleTrap, withTubeRule, type TubeRuleRecipe, type TubeTrap, generate as generateTube } from './tube-author';
 
 /**
  * Authors the levels of a stretch against the curve. A candidate faces the cheap settled checks first, then the machine, and
@@ -50,7 +50,7 @@ export interface LoopTarget extends Named {
   readonly ringMin: number;
   readonly ringMax: number;
 }
-export interface TubeTarget extends Named { readonly colors: number; readonly capacity: number; readonly empties: number; readonly moves: readonly [number, number]; readonly f1?: readonly [number, number]; /** Part-full tubes holding the colours; more than `colors` spreads the spare room across them. */ readonly spread?: number }
+export interface TubeTarget extends Named { readonly rule?: TubeRuleRecipe; readonly colors: number; readonly capacity: number; readonly empties: number; readonly moves: readonly [number, number]; readonly f1?: readonly [number, number]; /** Part-full tubes holding the colours; more than `colors` spreads the spare room across them. */ readonly spread?: number }
 
 export const FUNNEL_TARGETS: readonly FunnelTarget[] = [
   { id: 'board-31', round: 2, slot: 'ordinary', title: 'Two by two', fr: 'Deux par deux', note: 'Two columns of two: nothing to lose yet, just the order of things.', colors: 3, columns: [2, 2], docks: 3, slack: [4, 5, 6] },
@@ -164,7 +164,7 @@ export const TUBE_TARGETS: readonly TubeTarget[] = [
   { id: 'fam-t25d', want: [44, 78], round: 31, slot: 'ordinary', title: 'Short and sharp', fr: 'Court et vif', note: 'Four colours, one spare, few moves, many traps.', colors: 4, capacity: 4, empties: 1, moves: [8, 13], f1: [44, 78] },
 ];
 
-interface Log { seed: number; capacity?: number; outcome: string; F1?: number; FM?: number; FMmixed?: number; S?: number; spam?: number; cheese?: number; brisk?: number; gatePassed?: boolean; mixedGatePassed?: boolean; scored?: ScoredFile }
+interface Log { seed: number; capacity?: number; outcome: string; F1?: number; FM?: number; FMmixed?: number; S?: number; spam?: number; cheese?: number; brisk?: number; gatePassed?: boolean; mixedGatePassed?: boolean; trap?: TubeTrap | null; scored?: ScoredFile }
 const log = (id: string, entry: Log): void => { appendFileSync(`${CANDIDATE_DIR}/${id}.jsonl`, `${JSON.stringify(entry)}\n`); };
 const logged = (id: string): Log[] => {
   try { return readFileSync(`${CANDIDATE_DIR}/${id}.jsonl`, 'utf8').trim().split('\n').filter(Boolean).map((line) => JSON.parse(line) as Log); } catch { return []; }
@@ -304,21 +304,23 @@ function tubeCandidate(target: TubeTarget, seed: number): number {
   const palette: Color[] = target.palette ? [...target.palette] : COLORS.slice(0, target.colors);
   const tubes = generateTube(palette, target.capacity, target.empties, target.spread ?? target.colors, seed);
   if (!tubes) return 0;
-  const key = tubes.map((tube) => tube.join()).sort().join('|');
-  if (TUBE_BOARDS.some((board) => board.tubes.map((tube) => tube.join()).sort().join('|') === key)) return 0;
-  const board: TubeDef = { kind: 'tube', id: target.id, title: target.title, capacity: target.capacity, tubes, solution: [] };
+  const board = withTubeRule({ kind: 'tube', id: target.id, title: target.title, capacity: target.capacity, tubes, solution: [] }, target.rule);
+  const key = tubeKey(board, new TubeRules(board).state);
+  if (TUBE_BOARDS.some((other) => tubeKey(other, new TubeRules(other).state) === key)) return 0;
   const score = scoreTube(board);
   if (!score || score.moves < target.moves[0] || score.moves > target.moves[1]) return 0;
   if (score.graphStates > TUBE_GRAPH_CAP || score.hintStates > HINT_STATE_CAP.tube) return 0;
+  const trap = target.rule ? findRuleTrap(board) : null;
+  if (target.rule && !trap) return 0;
   const spare = target.empties;
   // Two spares before round 21: nothing may be silently lost.
-  if (spare >= 2 && (score.shape.lostShare > 0 || score.shape.silent > 0)) { log(target.id, { seed, outcome: 'silent lost positions', F1: score.F1 }); return 0; }
+  if (!target.rule && spare >= 2 && (score.shape.lostShare > 0 || score.shape.silent > 0)) { log(target.id, { seed, outcome: 'silent lost positions', F1: score.F1 }); return 0; }
   if (target.f1 && (score.F1 < target.f1[0] || score.F1 > target.f1[1])) return 0;
   const S = tubeRating(score.F1, score.moves);
   const band = target.want ?? bandFor(target.round, target.slot)!;
   if (S < band[0] || S > band[1]) { log(target.id, { seed, outcome: 'S out of band', F1: score.F1, S }); return 0; }
   const solved = scoreTubeRow(board);
-  log(target.id, { seed, outcome: 'accepted', F1: score.F1, S, scored: solved });
+  log(target.id, { seed, outcome: 'accepted', F1: score.F1, S, trap, scored: solved });
   return 1;
 }
 

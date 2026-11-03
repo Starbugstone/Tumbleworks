@@ -50,7 +50,7 @@ function tubeSource(board: TubeDef, note: string, solution: readonly { from: num
   const tubes = board.tubes.map((tube) => `      [${tube.map(color).join(', ')}],`).join('\n');
   const rows: string[] = [];
   for (let at = 0; at < solution.length; at += 4) rows.push(`      ${solution.slice(at, at + 4).map((move) => `{ from: ${move.from}, to: ${move.to} },`).join(' ')}`);
-  return `  /** ${note} */\n  {\n    kind: 'tube', id: ${quote(board.id)}, title: ${quote(board.title)}, capacity: ${board.capacity},\n    tubes: [\n${tubes}\n    ],\n    solution: [\n${rows.join('\n')}\n    ],\n  },`;
+  return `  /** ${note} */\n  {\n    kind: 'tube', id: ${quote(board.id)}, title: ${quote(board.title)}, capacity: ${board.capacity},\n    ${board.containers ? `containers: ${JSON.stringify(board.containers)},\n    ` : ''}tubes: [\n${tubes}\n    ],\n    solution: [\n${rows.join('\n')}\n    ],\n  },`;
 }
 
 interface Logged { seed: number; capacity?: number; outcome: string; scored?: ScoredFile }
@@ -73,7 +73,7 @@ const french: string[] = [];
 const noJam: string[] = [];
 const { search: searchFunnel } = await import('./funnel-author');
 const { search: searchLoop } = await import('./loop-author');
-const { solveTubeSearch } = await import('../src/puzzles/rules');
+const { solveTubeSearch, TubeRules } = await import('../src/puzzles/rules');
 for (const choice of process.argv.slice(2)) {
   const [rename, source = ''] = choice.includes('=') ? choice.split('=') : [undefined, choice];
   const [from = '', seed, capacity] = source.split(':');
@@ -106,7 +106,7 @@ for (const choice of process.argv.slice(2)) {
     if (jam) loopJam.push(`${quote(id)}: ${quote(jam)}`);
   } else {
     const board = scored.board as TubeDef;
-    const { moves } = solveTubeSearch(board, { tubes: board.tubes.map((tubeRow) => [...tubeRow]), moves: 0, status: 'playing' });
+    const { moves } = solveTubeSearch(board, new TubeRules(board).state);
     tube.push(tubeSource(board, target.note, moves ?? []));
   }
 }

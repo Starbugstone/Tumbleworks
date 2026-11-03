@@ -76,7 +76,7 @@ describe('tube sorting', () => {
 
   it('a one-spare board can be jammed in one move, hints say so, and undo recovers the losing opening', () => {
     // Found from the rules rather than hard-coded, so re-rolled boards keep this check honest.
-    const trap = TUBE_BOARDS.flatMap((board) => availableTubeMoves(board, { tubes: board.tubes.map((tube) => [...tube]) })
+    const trap = TUBE_BOARDS.flatMap((board) => availableTubeMoves(board, new TubeRules(board).state)
       .filter((move) => { const probe = new TubeRules(board); return probe.move(move.from, move.to).ok && probe.status === 'jammed'; })
       .map((move) => ({ board, move })))[0];
     if (!trap) throw new Error('No Tube Sort board jams in one move');
@@ -97,7 +97,7 @@ describe('tube sorting', () => {
   it.each(TUBE_BOARDS)('$id can be solved by hints from its current state', (board) => {
     const rules = new TubeRules(board);
     // Open with a legal move that is not the authored one when one still leads to a win, so the hint has to think.
-    const fresh = (): TubeState => ({ tubes: board.tubes.map((tube) => [...tube]), moves: 0, status: 'playing' });
+    const fresh = (): TubeState => new TubeRules(board).snapshot();
     const differentOpening = availableTubeMoves(board, fresh()).find((move) => {
       if (move.from === board.solution[0]?.from && move.to === board.solution[0]?.to) return false;
       const trial = new TubeRules(board);

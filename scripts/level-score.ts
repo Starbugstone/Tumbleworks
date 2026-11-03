@@ -4,7 +4,7 @@ import { LoopRules } from '../src/loop/rules';
 import { hintLoopSearch, settleLoop } from '../src/loop/solver';
 import type { LoopBoardDef } from '../src/loop/types';
 import { initPhysics, Machine } from '../src/machine/machine';
-import { availableTubeMoves, solveTubeSearch, TubeRules } from '../src/puzzles/rules';
+import { availableTubeMoves, completedTube, moveTubeState, solveTubeSearch, tubeContainer, tubeKey, TubeRules } from '../src/puzzles/rules';
 import type { TubeDef } from '../src/puzzles/types';
 import { MachineRules } from '../src/sim/rules';
 import { hintConveyorSearch, settle } from '../src/sim/solver';
@@ -386,7 +386,7 @@ export interface TubeScore { readonly F1: number; readonly moves: number; readon
 export function scoreTube(board: TubeDef): TubeScore | null {
   const graphStates = reachableTubeStates(board);
   if (graphStates > TUBE_GRAPH_CAP) return null;
-  const { moves, states: hintStates } = solveTubeSearch(board, { tubes: board.tubes.map((tube) => [...tube]), moves: 0, status: 'playing' });
+  const { moves, states: hintStates } = solveTubeSearch(board, new TubeRules(board).state);
   if (!moves) return null;
   const snapshots: ReturnType<TubeRules['snapshot']>[] = [];
   const nodes: (GraphNode & { edges: number[] })[] = [];
@@ -394,15 +394,15 @@ export function scoreTube(board: TubeDef): TubeScore | null {
   const runs = (tubes: readonly (readonly string[])[]): number => sum(tubes.map((tube) => tube.filter((color, at) => at === 0 || color !== tube[at - 1]).length));
   const runs0 = runs(board.tubes);
   const add = (rules: TubeRules): number => {
-    const key = rules.state.tubes.map((tube) => tube.join(',')).sort().join('|');
+    const key = tubeKey(board, rules.state);
     const known = index.get(key);
     if (known !== undefined) return known;
     const id = nodes.length;
     index.set(key, id);
     snapshots.push(rules.snapshot());
     const tubes = rules.state.tubes;
-    const full = tubes.filter((tube) => tube.length === board.capacity && tube.every((color) => color === tube[0])).length;
-    const empty = tubes.filter((tube) => !tube.length).length;
+    const full = tubes.filter((_, index) => completedTube(board, rules.state, index)).length;
+    const empty = tubes.filter((tube, index) => !tube.length && !rules.state.spent[index] && (tubeContainer(board, index).role !== 'capped' || rules.state.opened[index])).length;
     nodes.push({ status: rules.status, value: runs0 - runs(tubes) + 2 * full + 0.5 * empty, edges: [] });
     return id;
   };
@@ -412,7 +412,7 @@ export function scoreTube(board: TubeDef): TubeScore | null {
     if (nodes[id]!.status !== 'playing') continue;
     for (const move of availableTubeMoves(board, snapshots[id]!)) {
       rules.state = structuredClone(snapshots[id]!);
-      rules.move(move.from, move.to);
+      moveTubeState(board, rules.state, move.from, move.to);
       nodes[id]!.edges.push(add(rules));
     }
   }

@@ -7,6 +7,7 @@ import { BoardView } from '../engine/board-view';
 import type { GameServices, ScreenPoint } from '../engine/contracts';
 import type { Point3 } from '../engine/physics';
 import { label, toyBox, toyMaterial } from '../engine/toy';
+import { completedTube, tubeContainer } from '../puzzles/rules';
 import type { TubeDef, TubeMoveResult, TubeState } from '../puzzles/types';
 
 const RADIUS = 0.49;
@@ -18,6 +19,9 @@ export class TubeView extends BoardView {
   private readonly rims: THREE.Mesh[] = [];
   private readonly badges: THREE.Mesh[][] = [];
   private readonly badgeMaterials = new Map<Color, THREE.MeshBasicMaterial>();
+  private readonly caps = new Map<number, { mesh: THREE.Group; y: number; progress: number; open: boolean }>();
+  private readonly cups = new Map<number, { parts: { mesh: THREE.Mesh; y: number }[]; progress: number; spent: boolean }>();
+  private readonly reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   private readonly pulses: number[] = [];
   private readonly sparks: Sparks;
   private selected = -1;
@@ -48,7 +52,8 @@ export class TubeView extends BoardView {
       opacity: 0.2, roughness: 0.08, side: THREE.DoubleSide, depthWrite: false, envMapIntensity: 1.5 });
     definition.tubes.forEach((_, index) => {
       const at = this.position(index, 0);
-      const height = definition.capacity * STEP + 0.2;
+      const container = tubeContainer(definition, index);
+      const height = container.capacity * STEP + 0.2;
       // A slate backing separates white cargo from the pale deck and from unfilled slots.
       const backing = toyBox(1.28, height, 0.1, 0x596887, 0.05);
       backing.position.set(at.x, 0.7 + height / 2, at.z - 0.64);
@@ -76,7 +81,7 @@ export class TubeView extends BoardView {
       const rail = toyBox(0.46, height, 0.1, 0x3b4069, 0.04);
       rail.position.set(at.x + 0.94, 0.7 + height / 2, at.z);
       this.board.add(rail);
-      const badges = Array.from({ length: definition.capacity }, (_, slot) => {
+      const badges = Array.from({ length: container.capacity }, (_, slot) => {
         const badge = new THREE.Mesh(new THREE.PlaneGeometry(0.44, 0.44), this.badgeMaterials.get('red')!);
         badge.position.set(at.x + 0.94, this.position(index, slot).y, at.z + 0.16);
         badge.rotation.x = -Math.atan2(1.35, 0.65);
@@ -84,12 +89,28 @@ export class TubeView extends BoardView {
         return badge;
       });
       this.badges.push(badges);
+      if (container.role === 'cup') {
+        this.cups.set(index, { parts: [backing, tube, rail, rim].map((mesh) => ({ mesh, y: mesh.position.y })), progress: 0, spent: false });
+      }
+      if (container.role === 'capped') {
+        const color = container.opensOn;
+        const badge = new THREE.Mesh(new THREE.PlaneGeometry(0.94, 0.94), this.badgeMaterials.get(color)!);
+        badge.rotation.x = -Math.atan2(1.35, 0.65);
+        const cap = new THREE.Group();
+        const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.79, 0.79, 0.2, 32), toyMaterial(0x3b4069));
+        cap.add(lid);
+        badge.position.set(0, 0.21, 0.12);
+        cap.add(badge);
+        cap.position.set(at.x, 0.7 + height + 0.22, at.z);
+        this.board.add(cap);
+        this.caps.set(index, { mesh: cap, y: cap.position.y, progress: 0, open: false });
+      }
     });
     // Fit tubes, pattern rails and labels; the decorative plinth can extend toward the screen edges.
     this.framing = definition.tubes.flatMap((_, index) => {
       const at = this.position(index, 0);
       const points: Point3[] = [];
-      for (const x of [at.x - 0.95, at.x + 1.2]) for (const y of [0.5, 0.7 + definition.capacity * STEP + 0.8]) {
+      for (const x of [at.x - 0.95, at.x + 1.2]) for (const y of [0.5, 0.7 + tubeContainer(definition, index).capacity * STEP + (tubeContainer(definition, index).role === 'capped' ? 1.2 : 0.8)]) {
         for (const z of [at.z - 0.95, at.z + 1.75]) points.push({ x, y, z });
       }
       return points;
@@ -108,7 +129,10 @@ export class TubeView extends BoardView {
     this.sparks.clear();
     this.pulses.fill(0);
     this.identities = state.tubes.map((tube) => tube.map(() => String(this.nextIdentity++)));
+    for (const [index, cap] of this.caps) { cap.progress = state.opened[index] ? 1 : 0; }
+    for (const [index, cup] of this.cups) { cup.progress = state.spent[index] ? 1 : 0; }
     this.layout(state);
+    this.commitmentPose(0);
   }
 
   private layout(state: TubeState, animate = false): void {
@@ -119,10 +143,10 @@ export class TubeView extends BoardView {
     })), animate);
     state.tubes.forEach((tube, index) => {
       const at = this.position(index, 1.5);
-      const hit = new THREE.Mesh(new THREE.BoxGeometry(1.9, 5.3, 1.9), new THREE.MeshBasicMaterial({ visible: false }));
-      hit.position.set(at.x, 2.9, at.z);
+      const hit = new THREE.Mesh(new THREE.BoxGeometry(1.9, tubeContainer(this.definition, index).capacity * STEP + 1.2, 1.9), new THREE.MeshBasicMaterial({ visible: false }));
+      hit.position.set(at.x, 0.7 + tubeContainer(this.definition, index).capacity * STEP / 2, at.z);
       this.actors.add(hit);
-      this.hit(hit, `tube${index}`, { ...at, y: 3.4 });
+      this.hit(hit, `tube${index}`, { ...at, y: 0.7 + tubeContainer(this.definition, index).capacity * STEP / 2 });
       this.badges[index]?.forEach((badge, slot) => {
         const color = tube[slot];
         badge.visible = color !== undefined;
@@ -132,13 +156,16 @@ export class TubeView extends BoardView {
       if (rim?.material instanceof THREE.MeshPhysicalMaterial) {
         rim.material.color.setHex(tube.at(-1) ? COLORS[tube.at(-1)!].hex : 0xe7f4f2);
       }
-      const complete = tube.length === this.definition.capacity && tube.every((color) => color === tube[0]);
+      const complete = completedTube(this.definition, state, index);
       const light = this.lights[index];
       if (light?.material instanceof THREE.MeshPhysicalMaterial) {
         light.material.color.setHex(complete ? 0x30dfa5 : 0x938976);
         light.material.emissive.setHex(complete ? 0x16b36b : 0);
       }
     });
+    for (const [index, cap] of this.caps) cap.open = Boolean(state.opened[index]);
+    for (const [index, cup] of this.cups) cup.spent = Boolean(state.spent[index]);
+    this.commitmentPose(0);
     this.select(this.selected);
   }
 
@@ -194,9 +221,30 @@ export class TubeView extends BoardView {
     return positions;
   }
 
+  private commitmentPose(delta: number): void {
+    for (const cap of this.caps.values()) {
+      cap.progress = cap.open ? Math.min(1, cap.progress + delta * 3) : 0;
+      if (this.reducedMotion && cap.open) cap.progress = 1;
+      cap.mesh.position.y = cap.y + cap.progress * 1.4;
+      cap.mesh.rotation.z = cap.progress * -0.6;
+      cap.mesh.visible = cap.progress < 1;
+    }
+    for (const cup of this.cups.values()) {
+      cup.progress = cup.spent ? Math.min(1, cup.progress + delta * 4) : 0;
+      if (this.reducedMotion && cup.spent) cup.progress = 1;
+      const fold = 1 - cup.progress * 0.94;
+      for (const { mesh, y } of cup.parts) {
+        mesh.position.y = 0.7 + (y - 0.7) * fold;
+        // The rim stays round as the walls concertina down to the base.
+        if (!this.rims.includes(mesh)) mesh.scale.y = fold;
+      }
+    }
+  }
+
   override step(): void {
     super.step();
     this.sparks.step(FIXED_SECONDS);
+    this.commitmentPose(FIXED_SECONDS);
     this.rims.forEach((rim, index) => {
       const pulse = Math.max(0, (this.pulses[index] ?? 0) - FIXED_SECONDS * 3);
       this.pulses[index] = pulse;
@@ -221,7 +269,7 @@ export class TubeView extends BoardView {
     this.layout(state, true);
     this.pulses[result.to] = 1;
     if (result.completedTube) {
-      const at = this.position(result.to, this.definition.capacity - 1);
+      const at = this.position(result.to, tubeContainer(this.definition, result.to).capacity - 1);
       this.sparks.burst({ ...at, y: at.y + 0.5 }, COLORS[result.color].hex, 18);
     }
   }

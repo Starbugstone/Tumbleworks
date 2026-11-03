@@ -1,7 +1,7 @@
 import { t } from '../i18n';
 import type { Feedback, GameRuntime, GameServices, ScreenPoint } from '../engine/contracts';
 import type { Point3 } from '../engine/physics';
-import { TubeRules } from '../puzzles/rules';
+import { completedTube, tubeMoveRejection, TubeRules } from '../puzzles/rules';
 import type { TubeDef } from '../puzzles/types';
 import { marbleName } from '../view/art';
 import { TubeView } from '../view/tubes';
@@ -15,15 +15,14 @@ export class TubeRuntime implements GameRuntime {
     start: (target: string, point: ScreenPoint): boolean => {
       const index = this.index(target);
       if (this.status !== 'playing' || index === null || !this.rules.state.tubes[index]?.length) return false;
+      if (this.sourceBlocked(index)) return false;
       this.dragFrom = index;
       this.view.beginDrag(index, this.rules.state, point);
       return true;
     },
     move: (point: ScreenPoint, target: string | null): void => {
       const to = this.index(target);
-      const source = this.dragFrom === null ? undefined : this.rules.state.tubes[this.dragFrom];
-      const destination = to === null ? undefined : this.rules.state.tubes[to];
-      const valid = destination && destination.length < this.board.capacity && (!destination.length || destination.at(-1) === source?.at(-1));
+      const valid = this.dragFrom !== null && to !== null && tubeMoveRejection(this.board, this.rules.state, this.dragFrom, to) === null;
       this.view.moveDrag(point, valid && to !== null ? to : this.dragFrom ?? -1);
     },
     end: (target: string | null): readonly Feedback[] => {
@@ -57,7 +56,7 @@ export class TubeRuntime implements GameRuntime {
   get busy() { return this.view.busy; }
   get canUndo() { return this.rules.canUndo; }
   get counter() {
-    const complete = this.rules.state.tubes.filter((tube) => tube.length === this.board.capacity && tube.every((c) => c === tube[0])).length;
+    const complete = this.rules.state.tubes.filter((_, index) => completedTube(this.board, this.rules.state, index)).length;
     const colors = new Set(this.board.tubes.flat()).size;
     return { label: t('Sorted', 'Triés'), value: `${complete} / ${colors}` };
   }
@@ -70,6 +69,8 @@ export class TubeRuntime implements GameRuntime {
     const index = Number(target.replace(/^tube/, ''));
     if (!/^tube\d+$/.test(target) || !this.rules.state.tubes[index]) return [];
     if (this.selected === null) {
+      const blocked = this.sourceBlocked(index);
+      if (blocked) return [{ type: 'blocked', text: blocked }];
       if (!this.rules.state.tubes[index]?.length) return [{ type: 'message', text: t('Choose a tube with a marble first.', 'Choisissez d’abord un tube contenant des billes.') }];
       this.selected = index;
       this.view.select(index);
@@ -83,10 +84,26 @@ export class TubeRuntime implements GameRuntime {
     return this.transfer(this.selected, index);
   }
 
+  private sourceBlocked(index: number): string | null {
+    const role = this.board.containers?.[index];
+    if (role?.role === 'capped' && !this.rules.state.opened[index]) return this.blockedText('capped');
+    if (this.rules.state.spent[index]) return this.blockedText('spent');
+    return null;
+  }
+
+  private blockedText(reason: string): string {
+    switch (reason) {
+      case 'capped': return t('Complete the cap’s colour first.', 'Complétez d’abord la couleur du couvercle.');
+      case 'spent': return t('This cup has folded shut.', 'Cette coupelle s’est refermée.');
+      case 'full': return t('That tube is full.', 'Ce tube est plein.');
+      default: return t('Choose an empty tube or the same top color.', 'Choisissez un tube vide ou la même couleur en haut.');
+    }
+  }
+
   private transfer(from: number, index: number, starts?: readonly Point3[]): readonly Feedback[] {
     const result = this.rules.move(from, index);
     if (!result.ok) {
-      const text = result.reason === 'full' ? t('That tube is full.', 'Ce tube est plein.') : t('Choose an empty tube or the same top color.', 'Choisissez un tube vide ou la même couleur en haut.');
+      const text = this.blockedText(result.reason);
       // The destination becomes the next selected source, so correcting a choice takes one tap.
       if (!starts) this.selected = this.rules.state.tubes[index]?.length ? index : this.selected;
       this.view.select(this.selected ?? -1);

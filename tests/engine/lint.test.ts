@@ -41,6 +41,6 @@ describe('the determinism lint', () => {
   });
 
   it('passes on the project itself', () => {
-    expect(execFileSync(join(root, 'node_modules/.bin/oxlint'), ['--deny-warnings'], { cwd: root, encoding: 'utf8' })).toContain('0 errors');
+    expect(() => execFileSync(join(root, 'node_modules/.bin/oxlint'), ['--deny-warnings'], { cwd: root, encoding: 'utf8' })).not.toThrow();
   });
 });
