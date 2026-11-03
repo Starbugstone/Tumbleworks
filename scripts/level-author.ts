@@ -14,7 +14,7 @@ import { generate as generateFunnel, naiveOrders, play as playOrder, search as s
 import { bandFor, funnelRating, HINT_STATE_CAP, levelViolations, LOOP_CAPACITY_MAX, loopRating, MIN_RISK_POSITIONS, multiTapFailure, OVAL_CAPACITY_MAX, stretchOf, TUBE_GRAPH_CAP, tubeRating, winCeiling, type Slot } from './level-curve';
 import { funnelGame, funnelJitter, loopGame, loopJitter, scoreFunnel, scoreLoop, scoreTube, scoreTubeRow, settledFunnel, settledLoop, tally, type FunnelPlayer, type LoopPlayer, type ScoredFile, type Tally } from './level-score';
 import { generate as generateLoop, laneByLane, roundRobin, search as searchLoop, tighten as tightenLoop, winsEitherWay as loopWitnessWins, type LoopRecipe } from './loop-author';
-import { findRuleTrap, withTubeRule, type TubeRuleRecipe, generate as generateTube } from './tube-author';
+import { findRuleTrap, withTubeRule, type TubeRuleRecipe, type TubeTrap, generate as generateTube } from './tube-author';
 
 /**
  * Authors the levels of a stretch against the curve. A candidate faces the cheap settled checks first, then the machine, and
@@ -141,7 +141,7 @@ export const TUBE_TARGETS: readonly TubeTarget[] = [
   { id: 'fam-t21c', want: [34, 72], round: 21, slot: 'ordinary', title: 'Seven part-full', fr: 'Sept à moitié', note: 'Five colours spread over seven tubes, no empty one.', colors: 5, capacity: 4, empties: 0, spread: 7, moves: [10, 20], f1: [34, 72] },
 ];
 
-interface Log { seed: number; capacity?: number; outcome: string; F1?: number; FM?: number; FMmixed?: number; S?: number; spam?: number; cheese?: number; brisk?: number; gatePassed?: boolean; mixedGatePassed?: boolean; scored?: ScoredFile }
+interface Log { seed: number; capacity?: number; outcome: string; F1?: number; FM?: number; FMmixed?: number; S?: number; spam?: number; cheese?: number; brisk?: number; gatePassed?: boolean; mixedGatePassed?: boolean; trap?: TubeTrap | null; scored?: ScoredFile }
 const log = (id: string, entry: Log): void => { appendFileSync(`${CANDIDATE_DIR}/${id}.jsonl`, `${JSON.stringify(entry)}\n`); };
 const logged = (id: string): Log[] => {
   try { return readFileSync(`${CANDIDATE_DIR}/${id}.jsonl`, 'utf8').trim().split('\n').filter(Boolean).map((line) => JSON.parse(line) as Log); } catch { return []; }
@@ -287,7 +287,8 @@ function tubeCandidate(target: TubeTarget, seed: number): number {
   const score = scoreTube(board);
   if (!score || score.moves < target.moves[0] || score.moves > target.moves[1]) return 0;
   if (score.graphStates > TUBE_GRAPH_CAP || score.hintStates > HINT_STATE_CAP.tube) return 0;
-  if (target.rule && !findRuleTrap(board)) return 0;
+  const trap = target.rule ? findRuleTrap(board) : null;
+  if (target.rule && !trap) return 0;
   const spare = target.empties;
   // Two spares before round 21: nothing may be silently lost.
   if (!target.rule && spare >= 2 && (score.shape.lostShare > 0 || score.shape.silent > 0)) { log(target.id, { seed, outcome: 'silent lost positions', F1: score.F1 }); return 0; }
@@ -296,7 +297,7 @@ function tubeCandidate(target: TubeTarget, seed: number): number {
   const band = target.want ?? bandFor(target.round, target.slot)!;
   if (S < band[0] || S > band[1]) { log(target.id, { seed, outcome: 'S out of band', F1: score.F1, S }); return 0; }
   const solved = scoreTubeRow(board);
-  log(target.id, { seed, outcome: 'accepted', F1: score.F1, S, scored: solved });
+  log(target.id, { seed, outcome: 'accepted', F1: score.F1, S, trap, scored: solved });
   return 1;
 }
 
