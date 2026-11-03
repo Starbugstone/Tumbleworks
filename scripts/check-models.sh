@@ -3,6 +3,7 @@
 # config breaks one guarantee on purpose and must be caught, and every reach-* config claims something
 # never happens that must happen: a model that can't fail, or never reaches the case, proves nothing.
 set -euo pipefail
+shopt -s nullglob
 cd "$(dirname "$0")/.."
 VERSION=v1.7.4
 JAR=.cache/tla2tools-$VERSION.jar

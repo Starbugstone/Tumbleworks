@@ -28,6 +28,7 @@ export interface Pose { x: number; y: number; z: number; qx: number; qy: number;
 type CratePhase = 'waiting' | 'opening' | 'gone';
 interface CrateControl {
   readonly key: number;
+  readonly id: number;
   readonly supply: number;
   readonly color: Color;
   readonly marbleIds: readonly number[];
@@ -189,7 +190,7 @@ export class Machine implements Replayable {
       queue.forEach((packet, rank) => {
         const key = packet.marbles[0]?.id;
         if (key === undefined) return;
-        const crate: CrateControl = { key, supply, color: packet.color, marbleIds: packet.marbles.map((m) => m.id), phase: 'waiting', time: 0, slide: rank, rank, released: false };
+        const crate: CrateControl = { key, id: packet.id, supply, color: packet.color, marbleIds: packet.marbles.map((m) => m.id), phase: 'waiting', time: 0, slide: rank, rank, released: false };
         this.control.crates.push(crate);
         // Crates have no colliders: their marbles are placed while waiting, and a moving kinematic wall could fling a straggler.
         packet.marbles.forEach((marble, slot) => {
@@ -221,11 +222,25 @@ export class Machine implements Replayable {
   private crateOrigin(crate: CrateControl): { x: number; y: number; z: number } {
     // An opening crate stays put, so its walls never shove the marbles falling out of it.
     const count = this.board.supplies.length;
+    if (this.board.predecessors) {
+      const position = this.shelfPosition(crate.id);
+      return { ...position, y: position.y + (crate.phase === 'gone' ? 40 : 0) };
+    }
     return {
       x: columnX(crate.supply, count),
       y: STACK.y + STACK.stepY * crate.slide + (crate.phase === 'gone' ? 40 : 0),
-      z: STACK.z + STACK.stepZ * crate.slide,
+      z: this.rules.crateActions ? Math.max(FUNNEL.mouth.back + CRATE.halfDepth + 0.2, STACK.z + STACK.stepZ * crate.slide) : STACK.z + STACK.stepZ * crate.slide,
     };
+  }
+
+  /** Static shallow shelves: joins sit between their supports; all drops remain over the dish. */
+  private shelfPosition(id: number): { x: number; y: number; z: number } {
+    const predecessors = this.rules.predecessors(id);
+    if (!predecessors.length) return { x: columnX(this.board.supplies.findIndex((q, i) => id >= this.board.supplies.slice(0, i).flat().length && id < this.board.supplies.slice(0, i + 1).flat().length), this.board.supplies.length), y: STACK.y, z: STACK.z };
+    const supports = predecessors.map((before) => this.shelfPosition(before));
+    return { x: supports.reduce((sum, p) => sum + p.x, 0) / supports.length,
+      y: Math.max(...supports.map((p) => p.y)) + STACK.stepY,
+      z: Math.max(FUNNEL.mouth.back + CRATE.halfDepth + 0.2, Math.min(...supports.map((p) => p.z)) + STACK.stepZ) };
   }
 
   private crateSlotWorld(crate: CrateControl, slot: number): { x: number; y: number; z: number } {
@@ -280,9 +295,9 @@ export class Machine implements Replayable {
     into.x = t.x; into.y = t.y; into.z = t.z;
     into.qx = q.x; into.qy = q.y; into.qz = q.z; into.qw = q.w;
   }
-  readCrates(): { key: number; supply: number; color: Color; x: number; y: number; z: number; open: number; visible: boolean }[] {
+  readCrates(): { id: number; action: number; accessible: boolean; key: number; supply: number; color: Color; x: number; y: number; z: number; open: number; visible: boolean }[] {
     return this.control.crates.map((crate) => ({
-      key: crate.key, supply: crate.supply, color: crate.color, ...this.crateOrigin(crate),
+      id: crate.id, action: this.rules.crateActions ? crate.id : crate.supply, accessible: this.rules.accessible(crate.id), key: crate.key, supply: crate.supply, color: crate.color, ...this.crateOrigin(crate),
       open: crate.phase === 'opening' ? Math.min(crate.time / CRATE.openSeconds, 1) : 0, visible: crate.phase !== 'gone',
     }));
   }
@@ -295,7 +310,8 @@ export class Machine implements Replayable {
   }
   /** The world point a marble must pass to join a box: for hint arrows and tests. */
   frontCrate(supply: number): { x: number; y: number; z: number } | null {
-    const crate = this.control.crates.find((candidate) => candidate.supply === supply && candidate.phase === 'waiting' && !candidate.released && candidate.rank === 0);
+    const packet = this.rules.packet(supply);
+    const crate = this.control.crates.find((candidate) => candidate.id === packet?.id);
     return crate ? this.crateOrigin(crate) : null;
   }
 
@@ -307,8 +323,10 @@ export class Machine implements Replayable {
     if (!result.ok) return result;
     this.history.push(before);
     this.actions.push({ step: this.steps, type: 'tap', at: supply });
-    const crate = this.control.crates.find((candidate) => candidate.key === result.marbles[0]?.id);
-    if (crate) crate.released = true;
+    for (const packet of result.packets) {
+      const crate = this.control.crates.find((candidate) => candidate.id === packet.id);
+      if (crate) crate.released = true;
+    }
     return result;
   }
 
@@ -371,7 +389,7 @@ export class Machine implements Replayable {
       crate.time += dt;
       crate.rank = this.control.crates.filter((other) => other.supply === crate.supply && other.key < crate.key && other.phase === 'waiting').length;
       if (crate.slide > crate.rank) crate.slide = Math.max(crate.slide - dt / STACK.slideSeconds, crate.rank);
-      if (crate.phase === 'waiting' && crate.released && crate.rank === 0 && crate.slide === 0) {
+      if (crate.phase === 'waiting' && crate.released && (this.rules.crateActions || (crate.rank === 0 && crate.slide === 0))) {
         crate.phase = 'opening';
         crate.time = 0;
         this.events.push({ type: 'pour', supply: crate.supply, color: crate.color });

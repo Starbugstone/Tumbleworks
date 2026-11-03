@@ -9,8 +9,9 @@ import { TUBE_BOARDS } from '../src/puzzles/levels';
 import { tubeKey, TubeRules } from '../src/puzzles/rules';
 import { MachineRules } from '../src/sim/rules';
 import { hintConveyorSearch } from '../src/sim/solver';
-import { COLORS, type BoardDef, type Color } from '../src/sim/types';
+import { COLORS, type BoardDef, type Color, type FunnelVariants } from '../src/sim/types';
 import type { BeltShape } from '../src/engine/belt-path';
+import { funnelFeatureTrap } from './funnel-features';
 import { generate as generateFunnel, naiveOrders, play as playOrder, search as searchFunnel, tighten as tightenFunnel, winsEitherWay as funnelWitnessWins, type FunnelRecipe } from './funnel-author';
 import { bandFor, funnelRating, HINT_STATE_CAP, levelViolations, LOOP_CAPACITY_MAX, loopRating, MIN_RISK_POSITIONS, multiTapFailure, OVAL_CAPACITY_MAX, STRICT_FROM, stretchOf, TUBE_GRAPH_CAP, tubeRating, winCeiling, type Slot } from './level-curve';
 import { funnelGame, funnelJitter, loopGame, loopJitter, scoreFunnel, scoreLoop, extendTally, scoreTube, scoreTubeRow, settledFunnel, settledLoop, tally, type FunnelPlayer, type LoopPlayer, type ScoredFile, type Tally } from './level-score';
@@ -45,7 +46,7 @@ interface Named {
   /** Narrower than the slot's band where the neighbours need it; the band alone would let a peak sit at its bottom. */
   readonly want?: readonly [number, number];
 }
-export interface FunnelTarget extends Named { readonly colors: number; readonly columns: readonly number[]; readonly docks: number; readonly slack: readonly number[]; readonly shape?: BeltShape; /** Short trays of six among the nine-marble ones. */ readonly shorts?: number; /** Small crates of three. */ readonly smalls?: number }
+export interface FunnelTarget extends Named, FunnelVariants { readonly colors: number; readonly columns: readonly number[]; readonly docks: number; readonly slack: readonly number[]; readonly shape?: BeltShape; /** Short trays of six among the nine-marble ones. */ readonly shorts?: number; /** Small crates of three. */ readonly smalls?: number }
 export interface LoopTarget extends Named {
   readonly feature?: LoopFeature;
   readonly capacities?: LoopRecipe['capacities'];
@@ -185,16 +186,17 @@ const logged = (id: string): Log[] => {
 
 async function funnelCandidate(target: FunnelTarget, seed: number): Promise<number> {
   const recipe: FunnelRecipe = { id: target.id, title: target.title, fr: target.fr, note: target.note, colors: target.colors, columns: target.columns, shorts: target.shorts ?? 0, ...(target.smalls ? { smalls: target.smalls } : {}), ...(target.palette ? { palette: target.palette } : {}), docks: target.docks, capacity: 40, seed, win: [0, 1], slack: 0, naiveJams: false, ...(target.shape ? { shape: target.shape } : {}) };
-  const loose = generateFunnel(recipe, seed);
+  const loose = generateFunnel({ ...recipe, pairs: target.pairs, predecessors: target.predecessors, seals: target.seals }, seed);
   if (!loose) { log(target.id, { seed, outcome: 'ungenerated' }); return 0; }
   const probe = searchFunnel(loose, 60_000);
-  if (!probe.solvable) { log(target.id, { seed, outcome: 'unsolvable' }); return 0; }
+  if (!loose.pairs?.length && !loose.predecessors && !loose.seals?.length && !probe.solvable) { log(target.id, { seed, outcome: 'unsolvable' }); return 0; }
   const tight = tightenFunnel(loose).beltCapacity;
   const band = target.want ?? bandFor(target.round, target.slot)!;
   const ceiling = winCeiling(target.round);
   let accepted = 0;
   const seen = new Set<number>();
-  for (const slack of target.slack) {
+  const slacks = target.pairs || target.predecessors || target.seals ? Array.from({ length: 41 - tight }, (_, i) => i) : target.slack;
+  for (const slack of slacks) {
     const capacity = Math.max(MIN_CAPACITY[target.shape ?? 'oval'], tight + slack);
     if (seen.has(capacity) || (!target.shape && capacity > OVAL_CAPACITY_MAX)) continue;
     seen.add(capacity);
@@ -202,6 +204,7 @@ async function funnelCandidate(target: FunnelTarget, seed: number): Promise<numb
     const say = (outcome: string, extra: Partial<Log> = {}): void => { log(target.id, { seed, capacity, outcome, ...extra }); };
     const found = searchFunnel(board, 60_000);
     if (!found.solvable) { say('unsolvable'); continue; }
+    if ((board.pairs?.length || board.predecessors || board.seals?.length) && funnelFeatureTrap(board) === null) { say('no causal trap'); continue; }
     if (target.round >= 4 && !found.jam) { say('no losing order'); continue; }
     if (target.round >= 7 && !naiveOrders(board).some((order) => playOrder(board, order) === 'jammed')) { say('no naive jam'); continue; }
     const settled = settledFunnel(board);

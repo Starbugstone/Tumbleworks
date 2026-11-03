@@ -6,7 +6,7 @@ import type { LoopBoardDef } from '../src/loop/types';
 import { initPhysics, Machine } from '../src/machine/machine';
 import { availableTubeMoves, completedTube, moveTubeState, solveTubeSearch, tubeContainer, tubeKey, TubeRules } from '../src/puzzles/rules';
 import type { TubeDef } from '../src/puzzles/types';
-import { MachineRules } from '../src/sim/rules';
+import { MachineRules, funnelStateKey } from '../src/sim/rules';
 import { hintConveyorSearch, settle } from '../src/sim/solver';
 import { COLOR_CODE, COLORS, type BoardDef, type Color } from '../src/sim/types';
 import { naiveOrders, play as playFunnelOrder, playMachine as playFunnel, search as searchFunnel, tighten as tightenFunnel } from './funnel-author';
@@ -60,7 +60,7 @@ function funnelForecast(from: MachineRules, column: number, depth: number, tray:
   settle(first);
   if (depth === 1 || first.status !== 'playing') return funnelValue(first, tray);
   let best = -Infinity;
-  for (let next = 0; next < first.board.supplies.length; next++) {
+  for (const next of first.actions()) {
     const second = cloneFunnel(first);
     if (!second.release(next).ok) continue;
     settle(second);
@@ -69,7 +69,7 @@ function funnelForecast(from: MachineRules, column: number, depth: number, tray:
   return best === -Infinity ? funnelValue(first, tray) : best;
 }
 function funnelPlan(rules: MachineRules, depth: number, tray: number, next: () => number): number | null {
-  const open = rules.state.supplies.flatMap((queue, index) => (queue[0] ? [index] : []));
+  const open = rules.actions();
   if (!open.length) return null;
   if (next() < LAPSE) return open[Math.floor(next() * open.length)]!;
   const scored = open.map((column) => ({ column, score: funnelForecast(rules, column, depth, tray) }));
@@ -79,14 +79,14 @@ function funnelPlan(rules: MachineRules, depth: number, tray: number, next: () =
 }
 function funnelCrude(machine: Machine, player: FunnelPlayer, tick: number, next: () => number): number | null {
   const rules = machine.rules;
-  const open = rules.state.supplies.flatMap((queue, index) => (queue[0] ? [index] : []));
+  const open = rules.actions();
   if (!open.length) return null;
   const pick = (from: readonly number[]): number => from[Math.floor(next() * from.length)]!;
   if (player === 'brisk') return rules.funnelCount === 0 && tick % 10 === 0 ? pick(open) : null;
   if (player === 'spam') return tick % 30 === 0 ? pick(open) : null;
   // Cheese: pour a wanted tray; pour an extra tray whenever nothing on the belt can be delivered and the belt has room.
   const wanted = new Set(rules.board.docks.map((_, dock) => rules.dockColor(dock)));
-  const useful = open.filter((index) => wanted.has(rules.state.supplies[index]![0]!.color));
+  const useful = open.filter((index) => wanted.has(rules.packet(index)!.color));
   if (tick % 45 !== 0) return null;
   if (useful.length && rules.funnelCount <= 18) return pick(useful);
   if (!rules.canDrain() && rules.free > 0) return pick(open);
@@ -300,9 +300,7 @@ function funnelGraph(board: BoardDef): GraphNode[] {
   const tray = sum(board.supplies.flat().map((packet) => packet.count)) / board.supplies.flat().length;
   const add = (rules: MachineRules): number => {
     const state = rules.state;
-    const belt: Record<string, number> = {};
-    for (const marble of state.marbles) if (marble.status === 'on-belt') belt[marble.color] = (belt[marble.color] ?? 0) + 1;
-    const key = `${state.supplies.map((queue) => queue.length).join()}|${state.dockNext.map((box, dock) => `${box}:${rules.reserved(dock, box)}`).join()}|${JSON.stringify(belt)}|${state.pending.map((id) => COLOR_CODE[state.marbles[id]!.color]).join('')}`;
+    const key = funnelStateKey(rules);
     const known = index.get(key);
     if (known !== undefined) return known;
     const id = nodes.length;
@@ -317,7 +315,8 @@ function funnelGraph(board: BoardDef): GraphNode[] {
   add(rules);
   for (let id = 0; id < nodes.length; id++) {
     if (nodes[id]!.status !== 'playing') continue;
-    for (let column = 0; column < board.supplies.length; column++) {
+    rules.restore(snapshots[id]!);
+    for (const column of rules.actions()) {
       rules.restore(snapshots[id]!);
       if (!rules.release(column).ok) continue;
       settle(rules);
@@ -502,10 +501,10 @@ function funnelOrders(board: BoardDef, wanted: number): string[] {
   settle(start);
   const rules = new MachineRules(board);
   return sampleWinningOrders({
-    start: start.snapshot(), count: board.supplies.length,
+    start: start.snapshot(), count: start.crateActions ? board.supplies.flat().length : board.supplies.length,
     status: (state) => state.status,
-    key: (state) => { rules.restore(state); const belt: Record<string, number> = {}; for (const marble of state.marbles) if (marble.status === 'on-belt') belt[marble.color] = (belt[marble.color] ?? 0) + 1; return `${state.supplies.map((queue) => queue.length).join()}|${state.dockNext.map((box, dock) => `${box}:${rules.reserved(dock, box)}`).join()}|${JSON.stringify(belt)}|${state.pending.map((id) => COLOR_CODE[state.marbles[id]!.color]).join('')}`; },
-    act: (state, choice) => { rules.restore(state); if (!rules.release(choice).ok) return null; settle(rules); return rules.snapshot(); },
+    key: (state) => { rules.restore(state); return funnelStateKey(rules); },
+    act: (state, choice) => { rules.restore(state); if (!rules.actions().includes(choice) || !rules.release(choice).ok) return null; settle(rules); return rules.snapshot(); },
   }, wanted);
 }
 function loopOrders(board: LoopBoardDef, wanted: number): string[] {

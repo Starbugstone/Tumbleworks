@@ -1,7 +1,6 @@
 import { t } from '../i18n';
 import type { Feedback, GameRuntime, GameServices } from '../engine/contracts';
 import { Machine } from '../machine/machine';
-import { columnX, STACK } from '../machine/layout';
 import { hintConveyor } from '../sim/solver';
 import type { BoardDef } from '../sim/types';
 import { marbleName } from '../view/art';
@@ -67,8 +66,9 @@ export class ConveyorRuntime implements GameRuntime {
     if (supply === null) {
       return [{ type: 'message', text: this.machine.rules.canDrain() ? t('Wait: the belt is still draining.', 'Patientez : les boîtes se remplissent encore.') : t('No verified pour from here. Try undoing a pour.', 'Aucun versement sûr trouvé. Essayez d’annuler un versement.') }];
     }
-    const color = this.machine.rules.state.supplies[supply]?.[0]?.color;
-    return [{ type: 'message', text: t(`Tip the ${color ? marbleName(color).toLowerCase() : ''} crate in column ${supply + 1}.`, `Videz la caisse ${color ? marbleName(color).toLowerCase() : ''} de la colonne ${supply + 1}.`), target: `supply${supply}` }];
+    const color = this.machine.rules.packet(supply)?.color;
+    const pair = this.machine.rules.releaseIds(supply).length > 1;
+    return [{ type: 'message', text: pair ? t('Tip the joined crates together.', 'Videz les caisses reliées ensemble.') : t(`Tip the ${color ? marbleName(color).toLowerCase() : ''} crate.`, `Videz la caisse ${color ? marbleName(color).toLowerCase() : ''}.`), target: `supply${supply}` }];
   }
   undo(): boolean {
     if (!this.machine.undo()) return false;
@@ -76,14 +76,14 @@ export class ConveyorRuntime implements GameRuntime {
     return true;
   }
   targets() {
-    const columns = this.board.supplies.length;
-    return Object.fromEntries(this.machine.rules.state.supplies.flatMap((queue, supply) => {
-      if (!queue.length) return [];
-      const at = this.view.toScreen(columnX(supply, columns), STACK.y + 0.4, STACK.z);
-      const color = queue[0]?.color;
-      return [[`supply${supply}`, { ...at, label: t(`Column ${supply + 1}: ${color ? marbleName(color) : 'empty'}`, `Colonne ${supply + 1} : ${color ? marbleName(color) : 'vide'}`) }]];
+    return Object.fromEntries(this.machine.rules.actions().flatMap((action) => {
+      const at = this.machine.frontCrate(action);
+      if (!at) return [];
+      const color = this.machine.rules.packet(action)?.color;
+      return [[`supply${action}`, { ...this.view.toScreen(at.x, at.y + 0.4, at.z), label: color ? marbleName(color) : '' }]];
     }));
   }
+
   get guideId() { return this.board.id === 'board-1' ? 'funnel-basics' : undefined; }
   guide() {
     const remaining = this.machine.rules.state.supplies[0]?.length ?? 0;
@@ -94,7 +94,7 @@ export class ConveyorRuntime implements GameRuntime {
   }
   inspect() {
     const rules = this.machine.rules;
-    return { occupancy: rules.occupancy, funnel: rules.funnelCount, pending: [...rules.state.pending],
+    return { occupancy: rules.occupancy, funnel: rules.funnelCount, pending: [...rules.state.pending], released: [...rules.state.released], sealsOpen: [...rules.state.sealsOpen],
       supplies: rules.state.supplies.map((supply) => supply.map((packet) => packet.color)),
       docks: this.board.docks.map((_, dock) => rules.dockColor(dock)),
       recoveries: this.machine.recoveries, tick: this.machine.tick,
