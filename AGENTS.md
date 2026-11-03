@@ -2,7 +2,7 @@
 
 ## Default development workflow
 
-Follow [the game development workflow](docs/development-workflow.md) for changes.
+Follow [the game development workflow](docs/development-workflow.md) for changes. The difficulty curve, its gates and the scoring tools are in [docs/levelling.md](docs/levelling.md).
 Use the stages relevant to the task; a documentation edit needs content and link
 checks, while gameplay changes need proof through the real machine and input.
 
