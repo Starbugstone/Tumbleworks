@@ -12,7 +12,7 @@ import { hintConveyorSearch } from '../src/sim/solver';
 import { COLORS, type BoardDef, type Color, type FunnelVariants } from '../src/sim/types';
 import type { BeltShape } from '../src/engine/belt-path';
 import { funnelFeatureTrap } from './funnel-features';
-import { generate as generateFunnel, naiveOrders, play as playOrder, search as searchFunnel, tighten as tightenFunnel, winsEitherWay as funnelWitnessWins, type FunnelRecipe } from './funnel-author';
+import { FunnelSearchExhausted, generate as generateFunnel, naiveOrders, play as playOrder, search as searchFunnel, tighten as tightenFunnel, winsEitherWay as funnelWitnessWins, type FunnelRecipe } from './funnel-author';
 import { bandFor, funnelRating, HINT_STATE_CAP, levelViolations, LOOP_CAPACITY_MAX, loopRating, MIN_RISK_POSITIONS, multiTapFailure, OVAL_CAPACITY_MAX, STRICT_FROM, stretchOf, TUBE_GRAPH_CAP, tubeRating, winCeiling, type Slot } from './level-curve';
 import { funnelGame, funnelJitter, loopGame, loopJitter, scoreFunnel, scoreLoop, extendTally, scoreTube, scoreTubeRow, settledFunnel, settledLoop, tally, type FunnelPlayer, type LoopPlayer, type ScoredFile, type Tally } from './level-score';
 import { generate as generateLoop, laneByLane, roundRobin, search as searchLoop, tighten as tightenLoop, winsEitherWay as loopWitnessWins, type LoopRecipe } from './loop-author';
@@ -188,9 +188,18 @@ async function funnelCandidate(target: FunnelTarget, seed: number): Promise<numb
   const recipe: FunnelRecipe = { id: target.id, title: target.title, fr: target.fr, note: target.note, colors: target.colors, columns: target.columns, shorts: target.shorts ?? 0, ...(target.smalls ? { smalls: target.smalls } : {}), ...(target.palette ? { palette: target.palette } : {}), docks: target.docks, capacity: 40, seed, win: [0, 1], slack: 0, naiveJams: false, ...(target.shape ? { shape: target.shape } : {}) };
   const loose = generateFunnel({ ...recipe, pairs: target.pairs, predecessors: target.predecessors, seals: target.seals }, seed);
   if (!loose) { log(target.id, { seed, outcome: 'ungenerated' }); return 0; }
-  const probe = searchFunnel(loose, 60_000);
-  if (!loose.pairs?.length && !loose.predecessors && !loose.seals?.length && !probe.solvable) { log(target.id, { seed, outcome: 'unsolvable' }); return 0; }
-  const tight = tightenFunnel(loose).beltCapacity;
+  const variant = Boolean(loose.pairs?.length || loose.predecessors || loose.seals?.length);
+  if (!variant) {
+    const probe = searchFunnel(loose, 60_000);
+    if (!probe.complete) { log(target.id, { seed, outcome: 'search budget' }); return 0; }
+    if (!probe.solvable) { log(target.id, { seed, outcome: 'unsolvable' }); return 0; }
+  }
+  let tight: number;
+  try { tight = tightenFunnel(loose).beltCapacity; }
+  catch (error) {
+    if (!(error instanceof FunnelSearchExhausted)) throw error;
+    log(target.id, { seed, outcome: 'capacity search budget' }); return 0;
+  }
   const band = target.want ?? bandFor(target.round, target.slot)!;
   const ceiling = winCeiling(target.round);
   let accepted = 0;
@@ -203,6 +212,7 @@ async function funnelCandidate(target: FunnelTarget, seed: number): Promise<numb
     const board: BoardDef = { ...loose, beltCapacity: capacity };
     const say = (outcome: string, extra: Partial<Log> = {}): void => { log(target.id, { seed, capacity, outcome, ...extra }); };
     const found = searchFunnel(board, 60_000);
+    if (!found.complete) { say('search budget'); continue; }
     if (!found.solvable) { say('unsolvable'); continue; }
     if ((board.pairs?.length || board.predecessors || board.seals?.length) && funnelFeatureTrap(board) === null) { say('no causal trap'); continue; }
     if (target.round >= 4 && !found.jam) { say('no losing order'); continue; }

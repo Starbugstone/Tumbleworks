@@ -110,7 +110,11 @@ export class MachineRules {
       if (!valid(id) || path.has(id)) throw new Error('Invalid or cyclic crate predecessors');
       for (const before of this.predecessors(id)) visit(before, new Set([...path, id]));
     };
-    for (let id = 0; id < count; id++) visit(id, new Set());
+    for (let id = 0; id < count; id++) {
+      const before = this.predecessors(id);
+      if (before.length > 3 || new Set(before).size !== before.length) throw new Error('At most three distinct predecessors per crate');
+      visit(id, new Set());
+    }
     for (const key of Object.keys(this.board.predecessors ?? {})) if (!valid(Number(key))) throw new Error('Unknown crate predecessor target');
     if (this.board.predecessors) {
       // Dilworth: width is N minus a maximum matching in the transitive dependency graph.

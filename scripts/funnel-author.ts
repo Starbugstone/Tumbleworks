@@ -168,9 +168,14 @@ export function search(board: BoardDef, limit = 400_000, snapshot?: ReturnType<M
  * so every capacity at or above it fills its belt with no gaps.
  */
 export const floorFor = (shape: BeltShape | undefined): number => MIN_CAPACITY[shape ?? 'oval'];
-export function solvableCapacities(board: BoardDef, floor = floorFor(board.trackShape)): number[] {
+export class FunnelSearchExhausted extends Error {}
+export function solvableCapacities(board: BoardDef, floor = floorFor(board.trackShape), searchLimit = 400_000): number[] {
   const result: number[] = [];
-  for (let capacity = floor; capacity <= board.beltCapacity; capacity++) if (search({ ...board, beltCapacity: capacity }).solvable) result.push(capacity);
+  for (let capacity = floor; capacity <= board.beltCapacity; capacity++) {
+    const found = search({ ...board, beltCapacity: capacity }, searchLimit);
+    if (!found.complete) throw new FunnelSearchExhausted(`Funnel capacity search budget exhausted at ${capacity}`);
+    if (found.solvable) result.push(capacity);
+  }
   return result;
 }
 export function tighten(board: BoardDef, floor = floorFor(board.trackShape)): BoardDef {
@@ -254,7 +259,9 @@ export async function author(recipe: FunnelRecipe, attempts = 400): Promise<Funn
     if (!loose) continue;
     const variant = loose.pairs?.length || loose.predecessors || loose.seals?.length;
     if (!variant && !search(loose).solvable) continue;
-    const capacities = variant ? solvableCapacities(loose) : null;
+    let capacities: number[] | null;
+    try { capacities = variant ? solvableCapacities(loose) : null; }
+    catch (error) { if (error instanceof FunnelSearchExhausted) continue; throw error; }
     if (capacities && !capacities.length) continue;
     const target = Math.min(recipe.capacity, (capacities?.[0] ?? tighten(loose).beltCapacity) + recipe.slack);
     const capacity = capacities ? capacities.find((value) => value >= target) : target;

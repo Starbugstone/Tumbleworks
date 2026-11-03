@@ -411,7 +411,7 @@ other ID). The campaign and existing saved IDs are unchanged.
 - **Forked shelves:** `predecessors` replaces column access with an acyclic
   dependency graph. Crate IDs are zero-based in original supply/packet order,
   independent of marble count. All predecessors must have accepted releases;
-  opening animation never delays access. Shelves expose at most four crates.
+  opening animation never delays access. A crate has at most three distinct predecessors; shelves expose at most four crates.
   The lesson joins two chains, with overlap and short support brackets.
 - **Sealed dock:** `seals` names a dock and an `after: {dock, box}` prerequisite
   at another dock. At most two acyclic seals are allowed. A sealed dock cannot
@@ -436,3 +436,31 @@ win with it removed, preserving cargo and queue order. Exhaustion is unknown,
 not an impossibility proof. Existing naive, cheese/spam, jitter, sampled-order
 and real-machine gates still apply. The executable interleaving model and its
 bounds are documented in [funnel-actions](models/funnel-actions/README.md).
+
+
+The three bank lessons pass the standalone lesson gates for their intended
+rounds. Their recorded S/H values are 50.04/0 (`board-200`), 61.45/1.67
+(`board-201`) and 54.91/0 (`board-202`), using the unchanged default scorer
+policy, 60 games per machine player and the strong planner's default seeds.
+All three naive orders jam. Both witness timings win, jitter wins 20/20, and
+all twelve sampled winning orders win at both timings. Every measured player
+has zero recoveries. Scores and recorded fast actions are committed with the
+fixtures; full score files from this run are in
+`output/current/funnel-rules/accepted-scores/`.
+
+Phone browser checks at 375×690 and desktop checks at 1280×800 cover real taps,
+locked shelves, successive releases, undo, cancelled/off-board gestures,
+language switching and grayscale containers. The three 15-second recordings
+are in `output/current/videos/funnel-{paired-release,forked-shelves,sealed-dock}.mp4`.
+They show real physics on the game's clock; they are short excerpts, not full
+witness recordings. The saved fast physics replays also reproduce exactly with
+`scripts/replay.ts`. The bank remains outside `PLAY_ORDER`; joint campaign
+placement and human calibration have not been performed.
+
+The build remains under the first-download budget (1.906 MB gzipped of 2 MB).
+Performance validation is unresolved on this host: the 4× CPU browser budget
+fails on this branch and on the unchanged parent `9112537`. The final focused
+run still fails after excluding generated output from Vite's watcher. No budget
+was raised; these measurements do not establish performance on a physical phone.
+Logs, screenshots, decoded-video checks and replay logs are under
+`output/current/funnel-rules/`.

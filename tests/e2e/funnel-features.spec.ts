@@ -19,6 +19,8 @@ for (const id of [200,201,202]) test(`Funnel Sort ${id}: real phone input, rapid
   await page.goto(`/?try=board-${id}`);
   await page.waitForFunction(()=> Boolean((window as unknown as Partial<GameWindow>).tumbleworks?.app?.runtime));
   await page.evaluate(()=> { (window as unknown as GameWindow).tumbleworks.app.manualClock=true; });
+  await page.clock.install({time:0});
+  await page.clock.pauseAt(3600000);
   await page.locator('#restart').click();
   await advance(page,1);
   if(id===200){
@@ -58,7 +60,8 @@ for (const id of [200,201,202]) test(`Funnel Sort ${id}: real phone input, rapid
   await input.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
   expect((await state(page)).released).toEqual(before);
   await page.locator('#levels-toggle').click(); await page.locator('#language-fr').click(); await page.locator('#levels-toggle').click();
-  await tap(page,'hint');
+  await input.detach();
+  await page.locator('#hint').click();
   await expect(page.locator('#message')).not.toBeEmpty();
   await page.screenshot({path:`output/current/funnel-rules/board-${id}-phone.png`});
   await page.addStyleTag({content:'canvas { filter: grayscale(1); }'});

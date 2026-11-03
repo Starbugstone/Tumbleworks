@@ -1,4 +1,4 @@
-/** Authored tap orders, shared by the rule, machine and browser specs. Letters are supply columns or truck lanes. */
+/** Authored tap orders, shared by the rule, machine and browser specs. Letters encode columns, crate IDs on source variants, or truck lanes. */
 export const FUNNEL_WITNESSES: Record<string, string> = {
   'board-202': 'ACCABB',
   'board-201': 'EFCDAB',
@@ -56,6 +56,9 @@ export const LOOP_JAMS: Record<string, string> = {
  * It proves a fast line exists. scripts/level-emit.ts writes them; replay them with replayOnto.
  */
 export const FAST_WITNESSES: Record<string, { readonly steps: number; readonly taps: readonly (readonly [number, number])[] }> = {
+  'board-200': { steps: 834, taps: [[1,0],[13,1],[195,4],[205,5],[487,3]] },
+  'board-201': { steps: 885, taps: [[1,4],[13,5],[59,2],[61,3],[463,0],[469,1]] },
+  'board-202': { steps: 826, taps: [[1,0],[13,2],[178,2],[181,1],[463,1],[469,0]] },
   'loop-200': { steps: 1347, taps: [[1,1],[241,1],[511,2],[517,0],[731,0],[1091,0]] },
   'loop-201': { steps: 479, taps: [[1,0],[13,2],[58,0],[61,2],[106,0],[109,1]] },
   'loop-202': { steps: 1001, taps: [[1,0],[13,2],[208,2],[217,0],[570,1]] },

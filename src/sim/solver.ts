@@ -33,7 +33,7 @@ export function settle(rules: MachineRules): boolean {
   return false;
 }
 
-/** Returns a supply whose release has a verified winning continuation, without touching the live game. */
+/** A column action, or stable crate ID on source variants, with a verified winning continuation. */
 export function hintConveyor(rules: MachineRules, searchLimit = DEFAULT_SEARCH_LIMIT): number | null {
   return hintConveyorSearch(rules, searchLimit).supply;
 }

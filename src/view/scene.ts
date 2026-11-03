@@ -238,6 +238,8 @@ export class MachineScene {
     this.buildChute(machine);
     for (const crate of machine.readCrates()) {
       const group = this.crateGroup(crate.color);
+      group.userData['action'] = crate.action;
+      group.userData['crateId'] = crate.id;
       this.crates.set(crate.key, group);
       this.level.add(group);
     }
@@ -476,7 +478,18 @@ export class MachineScene {
     const rect = this.stage.renderer.domElement.getBoundingClientRect();
     const ndc = new THREE.Vector2(((x - rect.left) / rect.width) * 2 - 1, -((y - rect.top) / rect.height) * 2 + 1);
     this.raycaster.setFromCamera(ndc, this.camera);
-    // Only the visible front of each crate is a target; an overlapping shelf cannot steal its support's tap.
+    const groups = [...this.crates.values()].filter((group) => group.visible && !this.machine?.rules.state.released.includes(Number(group.userData['crateId'])));
+    const surface = this.raycaster.intersectObjects(groups, true)[0];
+    if (surface) {
+      let group: THREE.Object3D | null = surface.object;
+      while (group && group.userData['action'] === undefined) group = group.parent;
+      const action: unknown = group?.userData['action'];
+      const crateId: unknown = group?.userData['crateId'];
+      // Waiting crates have real surfaces too. A classic column must not release its front when its rear was tapped.
+      if (typeof action === 'number' && (this.machine?.rules.crateActions || this.machine?.rules.packet(action)?.id === crateId)) return action;
+      return null;
+    }
+    // A small extension around the front rim gives the visible piece a comfortable touch floor.
     const hit = this.raycaster.intersectObjects(this.hitTargets.filter((target) => target.visible), false)[0];
     const supply: unknown = hit?.object.userData['supply'];
     return typeof supply === 'number' ? supply : null;

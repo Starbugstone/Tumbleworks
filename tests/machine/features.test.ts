@@ -6,9 +6,9 @@ import { initPhysics, Machine } from '../../src/machine/machine';
 import { CRATE, FUNNEL, MARBLE_RADIUS, funnelHalfWidth } from '../../src/machine/layout';
 import { replayLog, replayOnto } from '../../src/engine/replay';
 import { funnelFeatureTrap } from '../../scripts/funnel-features';
-import { generate, search, stateKey, winsEitherWay, FUNNEL_RULE_RECIPES, naiveOrders, play } from '../../scripts/funnel-author';
+import { generate, search, stateKey, winsEitherWay, FUNNEL_RULE_RECIPES, naiveOrders, play, solvableCapacities } from '../../scripts/funnel-author';
 import { funnelStrongKey } from '../../scripts/level-strong';
-import { FUNNEL_WITNESSES } from '../witnesses';
+import { FAST_WITNESSES, FUNNEL_WITNESSES } from '../witnesses';
 import type { BoardDef } from '../../src/sim/types';
 
 beforeAll(initPhysics);
@@ -183,4 +183,30 @@ it('spaces sibling shelves and catches every initial marble, including a four-wi
     }
     machine.world.free();
   }
+});
+
+it('replays the three recorded fast wins with no recoveries', {timeout:120_000}, () => {
+  for(const board of lessons) {
+    const fast=FAST_WITNESSES[board.id]!;
+    expect(fast.taps.some(([tick],i)=>i>0 && tick-fast.taps[i-1]![0]<=12)).toBe(true);
+    const machine=new Machine(board);
+    replayOnto(machine,{steps:fast.steps,actions:fast.taps.map(([step,at])=>({step,type:'tap',at}))});
+    expect(machine.rules.status).toBe('won');
+    expect(machine.recoveries).toEqual({nudges:0,teleports:0,bounces:0});
+    machine.world.free();
+  }
+});
+
+it('limits a shelf to three distinct predecessors even when its exposed width is valid', () => {
+  const board: BoardDef = {id:'four-supports',title:'',beltCapacity:14,boxSize:3,
+    supplies:[Array.from({length:5},()=>({color:'red' as const,count:3}))],
+    docks:[['red','red','red','red','red']],predecessors:{0:[],1:[],2:[],3:[],4:[0,1,2,3]}};
+  expect(()=>new MachineRules(board)).toThrow(/three distinct/);
+  expect(()=>new MachineRules({...board,predecessors:{0:[],1:[0,0],2:[1],3:[2],4:[3]}})).toThrow(/three distinct/);
+});
+
+it('never reports a bounded search exit as a proven minimum capacity', () => {
+  expect(search(BOARD_201,1).complete).toBe(false);
+  expect(()=>solvableCapacities(BOARD_201,14,1)).toThrow(/capacity search budget/);
+  expect(solvableCapacities(BOARD_201)).toEqual([14]);
 });
