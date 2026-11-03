@@ -1,9 +1,9 @@
 import type { BeltShape } from '../engine/belt-path';
-/** Every marble colour, in palette order. Orange's luminance sits between the dark three and yellow. */
-export const COLORS = ['red', 'blue', 'green', 'yellow', 'orange'] as const;
+/** Every marble colour, in palette order: five chromatic colours, then black and white. */
+export const COLORS = ['red', 'blue', 'green', 'yellow', 'orange', 'black', 'white'] as const;
 export type Color = (typeof COLORS)[number];
 /** One distinct letter per colour, for compact search keys. Never key on `color[0]`: blue and black share it. */
-export const COLOR_CODE: Readonly<Record<Color, string>> = { red: 'r', blue: 'b', green: 'g', yellow: 'y', orange: 'o' };
+export const COLOR_CODE: Readonly<Record<Color, string>> = { red: 'r', blue: 'b', green: 'g', yellow: 'y', orange: 'o', black: 'k', white: 'w' };
 
 export interface Packet {
   readonly color: Color;

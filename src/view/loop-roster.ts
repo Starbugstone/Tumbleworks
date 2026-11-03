@@ -2,7 +2,7 @@ import { bedSpans, sharePercent } from '../loop/layout';
 import type { LoopMachine } from '../loop/machine';
 import { type LanePlacement, placeLane, ROSTER, type Rect, rosterLayout, type RosterLayout } from '../loop/roster-layout';
 import type { Color } from '../sim/types';
-import { COLORS, drawSymbol } from './art';
+import { COLORS, cargoInk, drawSymbol } from './art';
 
 const INK = '#202335', IVORY = '#fff9ee';
 const icons = new Map<string, string>();
@@ -22,7 +22,10 @@ function pattern(color: Color, ink: string): string {
   }
   return url;
 }
-const inkOn = (color: Color): string => (color === 'yellow' || color === 'orange' ? INK : IVORY);
+
+// Neutral cargo needs an edge against both the ivory current card and its dark rail.
+const cargoEdge = (color: Color): string => color === 'white' ? `inset 0 0 0 1px ${INK}`
+  : color === 'black' ? `inset 0 0 0 1px ${COLORS.black.light}` : '';
 
 const STYLE = `
 .lr { position: fixed; inset: 0; pointer-events: none; font-family: Fredoka, "Trebuchet MS", sans-serif; }
@@ -202,7 +205,8 @@ export class LoopRoster {
     if (view.truckKey !== lorry.finalColor) {
       view.truckKey = lorry.finalColor;
       view.cab.style.background = COLORS[lorry.finalColor].base;
-      view.cab.innerHTML = `<img alt="" src="${pattern(lorry.finalColor, inkOn(lorry.finalColor))}">`;
+      view.cab.style.boxShadow = cargoEdge(lorry.finalColor);
+      view.cab.innerHTML = `<img alt="" src="${pattern(lorry.finalColor, cargoInk(lorry.finalColor))}">`;
     }
     view.cab.style.width = `${cab}px`;
     const stretches = lorry.stretches;
@@ -212,7 +216,7 @@ export class LoopRoster {
       view.rail.replaceChildren(...stretches.map((stretch) => {
         const fill = document.createElement('i');
         fill.className = `lr-fill${stretch.color ? '' : ' free'}`;
-        if (stretch.color) { fill.style.background = COLORS[stretch.color].base; fill.innerHTML = `<img alt="" src="${pattern(stretch.color, inkOn(stretch.color))}">`; }
+        if (stretch.color) { fill.style.background = COLORS[stretch.color].base; fill.style.boxShadow = cargoEdge(stretch.color); fill.innerHTML = `<img alt="" src="${pattern(stretch.color, cargoInk(stretch.color))}">`; }
         return fill;
       }));
       view.numbers.replaceChildren(...stretches.map((stretch) => {

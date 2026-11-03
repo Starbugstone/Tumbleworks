@@ -240,7 +240,7 @@ function clone(rules: LoopRules): LoopRules {
   copy.restore(rules.snapshot());
   return copy;
 }
-function stateKey(rules: LoopRules): string {
+export function stateKey(rules: LoopRules): string {
   const state = rules.state;
   const loop: Record<string, number> = {};
   for (const marble of state.marbles) if (marble.status === 'on-loop') loop[marble.color] = (loop[marble.color] ?? 0) + 1;
