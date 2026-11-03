@@ -86,7 +86,7 @@ interface Adapter<S, A> {
 }
 /** Lazily expands legal rules. The oracle is diagnostic only and never supplies policy values. */
 function rulesGraph<S, A>(start: S, adapter: Adapter<S, A>, cap: number = STRONG_POLICY.graphBudget): RulesGraph<S, A> {
-  const states: S[] = [];
+  const states: (S | undefined)[] = [];
   const keys = new Map<string, number>();
   const nodes = new Map<number, StrongNode>();
   const actions = new Map<number, readonly A[]>();
@@ -113,6 +113,8 @@ function rulesGraph<S, A>(start: S, adapter: Adapter<S, A>, cap: number = STRONG
       actions.set(id, moves);
       const node = { ...description, edges };
       nodes.set(id, node);
+      // Once expanded, its immutable edges/value replace the potentially large marble snapshot.
+      states[id] = undefined;
       return node;
     },
     action(id, index) { graph.node(id); return actions.get(id)![index]!; },
