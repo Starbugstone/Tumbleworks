@@ -34,6 +34,20 @@ describe('strong planner', () => {
     expect(playTrap(4)).toBe('jammed');
     expect(playTrap(6)).toBe('won');
   });
+  it('finds the real five-tube fixture trap at depth 6, and diagnoses depth 4 losing at move 3', () => {
+    const board = {
+      kind: 'tube' as const, id: 'trap-fixture', title: 'Trap fixture', capacity: 4, solution: [],
+      tubes: [
+        ['yellow', 'green', 'blue', 'red'], ['green', 'yellow', 'blue', 'yellow'],
+        ['blue', 'yellow', 'red', 'green'], ['green', 'blue', 'red', 'red'], [],
+      ] as const,
+    };
+    const result = strongTube(board, [1]);
+    const [four, six] = result.settled.parts.filter((part) => part.lapse === 0);
+    expect(four).toMatchObject({ failure: 100, silentLoss: 1, terminalJam: 0, firstIrreversible: { mean: 3, unknown: 0 } });
+    expect(six).toMatchObject({ failure: 0, won: 1, exhausted: 0 });
+    expect(strongTube(board, [1])).toEqual(result);
+  });
   it('censors node-budget exits, even with a warm cache', () => {
     const planner = new StrongPlanner(trap, 1);
     expect(planner.choose(0, 6, 0, seeded(1))).toMatchObject({ exhausted: true, index: null });

@@ -24,9 +24,10 @@ interface Value { readonly value: number; readonly work: number }
 /** A memo bucket is (state, remaining depth); the path context prevents cycle-pruned values leaking between paths. */
 export class StrongPlanner {
   private readonly memo = new Map<string, Map<string, Value>>();
+  private memoEntries = 0;
   constructor(readonly graph: StrongGraph, readonly budget: number = STRONG_POLICY.nodeBudget) {}
 
-  choose(id: number, depth: number, lapse: number, next: () => number, previous?: number): { index: number | null; nodes: number; exhausted: boolean } {
+  choose(id: number, depth: number, lapse: number, next: () => number, previous?: number): { index: number | null; nodes: number; exhausted: boolean; reason?: string } {
     let nodes = 0;
     const path = new Set<number>(previous === undefined ? [id] : [previous, id]);
     const charge = (work: number): void => { nodes += work; if (nodes > this.budget) throw new Exhausted('planner-nodes'); };
@@ -47,8 +48,9 @@ export class StrongPlanner {
       path.delete(at);
       const result = { value: best, work: nodes - before + 1 };
       const bucket = this.memo.get(key) ?? new Map<string, Value>();
+      if (!bucket.has(context)) this.memoEntries++;
       bucket.set(context, result);
-      if (this.memo.size >= 100_000) this.memo.clear();
+      if (this.memoEntries >= 200_000) { this.memo.clear(); this.memoEntries = bucket.size; }
       this.memo.set(key, bucket);
       return result;
     };
@@ -64,7 +66,7 @@ export class StrongPlanner {
       return { index: tied[Math.floor(next() * tied.length)]!.index, nodes, exhausted: false };
     } catch (error) {
       if (!(error instanceof Exhausted)) throw error;
-      return { index: null, nodes: Math.min(nodes, this.budget), exhausted: true };
+      return { index: null, nodes: Math.min(nodes, this.budget), exhausted: true, reason: error.message };
     }
   }
 }
@@ -299,11 +301,12 @@ function settledRun<S, A>(graph: RulesGraph<S, A>, planner: StrongPlanner, depth
     for (; actions < STRONG_POLICY.actions;) {
       const node = graph.node(id);
       if (node.status === 'won') return finish('won');
-      if (node.status === 'jammed' || !node.edges.length) return finish('terminal-jam');
+      if (node.status === 'jammed') return finish('terminal-jam');
+      if (!node.edges.length) return finish('silent-loss');
       if (graph.solvable(id) === false) return finish('silent-loss');
       const choice = planner.choose(id, depth, lapse, next, previous);
       nodes += choice.nodes;
-      if (choice.exhausted) return finish('exhausted', 'planner-nodes');
+      if (choice.exhausted) return finish('exhausted', choice.reason);
       if (choice.index === null) return graph.solvable(id) === false ? finish('silent-loss') : finish('exhausted', 'cycle-pruning');
       previous = id;
       id = node.edges[choice.index]!;
@@ -375,7 +378,10 @@ function machineRun<S>(machine: ConveyorMachine<S>, graph: RulesGraph<S, number>
         const open = openCount();
         if (inBurst > 0 && tick % 12 === 0 && !open) { inBurst = 0; cooldown = 45; }
         if (cooldown > 0) cooldown--;
-        if (!open) continue;
+        if (!open) {
+          if (!machine.transferring && !rules.canDrain() && pending() === 0) return finish('silent-loss');
+          continue;
+        }
         if (inBurst > 0) { if (tick % 12 === 0) { act = true; if (!--inBurst) cooldown = 45; } }
         else if (!cooldown && (pending() === 0 || (!rules.canDrain() && rules.free > 0))) { act = true; inBurst = timing === 'burst2' ? 1 : 2; }
       } else {
@@ -387,8 +393,11 @@ function machineRun<S>(machine: ConveyorMachine<S>, graph: RulesGraph<S, number>
       const id = graph.add(rules.snapshot());
       const choice = planner.choose(id, depth, lapse, next);
       nodes += choice.nodes;
-      if (choice.exhausted) return finish('exhausted', 'planner-nodes');
-      if (choice.index === null) continue;
+      if (choice.exhausted) return finish('exhausted', choice.reason);
+      if (choice.index === null) {
+        if (!machine.transferring && !rules.canDrain() && pending() === 0 && !graph.node(id).edges.length) return finish('silent-loss');
+        continue;
+      }
       if (actions >= STRONG_POLICY.actions) return finish('exhausted', 'action-limit');
       cursor.decision = id;
       cursor.children ??= new Map();
