@@ -50,6 +50,10 @@ export const LOOP_JAMS: Record<string, string> = {
  * It proves a fast line exists. scripts/level-emit.ts writes them; replay them with replayOnto.
  */
 export const FAST_WITNESSES: Record<string, { readonly steps: number; readonly taps: readonly (readonly [number, number])[] }> = {
+  'loop-200': { steps: 1347, taps: [[1,1],[241,1],[511,2],[517,0],[731,0],[1091,0]] },
+  'loop-201': { steps: 479, taps: [[1,0],[13,2],[58,0],[61,2],[106,0],[109,1]] },
+  'loop-202': { steps: 1001, taps: [[1,0],[13,2],[208,2],[217,0],[570,1]] },
+
   // BEGIN first stretch fast witnesses
   'board-2': { steps: 918, taps: [[1,0],[13,0],[59,1],[61,1],[569,2]] },
   'board-3': { steps: 923, taps: [[1,0],[13,0],[170,2],[181,0],[430,2],[433,1],[658,1]] },

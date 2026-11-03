@@ -8,7 +8,7 @@ import { replayLog, replayOnto } from '../../src/engine/replay';
 import { generate, search, stateKey, winsEitherWay } from '../../scripts/loop-author';
 import { featureTrap } from '../../scripts/loop-features';
 import { loopGraphKey, loopOrderKey, tally } from '../../scripts/level-score';
-import { LOOP_JAMS, LOOP_WITNESSES } from '../witnesses';
+import { FAST_WITNESSES, LOOP_JAMS, LOOP_WITNESSES } from '../witnesses';
 
 const lessons = [LOOP_200, LOOP_201, LOOP_202];
 const play = (rules: LoopRules, order: string): void => {
@@ -200,4 +200,14 @@ it('undo before a tick cancels both pending pour events', () => {
   const machine = new LoopMachine(LOOP_202);
   machine.tap(0); machine.undo();
   expect(machine.step().filter((event) => event.type === 'pour')).toEqual([]);
+});
+
+it('all three lessons retain a winning rapid-tap replay', () => {
+  for (const board of lessons) {
+    const fast = FAST_WITNESSES[board.id]!;
+    expect(fast.taps.some(([tick], at) => at > 0 && tick - fast.taps[at - 1]![0] <= 12)).toBe(true);
+    const machine = new LoopMachine(board);
+    replayOnto(machine, { steps: fast.steps, actions: fast.taps.map(([step, at]) => ({ step, type: 'tap', at })) });
+    expect(machine.rules.status).toBe('won');
+  }
 });
