@@ -6,7 +6,7 @@ export const FUNNEL_WITNESSES: Record<string, string> = {
   'board-19': 'AAABBBDCCCDD', 'board-20': 'AABCBBCDDD', 'board-21': 'AACCCBBAB', 'board-22': 'AABBDDCC', 'board-23': 'AAAABCDDCCBBD', 'board-24': 'AABBCCDDBDCA',
   'board-25': 'AABBCCBAC', 'board-26': 'AAABBCCABB', 'board-27': 'BCCBCABAA', 'board-28': 'ABBADBCCDCACAD', 'board-29': 'AAACDDBDBBCC', 'board-30': 'ABDDDACCCAABBB',
   // BEGIN first stretch funnel witnesses
-  'board-31': 'AABB', 'board-32': 'AABBC', 'board-33': 'ABBACC', 'board-34': 'AACCBB', 'board-35': 'AABBC', 'board-36': 'AABBCC', 'board-37': 'AABCCB', 'board-38': 'AAACCBB', 'board-39': 'AABBCBCA',
+  'board-31': 'AABB', 'board-32': 'AABBC', 'board-33': 'ABBACC', 'board-34': 'AACCBB', 'board-35': 'AABBC', 'board-36': 'AABBCC', 'board-37': 'AABCCB', 'board-38': 'AAACCBB', 'board-39': 'AABBCBCA', 'board-40': 'AACCBB', 'board-41': 'AABCCB', 'board-42': 'AAABBCC', 'board-43': 'ACCBBA', 'board-44': 'BBBCAAAC', 'board-46': 'AAABBBCC', 'board-47': 'AAABBBCCC',
   // END first stretch funnel witnesses
 };
 export const FUNNEL_JAMS: Record<string, string> = {
@@ -16,7 +16,7 @@ export const FUNNEL_JAMS: Record<string, string> = {
   'board-19': 'AAABBBC', 'board-20': 'AABB', 'board-21': 'AAAB', 'board-22': 'AABBC', 'board-23': 'AAAABBBC', 'board-24': 'AAAB',
   'board-25': 'AAABBBC', 'board-26': 'AAAABBB', 'board-27': 'AAA', 'board-28': 'AAAAB', 'board-29': 'AAABB', 'board-30': 'AAAA',
   // BEGIN first stretch funnel jams
-  'board-33': 'AAB', 'board-34': 'AABB', 'board-35': 'AB', 'board-36': 'ABB', 'board-37': 'AABBC', 'board-38': 'AAABC', 'board-39': 'AAAB',
+  'board-33': 'AAB', 'board-34': 'AABB', 'board-35': 'AB', 'board-36': 'ABB', 'board-37': 'AABBC', 'board-38': 'AAABC', 'board-39': 'AAAB', 'board-40': 'AABB', 'board-41': 'AABBC', 'board-42': 'AAABCC', 'board-43': 'AAB', 'board-44': 'AA', 'board-46': 'AAABBC', 'board-47': 'AAABBCC',
   // END first stretch funnel jams
 };
 /** Funnel Sort's easy opening boards have no real trap. */
@@ -29,7 +29,7 @@ export const LOOP_WITNESSES: Record<string, string> = {
   'loop-25': 'AABBBCCDDECEAE', 'loop-26': 'ABCCBCCDDABA', 'loop-27': 'ABBCCDAAADABD', 'loop-28': 'ACACDDBDB', 'loop-29': 'AABBAACDDCCBA', 'loop-30': 'ABABCCDDCEEBD',
   'loop-31': 'ABC',
   // BEGIN first stretch loop witnesses
-  'loop-32': 'ABAC', 'loop-33': 'ABBCA', 'loop-34': 'ABCAB', 'loop-35': 'ABACB', 'loop-36': 'ABCCAB', 'loop-37': 'ABCCAB', 'loop-38': 'ABCBAC', 'loop-39': 'AABACCBCB', 'loop-40': 'AABBABBCC',
+  'loop-32': 'ABAC', 'loop-33': 'ABBCA', 'loop-34': 'ABCAB', 'loop-35': 'ABACB', 'loop-36': 'ABCCAB', 'loop-37': 'ABCCAB', 'loop-38': 'ABCBAC', 'loop-39': 'AABACCBCB', 'loop-40': 'AABBABBCC', 'loop-41': 'ABACBC', 'loop-42': 'AABBCCABC', 'loop-43': 'ABCABC', 'loop-44': 'ABBCCAAB', 'loop-45': 'ABBACCBCDD', 'loop-46': 'AABBCABCC', 'loop-47': 'ABCBAC', 'loop-48': 'AABBBBACCCDD',
   // END first stretch loop witnesses
 };
 /** The first two Loop levels teach exchange without losing tap orders; traffic pressure starts later. */
@@ -40,7 +40,7 @@ export const LOOP_JAMS: Record<string, string> = {
   'loop-21': 'ABA', 'loop-22': 'AABABAABCC', 'loop-23': 'AABBBC', 'loop-24': 'BABBCCC', 'loop-25': 'AABBBACCD', 'loop-26': 'AAABBC',
   'loop-27': 'AA', 'loop-28': 'ABABCCDD', 'loop-29': 'AABBAACAC', 'loop-30': 'ABABBCC',
   // BEGIN first stretch loop jams
-  'loop-32': 'ABC', 'loop-33': 'ACAB', 'loop-34': 'ABAC', 'loop-35': 'AAB', 'loop-36': 'AAB', 'loop-37': 'ABCA', 'loop-38': 'ABCC', 'loop-39': 'AABABC', 'loop-40': 'AAABB',
+  'loop-32': 'ABC', 'loop-33': 'ACAB', 'loop-34': 'ABAC', 'loop-35': 'AAB', 'loop-36': 'AAB', 'loop-37': 'ABCA', 'loop-38': 'ABCC', 'loop-39': 'AABABC', 'loop-40': 'AAABB', 'loop-41': 'ABAB', 'loop-42': 'AABCCA', 'loop-43': 'ABB', 'loop-44': 'ABBB', 'loop-45': 'ABBABC', 'loop-46': 'AAABB', 'loop-47': 'ABBAC', 'loop-48': 'AABBA',
   // END first stretch loop jams
 };
 /**
@@ -51,6 +51,7 @@ export const FAST_WITNESSES: Record<string, { readonly steps: number; readonly t
   // BEGIN first stretch fast witnesses
   'board-2': { steps: 918, taps: [[1,0],[13,0],[59,1],[61,1],[569,2]] },
   'board-3': { steps: 923, taps: [[1,0],[13,0],[170,2],[181,0],[430,2],[433,1],[658,1]] },
+  'board-17': { steps: 958, taps: [[1,2],[13,2],[59,0],[61,0],[674,1],[685,1]] },
   'board-31': { steps: 702, taps: [[1,0],[13,0],[59,1],[61,1]] },
   'board-32': { steps: 661, taps: [[1,0],[13,0],[59,1],[61,1],[398,2]] },
   'board-33': { steps: 1033, taps: [[1,0],[13,1],[170,1],[181,2],[479,2],[481,0]] },
@@ -69,5 +70,20 @@ export const FAST_WITNESSES: Record<string, { readonly steps: number; readonly t
   'loop-38': { steps: 3396, taps: [[1,0],[13,1],[58,2],[417,2],[614,1],[2713,0]] },
   'loop-39': { steps: 1580, taps: [[1,2],[13,0],[138,1],[145,2],[244,0],[253,1],[490,2],[1001,0],[1198,1]] },
   'loop-40': { steps: 3718, taps: [[1,0],[13,1],[60,1],[61,0],[106,2],[159,2],[349,0],[361,1],[3316,1]] },
+  'board-40': { steps: 902, taps: [[1,0],[13,0],[170,2],[181,2],[439,1],[445,1]] },
+  'board-41': { steps: 1284, taps: [[1,1],[13,0],[162,2],[169,0],[447,2],[457,1]] },
+  'board-42': { steps: 850, taps: [[1,0],[13,1],[170,1],[181,0],[406,0],[409,2],[609,2]] },
+  'board-43': { steps: 2293, taps: [[1,0],[13,2],[59,2],[61,1],[559,1],[565,0]] },
+  'board-44': { steps: 1866, taps: [[1,1],[13,1],[186,2],[193,0],[327,1],[337,2],[943,0],[949,0]] },
+  'board-46': { steps: 2089, taps: [[1,0],[13,0],[59,0],[61,2],[107,2],[109,1],[594,1],[601,1]] },
+  'board-47': { steps: 1776, taps: [[1,0],[13,1],[170,0],[181,1],[390,0],[397,2],[507,2],[517,2],[1130,1]] },
+  'loop-41': { steps: 3142, taps: [[1,0],[13,1],[58,2],[558,0],[1900,2],[2076,1]] },
+  'loop-42': { steps: 1070, taps: [[1,0],[13,1],[58,2],[61,0],[106,2],[109,1],[456,0],[546,1],[757,2]] },
+  'loop-43': { steps: 1454, taps: [[1,0],[13,1],[58,2],[878,1],[1019,2],[1065,0]] },
+  'loop-44': { steps: 1346, taps: [[1,0],[13,1],[58,2],[268,1],[277,2],[604,1],[787,0],[936,0]] },
+  'loop-45': { steps: 1587, taps: [[1,0],[13,1],[58,3],[61,2],[287,1],[691,3],[697,2],[778,1],[781,0],[942,2]] },
+  'loop-46': { steps: 1295, taps: [[1,0],[13,1],[58,2],[61,0],[255,1],[265,0],[875,1],[1025,2],[1084,2]] },
+  'loop-47': { steps: 3828, taps: [[1,2],[13,0],[74,1],[85,2],[229,1],[3598,0]] },
+  'loop-48': { steps: 2044, taps: [[1,0],[13,1],[115,1],[121,2],[277,3],[289,0],[607,3],[613,1],[674,1],[685,0],[850,2],[1814,2]] },
   // END first stretch fast witnesses
 };

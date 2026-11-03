@@ -23,7 +23,7 @@ import { generate as generateTube } from './tube-author';
  *   npx tsx scripts/level-author.ts targets                     list the targets
  * Results are in CANDIDATE_DIR; `scripts/level-emit.ts` turns the chosen ones into source.
  */
-export const CANDIDATE_DIR = process.env['CANDIDATE_DIR'] ?? 'output/current/levelling/first-stretch/candidates';
+export const CANDIDATE_DIR = process.env['CANDIDATE_DIR'] ?? 'output/current/levelling/second-stretch/candidates';
 const NOISE = 0.13;
 const CONFIRM_GAMES = 200;
 const SCREEN_GAMES = 60;
@@ -60,6 +60,15 @@ export const FUNNEL_TARGETS: readonly FunnelTarget[] = [
   { id: 'board-37', want: [22, 37], round: 8, slot: 'ordinary', title: 'Four colours, three docks', fr: 'Quatre couleurs, trois quais', note: 'Four colours share three docks: one colour always waits.', colors: 4, columns: [2, 2, 2], docks: 3, slack: [2, 3, 4] },
   { id: 'board-38', round: 11, slot: 'relief', title: 'Taking turns', fr: 'Chacun son tour', note: 'Seven trays with a roomy belt, after the deeper column.', colors: 4, columns: [3, 2, 2], docks: 3, slack: [3, 4] },
   { id: 'board-39', want: [22, 35], round: 12, slot: 'ordinary', title: 'Eight trays', fr: 'Huit plateaux', note: 'Eight trays, two deep columns: the longest so far.', colors: 4, columns: [3, 3, 2], docks: 4, slack: [2, 3, 4] },
+  // Second pass at rounds 4-12, after the owner found only tube-37 at all challenging (3 November 2026).
+  { id: 'board-40', want: [22, 36], round: 4, slot: 'lesson', title: 'Fewer docks than colours', fr: 'Moins de quais que de couleurs', note: 'Three colours, two docks: one colour always has to wait.', colors: 3, columns: [2, 2, 2], docks: 2, slack: [1, 2, 3] },
+  { id: 'board-41', want: [36, 50], round: 5, slot: 'peak', title: 'Yellow, and no spare dock', fr: 'Du jaune, sans quai libre', note: 'Four colours share three docks on a tight belt.', colors: 4, columns: [2, 2, 2], docks: 3, slack: [0, 1, 2] },
+  { id: 'board-42', round: 6, slot: 'relief', title: 'A dock for each', fr: 'Un quai chacun', note: 'Four docks for four colours, after the tight one.', colors: 4, columns: [3, 2, 2], docks: 4, slack: [1, 2, 3] },
+  { id: 'board-43', want: [30, 46], round: 7, slot: 'lesson', title: 'Orange arrives', fr: 'L’orange arrive', note: 'The fifth colour and its cross, with four docks.', colors: 5, columns: [2, 2, 2], docks: 4, slack: [1, 2, 3] },
+  { id: 'board-44', round: 8, slot: 'ordinary', title: 'Deeper columns', fr: 'Colonnes profondes', note: 'Eight trays for three docks: what is underneath matters.', colors: 4, columns: [3, 3, 2], docks: 3, slack: [0, 1, 2] },
+  { id: 'board-45', want: [48, 62], round: 9, slot: 'peak', title: 'Five on three', fr: 'Cinq sur trois', note: 'Five colours share three docks.', colors: 5, columns: [3, 3, 2], docks: 3, slack: [0, 1, 2] },
+  { id: 'board-46', want: [30, 46], round: 10, slot: 'lesson', title: 'The first eight', fr: 'Le premier huit', note: 'The belt crosses itself: a longer lap, the same rules.', colors: 4, columns: [3, 3, 2], docks: 3, slack: [0, 1, 2, 3], shape: 'eight' },
+  { id: 'board-47', round: 12, slot: 'ordinary', title: 'Nine trays', fr: 'Neuf plateaux', note: 'Nine trays, five colours, four docks.', colors: 5, columns: [3, 3, 3], docks: 4, slack: [0, 1, 2] },
 ];
 export const LOOP_TARGETS: readonly LoopTarget[] = [
   { id: 'loop-32', want: [5, 18], round: 4, slot: 'lesson', title: 'One behind', fr: 'Un derrière', note: 'The first queued truck, with room to spare.', colors: 3, lanes: [2, 1, 1], segments: 2, ringMin: 0, ringMax: 0 },
@@ -71,6 +80,15 @@ export const LOOP_TARGETS: readonly LoopTarget[] = [
   { id: 'loop-38', want: [15, 30], round: 10, slot: 'lesson', title: 'Three in one', fr: 'Trois en un', note: 'One truck carries three stretches: dig twice to reach its colour.', colors: 4, lanes: [2, 2, 1], segments: 3, threeSegments: 1, ringMin: 0, ringMax: 12 },
   { id: 'loop-39', want: [30, 46], round: 11, slot: 'peak', title: 'Deep loads', fr: 'Charges profondes', note: 'Several trucks carry three stretches and the loop is never quite clear.', colors: 4, lanes: [2, 2, 2], segments: 3, ringMin: 2, ringMax: 12 },
   { id: 'loop-40', want: [10, 25], round: 12, slot: 'relief', title: 'Easy does it', fr: 'Tout en douceur', note: 'A wider loop after the deep loads.', colors: 4, lanes: [2, 2, 1], segments: 3, ringMin: 2, ringMax: 12 },
+  { id: 'loop-41', want: [22, 36], round: 4, slot: 'lesson', title: 'Dig to the cab', fr: 'Creuser jusqu’à la cabine', note: 'One truck carries three stretches and a truck waits behind two of them.', colors: 4, lanes: [2, 2, 1], segments: 3, threeSegments: 1, ringMin: 0, ringMax: 8 },
+  { id: 'loop-42', want: [34, 50], round: 5, slot: 'peak', title: 'Every lane queued', fr: 'Toutes les files pleines', note: 'Six trucks, deep loads, and traffic on the loop.', colors: 4, lanes: [2, 2, 2], segments: 3, ringMin: 2, ringMax: 12 },
+  { id: 'loop-43', want: [30, 37.5], round: 6, slot: 'ordinary', title: 'Short loads', fr: 'Petites charges', note: 'Six trucks with two stretches each.', colors: 4, lanes: [2, 2, 2], segments: 2, ringMin: 2, ringMax: 12 },
+  { id: 'loop-44', want: [30, 46], round: 7, slot: 'lesson', title: 'Orange on the road', fr: 'De l’orange sur la route', note: 'The fifth colour and its cross.', colors: 5, lanes: [2, 2, 1], segments: 3, ringMin: 0, ringMax: 12 },
+  { id: 'loop-45', round: 8, slot: 'ordinary', title: 'Four bays', fr: 'Quatre quais', note: 'A fourth lane, so more trucks reach the loop at once.', colors: 4, lanes: [2, 2, 2, 1], segments: 3, ringMin: 2, ringMax: 12 },
+  { id: 'loop-46', round: 9, slot: 'ordinary', title: 'Five colours, six trucks', fr: 'Cinq couleurs, six camions', note: 'Every lane queued, five colours to place.', colors: 5, lanes: [2, 2, 2], segments: 3, ringMin: 2, ringMax: 12 },
+  { id: 'loop-47', want: [28, 38], round: 12, slot: 'relief', title: 'Two stretches each', fr: 'Deux tronçons chacun', note: 'Six trucks with two stretches each, after the rush.', colors: 4, lanes: [2, 2, 2], segments: 2, ringMin: 2, ringMax: 12 },
+  { id: 'loop-48', want: [48, 62], round: 10, slot: 'peak', title: 'Rush hour', fr: 'L’heure de pointe', note: 'Seven trucks in four lanes, five colours.', colors: 5, lanes: [2, 2, 2, 1], segments: 3, ringMin: 2, ringMax: 12 },
+  { id: 'loop-49', round: 12, slot: 'relief', title: 'After the rush', fr: 'Après la pointe', note: 'Three lanes again, with a little room.', colors: 4, lanes: [2, 2, 2], segments: 3, ringMin: 0, ringMax: 12 },
 ];
 export const TUBE_TARGETS: readonly TubeTarget[] = [
   { id: 'tube-31', round: 2, slot: 'ordinary', title: 'Short shuffle', fr: 'Petit mélange', note: 'A few moves with two spares.', colors: 3, capacity: 4, empties: 2, moves: [5, 6] },
@@ -80,6 +98,15 @@ export const TUBE_TARGETS: readonly TubeTarget[] = [
   { id: 'tube-35', round: 7, slot: 'peak', title: 'Four, well mixed', fr: 'Quatre bien mêlées', note: 'Four colours and a long shortest sort.', colors: 4, capacity: 4, empties: 2, moves: [13, 14] },
   { id: 'tube-36', round: 8, slot: 'ordinary', title: 'A long unpick', fr: 'Long démêlage', note: 'Four colours again, a shorter way through.', colors: 4, capacity: 4, empties: 2, moves: [12, 12] },
   { id: 'tube-37', want: [25, 37], round: 12, slot: 'peak', title: 'The narrow way', fr: 'La voie étroite', note: 'One spare again, and most ways of using it lose.', colors: 3, capacity: 4, empties: 1, moves: [7, 10], f1: [20, 37] },
+  { id: 'tube-38', want: [22, 34], round: 4, slot: 'lesson', title: 'Only one spare', fr: 'Un seul tube libre', note: 'One empty tube: the first move you make can be the one that loses.', colors: 3, capacity: 4, empties: 1, moves: [6, 10], f1: [22, 34] },
+  { id: 'tube-39', round: 5, slot: 'ordinary', title: 'Careful with the spare', fr: 'Attention au tube libre', note: 'Three colours, one spare, several traps.', colors: 3, capacity: 4, empties: 1, moves: [7, 11], f1: [30, 45] },
+  { id: 'tube-40', want: [22, 37], round: 6, slot: 'lesson', title: 'Four colours, one spare', fr: 'Quatre couleurs, un tube libre', note: 'Yellow and its star, with a single spare.', colors: 4, capacity: 4, empties: 1, moves: [8, 13], f1: [22, 37] },
+  { id: 'tube-41', want: [45, 62], round: 7, slot: 'peak', title: 'No second chances', fr: 'Pas de seconde chance', note: 'Four colours, one spare, and most openings lose.', colors: 4, capacity: 4, empties: 1, moves: [9, 14], f1: [45, 62] },
+  { id: 'tube-42', round: 8, slot: 'ordinary', title: 'Plan the empty tube', fr: 'Prévoir le tube vide', note: 'Four colours, one spare.', colors: 4, capacity: 4, empties: 1, moves: [9, 14], f1: [40, 55] },
+  { id: 'tube-43', want: [30, 46], round: 9, slot: 'lesson', title: 'Five high', fr: 'Cinq de haut', note: 'Taller tubes hold five, with one spare.', colors: 3, capacity: 5, empties: 1, moves: [8, 14], f1: [30, 46] },
+  { id: 'tube-44', want: [30, 46], round: 10, slot: 'lesson', title: 'Orange in the tubes', fr: 'De l’orange dans les tubes', note: 'Five colours and a single spare.', colors: 5, capacity: 4, empties: 1, moves: [10, 15], f1: [30, 46] },
+  { id: 'tube-45', round: 11, slot: 'relief', title: 'Room to think', fr: 'Le temps de réfléchir', note: 'Four colours, five high, one spare.', colors: 4, capacity: 5, empties: 1, moves: [9, 15], f1: [28, 40] },
+  { id: 'tube-46', want: [50, 62], round: 12, slot: 'peak', title: 'The last spare', fr: 'Le dernier tube libre', note: 'Five colours, one spare, few safe openings.', colors: 5, capacity: 4, empties: 1, moves: [10, 15], f1: [50, 62] },
 ];
 
 interface Log { seed: number; capacity?: number; outcome: string; F1?: number; FM?: number; FMmixed?: number; S?: number; spam?: number; cheese?: number; brisk?: number; gatePassed?: boolean; mixedGatePassed?: boolean; scored?: ScoredFile }

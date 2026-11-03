@@ -5,11 +5,14 @@ import type { BoardDef, Color, Packet } from '../src/sim/types';
 import { ALL_TARGETS, CANDIDATE_DIR } from './level-author';
 import type { ScoredFile } from './level-score';
 import { SCORE_DIR } from './level-score';
+import { hashBoard } from './level-curve';
 
 /**
  * Writes the chosen candidates into the banks, witnesses and titles.
- *   npx tsx scripts/level-emit.ts <id:seed[:capacity]>...
- * Each choice names an accepted line in CANDIDATE_DIR. Its score goes to SCORE_DIR, so `level-score.ts merge` includes it.
+ *   npx tsx scripts/level-emit.ts [as=]<id[:seed[:capacity]]>...
+ * A choice with a seed names an accepted line in CANDIDATE_DIR; one without names a board already scored in SCORE_DIR, so boards
+ * from an earlier stretch stay in the bank. `as=` emits it under another target's ID, title and note (the score does not depend
+ * on the ID, so only the hash is recomputed). Its score goes to SCORE_DIR, so `level-score.ts merge` includes it.
  * Blocks between the BEGIN and END markers are replaced whole, so emitting again is safe.
  */
 const replaceBlock = (path: string, marker: string, body: string): void => {
@@ -31,7 +34,9 @@ function funnelSource(board: BoardDef, note: string): { name: string; code: stri
   const order: Color[] = [];
   const longest = Math.max(...board.docks.map((queue) => queue.length));
   for (let row = 0; row < longest; row++) for (const queue of board.docks) if (queue[row]) order.push(queue[row]!);
-  return { name, code: `/** ${note} */\nexport const ${name}: BoardDef = board(${quote(board.id)}, ${quote(board.title)}, ${board.beltCapacity},\n  [${supplies}],\n  docks(${board.docks.length}, ${order.map(color).join(', ')}));` };
+  const made = `board(${quote(board.id)}, ${quote(board.title)}, ${board.beltCapacity},\n  [${supplies}],\n  docks(${board.docks.length}, ${order.map(color).join(', ')}))`;
+  // The belt shape is part of the board: an eight written without it would load as an oval.
+  return { name, code: `/** ${note} */\nexport const ${name}: BoardDef = ${board.trackShape ? `{ ...${made}, trackShape: ${quote(board.trackShape)} }` : made};` };
 }
 function loopSource(board: LoopBoardDef, note: string): { name: string; code: string } {
   const name = `LOOP_${board.id.split('-')[1]}`;
@@ -68,10 +73,16 @@ const { search: searchFunnel } = await import('./funnel-author');
 const { search: searchLoop } = await import('./loop-author');
 const { solveTubeSearch } = await import('../src/puzzles/rules');
 for (const choice of process.argv.slice(2)) {
-  const [id = '', seed = '', capacity] = choice.split(':');
+  const [rename, source = ''] = choice.includes('=') ? choice.split('=') : [undefined, choice];
+  const [from = '', seed, capacity] = source.split(':');
+  const id = rename ?? from;
   const target = ALL_TARGETS.find((candidate) => candidate.id === id);
   if (!target) throw new Error(`No target ${id}`);
-  const scored = accepted(id, Number(seed), capacity ? Number(capacity) : undefined);
+  let scored: ScoredFile = seed ? accepted(from, Number(seed), capacity ? Number(capacity) : undefined) : JSON.parse(readFileSync(`${SCORE_DIR}/${from}.json`, 'utf8')) as ScoredFile;
+  if (rename) {
+    const board = { ...(scored.board as object), id, title: target.title };
+    scored = { ...scored, board: board as ScoredFile['board'], row: { ...scored.row, id, hash: hashBoard(board) } };
+  }
   writeFileSync(`${SCORE_DIR}/${id}.json`, JSON.stringify(scored));
   french.push(`${quote(id)}: ${quote(target.fr.replace(/'/g, '’'))}`);
   const witness = String(scored.extra?.['witness'] ?? '');
@@ -106,7 +117,8 @@ replaceBlock('tests/witnesses.ts', 'first stretch loop jams', `  ${rows(loopJam)
 console.log(`names: funnel ${funnel.map((entry) => entry.name).join(', ')}; loop ${loop.map((entry) => entry.name).join(', ')}`);
 console.log(`no losing order: ${noJam.join(', ')}`);
 console.log(`fast witnesses from candidates (old boards come from SCORE_DIR):\n${fast.length}`);
-const oldFast = ['board-2', 'board-3'].map((id) => {
+// Campaign boards defined outside the generated block keep their multi-tap wins here.
+const oldFast = ['board-2', 'board-3', 'board-17'].map((id) => {
   const scored = JSON.parse(readFileSync(`${SCORE_DIR}/${id}.json`, 'utf8')) as ScoredFile;
   if (!scored.fast) throw new Error(`${id} has no multi-tap win`);
   return `  ${quote(id)}: { steps: ${scored.fast.steps}, taps: ${JSON.stringify(scored.fast.actions)} },`;

@@ -21,7 +21,7 @@ Every level reports the same figures.
 | --- | --- |
 | Funnel Sort | `S = F1 + clamp(0.25 × (Ffast − F1), −10, +12)`, `Ffast` the failure of `burst2`, `burst3` and `cheese` together |
 | Loop Sort | The same, with `Ffast = FM` |
-| Tube Sort | `S = max(F1, min(45, 2.5 × (moves − 4)))` |
+| Tube Sort | `S = max(F1, min(25, 2.5 × (moves − 4)))` |
 
 ## Players
 
@@ -47,19 +47,34 @@ All games share one table of S. No band builds in a ranking of the games.
 | Rounds | Ordinary | Relief | Peak at most | FM gap G | Cheese and spam ceiling |
 | --- | --- | --- | --- | --- | --- |
 | 1-3 | 0-15 | none | none | none | none |
-| 4-6 | 10-30 | 5-15 | 35 | 25 | 90% |
-| 7-12 | 20-40 | 10-25 | 50 | 25 | 90% |
-| 13-20 | 25-45 | 15-30 | 55 | 30 | 85% |
-| 21-30 | 30-50 | 20-35 | 60 | 30 | 80% |
-| 31-45 | 38-58 | 28-42 | 70 | 35 | 75% |
-| 46-60 | 48-68 | 35-50 | 80 | 40 | 70% |
-| 61-75 | 58-78 | 42-58 | 88 | 45 | 65% |
-| 76-88 | 65-85 | 48-65 | 95 | 50 | 60% |
-| 89-90 | 75-92 | none | 95 | 50 | 60% |
+| 4-6 | 30-45 | 20-30 | 52 | 25 | 85% |
+| 7-12 | 40-55 | 28-40 | 62 | 25 | 80% |
+| 13-20 | 46-60 | 34-46 | 68 | 30 | 75% |
+| 21-30 | 52-66 | 38-52 | 74 | 30 | 70% |
+| 31-45 | 57-71 | 42-56 | 80 | 35 | 65% |
+| 46-60 | 62-76 | 46-60 | 85 | 40 | 60% |
+| 61-75 | 67-81 | 50-64 | 90 | 45 | 55% |
+| 76-88 | 72-86 | 54-68 | 95 | 50 | 50% |
+| 89-90 | 78-92 | none | 95 | 50 | 50% |
 
-Rounds 31 to 90 were raised on 3 November 2026 at the owner's request. The owner completed the live campaign's last levels, which score S 70 to 100 (most Loop Sort and Tube Sort finales 77 to 100), and judged them about right or a little easy for the end of the game. The old top band of 50 to 70 would have ended the new campaign easier than the old one. Rounds 1 to 30 are unchanged until the owner has played the first stretch. The owner will also test with other players, so these numbers stay open.
+The curve was set twice on 3 November 2026, both times from the owner's play.
 
-A human who finishes levels the bots lose 77 to 100% of the time is much stronger than the reference planner, so S loses resolution near the top. Before rounds 46 to 90 are authored, add a stronger reference planner (deeper lookahead, fewer lapses) and check that it still separates the late bands; a scale where every late level reads 95 or more cannot steer the curve.
+- The owner completed the live campaign's last levels, which score S 70 to 100, and judged them about right or a little easy
+  for the end of the game. The top bands were raised so the new campaign does not end easier than the old one.
+- The owner then played the first stretch as first registered, with rounds 4 to 12 at S 5 to 40. Only `tube-37` (round 12,
+  S 36, the one board there whose planner really fails) was "remotely challenging"; everything else, including `board-2` at
+  S 39, was easy. The live campaign's rounds 4 to 12 had sat at S 40 to 77, and the owner had called that campaign good but
+  uneven. Rounds 4 onwards were therefore raised: round 4 now starts where `tube-37` sat, rounds 7 to 12 reach the old
+  campaign's middle, and the climb from there to the finales is gentler and steadier than the old one. Rounds 1 to 3 stay
+  easy, because the owner wants a few easy levels before the ramp.
+- Cheese and spam ceilings came down with it, 85% at rounds 4 to 6 falling to 50% at the end: Funnel Sort was the game the
+  owner found easiest, because cheese wins too often.
+- Tube Sort length counts for at most S 25. The owner found 12- and 13-move boards with two spares, where no move loses,
+  easy, so from round 4 Tube Sort difficulty has to come from boards the planner can lose (one spare).
+
+The owner will test with other players, so these numbers stay open.
+
+A human who finishes levels the bots lose 77 to 100% of the time is much stronger than the reference planner, so S loses resolution near the top. Before rounds 31 to 90 are authored, add a stronger reference planner (deeper lookahead, fewer lapses) and check that it still separates the late bands; a scale where every late level reads 95 or more cannot steer the curve.
 
 A slot chooses the band: tutorials are exempt, a lesson sits between relief's low and the middle of ordinary, a peak between ordinary's low and its maximum.
 
@@ -110,11 +125,31 @@ Every candidate an author tries leaves a line in `output/current/levelling/first
 
 ## The first stretch
 
-Rounds 1 to 12 as registered, with every figure, are in `output/current/levelling/first-stretch.md` (not tracked) and in
-`tests/levelling/scores.json`. Old boards used: `board-1`, `board-2`, `board-3`, `loop-1`, `loop-2`, `tube-1`, `tube-2`,
-`tube-3`, `tube-4`, `tube-9`. New: `board-31`…`board-39`, `loop-31`…`loop-40`, `tube-31`…`tube-37`. `loop-31` is
-hand-authored; the rest came from `scripts/level-author.ts`. `tests/levelling/curve.test.ts` passes on all thirty-six, and
-the same check found 201 violations on today's ninety.
+Rounds 1 to 12 as registered are in `tests/levelling/scores.json` and `PLAY_ORDER`. This is the second version, built on
+3 November 2026 after the owner's playtest of the first; the per-level table is in `output/current/levelling/second-stretch.md`
+(not tracked).
+
+| Game | Rounds 1-3 | Rounds 4-12 |
+| --- | --- | --- |
+| Funnel Sort | `board-1`, `board-31`, `board-32` | `board-40` to `board-44`, `board-17`, `board-46`, `board-2`, `board-47` |
+| Loop Sort | `loop-1`, `loop-2`, `loop-31` | `loop-41` to `loop-46`, `loop-48`, `loop-39`, `loop-47` |
+| Tube Sort | `tube-1`, `tube-31`, `tube-32` | `tube-38` to `tube-44`, `tube-37`, `tube-46` |
+
+The first version's boards (`board-33`…`board-39`, `loop-32`…`loop-40`, `tube-33`…`tube-36`, and the old `board-3`, `tube-2`,
+`tube-3`, `tube-4`, `tube-9`) stay in the banks with their witnesses. Candidates for the second version are logged in
+`output/current/levelling/second-stretch/candidates/`, and the exact emit is in `emit-choices.txt` beside them.
+
+What changed in building it:
+
+1. **Loop Sort peaks at round 10, its own phrase position, and rounds 11 and 12 are both relief.** The planned round-10 lesson,
+   four lanes on an empty loop, produced no board in 1,046 seeds under the multi-tap gate.
+2. **`loop-47` is a `loop-43` candidate under its own ID and title.** Scores do not depend on the ID, so `scripts/level-emit.ts`
+   accepts `new=source:seed:capacity` and only recomputes the hash.
+3. **Orange arrives at round 7 in Funnel Sort and Loop Sort and at round 10 in Tube Sort, always on a lesson.** The first version
+   kept five colours out of rounds 1 to 12; the harder bands need them. Yellow arrives at round 5, 4 and 6.
+4. **No Funnel Sort board before round 10 may be an eight**, because `board-46` there teaches it. The curve rules do not cover
+   lessons, so the assembler enforces it.
+5. **`board-45` was authored and not used**: `board-17` from the old campaign took the round-9 peak.
 
 ## Retirements, confirmed at n=200
 

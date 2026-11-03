@@ -649,5 +649,133 @@ export const TUBE_BOARDS: readonly TubeDef[] = [
       { from: 0, to: 2 }, { from: 0, to: 1 },
     ],
   },
+  /** One empty tube: the first move you make can be the one that loses. */
+  {
+    kind: 'tube', id: 'tube-38', title: 'Only one spare', capacity: 4,
+    tubes: [
+      ['green', 'blue', 'blue', 'blue'],
+      ['red', 'green', 'green', 'blue'],
+      ['red', 'green', 'red', 'red'],
+      [],
+    ],
+    solution: [
+      { from: 0, to: 3 }, { from: 1, to: 3 }, { from: 1, to: 0 }, { from: 2, to: 1 },
+      { from: 2, to: 0 }, { from: 1, to: 2 },
+    ],
+  },
+  /** Three colours, one spare, several traps. */
+  {
+    kind: 'tube', id: 'tube-39', title: 'Careful with the spare', capacity: 4,
+    tubes: [
+      ['green', 'blue', 'blue', 'red'],
+      ['blue', 'red', 'green', 'green'],
+      ['green', 'blue', 'red', 'red'],
+      [],
+    ],
+    solution: [
+      { from: 0, to: 3 }, { from: 2, to: 3 }, { from: 0, to: 2 }, { from: 1, to: 0 },
+      { from: 1, to: 3 }, { from: 2, to: 1 }, { from: 0, to: 2 },
+    ],
+  },
+  /** Yellow and its star, with a single spare. */
+  {
+    kind: 'tube', id: 'tube-40', title: 'Four colours, one spare', capacity: 4,
+    tubes: [
+      ['green', 'red', 'blue', 'green'],
+      ['red', 'red', 'green', 'yellow'],
+      ['blue', 'blue', 'yellow', 'yellow'],
+      ['blue', 'green', 'yellow', 'red'],
+      [],
+    ],
+    solution: [
+      { from: 1, to: 4 }, { from: 0, to: 1 }, { from: 2, to: 4 }, { from: 0, to: 2 },
+      { from: 3, to: 0 }, { from: 3, to: 4 }, { from: 1, to: 3 }, { from: 0, to: 1 },
+      { from: 3, to: 0 }, { from: 2, to: 3 },
+    ],
+  },
+  /** Four colours, one spare, and most openings lose. */
+  {
+    kind: 'tube', id: 'tube-41', title: 'No second chances', capacity: 4,
+    tubes: [
+      ['green', 'red', 'yellow', 'red'],
+      ['blue', 'blue', 'yellow', 'green'],
+      ['yellow', 'green', 'red', 'green'],
+      ['blue', 'blue', 'yellow', 'red'],
+      [],
+    ],
+    solution: [
+      { from: 0, to: 4 }, { from: 3, to: 4 }, { from: 0, to: 3 }, { from: 0, to: 4 },
+      { from: 1, to: 0 }, { from: 2, to: 0 }, { from: 2, to: 4 }, { from: 2, to: 0 },
+      { from: 1, to: 2 }, { from: 3, to: 2 }, { from: 1, to: 3 },
+    ],
+  },
+  /** Four colours, one spare. */
+  {
+    kind: 'tube', id: 'tube-42', title: 'Plan the empty tube', capacity: 4,
+    tubes: [
+      ['red', 'blue', 'red', 'green'],
+      ['green', 'yellow', 'green', 'blue'],
+      ['yellow', 'green', 'yellow', 'red'],
+      ['blue', 'blue', 'yellow', 'red'],
+      [],
+    ],
+    solution: [
+      { from: 2, to: 4 }, { from: 3, to: 4 }, { from: 2, to: 3 }, { from: 0, to: 2 },
+      { from: 0, to: 4 }, { from: 1, to: 0 }, { from: 1, to: 2 }, { from: 3, to: 1 },
+      { from: 0, to: 3 }, { from: 0, to: 4 }, { from: 1, to: 0 }, { from: 2, to: 1 },
+      { from: 0, to: 2 },
+    ],
+  },
+  /** Taller tubes hold five, with one spare. */
+  {
+    kind: 'tube', id: 'tube-43', title: 'Five high', capacity: 5,
+    tubes: [
+      ['green', 'green', 'red', 'green', 'red'],
+      ['blue', 'blue', 'red', 'blue', 'green'],
+      ['red', 'blue', 'green', 'blue', 'red'],
+      [],
+    ],
+    solution: [
+      { from: 0, to: 3 }, { from: 1, to: 0 }, { from: 2, to: 3 }, { from: 1, to: 2 },
+      { from: 1, to: 3 }, { from: 2, to: 1 }, { from: 0, to: 2 }, { from: 0, to: 3 },
+      { from: 2, to: 0 }, { from: 2, to: 1 }, { from: 2, to: 3 },
+    ],
+  },
+  /** Five colours and a single spare. */
+  {
+    kind: 'tube', id: 'tube-44', title: 'Orange in the tubes', capacity: 4,
+    tubes: [
+      ['blue', 'orange', 'red', 'orange'],
+      ['red', 'yellow', 'green', 'green'],
+      ['green', 'orange', 'yellow', 'yellow'],
+      ['yellow', 'red', 'blue', 'green'],
+      ['orange', 'blue', 'blue', 'red'],
+      [],
+    ],
+    solution: [
+      { from: 1, to: 5 }, { from: 2, to: 1 }, { from: 0, to: 2 }, { from: 3, to: 5 },
+      { from: 4, to: 0 }, { from: 3, to: 4 }, { from: 0, to: 3 }, { from: 0, to: 2 },
+      { from: 4, to: 0 }, { from: 2, to: 4 }, { from: 2, to: 5 }, { from: 1, to: 2 },
+      { from: 3, to: 1 }, { from: 2, to: 3 },
+    ],
+  },
+  /** Five colours, one spare, few safe openings. */
+  {
+    kind: 'tube', id: 'tube-46', title: 'The last spare', capacity: 4,
+    tubes: [
+      ['blue', 'orange', 'orange', 'blue'],
+      ['red', 'orange', 'green', 'yellow'],
+      ['yellow', 'yellow', 'green', 'yellow'],
+      ['orange', 'blue', 'green', 'green'],
+      ['red', 'blue', 'red', 'red'],
+      [],
+    ],
+    solution: [
+      { from: 1, to: 5 }, { from: 2, to: 5 }, { from: 2, to: 1 }, { from: 2, to: 5 },
+      { from: 1, to: 2 }, { from: 3, to: 2 }, { from: 0, to: 3 }, { from: 0, to: 1 },
+      { from: 3, to: 0 }, { from: 1, to: 3 }, { from: 4, to: 1 }, { from: 4, to: 0 },
+      { from: 1, to: 4 },
+    ],
+  },
 // END first stretch
 ];

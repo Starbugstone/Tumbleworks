@@ -170,5 +170,33 @@ export const BOARD_38: BoardDef = board('board-38', 'Taking turns', 17,
 export const BOARD_39: BoardDef = board('board-39', 'Eight trays', 18,
   [trays('red', 'green', 'red'), trays('green', 'yellow', 'yellow'), trays('red', 'blue')],
   docks(4, 'red', 'green', 'red', 'yellow', 'yellow', 'red', 'red', 'blue', 'green', 'yellow', 'red', 'yellow', 'blue', 'yellow', 'blue', 'red', 'red', 'yellow', 'green', 'red', 'green', 'green', 'red', 'green'));
+/** Three colours, two docks: one colour always has to wait. */
+export const BOARD_40: BoardDef = board('board-40', 'Fewer docks than colours', 15,
+  [trays('blue', 'red'), trays('red', 'blue'), trays('red', 'green')],
+  docks(2, 'red', 'blue', 'green', 'red', 'blue', 'red', 'red', 'red', 'red', 'blue', 'blue', 'green', 'green', 'blue', 'red', 'blue', 'red', 'red'));
+/** Four colours share three docks on a tight belt. */
+export const BOARD_41: BoardDef = board('board-41', 'Yellow, and no spare dock', 16,
+  [trays('red', 'red'), trays('yellow', 'red'), trays('blue', 'green')],
+  docks(3, 'red', 'red', 'yellow', 'green', 'green', 'yellow', 'red', 'red', 'red', 'blue', 'red', 'yellow', 'red', 'blue', 'red', 'blue', 'red', 'green'));
+/** Four docks for four colours, after the tight one. */
+export const BOARD_42: BoardDef = board('board-42', 'A dock for each', 17,
+  [trays('red', 'green', 'yellow'), trays('red', 'blue'), trays('red', 'red')],
+  docks(4, 'red', 'red', 'green', 'blue', 'blue', 'red', 'red', 'green', 'red', 'yellow', 'yellow', 'green', 'red', 'red', 'red', 'red', 'red', 'yellow', 'red', 'red', 'blue'));
+/** The fifth colour and its cross, with four docks. */
+export const BOARD_43: BoardDef = board('board-43', 'Orange arrives', 16,
+  [trays('red', 'orange'), trays('red', 'yellow'), trays('green', 'blue')],
+  docks(4, 'blue', 'green', 'yellow', 'orange', 'red', 'red', 'green', 'red', 'blue', 'yellow', 'blue', 'yellow', 'red', 'orange', 'orange', 'red', 'green', 'red'));
+/** Eight trays for three docks: what is underneath matters. */
+export const BOARD_44: BoardDef = board('board-44', 'Deeper columns', 16,
+  [trays('red', 'blue', 'green'), trays('red', 'yellow', 'green'), trays('blue', 'green')],
+  docks(3, 'yellow', 'green', 'yellow', 'yellow', 'blue', 'blue', 'blue', 'green', 'green', 'blue', 'blue', 'red', 'red', 'red', 'green', 'green', 'red', 'blue', 'red', 'green', 'green', 'red', 'green', 'green'));
+/** The belt crosses itself: a longer lap, the same rules. */
+export const BOARD_46: BoardDef = { ...board('board-46', 'The first eight', 26,
+  [trays('blue', 'yellow', 'green'), trays('blue', 'blue', 'red'), trays('blue', 'red')],
+  docks(3, 'red', 'green', 'red', 'blue', 'blue', 'yellow', 'blue', 'blue', 'blue', 'blue', 'blue', 'blue', 'green', 'yellow', 'blue', 'yellow', 'blue', 'blue', 'green', 'blue', 'red', 'red', 'red', 'red')), trackShape: 'eight' };
+/** Nine trays, five colours, four docks. */
+export const BOARD_47: BoardDef = board('board-47', 'Nine trays', 14,
+  [trays('orange', 'blue', 'red'), trays('green', 'blue', 'green'), trays('orange', 'yellow', 'red')],
+  docks(4, 'green', 'green', 'red', 'orange', 'blue', 'blue', 'orange', 'orange', 'yellow', 'red', 'red', 'green', 'yellow', 'orange', 'green', 'blue', 'green', 'blue', 'orange', 'blue', 'red', 'red', 'green', 'yellow', 'red', 'blue', 'orange'));
 // END first stretch
-export const BOARDS: readonly BoardDef[] = [BOARD_1, BOARD_2, BOARD_3, BOARD_4, BOARD_5, BOARD_6, BOARD_7, BOARD_8, BOARD_9, BOARD_10, BOARD_11, BOARD_12, BOARD_13, BOARD_14, BOARD_15, BOARD_16, BOARD_17, BOARD_18, BOARD_19, BOARD_20, BOARD_21, BOARD_22, BOARD_23, BOARD_24, BOARD_25, BOARD_26, BOARD_27, BOARD_28, BOARD_29, BOARD_30, BOARD_31, BOARD_32, BOARD_33, BOARD_34, BOARD_35, BOARD_36, BOARD_37, BOARD_38, BOARD_39];
+export const BOARDS: readonly BoardDef[] = [BOARD_1, BOARD_2, BOARD_3, BOARD_4, BOARD_5, BOARD_6, BOARD_7, BOARD_8, BOARD_9, BOARD_10, BOARD_11, BOARD_12, BOARD_13, BOARD_14, BOARD_15, BOARD_16, BOARD_17, BOARD_18, BOARD_19, BOARD_20, BOARD_21, BOARD_22, BOARD_23, BOARD_24, BOARD_25, BOARD_26, BOARD_27, BOARD_28, BOARD_29, BOARD_30, BOARD_31, BOARD_32, BOARD_33, BOARD_34, BOARD_35, BOARD_36, BOARD_37, BOARD_38, BOARD_39, BOARD_40, BOARD_41, BOARD_42, BOARD_43, BOARD_44, BOARD_46, BOARD_47];

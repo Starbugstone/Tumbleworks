@@ -13,7 +13,7 @@ const boards = new Map<string, object>([...BOARDS, ...LOOP_BOARDS, ...TUBE_BOARD
 
 /** A valid board to spoil: passes every gate at round 8. */
 const valid: ScoreRow = {
-  id: 'fixture', game: 'funnel', hash: '', A: 7, F1: 30, F1settled: 30, F1machine: 32, FM: 25, S: 30, states: 40, risk: 4, lostShare: 0.2, silent: 0, hintStates: 10,
+  id: 'fixture', game: 'funnel', hash: '', A: 7, F1: 45, F1settled: 45, F1machine: 47, FM: 40, S: 45, states: 40, risk: 4, lostShare: 0.2, silent: 0, hintStates: 10,
   wins: { cheese: { win: 0.6, n: 60 }, spam: { win: 0.4, n: 60 }, brisk: { win: 0.2, n: 60 } },
   witnessWins: true, jitter: 1, shareBrisk: 1, sharePatient: 1, shareOrders: 12, fastWitness: true, hasJam: true, naiveJams: 1, naiveOrders: 3, capacity: 18,
 };
@@ -24,12 +24,12 @@ describe('one level against its band and gates', () => {
     expect(levelViolations(placed(valid))).toEqual([]);
   });
   it('rejects a board outside its band', () => {
-    expect(levelViolations(placed({ ...valid, S: 12 })).join()).toMatch(/S 12\.0 outside 20-40/);
-    expect(levelViolations(placed({ ...valid, S: 55 }, 8, 'peak')).join()).toMatch(/S 55\.0 outside 20-50/);
+    expect(levelViolations(placed({ ...valid, S: 12 })).join()).toMatch(/S 12\.0 outside 40-55/);
+    expect(levelViolations(placed({ ...valid, S: 70 }, 8, 'peak')).join()).toMatch(/S 70\.0 outside 40-62/);
   });
   it('rejects an auto win, by the ceiling and against the planner', () => {
     const auto = { ...valid, wins: { ...valid.wins, cheese: { win: 1, n: 200 } } };
-    expect(levelViolations(placed(auto)).join()).toMatch(/cheese wins 1\.00, ceiling 0\.90: an auto win/);
+    expect(levelViolations(placed(auto)).join()).toMatch(/cheese wins 1\.00, ceiling 0\.80: an auto win/);
     const beatsPlanner = { ...valid, F1: 60, S: 35, wins: { ...valid.wins, cheese: { win: 0.85, n: 200 } } };
     expect(levelViolations(placed(beatsPlanner)).join()).toMatch(/against planner 40 \+ 40: an auto win/);
   });
@@ -38,11 +38,11 @@ describe('one level against its band and gates', () => {
     expect(levelViolations(placed(flat)).join()).toMatch(/does not beat careful/);
   });
   it('rejects a Loop Sort board whose fast tapping is fatal or that spam wins', () => {
-    const loop: ScoreRow = { ...valid, game: 'loop', F1: 30, FM: 60, S: 37, maxSegments: 2, wins: { spam: { win: 0.2, n: 200 } } };
+    const loop: ScoreRow = { ...valid, game: 'loop', F1: 40, FM: 70, S: 45, maxSegments: 2, wins: { spam: { win: 0.2, n: 200 } } };
     expect(levelViolations(placed(loop)).join()).toMatch(/fast tapping is fatal/);
-    expect(levelViolations(placed({ ...loop, FM: 50 }))).toEqual([]);
-    expect(levelViolations(placed({ ...loop, FM: 50, wins: { spam: { win: 0.95, n: 200 } } })).join()).toMatch(/spam wins/);
-    expect(levelViolations(placed({ ...loop, FM: 50, maxSegments: 4 })).join()).toMatch(/4 segments/);
+    expect(levelViolations(placed({ ...loop, FM: 60 }))).toEqual([]);
+    expect(levelViolations(placed({ ...loop, FM: 60, wins: { spam: { win: 0.95, n: 200 } } })).join()).toMatch(/spam wins/);
+    expect(levelViolations(placed({ ...loop, FM: 60, maxSegments: 4 })).join()).toMatch(/4 segments/);
   });
   it('rejects a board the planner cannot resolve on the machine', () => {
     expect(levelViolations(placed({ ...valid, witnessWins: false })).join()).toMatch(/witness/);
@@ -66,9 +66,9 @@ describe('the steps between levels', () => {
   /** A valid twelve rounds, to spoil one step at a time. */
   const line = (game: Game): Placement[] => {
     const slots: Record<Game, readonly (readonly [number, Placement['slot']])[]> = {
-      funnel: [[20, 'tutorial'], [8, 'ordinary'], [12, 'ordinary'], [15, 'lesson'], [25, 'peak'], [12, 'relief'], [22, 'lesson'], [30, 'ordinary'], [38, 'peak'], [25, 'lesson'], [20, 'relief'], [30, 'ordinary']],
-      loop: [[0, 'tutorial'], [0, 'tutorial'], [10, 'ordinary'], [15, 'lesson'], [25, 'peak'], [15, 'ordinary'], [14, 'lesson'], [22, 'ordinary'], [30, 'ordinary'], [28, 'lesson'], [40, 'peak'], [24, 'relief']],
-      tube: [[0, 'tutorial'], [5, 'ordinary'], [5, 'ordinary'], [10, 'relief'], [12, 'ordinary'], [8, 'lesson'], [22, 'peak'], [20, 'ordinary'], [15, 'lesson'], [15, 'lesson'], [20, 'relief'], [30, 'peak']],
+      funnel: [[20, 'tutorial'], [8, 'ordinary'], [12, 'ordinary'], [28, 'lesson'], [42, 'peak'], [25, 'relief'], [35, 'lesson'], [45, 'ordinary'], [55, 'peak'], [40, 'lesson'], [35, 'relief'], [45, 'ordinary']],
+      loop: [[0, 'tutorial'], [0, 'tutorial'], [10, 'ordinary'], [28, 'lesson'], [42, 'peak'], [35, 'ordinary'], [34, 'lesson'], [45, 'ordinary'], [48, 'ordinary'], [40, 'lesson'], [56, 'peak'], [35, 'relief']],
+      tube: [[0, 'tutorial'], [5, 'ordinary'], [5, 'ordinary'], [24, 'relief'], [38, 'ordinary'], [30, 'lesson'], [48, 'peak'], [42, 'ordinary'], [38, 'lesson'], [38, 'lesson'], [35, 'relief'], [50, 'peak']],
     };
     return slots[game].map(([S, slot], index) => easy(game, index + 1, S, slot));
   };
@@ -80,10 +80,10 @@ describe('the steps between levels', () => {
   });
   it('rejects a rise, a fall, a high level after a peak, a misplaced peak and games drifting apart', () => {
     expect(curveViolations(swap(all(), 'funnel-3', 15)).join()).toEqual('');
-    expect(curveViolations(swap(all(), 'funnel-8', 52)).join()).toMatch(/rise 30\.0 over 20/);
-    expect(curveViolations(swap(swap(all(), 'funnel-9', 50), 'funnel-10', 20)).join()).toMatch(/fall -30\.0 under -25/);
-    expect(curveViolations(swap(all(), 'loop-11', 50)).join()).toMatch(/after a peak|fall/);
-    expect(curveViolations(swap(all(), 'tube-8', 39)).join()).toMatch(/after a peak/);
+    expect(curveViolations(swap(all(), 'funnel-8', 65)).join()).toMatch(/rise 30\.0 over 20/);
+    expect(curveViolations(swap(swap(all(), 'funnel-9', 60), 'funnel-10', 30)).join()).toMatch(/fall -30\.0 under -25/);
+    expect(curveViolations(swap(all(), 'loop-11', 62)).join()).toMatch(/after a peak|fall/);
+    expect(curveViolations(swap(all(), 'tube-8', 50)).join()).toMatch(/after a peak/);
     const misplaced = all().map((level) => (level.row.id === 'funnel-8' ? { ...level, slot: 'peak' as const } : level));
     expect(curveViolations(misplaced).join()).toMatch(/no lesson displacing it/);
     const apart = all().map((level) => (level.game === 'tube' ? { ...level, row: { ...level.row, S: 0 } } : level));
@@ -106,11 +106,11 @@ describe('the steps between levels', () => {
 
 describe('real boards against the gates', () => {
   const real = (id: string): ScoreRow => { const row = scoreOf.get(id); if (!row) throw new Error(id); return row; };
-  it('rejects board-6 as an auto win, board-9 out of band, loop-12 as fatal to fast tapping, and accepts board-3 where it is placed', () => {
-    expect(levelViolations(placed(real('board-6'), 8, 'ordinary')).join()).toMatch(/cheese wins 1\.00, ceiling 0\.90: an auto win/);
-    expect(levelViolations(placed(real('board-9'), 9, 'peak')).join()).toMatch(/outside 20-50/);
+  it('rejects board-6 as an auto win, board-9 out of band, loop-12 as fatal to fast tapping, and accepts board-2 where it is placed', () => {
+    expect(levelViolations(placed(real('board-6'), 8, 'ordinary')).join()).toMatch(/cheese wins 1\.00, ceiling 0\.80: an auto win/);
+    expect(levelViolations(placed(real('board-9'), 9, 'peak')).join()).toMatch(/outside 40-62/);
     expect(levelViolations(placed(real('loop-12'), 9, 'ordinary')).join()).toMatch(/fast tapping is fatal/);
-    expect(levelViolations(placed(real('board-3'), 10, 'lesson'))).toEqual([]);
+    expect(levelViolations(placed(real('board-2'), 11, 'relief'))).toEqual([]);
   });
 });
 

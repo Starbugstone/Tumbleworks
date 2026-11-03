@@ -5,7 +5,7 @@ import type { ReplayLog } from '../../src/engine/replay';
 import { initPhysics } from '../../src/machine/machine';
 import { replayed } from '../replay-target';
 
-const LEVEL = 'board-39';
+const LEVEL = 'board-47';
 
 test('a game played by touch and copied from the picker replays to the same physics', async ({ page }) => {
   test.setTimeout(180_000);

@@ -642,7 +642,9 @@ if (process.argv[1]?.endsWith('level-score.ts')) {
   const [mode = 'score', ...ids] = process.argv.slice(2);
   mkdirSync(SCORE_DIR, { recursive: true });
   if (mode === 'merge') {
-    const rows = readdirSync(SCORE_DIR).filter((file) => file.endsWith('.json')).map((file) => (JSON.parse(readFileSync(`${SCORE_DIR}/${file}`, 'utf8')) as ScoredFile).row);
+    // Tube Sort's S is a formula of stored figures, so a changed formula takes effect without a re-score.
+    const rows = readdirSync(SCORE_DIR).filter((file) => file.endsWith('.json')).map((file) => (JSON.parse(readFileSync(`${SCORE_DIR}/${file}`, 'utf8')) as ScoredFile).row)
+      .map((row) => (row.game === 'tube' ? { ...row, S: tubeRating(row.F1, row.A) } : row));
     const order = (id: string): number => ['board', 'loop', 'tube'].indexOf(id.split('-')[0]!) * 1000 + Number(id.split('-')[1]);
     const sorted = rows.sort((a, b) => order(a.id) - order(b.id));
     writeFileSync(TABLE_PATH, `[\n${sorted.map((row) => JSON.stringify(row)).join(',\n')}\n]\n`);

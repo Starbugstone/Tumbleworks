@@ -52,12 +52,12 @@ describe('every conveyor board from round 4 has a recorded multi-tap win', () =>
 describe('the score table is what the code measures', () => {
   // A full re-score takes hours, so one level per game replays its first six recorded games.
   it('Funnel Sort', () => {
-    const board = campaignFunnel.find((candidate) => candidate.id === 'board-33')!;
+    const board = campaignFunnel.find((candidate) => candidate.id === 'board-46')!;
     const played = [1, 2, 3, 4, 5, 6].map((seed) => (funnelGame(board, 'burst2', seed).status === 'won' ? 'W' : 'L')).join('');
     expect(played).toBe(table.get(board.id)?.probe);
   }, 120_000);
   it('Loop Sort', () => {
-    const board = campaignLoop.find((candidate) => candidate.id === 'loop-36')!;
+    const board = campaignLoop.find((candidate) => candidate.id === 'loop-48')!;
     const played = [1, 2, 3, 4, 5, 6].map((seed) => (loopGame(board, 'burst2', seed).status === 'won' ? 'W' : 'L')).join('');
     expect(played).toBe(table.get(board.id)?.probe);
   });

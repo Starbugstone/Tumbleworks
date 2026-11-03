@@ -51,9 +51,9 @@ test('Loop Sort explains a refused tap: a full loop, a pour in progress, or a on
   expect(errors).toEqual([]);
 });
 
-const QUEUED_LEVEL = 'loop-36';
+const QUEUED_LEVEL = 'loop-42';
 /** Its losing order fills the loop with a pour still waiting, so the tailboard shows the pause. */
-const FULL_LOOP_LEVEL = 'loop-32';
+const FULL_LOOP_LEVEL = 'loop-39';
 const loopIndex = (id: string): number => CAMPAIGN.findIndex((level) => level.id === id);
 /** The Loop Sort levels in the campaign; a level outside it has no chip to open. */
 const CAMPAIGN_LOOPS = LOOP_BOARDS.filter((board) => loopIndex(board.id) >= 0);
@@ -233,7 +233,7 @@ test('lorry cards release their resources between levels', async ({ page }) => {
   });
   const rounds = [];
   for (let round = 0; round < 3; round++) {
-    for (const id of ['loop-36', 'loop-38', 'loop-39']) await openLevel(page, loopIndex(id));
+    for (const id of ['loop-43', 'loop-45', 'loop-39']) await openLevel(page, loopIndex(id));
     rounds.push(await stats());
   }
   expect(rounds[1]).toEqual(rounds[0]);

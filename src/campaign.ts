@@ -22,9 +22,9 @@ const conveyorDifficulty = (index: number, colors: readonly Color[]): Difficulty
  * keyed to the same board. Every definition stays in its bank until the owner has played and confirmed what retires.
  */
 export const PLAY_ORDER = {
-  conveyor: ['board-1', 'board-31', 'board-32', 'board-33', 'board-34', 'board-35', 'board-36', 'board-37', 'board-2', 'board-3', 'board-38', 'board-39'],
-  loop: ['loop-1', 'loop-2', 'loop-31', 'loop-32', 'loop-33', 'loop-34', 'loop-35', 'loop-36', 'loop-37', 'loop-38', 'loop-39', 'loop-40'],
-  tube: ['tube-1', 'tube-31', 'tube-32', 'tube-33', 'tube-34', 'tube-2', 'tube-35', 'tube-36', 'tube-3', 'tube-4', 'tube-9', 'tube-37'],
+  conveyor: ['board-1', 'board-31', 'board-32', 'board-40', 'board-41', 'board-42', 'board-43', 'board-44', 'board-17', 'board-46', 'board-2', 'board-47'],
+  loop: ['loop-1', 'loop-2', 'loop-31', 'loop-41', 'loop-42', 'loop-43', 'loop-44', 'loop-45', 'loop-46', 'loop-48', 'loop-39', 'loop-47'],
+  tube: ['tube-1', 'tube-31', 'tube-32', 'tube-38', 'tube-39', 'tube-40', 'tube-41', 'tube-42', 'tube-43', 'tube-44', 'tube-37', 'tube-46'],
 } as const;
 const inOrder = <T extends { readonly id: string }>(bank: readonly T[], ids: readonly string[]): T[] => ids.map((id) => {
   const board = bank.find((candidate) => candidate.id === id);

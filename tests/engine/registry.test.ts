@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { SLOTS } from '../../scripts/level-slots';
 import { CAMPAIGN, PLAY_ORDER } from '../../src/campaign';
 import { CampaignRegistry, type Feedback, type GameLevel, type GameRuntime, type GameServices } from '../../src/engine/contracts';
 import { PhysicsService } from '../../src/engine/physics';
@@ -69,20 +70,25 @@ describe('gameplay registry', () => {
     }
   });
 
-  it('keeps the opening tiers gentle and has no fifth colour in the first stretch', () => {
+  it('keeps the opening tiers gentle and brings each new colour in on time', () => {
     const colors = new Map<string, Set<Color>>();
     for (const board of BOARDS) colors.set(board.id, new Set(board.supplies.flat().map((tray) => tray.color)));
     for (const board of LOOP_BOARDS) colors.set(board.id, new Set([...board.lanes.flat().flatMap((truck) => truck.segments.map((segment) => segment.color)), ...board.loop.map((entry) => entry.color)]));
     for (const board of TUBE_BOARDS) colors.set(board.id, new Set(board.tubes.flat()));
     for (const level of CAMPAIGN) {
       expect(level.difficulty === 'Full spectrum', level.id).toBe(colors.get(level.id)?.has('orange') ?? false);
-      expect(colors.get(level.id)?.has('orange'), level.id).toBe(false);
     }
     expect(CAMPAIGN.slice(0, 5).map((level) => level.difficulty)).toEqual(Array(5).fill('Getting started'));
     expect(CAMPAIGN[5]?.difficulty).toBe('Finding a rhythm');
-    // Yellow arrives in Tube Sort, then in Funnel Sort and Loop Sort one round later.
-    const firstYellow = (kind: string): number => CAMPAIGN.filter((level) => level.kind === kind).findIndex((level) => colors.get(level.id)?.has('yellow')) + 1;
-    expect([firstYellow('tube'), firstYellow('conveyor'), firstYellow('loop')]).toEqual([6, 7, 7]);
+    // Rounds 1 to 3 stay on three colours. Orange, the fifth, comes in from round 7 and always on a lesson level.
+    const first = (kind: string, color: Color): number => CAMPAIGN.filter((level) => level.kind === kind).findIndex((level) => colors.get(level.id)?.has(color)) + 1;
+    const kinds = ['conveyor', 'loop', 'tube'];
+    expect(kinds.map((kind) => first(kind, 'yellow'))).toEqual([5, 4, 6]);
+    expect(kinds.map((kind) => first(kind, 'orange'))).toEqual([7, 7, 10]);
+    for (const kind of kinds) {
+      const opening = CAMPAIGN.filter((level) => level.kind === kind)[first(kind, 'orange') - 1]!;
+      expect(SLOTS[opening.id], opening.id).toBe('lesson');
+    }
   });
 
   it('adds another runtime factory to the real campaign without special engine branches', () => {
