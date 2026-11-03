@@ -1,7 +1,8 @@
 import { MachineRules } from '../src/sim/rules';
 import { initPhysics, Machine } from '../src/machine/machine';
 import { MIN_CAPACITY } from '../src/machine/layout';
-import { hintConveyor, settle } from '../src/sim/solver';
+import { hintConveyorSearch, settle } from '../src/sim/solver';
+import { HINT_STATE_CAP } from './level-curve';
 import { SHORT_TRAY, TRAY_COUNT } from '../src/sim/boards';
 import type { BoardDef, Color, Packet } from '../src/sim/types';
 import type { BeltShape } from '../src/engine/belt-path';
@@ -61,7 +62,7 @@ export const shuffle = <T>(items: T[], next: () => number): T[] => {
   return items;
 };
 
-function generate(recipe: FunnelRecipe, seed: number): BoardDef | null {
+export function generate(recipe: FunnelRecipe, seed: number): BoardDef | null {
   const next = random(seed);
   const colors = PALETTE.slice(0, recipe.colors);
   const total = recipe.columns.reduce((a, b) => a + b, 0);
@@ -239,10 +240,10 @@ export async function author(recipe: FunnelRecipe, attempts = 400): Promise<Funn
     if (winShare < recipe.win[0] || winShare > recipe.win[1]) continue;
     if (recipe.naiveJams && naiveOrders(board).some((order) => play(board, order) !== 'jammed')) continue;
     const started = Date.now();
-    if (hintConveyor(new MachineRules(board)) === null) continue;
+    const hint = hintConveyorSearch(new MachineRules(board));
+    // Printed for information. The gate counts states, so the same seed cannot flip with machine load.
     const hintMs = Date.now() - started;
-    // The hint runs on the main thread of a phone: a slow opening position is rejected.
-    if (hintMs > 250) continue;
+    if (hint.supply === null || hint.states > HINT_STATE_CAP.funnel) continue;
     let witness: string | null = null;
     for (const candidate of result.witnesses) {
       if (await winsEitherWay(board, candidate)) { witness = candidate; break; }

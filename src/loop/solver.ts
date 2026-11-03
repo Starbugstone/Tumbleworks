@@ -33,9 +33,14 @@ export function settleLoop(rules: LoopRules): boolean {
 
 /** Returns a lane whose tap has a verified winning continuation, without touching the live game. */
 export function hintLoop(rules: LoopRules, searchLimit = DEFAULT_SEARCH_LIMIT): number | null {
-  if (rules.status !== 'playing' || !Number.isSafeInteger(searchLimit) || searchLimit <= 0) return null;
+  return hintLoopSearch(rules, searchLimit).lane;
+}
+
+/** The hint and the states it visited: authoring caps the count, because a clock would change with machine load. */
+export function hintLoopSearch(rules: LoopRules, searchLimit = DEFAULT_SEARCH_LIMIT): { readonly lane: number | null; readonly states: number } {
+  if (rules.status !== 'playing' || !Number.isSafeInteger(searchLimit) || searchLimit <= 0) return { lane: null, states: 0 };
   const settled = clone(rules);
-  if (!settleLoop(settled) || settled.status !== 'playing') return null;
+  if (!settleLoop(settled) || settled.status !== 'playing') return { lane: null, states: 0 };
   const visited = new Set<string>();
   let exhausted = false;
   const canWin = (current: LoopRules): boolean => {
@@ -55,10 +60,10 @@ export function hintLoop(rules: LoopRules, searchLimit = DEFAULT_SEARCH_LIMIT): 
   for (let lane = 0; lane < rules.board.lanes.length; lane += 1) {
     const branch = clone(settled);
     if (!branch.tap(lane).ok || !settleLoop(branch)) continue;
-    if (canWin(branch)) return lane;
-    if (exhausted) return null;
+    if (canWin(branch)) return { lane, states: visited.size };
+    if (exhausted) return { lane: null, states: visited.size };
   }
-  return null;
+  return { lane: null, states: visited.size };
 }
 
 /** Every settled tap order, for authoring. */

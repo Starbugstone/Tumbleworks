@@ -35,11 +35,16 @@ export function settle(rules: MachineRules): boolean {
 
 /** Returns a supply whose release has a verified winning continuation, without touching the live game. */
 export function hintConveyor(rules: MachineRules, searchLimit = DEFAULT_SEARCH_LIMIT): number | null {
-  if (rules.status !== 'playing' || !Number.isSafeInteger(searchLimit) || searchLimit <= 0) return null;
+  return hintConveyorSearch(rules, searchLimit).supply;
+}
+
+/** The hint and the states it visited: authoring caps the count, because a clock would change with machine load. */
+export function hintConveyorSearch(rules: MachineRules, searchLimit = DEFAULT_SEARCH_LIMIT): { readonly supply: number | null; readonly states: number } {
+  if (rules.status !== 'playing' || !Number.isSafeInteger(searchLimit) || searchLimit <= 0) return { supply: null, states: 0 };
   const candidates = rules.state.supplies.flatMap((supply, index) => (supply[0] ? [index] : []));
-  if (!candidates.length) return null;
+  if (!candidates.length) return { supply: null, states: 0 };
   const settled = clone(rules);
-  if (!settle(settled) || settled.status !== 'playing') return null;
+  if (!settle(settled) || settled.status !== 'playing') return { supply: null, states: 0 };
   const visited = new Set<string>();
   let exhausted = false;
 
@@ -61,10 +66,10 @@ export function hintConveyor(rules: MachineRules, searchLimit = DEFAULT_SEARCH_L
   for (const supply of candidates) {
     const branch = clone(settled);
     if (!branch.release(supply).ok || !settle(branch)) continue;
-    if (canWin(branch)) return supply;
-    if (exhausted) return null;
+    if (canWin(branch)) return { supply, states: visited.size };
+    if (exhausted) return { supply: null, states: visited.size };
   }
-  return null;
+  return { supply: null, states: visited.size };
 }
 
 /** Every settled release order, for authoring: how many win, how many jam, and one witness of each. */

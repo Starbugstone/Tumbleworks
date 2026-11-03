@@ -97,8 +97,13 @@ interface TubeSearchNode {
 const tubeKey = (tubes: readonly (readonly Color[])[]): string => tubes.map((tube) => tube.join(',')).sort().join('|');
 
 export function solveTube(board: TubeDef, state: TubeState, limit = DEFAULT_SEARCH_LIMIT): TubeMove[] | null {
-  if (state.status === 'won') return [];
-  if (state.status === 'jammed' || !isIndex(limit) || limit === 0) return null;
+  return solveTubeSearch(board, state, limit).moves;
+}
+
+/** The shortest solution and the states visited: authoring caps the count, because a clock would change with machine load. */
+export function solveTubeSearch(board: TubeDef, state: TubeState, limit = DEFAULT_SEARCH_LIMIT): { readonly moves: TubeMove[] | null; readonly states: number } {
+  if (state.status === 'won') return { moves: [], states: 0 };
+  if (state.status === 'jammed' || !isIndex(limit) || limit === 0) return { moves: null, states: 0 };
   const nodes: TubeSearchNode[] = [{ tubes: cloneTubes(state.tubes), parent: -1, action: null }];
   const visited = new Set([tubeKey(state.tubes)]);
   const path = (index: number): TubeMove[] => {
@@ -128,11 +133,11 @@ export function solveTube(board: TubeDef, state: TubeState, limit = DEFAULT_SEAR
       if (visited.has(key)) continue;
       visited.add(key);
       nodes.push({ tubes: next.tubes, parent: cursor, action });
-      if (next.status === 'won') return path(nodes.length - 1);
-      if (visited.size >= limit) return null;
+      if (next.status === 'won') return { moves: path(nodes.length - 1), states: visited.size };
+      if (visited.size >= limit) return { moves: null, states: visited.size };
     }
   }
-  return null;
+  return { moves: null, states: visited.size };
 }
 
 export class TubeRules implements Replayable {

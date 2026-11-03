@@ -1,0 +1,274 @@
+import { appendFileSync, mkdirSync, readFileSync } from 'node:fs';
+import { hintLoopSearch } from '../src/loop/solver';
+import { LoopRules } from '../src/loop/rules';
+import type { LoopBoardDef } from '../src/loop/types';
+import { MIN_CAPACITY } from '../src/machine/layout';
+import { initPhysics } from '../src/machine/machine';
+import { TUBE_BOARDS } from '../src/puzzles/levels';
+import type { TubeDef } from '../src/puzzles/types';
+import { MachineRules } from '../src/sim/rules';
+import { hintConveyorSearch } from '../src/sim/solver';
+import type { BoardDef, Color } from '../src/sim/types';
+import type { BeltShape } from '../src/engine/belt-path';
+import { generate as generateFunnel, naiveOrders, play as playOrder, search as searchFunnel, tighten as tightenFunnel, winsEitherWay as funnelWitnessWins, type FunnelRecipe } from './funnel-author';
+import { bandFor, funnelRating, HINT_STATE_CAP, levelViolations, LOOP_CAPACITY_MAX, loopRating, MIN_RISK_POSITIONS, multiTapFailure, OVAL_CAPACITY_MAX, stretchOf, TUBE_GRAPH_CAP, tubeRating, winCeiling, type Slot } from './level-curve';
+import { funnelGame, funnelJitter, loopGame, loopJitter, scoreFunnel, scoreLoop, scoreTube, scoreTubeRow, settledFunnel, settledLoop, tally, type FunnelPlayer, type LoopPlayer, type ScoredFile, type Tally } from './level-score';
+import { generate as generateLoop, laneByLane, roundRobin, search as searchLoop, tighten as tightenLoop, winsEitherWay as loopWitnessWins, type LoopRecipe } from './loop-author';
+import { generate as generateTube } from './tube-author';
+
+/**
+ * Authors the levels of a stretch against the curve. A candidate faces the cheap settled checks first, then the machine, and
+ * every outcome goes on one line of its target's log, so a run can stop at any time and resume where it was.
+ *   npx tsx scripts/level-author.ts run <id> [want] [minutes]   search one target until `want` boards pass or `minutes` run out
+ *   npx tsx scripts/level-author.ts targets                     list the targets
+ * Results are in CANDIDATE_DIR; `scripts/level-emit.ts` turns the chosen ones into source.
+ */
+export const CANDIDATE_DIR = process.env['CANDIDATE_DIR'] ?? 'output/current/levelling/first-stretch/candidates';
+const NOISE = 0.13;
+const CONFIRM_GAMES = 200;
+const SCREEN_GAMES = 60;
+
+interface Named {
+  readonly id: string;
+  readonly round: number;
+  readonly slot: Slot;
+  readonly title: string;
+  readonly fr: string;
+  readonly note: string;
+  /** Narrower than the slot's band where the neighbours need it; the band alone would let a peak sit at its bottom. */
+  readonly want?: readonly [number, number];
+}
+export interface FunnelTarget extends Named { readonly colors: number; readonly columns: readonly number[]; readonly docks: number; readonly slack: readonly number[]; readonly shape?: BeltShape }
+export interface LoopTarget extends Named {
+  readonly colors: number;
+  readonly lanes: readonly number[];
+  readonly segments: 2 | 3;
+  /** Most trucks that may carry three segments; the rest carry two. */
+  readonly threeSegments?: number;
+  readonly ringMin: number;
+  readonly ringMax: number;
+}
+export interface TubeTarget extends Named { readonly colors: number; readonly capacity: number; readonly empties: number; readonly moves: readonly [number, number]; readonly f1?: readonly [number, number] }
+
+export const FUNNEL_TARGETS: readonly FunnelTarget[] = [
+  { id: 'board-31', round: 2, slot: 'ordinary', title: 'Two by two', fr: 'Deux par deux', note: 'Two columns of two: nothing to lose yet, just the order of things.', colors: 3, columns: [2, 2], docks: 3, slack: [4, 5, 6] },
+  { id: 'board-32', round: 3, slot: 'ordinary', title: 'A third column', fr: 'Une troisième colonne', note: 'Five trays in three columns, with plenty of belt.', colors: 3, columns: [2, 2, 1], docks: 3, slack: [4, 5, 6] },
+  { id: 'board-33', want: [8, 20], round: 4, slot: 'lesson', title: 'The wrong tray', fr: 'Le mauvais plateau', note: 'The first real trap: one tray too early and the belt fills.', colors: 3, columns: [2, 2, 2], docks: 3, slack: [2, 3, 4] },
+  { id: 'board-34', want: [20, 35], round: 5, slot: 'peak', title: 'Two docks', fr: 'Deux quais', note: 'Six trays and only two docks: think two pours ahead.', colors: 3, columns: [2, 2, 2], docks: 2, slack: [2, 3, 4] },
+  { id: 'board-35', round: 6, slot: 'relief', title: 'Breathing room', fr: 'Un peu d’air', note: 'A breather after the two docks: fewer trays, a roomy belt.', colors: 3, columns: [2, 2, 1], docks: 2, slack: [3, 4] },
+  { id: 'board-36', want: [12, 25], round: 7, slot: 'lesson', title: 'Yellow joins in', fr: 'Le jaune s’invite', note: 'Yellow and its star on a small board with four docks.', colors: 4, columns: [2, 2, 2], docks: 4, slack: [4] },
+  { id: 'board-37', want: [22, 37], round: 8, slot: 'ordinary', title: 'Four colours, three docks', fr: 'Quatre couleurs, trois quais', note: 'Four colours share three docks: one colour always waits.', colors: 4, columns: [2, 2, 2], docks: 3, slack: [2, 3, 4] },
+  { id: 'board-38', round: 11, slot: 'relief', title: 'Taking turns', fr: 'Chacun son tour', note: 'Seven trays with a roomy belt, after the deeper column.', colors: 4, columns: [3, 2, 2], docks: 3, slack: [3, 4] },
+  { id: 'board-39', want: [22, 35], round: 12, slot: 'ordinary', title: 'Eight trays', fr: 'Huit plateaux', note: 'Eight trays, two deep columns: the longest so far.', colors: 4, columns: [3, 3, 2], docks: 4, slack: [2, 3, 4] },
+];
+export const LOOP_TARGETS: readonly LoopTarget[] = [
+  { id: 'loop-32', want: [5, 18], round: 4, slot: 'lesson', title: 'One behind', fr: 'Un derrière', note: 'The first queued truck, with room to spare.', colors: 3, lanes: [2, 1, 1], segments: 2, ringMin: 0, ringMax: 0 },
+  { id: 'loop-33', want: [12, 35], round: 5, slot: 'peak', title: 'Two queues', fr: 'Deux files', note: 'Five trucks and a little traffic already on the loop.', colors: 3, lanes: [2, 2, 1], segments: 2, ringMin: 2, ringMax: 8 },
+  { id: 'loop-34', want: [10, 20], round: 6, slot: 'ordinary', title: 'Five on the move', fr: 'Cinq en route', note: 'Five trucks and an empty loop that does not stay empty.', colors: 3, lanes: [2, 2, 1], segments: 2, ringMin: 0, ringMax: 0 },
+  { id: 'loop-35', want: [10, 22], round: 7, slot: 'lesson', title: 'Yellow on the loop', fr: 'Du jaune sur l’anneau', note: 'Yellow and its star, five trucks.', colors: 4, lanes: [2, 2, 1], segments: 2, ringMin: 2, ringMax: 8 },
+  { id: 'loop-36', want: [20, 35], round: 8, slot: 'ordinary', title: 'Six trucks', fr: 'Six camions', note: 'Six trucks, every lane queued.', colors: 4, lanes: [2, 2, 2], segments: 2, ringMin: 2, ringMax: 12 },
+  { id: 'loop-37', want: [22, 38], round: 9, slot: 'ordinary', title: 'A clear start', fr: 'Un départ dégagé', note: 'Nothing on the loop at the start, and it fills all the same.', colors: 4, lanes: [2, 2, 2], segments: 2, ringMin: 0, ringMax: 0 },
+  { id: 'loop-38', want: [15, 30], round: 10, slot: 'lesson', title: 'Three in one', fr: 'Trois en un', note: 'One truck carries three stretches: dig twice to reach its colour.', colors: 4, lanes: [2, 2, 1], segments: 3, threeSegments: 1, ringMin: 0, ringMax: 12 },
+  { id: 'loop-39', want: [30, 46], round: 11, slot: 'peak', title: 'Deep loads', fr: 'Charges profondes', note: 'Several trucks carry three stretches and the loop is never quite clear.', colors: 4, lanes: [2, 2, 2], segments: 3, ringMin: 2, ringMax: 12 },
+  { id: 'loop-40', want: [10, 25], round: 12, slot: 'relief', title: 'Easy does it', fr: 'Tout en douceur', note: 'A wider loop after the deep loads.', colors: 4, lanes: [2, 2, 1], segments: 3, ringMin: 2, ringMax: 12 },
+];
+export const TUBE_TARGETS: readonly TubeTarget[] = [
+  { id: 'tube-31', round: 2, slot: 'ordinary', title: 'Short shuffle', fr: 'Petit mélange', note: 'A few moves with two spares.', colors: 3, capacity: 4, empties: 2, moves: [5, 6] },
+  { id: 'tube-32', round: 3, slot: 'ordinary', title: 'Over and back', fr: 'Aller-retour', note: 'Two spares, one colour has to wait.', colors: 3, capacity: 4, empties: 2, moves: [6, 6] },
+  { id: 'tube-33', round: 4, slot: 'lesson', title: 'More mixed up', fr: 'Plus mélangé', note: 'More mixing, more choice, the same three colours.', colors: 3, capacity: 4, empties: 2, moves: [7, 8] },
+  { id: 'tube-34', round: 5, slot: 'ordinary', title: 'Ten moves away', fr: 'À dix coups', note: 'Three colours as mixed as they get with two spares.', colors: 3, capacity: 4, empties: 2, moves: [8, 10] },
+  { id: 'tube-35', round: 7, slot: 'peak', title: 'Four, well mixed', fr: 'Quatre bien mêlées', note: 'Four colours and a long shortest sort.', colors: 4, capacity: 4, empties: 2, moves: [13, 14] },
+  { id: 'tube-36', round: 8, slot: 'ordinary', title: 'A long unpick', fr: 'Long démêlage', note: 'Four colours again, a shorter way through.', colors: 4, capacity: 4, empties: 2, moves: [12, 12] },
+  { id: 'tube-37', want: [25, 37], round: 12, slot: 'peak', title: 'The narrow way', fr: 'La voie étroite', note: 'One spare again, and most ways of using it lose.', colors: 3, capacity: 4, empties: 1, moves: [7, 10], f1: [20, 37] },
+];
+
+interface Log { seed: number; capacity?: number; outcome: string; F1?: number; FM?: number; FMmixed?: number; S?: number; spam?: number; cheese?: number; brisk?: number; gatePassed?: boolean; mixedGatePassed?: boolean; scored?: ScoredFile }
+const log = (id: string, entry: Log): void => { appendFileSync(`${CANDIDATE_DIR}/${id}.jsonl`, `${JSON.stringify(entry)}\n`); };
+const logged = (id: string): Log[] => {
+  try { return readFileSync(`${CANDIDATE_DIR}/${id}.jsonl`, 'utf8').trim().split('\n').filter(Boolean).map((line) => JSON.parse(line) as Log); } catch { return []; }
+};
+
+async function funnelCandidate(target: FunnelTarget, seed: number): Promise<number> {
+  const recipe: FunnelRecipe = { id: target.id, title: target.title, fr: target.fr, note: target.note, colors: target.colors, columns: target.columns, shorts: 0, docks: target.docks, capacity: 40, seed, win: [0, 1], slack: 0, naiveJams: false, ...(target.shape ? { shape: target.shape } : {}) };
+  const loose = generateFunnel(recipe, seed);
+  if (!loose) { log(target.id, { seed, outcome: 'ungenerated' }); return 0; }
+  const probe = searchFunnel(loose, 60_000);
+  if (!probe.solvable) { log(target.id, { seed, outcome: 'unsolvable' }); return 0; }
+  const tight = tightenFunnel(loose).beltCapacity;
+  const band = target.want ?? bandFor(target.round, target.slot)!;
+  const ceiling = winCeiling(target.round);
+  let accepted = 0;
+  const seen = new Set<number>();
+  for (const slack of target.slack) {
+    const capacity = Math.max(MIN_CAPACITY[target.shape ?? 'oval'], tight + slack);
+    if (seen.has(capacity) || (!target.shape && capacity > OVAL_CAPACITY_MAX)) continue;
+    seen.add(capacity);
+    const board: BoardDef = { ...loose, beltCapacity: capacity };
+    const say = (outcome: string, extra: Partial<Log> = {}): void => { log(target.id, { seed, capacity, outcome, ...extra }); };
+    const found = searchFunnel(board, 60_000);
+    if (!found.solvable) { say('unsolvable'); continue; }
+    if (target.round >= 4 && !found.jam) { say('no losing order'); continue; }
+    if (target.round >= 7 && !naiveOrders(board).some((order) => playOrder(board, order) === 'jammed')) { say('no naive jam'); continue; }
+    const settled = settledFunnel(board);
+    // The tempo term moves S at most 12 up or 10 down.
+    if (settled.F1 < band[0] - 12 || settled.F1 > band[1] + 10) { say('F1 out of reach', { F1: settled.F1 }); continue; }
+    if (target.round >= 4 && settled.shape.risk < MIN_RISK_POSITIONS) { say('too few risks', { F1: settled.F1 }); continue; }
+    const hint = hintConveyorSearch(new MachineRules(board));
+    if (hint.supply === null || hint.states > HINT_STATE_CAP.funnel) { say('hint', { F1: settled.F1 }); continue; }
+    const play = (player: FunnelPlayer) => (game: number) => funnelGame(board, player, game);
+    const players: Record<string, Tally> = {};
+    players['cheese'] = tally(play('cheese'), SCREEN_GAMES);
+    const wins = (): { cheese: number; spam: number; brisk: number } => ({ cheese: players['cheese']!.win, spam: players['spam']?.win ?? 0, brisk: players['brisk']?.win ?? 0 });
+    const allowed = ceiling === null ? 1 : ceiling + (target.slot === 'relief' || target.slot === 'lesson' ? 0.1 : 0);
+    const limit = Math.min(allowed, (100 - settled.F1 + 40) / 100);
+    if (target.round >= 4 && wins().cheese > limit + NOISE) { say('auto win', { F1: settled.F1, ...wins() }); continue; }
+    players['spam'] = tally(play('spam'), SCREEN_GAMES);
+    players['brisk'] = tally(play('brisk'), SCREEN_GAMES);
+    const reward = (): number => Math.max(wins().cheese, wins().spam) - wins().brisk;
+    if (target.round >= 4 && reward() < 0.1 - NOISE) { say('no reward', { F1: settled.F1, ...wins() }); continue; }
+    players['burst2'] = tally(play('burst2'), SCREEN_GAMES, true);
+    players['burst3'] = tally(play('burst3'), SCREEN_GAMES, true);
+    const screenS = funnelRating(settled.F1, players['burst2'].win, players['burst3'].win, wins().cheese);
+    if (screenS < band[0] - 3 || screenS > band[1] + 3) { say('S out of band', { F1: settled.F1, S: screenS, ...wins() }); continue; }
+    let witness: string | null = null;
+    let jitterFail = 0;
+    for (const candidate of found.witnesses) {
+      if (!(await funnelWitnessWins(board, candidate))) continue;
+      if (target.round >= 4 && funnelJitter(board, candidate) < 0.9) { jitterFail += 1; continue; }
+      witness = candidate;
+      break;
+    }
+    if (!witness) { say(jitterFail ? 'witness jitter' : 'no machine witness', { F1: settled.F1, S: screenS, ...wins() }); continue; }
+    if (target.round >= 4 && (Math.abs(wins().cheese - limit) < NOISE || Math.abs(reward() - 0.1) < NOISE)) {
+      players['cheese'] = tally(play('cheese'), CONFIRM_GAMES);
+      players['spam'] = tally(play('spam'), CONFIRM_GAMES);
+      players['brisk'] = tally(play('brisk'), CONFIRM_GAMES);
+    }
+    const scored = await scoreFunnel(board, witness, SCREEN_GAMES, SCREEN_GAMES, players);
+    const violations = levelViolations({ round: target.round, game: 'funnel', slot: target.slot, row: scored.row });
+    if (scored.row.S < band[0] || scored.row.S > band[1]) violations.push(`S ${scored.row.S.toFixed(1)} off target`);
+    if (violations.length) { say(`gates: ${violations.join('; ')}`, { F1: scored.row.F1, S: scored.row.S, ...wins() }); continue; }
+    say('accepted', { F1: scored.row.F1, S: scored.row.S, ...wins(), scored });
+    accepted += 1;
+  }
+  return accepted;
+}
+
+function loopCandidate(target: LoopTarget, seed: number): number {
+  const recipe: LoopRecipe = { id: target.id, title: target.title, fr: target.fr, note: target.note, colors: target.colors, lanes: target.lanes, segments: target.segments, capacity: LOOP_CAPACITY_MAX, ringMax: target.ringMax, seed, win: [0, 1], naiveJams: false };
+  const loose = generateLoop(recipe, seed);
+  if (!loose) return 0;
+  const trucks = loose.lanes.flat();
+  const allowed = target.segments;
+  const threes = trucks.filter((truck) => truck.segments.length === 3).length;
+  const ring = loose.loop.reduce((sum, packet) => sum + packet.count, 0);
+  if (trucks.some((truck) => truck.segments.length > allowed) || (target.segments === 3 && threes < 1) || (target.threeSegments !== undefined && threes > target.threeSegments) || ring < target.ringMin || ring > target.ringMax) return 0;
+  let probe;
+  try { probe = searchLoop(loose, 60_000); } catch { return 0; }
+  if (!probe.solvable) { log(target.id, { seed, outcome: 'unsolvable' }); return 0; }
+  const tight = tightenLoop(loose).loopCapacity;
+  const band = target.want ?? bandFor(target.round, target.slot)!;
+  const stretch = stretchOf(target.round);
+  const ceiling = winCeiling(target.round);
+  let accepted = 0;
+  for (let extra = 0; extra <= 16 && tight + extra <= LOOP_CAPACITY_MAX; extra += 2) {
+    const capacity = tight + extra;
+    const board: LoopBoardDef = { ...loose, loopCapacity: capacity };
+    const say = (outcome: string, more: Partial<Log> = {}): void => { log(target.id, { seed, capacity, outcome, ...more }); };
+    const found = searchLoop(board, 60_000);
+    if (!found.solvable) { say('unsolvable'); continue; }
+    if (target.round >= 4 && !found.jam) { say('no losing order'); continue; }
+    if (target.round >= 7 && laneByLane(board) !== 'jammed' && roundRobin(board) !== 'jammed') { say('no naive jam'); continue; }
+    const settled = settledLoop(board);
+    if (settled.F1 < band[0] - 12 || settled.F1 > band[1] + 10) { say('F1 out of reach', { F1: settled.F1 }); continue; }
+    if (target.round >= 4 && settled.shape.risk < MIN_RISK_POSITIONS) { say('too few risks', { F1: settled.F1 }); continue; }
+    const hint = hintLoopSearch(new LoopRules(board));
+    if (hint.lane === null || hint.states > HINT_STATE_CAP.loop) { say('hint', { F1: settled.F1 }); continue; }
+    const play = (player: LoopPlayer) => (game: number) => loopGame(board, player, game);
+    const burst2 = tally(play('burst2'), SCREEN_GAMES, true);
+    const burst3 = tally(play('burst3'), SCREEN_GAMES, true);
+    const mixed = tally(play('mixed'), SCREEN_GAMES);
+    const spam = tally(play('spam'), SCREEN_GAMES);
+    const FM = multiTapFailure(burst2.win, burst3.win);
+    const FMmixed = 100 * (1 - mixed.win);
+    const gap = stretch.gap ?? 100;
+    const S = loopRating(settled.F1, FM);
+    const gate = { gatePassed: FM <= settled.F1 + gap, mixedGatePassed: FMmixed <= settled.F1 + gap };
+    const figures = { F1: settled.F1, FM, FMmixed, S, spam: spam.win, ...gate };
+    if (target.round >= 4 && !gate.gatePassed) { say('multi-tap gap', figures); continue; }
+    if (S < band[0] - 2 || S > band[1] + 2) { say('S out of band', figures); continue; }
+    const spamLimit = ceiling === null ? 1 : ceiling + (target.slot === 'relief' || target.slot === 'lesson' ? 0.1 : 0);
+    if (spam.win > spamLimit + 1e-9) { say('auto win', figures); continue; }
+    let witness: string | null = null;
+    for (const candidate of found.witnesses) {
+      if (!loopWitnessWins(board, candidate)) continue;
+      if (target.round >= 4 && loopJitter(board, candidate) < 0.9) continue;
+      witness = candidate;
+      break;
+    }
+    if (!witness) { say('no machine witness', figures); continue; }
+    const scored = scoreLoop(board, witness);
+    const violations = levelViolations({ round: target.round, game: 'loop', slot: target.slot, row: scored.row });
+    if (scored.row.S < band[0] || scored.row.S > band[1]) violations.push(`S ${scored.row.S.toFixed(1)} off target`);
+    if (violations.length) { say(`gates: ${violations.join('; ')}`, figures); continue; }
+    say('accepted', { ...figures, F1: scored.row.F1, FM: scored.row.FM, S: scored.row.S, FMmixed: 100 * (1 - scored.row.wins['mixed']!.win), scored });
+    accepted += 1;
+  }
+  return accepted;
+}
+
+function tubeCandidate(target: TubeTarget, seed: number): number {
+  const palette: Color[] = (['red', 'blue', 'green', 'yellow', 'orange'] as Color[]).slice(0, target.colors);
+  const tubes = generateTube(palette, target.capacity, target.empties, target.colors, seed);
+  if (!tubes) return 0;
+  const key = tubes.map((tube) => tube.join()).sort().join('|');
+  if (TUBE_BOARDS.some((board) => board.tubes.map((tube) => tube.join()).sort().join('|') === key)) return 0;
+  const board: TubeDef = { kind: 'tube', id: target.id, title: target.title, capacity: target.capacity, tubes, solution: [] };
+  const score = scoreTube(board);
+  if (!score || score.moves < target.moves[0] || score.moves > target.moves[1]) return 0;
+  if (score.graphStates > TUBE_GRAPH_CAP || score.hintStates > HINT_STATE_CAP.tube) return 0;
+  const spare = target.empties;
+  // Two spares before round 21: nothing may be silently lost.
+  if (spare >= 2 && (score.shape.lostShare > 0 || score.shape.silent > 0)) { log(target.id, { seed, outcome: 'silent lost positions', F1: score.F1 }); return 0; }
+  if (target.f1 && (score.F1 < target.f1[0] || score.F1 > target.f1[1])) return 0;
+  const S = tubeRating(score.F1, score.moves);
+  const band = target.want ?? bandFor(target.round, target.slot)!;
+  if (S < band[0] || S > band[1]) { log(target.id, { seed, outcome: 'S out of band', F1: score.F1, S }); return 0; }
+  const solved = scoreTubeRow(board);
+  log(target.id, { seed, outcome: 'accepted', F1: score.F1, S, scored: solved });
+  return 1;
+}
+
+export const ALL_TARGETS: readonly Named[] = [...FUNNEL_TARGETS, ...LOOP_TARGETS, ...TUBE_TARGETS];
+
+if (process.argv[1]?.endsWith('level-author.ts')) {
+  const [mode = 'targets', id = '', wantArg = '1', minutesArg = '30'] = process.argv.slice(2);
+  mkdirSync(CANDIDATE_DIR, { recursive: true });
+  if (mode === 'targets') for (const target of ALL_TARGETS) console.log(target.id, target.round, target.slot, target.title);
+  else {
+    const want = Number(wantArg);
+    const deadline = Date.now() + Number(minutesArg) * 60_000;
+    const funnel = FUNNEL_TARGETS.find((target) => target.id === id);
+    const loop = LOOP_TARGETS.find((target) => target.id === id);
+    const tube = TUBE_TARGETS.find((target) => target.id === id);
+    if (!funnel && !loop && !tube) throw new Error(`No target ${id}`);
+    if (funnel) await initPhysics();
+    const past = logged(id);
+    let found = past.filter((entry) => entry.outcome === 'accepted').length;
+    // Loop and Tube seeds that fail cheaply leave no line, so the seed to resume from is kept apart.
+    let progress = 1;
+    try { progress = Number(readFileSync(`${CANDIDATE_DIR}/${id}.seed`, 'utf8')) || 1; } catch { /* a first run */ }
+    progress = Math.max(progress, ...past.map((entry) => entry.seed + 1));
+    const { writeFileSync } = await import('node:fs');
+    const started = progress;
+    let seed = progress;
+    for (; found < want && Date.now() < deadline; seed++) {
+      try {
+        found += funnel ? await funnelCandidate(funnel, seed) : loop ? loopCandidate(loop, seed) : tubeCandidate(tube!, seed);
+      } catch (error) { log(id, { seed, outcome: `error ${String(error).slice(0, 160)}` }); }
+      if (seed % 10 === 0) writeFileSync(`${CANDIDATE_DIR}/${id}.seed`, String(seed + 1));
+    }
+    writeFileSync(`${CANDIDATE_DIR}/${id}.seed`, String(seed));
+    console.error(`${id}: ${found} accepted, seeds ${started}-${seed - 1}`);
+  }
+}

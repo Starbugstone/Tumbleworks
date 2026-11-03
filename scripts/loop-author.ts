@@ -1,6 +1,7 @@
 import { LoopRules } from '../src/loop/rules';
 import { LoopMachine } from '../src/loop/machine';
-import { hintLoop, settleLoop } from '../src/loop/solver';
+import { hintLoopSearch, settleLoop } from '../src/loop/solver';
+import { HINT_STATE_CAP, LOOP_MAX_SEGMENTS } from './level-curve';
 import { TRUCK_CAPACITY } from '../src/loop/boards';
 import type { LoopBoardDef, TruckDef } from '../src/loop/types';
 import type { Color, Packet } from '../src/sim/types';
@@ -25,8 +26,6 @@ export interface LoopRecipe {
   readonly lanes: readonly number[];
   /** Most segments a truck carries; the deepest fixes its colour. */
   readonly segments: 2 | 3;
-  /** Share of trucks that start with a half load of one colour. */
-  readonly halfLoads: number;
   /** Most marbles the loop may hold; the author then tightens it to the least solvable capacity plus `slack` (four by default). */
   readonly capacity: number;
   readonly slack?: number;
@@ -374,6 +373,8 @@ export function author(recipe: LoopRecipe, attempts = 1500): LoopReport {
   for (let seed = first; seed < first + attempts; seed++) {
     const loose = generate(recipe, seed);
     if (!loose) continue;
+    // `segments: 3` can relax to a fourth segment when a truck is stuck; no such truck ships.
+    if (loose.lanes.flat().some((truck) => truck.segments.length > LOOP_MAX_SEGMENTS)) continue;
     let probe: Search;
     try { probe = search(loose); } catch { continue; }
     if (!probe.solvable) continue;
@@ -387,10 +388,10 @@ export function author(recipe: LoopRecipe, attempts = 1500): LoopReport {
     if (winShare < recipe.win[0] || winShare > recipe.win[1]) continue;
     if (recipe.naiveJams && (laneByLane(board) !== 'jammed' || roundRobin(board) !== 'jammed')) continue;
     const started = Date.now();
-    if (hintLoop(new LoopRules(board)) === null) continue;
+    const hint = hintLoopSearch(new LoopRules(board));
+    // Printed for information. The gate counts states, so the same seed cannot flip with machine load.
     const hintMs = Date.now() - started;
-    // The hint runs on the main thread of a phone: a slow opening position is rejected.
-    if (hintMs > 250) continue;
+    if (hint.lane === null || hint.states > HINT_STATE_CAP.loop) continue;
     let witness: string | null = null;
     for (const candidate of result.witnesses) {
       if (winsEitherWay(board, candidate)) { witness = candidate; break; }
@@ -415,31 +416,31 @@ export function emitBoard(report: LoopReport): string {
 export const LOOP_RECIPES: readonly LoopRecipe[] = [
   // Boards 6 to 11 keep their titles and shapes; they are re-rolled here so that tapping in turn no longer wins
   // and the two bridge boards stop repeating boards 4 and 5. The win bands tighten down the bank.
-  { id: 'loop-6', title: 'Truck bridge', fr: 'Le pont des camions', note: 'The first bridge for the trucks: four lanes, six trucks, four colours.', colors: 4, lanes: [2, 2, 1, 1], segments: 3, halfLoads: 0.1, capacity: 32, ringMax: 16, shape: 'eight', seed: 1, win: [0.3, 0.5], naiveJams: true },
-  { id: 'loop-7', title: 'Eight in motion', fr: 'Huit en mouvement', note: 'Eight trucks on the wide crossing.', colors: 4, lanes: [2, 2, 2, 2], segments: 3, halfLoads: 0.1, capacity: 56, ringMax: 24, shape: 'wide-eight', seed: 1, win: [0.2, 0.4], naiveJams: true },
-  { id: 'loop-8', title: 'Orange arrives', fr: 'L’orange arrive', note: 'Orange arrives on the loop: four lanes, six trucks, five colours.', colors: 5, lanes: [2, 2, 1, 1], segments: 3, halfLoads: 0.1, capacity: 32, ringMax: 14, seed: 1, win: [0.25, 0.45], naiveJams: true },
-  { id: 'loop-9', title: 'Five lanes', fr: 'Cinq voies', note: 'Five lanes in two rows, eight trucks, five colours.', colors: 5, lanes: [2, 2, 1, 2, 1], segments: 3, halfLoads: 0.1, capacity: 40, ringMax: 18, seed: 1, win: [0.1, 0.35], naiveJams: true },
-  { id: 'loop-10', title: 'Orange bridge', fr: 'Le pont orange', note: 'Seven trucks over the bridge with orange in the mix.', colors: 5, lanes: [2, 2, 2, 1], segments: 3, halfLoads: 0.1, capacity: 42, ringMax: 18, shape: 'eight', seed: 1, win: [0.12, 0.3], naiveJams: true },
-  { id: 'loop-11', title: 'Rush hour', fr: 'Heure de pointe', note: 'Eight trucks, five colours, the wide crossing: rush hour.', colors: 5, lanes: [2, 2, 2, 2], segments: 3, halfLoads: 0.1, capacity: 56, ringMax: 24, shape: 'wide-eight', seed: 1, win: [0.1, 0.25], naiveJams: true },
-  { id: 'loop-12', title: 'Two lanes, deep queues', fr: 'Deux voies, longues files', note: 'Six trucks in only two lanes: what is behind matters more than what is in front.', colors: 4, lanes: [3, 3], segments: 3, halfLoads: 0.2, capacity: 28, ringMax: 14, seed: 1, win: [0.05, 0.5], naiveJams: true },
-  { id: 'loop-13', title: 'Three-colour squeeze', fr: 'Trois couleurs à l’étroit', note: 'Three colours, six trucks, three segments each and a small loop.', colors: 3, lanes: [2, 2, 2], segments: 3, halfLoads: 0, capacity: 22, ringMax: 10, seed: 1, win: [0.08, 0.3], naiveJams: true },
-  { id: 'loop-14', title: 'Triple decks', fr: 'Triples charges', note: 'Eight trucks carrying up to three colours each.', colors: 5, lanes: [2, 2, 2, 2], segments: 3, halfLoads: 0.1, capacity: 36, ringMax: 16, seed: 1, win: [0.08, 0.3], naiveJams: true },
-  { id: 'loop-15', title: 'Five lanes, one each', fr: 'Cinq voies, un camion', note: 'Five trucks in five lanes with nothing behind them: the whole puzzle is on the loop.', colors: 5, lanes: [1, 1, 1, 1, 1], segments: 3, halfLoads: 0, capacity: 30, ringMax: 24, seed: 1, win: [0.08, 0.3], naiveJams: true },
-  { id: 'loop-16', title: 'Nine over the bridge', fr: 'Neuf sur le pont', note: 'Nine trucks over the bridge with five colours.', colors: 5, lanes: [3, 2, 2, 2], segments: 3, halfLoads: 0.1, capacity: 42, ringMax: 20, shape: 'eight', seed: 1, win: [0.08, 0.28], naiveJams: true },
-  { id: 'loop-17', title: 'Half loads', fr: 'Demi-charges', note: 'Half the trucks arrive half full, so the loop starts crowded.', colors: 4, lanes: [2, 2, 2], segments: 3, halfLoads: 0.5, capacity: 32, ringMax: 30, seed: 1, win: [0.08, 0.28], naiveJams: true },
-  { id: 'loop-18', title: 'Ten trucks', fr: 'Dix camions', note: 'Five lanes, ten trucks, five colours.', colors: 5, lanes: [2, 2, 2, 2, 2], segments: 3, halfLoads: 0.1, capacity: 48, ringMax: 24, seed: 1, win: [0.08, 0.25], naiveJams: true },
-  { id: 'loop-19', title: 'Narrow ring', fr: 'Anneau étroit', note: 'Seven trucks and a loop with little room.', colors: 5, lanes: [2, 2, 1, 2], segments: 3, halfLoads: 0, capacity: 24, ringMax: 10, slack: 2, seed: 1, win: [0.06, 0.25], naiveJams: true },
-  { id: 'loop-20', title: 'Wide crossing, three deep', fr: 'Grande traversée, trois de fond', note: 'Ten trucks on the wide crossing, three deep in two lanes.', colors: 5, lanes: [3, 3, 2, 2], segments: 3, halfLoads: 0.1, capacity: 56, ringMax: 24, shape: 'wide-eight', seed: 1, win: [0.05, 0.22], naiveJams: true },
-  { id: 'loop-21', title: 'Crowded start', fr: 'Départ encombré', note: 'The loop begins nearly full; the first pour has to be the right one.', colors: 4, lanes: [2, 2, 2, 2], segments: 3, halfLoads: 0.3, capacity: 30, ringMax: 26, seed: 1, win: [0.05, 0.35], naiveJams: true },
-  { id: 'loop-22', title: 'Three lanes, three deep', fr: 'Trois voies, trois de fond', note: 'Nine trucks queue three deep in three lanes.', colors: 5, lanes: [3, 3, 3], segments: 3, halfLoads: 0.1, capacity: 30, ringMax: 14, seed: 1, win: [0.05, 0.22], naiveJams: true },
-  { id: 'loop-23', title: 'Tight eight', fr: 'Huit serré', note: 'Eight trucks over the bridge with a small loop.', colors: 5, lanes: [2, 2, 2, 2], segments: 3, halfLoads: 0, capacity: 32, ringMax: 14, shape: 'eight', slack: 2, seed: 1, win: [0.05, 0.22], naiveJams: true },
-  { id: 'loop-24', title: 'Three lanes, four colours', fr: 'Trois voies, quatre couleurs', note: 'Seven trucks in three lanes, four colours and little room on the loop.', colors: 4, lanes: [3, 2, 2], segments: 3, halfLoads: 0, capacity: 28, ringMax: 12, seed: 1, win: [0.05, 0.25], naiveJams: true },
-  { id: 'loop-25', title: 'Five lanes, nine trucks', fr: 'Cinq voies, neuf camions', note: 'Five lanes with one short queue.', colors: 5, lanes: [2, 2, 2, 1, 2], segments: 3, halfLoads: 0.1, capacity: 40, ringMax: 18, seed: 1, win: [0.05, 0.28], naiveJams: true },
-  { id: 'loop-26', title: 'Wide squeeze', fr: 'Grande traversée serrée', note: 'The wide crossing with a small loop.', colors: 5, lanes: [2, 2, 2, 2], segments: 3, halfLoads: 0, capacity: 36, ringMax: 16, shape: 'wide-eight', slack: 2, seed: 500, win: [0.04, 0.18], naiveJams: true },
-  { id: 'loop-27', title: 'Ten on the oval', fr: 'Dix sur l’ovale', note: 'Ten trucks in four lanes on the oval.', colors: 5, lanes: [3, 2, 3, 2], segments: 3, halfLoads: 0.1, capacity: 48, ringMax: 22, seed: 6070, win: [0.04, 0.18], naiveJams: true },
-  { id: 'loop-28', title: 'Three colours, three segments', fr: 'Trois couleurs, trois charges', note: 'Only three colours but eight trucks of three segments each.', colors: 3, lanes: [2, 2, 2, 2], segments: 3, halfLoads: 0, capacity: 28, ringMax: 14, seed: 1, win: [0.04, 0.18], naiveJams: true },
-  { id: 'loop-29', title: 'Rush hour eight', fr: 'Heure de pointe en huit', note: 'Ten trucks over the bridge.', colors: 5, lanes: [3, 2, 3, 2], segments: 3, halfLoads: 0.1, capacity: 48, ringMax: 22, shape: 'eight', seed: 600, win: [0.04, 0.18], naiveJams: true },
-  { id: 'loop-30', title: 'Grand finale', fr: 'Grand final', note: 'Ten trucks, five lanes, five colours on the wide crossing.', colors: 5, lanes: [2, 2, 2, 2, 2], segments: 3, halfLoads: 0.1, capacity: 56, ringMax: 24, shape: 'wide-eight', seed: 3050, win: [0.04, 0.16], naiveJams: true },
+  { id: 'loop-6', title: 'Truck bridge', fr: 'Le pont des camions', note: 'The first bridge for the trucks: four lanes, six trucks, four colours.', colors: 4, lanes: [2, 2, 1, 1], segments: 3, capacity: 32, ringMax: 16, shape: 'eight', seed: 1, win: [0.3, 0.5], naiveJams: true },
+  { id: 'loop-7', title: 'Eight in motion', fr: 'Huit en mouvement', note: 'Eight trucks on the wide crossing.', colors: 4, lanes: [2, 2, 2, 2], segments: 3, capacity: 56, ringMax: 24, shape: 'wide-eight', seed: 1, win: [0.2, 0.4], naiveJams: true },
+  { id: 'loop-8', title: 'Orange arrives', fr: 'L’orange arrive', note: 'Orange arrives on the loop: four lanes, six trucks, five colours.', colors: 5, lanes: [2, 2, 1, 1], segments: 3, capacity: 32, ringMax: 14, seed: 1, win: [0.25, 0.45], naiveJams: true },
+  { id: 'loop-9', title: 'Five lanes', fr: 'Cinq voies', note: 'Five lanes in two rows, eight trucks, five colours.', colors: 5, lanes: [2, 2, 1, 2, 1], segments: 3, capacity: 40, ringMax: 18, seed: 1, win: [0.1, 0.35], naiveJams: true },
+  { id: 'loop-10', title: 'Orange bridge', fr: 'Le pont orange', note: 'Seven trucks over the bridge with orange in the mix.', colors: 5, lanes: [2, 2, 2, 1], segments: 3, capacity: 42, ringMax: 18, shape: 'eight', seed: 1, win: [0.12, 0.3], naiveJams: true },
+  { id: 'loop-11', title: 'Rush hour', fr: 'Heure de pointe', note: 'Eight trucks, five colours, the wide crossing: rush hour.', colors: 5, lanes: [2, 2, 2, 2], segments: 3, capacity: 56, ringMax: 24, shape: 'wide-eight', seed: 1, win: [0.1, 0.25], naiveJams: true },
+  { id: 'loop-12', title: 'Two lanes, deep queues', fr: 'Deux voies, longues files', note: 'Six trucks in only two lanes: what is behind matters more than what is in front.', colors: 4, lanes: [3, 3], segments: 3, capacity: 28, ringMax: 14, seed: 1, win: [0.05, 0.5], naiveJams: true },
+  { id: 'loop-13', title: 'Three-colour squeeze', fr: 'Trois couleurs à l’étroit', note: 'Three colours, six trucks, three segments each and a small loop.', colors: 3, lanes: [2, 2, 2], segments: 3, capacity: 22, ringMax: 10, seed: 1, win: [0.08, 0.3], naiveJams: true },
+  { id: 'loop-14', title: 'Triple decks', fr: 'Triples charges', note: 'Eight trucks carrying up to three colours each.', colors: 5, lanes: [2, 2, 2, 2], segments: 3, capacity: 36, ringMax: 16, seed: 1, win: [0.08, 0.3], naiveJams: true },
+  { id: 'loop-15', title: 'Five lanes, one each', fr: 'Cinq voies, un camion', note: 'Five trucks in five lanes with nothing behind them: the whole puzzle is on the loop.', colors: 5, lanes: [1, 1, 1, 1, 1], segments: 3, capacity: 30, ringMax: 24, seed: 1, win: [0.08, 0.3], naiveJams: true },
+  { id: 'loop-16', title: 'Nine over the bridge', fr: 'Neuf sur le pont', note: 'Nine trucks over the bridge with five colours.', colors: 5, lanes: [3, 2, 2, 2], segments: 3, capacity: 42, ringMax: 20, shape: 'eight', seed: 1, win: [0.08, 0.28], naiveJams: true },
+  { id: 'loop-17', title: 'Half loads', fr: 'Demi-charges', note: 'Half the trucks arrive half full, so the loop starts crowded.', colors: 4, lanes: [2, 2, 2], segments: 3, capacity: 32, ringMax: 30, seed: 1, win: [0.08, 0.28], naiveJams: true },
+  { id: 'loop-18', title: 'Ten trucks', fr: 'Dix camions', note: 'Five lanes, ten trucks, five colours.', colors: 5, lanes: [2, 2, 2, 2, 2], segments: 3, capacity: 48, ringMax: 24, seed: 1, win: [0.08, 0.25], naiveJams: true },
+  { id: 'loop-19', title: 'Narrow ring', fr: 'Anneau étroit', note: 'Seven trucks and a loop with little room.', colors: 5, lanes: [2, 2, 1, 2], segments: 3, capacity: 24, ringMax: 10, slack: 2, seed: 1, win: [0.06, 0.25], naiveJams: true },
+  { id: 'loop-20', title: 'Wide crossing, three deep', fr: 'Grande traversée, trois de fond', note: 'Ten trucks on the wide crossing, three deep in two lanes.', colors: 5, lanes: [3, 3, 2, 2], segments: 3, capacity: 56, ringMax: 24, shape: 'wide-eight', seed: 1, win: [0.05, 0.22], naiveJams: true },
+  { id: 'loop-21', title: 'Crowded start', fr: 'Départ encombré', note: 'The loop begins nearly full; the first pour has to be the right one.', colors: 4, lanes: [2, 2, 2, 2], segments: 3, capacity: 30, ringMax: 26, seed: 1, win: [0.05, 0.35], naiveJams: true },
+  { id: 'loop-22', title: 'Three lanes, three deep', fr: 'Trois voies, trois de fond', note: 'Nine trucks queue three deep in three lanes.', colors: 5, lanes: [3, 3, 3], segments: 3, capacity: 30, ringMax: 14, seed: 1, win: [0.05, 0.22], naiveJams: true },
+  { id: 'loop-23', title: 'Tight eight', fr: 'Huit serré', note: 'Eight trucks over the bridge with a small loop.', colors: 5, lanes: [2, 2, 2, 2], segments: 3, capacity: 32, ringMax: 14, shape: 'eight', slack: 2, seed: 1, win: [0.05, 0.22], naiveJams: true },
+  { id: 'loop-24', title: 'Three lanes, four colours', fr: 'Trois voies, quatre couleurs', note: 'Seven trucks in three lanes, four colours and little room on the loop.', colors: 4, lanes: [3, 2, 2], segments: 3, capacity: 28, ringMax: 12, seed: 1, win: [0.05, 0.25], naiveJams: true },
+  { id: 'loop-25', title: 'Five lanes, nine trucks', fr: 'Cinq voies, neuf camions', note: 'Five lanes with one short queue.', colors: 5, lanes: [2, 2, 2, 1, 2], segments: 3, capacity: 40, ringMax: 18, seed: 1, win: [0.05, 0.28], naiveJams: true },
+  { id: 'loop-26', title: 'Wide squeeze', fr: 'Grande traversée serrée', note: 'The wide crossing with a small loop.', colors: 5, lanes: [2, 2, 2, 2], segments: 3, capacity: 36, ringMax: 16, shape: 'wide-eight', slack: 2, seed: 500, win: [0.04, 0.18], naiveJams: true },
+  { id: 'loop-27', title: 'Ten on the oval', fr: 'Dix sur l’ovale', note: 'Ten trucks in four lanes on the oval.', colors: 5, lanes: [3, 2, 3, 2], segments: 3, capacity: 48, ringMax: 22, seed: 6070, win: [0.04, 0.18], naiveJams: true },
+  { id: 'loop-28', title: 'Three colours, three segments', fr: 'Trois couleurs, trois charges', note: 'Only three colours but eight trucks of three segments each.', colors: 3, lanes: [2, 2, 2, 2], segments: 3, capacity: 28, ringMax: 14, seed: 1, win: [0.04, 0.18], naiveJams: true },
+  { id: 'loop-29', title: 'Rush hour eight', fr: 'Heure de pointe en huit', note: 'Ten trucks over the bridge.', colors: 5, lanes: [3, 2, 3, 2], segments: 3, capacity: 48, ringMax: 22, shape: 'eight', seed: 600, win: [0.04, 0.18], naiveJams: true },
+  { id: 'loop-30', title: 'Grand finale', fr: 'Grand final', note: 'Ten trucks, five lanes, five colours on the wide crossing.', colors: 5, lanes: [2, 2, 2, 2, 2], segments: 3, capacity: 56, ringMax: 24, shape: 'wide-eight', seed: 3050, win: [0.04, 0.16], naiveJams: true },
 ];
 
 if (process.argv[1]?.endsWith('loop-author.ts')) {

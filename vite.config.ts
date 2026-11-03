@@ -21,6 +21,6 @@ export default defineConfig({
     ],
   },
   test: {
-    include: ['tests/rules/**/*.test.ts', 'tests/loop/**/*.test.ts', 'tests/machine/**/*.test.ts', 'tests/puzzles/**/*.test.ts', 'tests/engine/**/*.test.ts'],
+    include: ['tests/rules/**/*.test.ts', 'tests/loop/**/*.test.ts', 'tests/machine/**/*.test.ts', 'tests/puzzles/**/*.test.ts', 'tests/engine/**/*.test.ts', 'tests/levelling/**/*.test.ts'],
   },
 });

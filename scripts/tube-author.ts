@@ -1,4 +1,5 @@
-import { solveTube } from '../src/puzzles/rules';
+import { availableTubeMoves, solveTubeSearch, TubeRules } from '../src/puzzles/rules';
+import { HINT_STATE_CAP, TUBE_GRAPH_CAP } from './level-curve';
 import type { TubeDef, TubeMove } from '../src/puzzles/types';
 import type { Color } from '../src/sim/types';
 
@@ -30,7 +31,7 @@ function random(seed: number): () => number {
   return () => { state = (state * 16807) % 2147483647; return state / 2147483647; };
 }
 
-function generate(colors: Color[], capacity: number, empties: number, spread: number, seed: number): Color[][] | null {
+export function generate(colors: Color[], capacity: number, empties: number, spread: number, seed: number): Color[][] | null {
   const next = random(seed);
   const pool = colors.flatMap((color) => Array.from({ length: capacity }, () => color));
   for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(next() * (i + 1)); [pool[i], pool[j]] = [pool[j]!, pool[i]!]; }
@@ -51,9 +52,31 @@ function generate(colors: Color[], capacity: number, empties: number, spread: nu
   return tubes;
 }
 
+/** How many positions a player can reach, capped: within the cap the hint's search is exhaustive, so a null hint is a proof. */
+export function reachableTubeStates(board: TubeDef, cap = TUBE_GRAPH_CAP + 1): number {
+  const key = (tubes: readonly (readonly Color[])[]): string => tubes.map((tube) => tube.join(',')).sort().join('|');
+  const rules = new TubeRules(board);
+  const seen = new Set([key(board.tubes)]);
+  const stack: Color[][][] = [board.tubes.map((tube) => [...tube])];
+  while (stack.length && seen.size < cap) {
+    const tubes = stack.pop()!;
+    for (const move of availableTubeMoves(board, { tubes })) {
+      rules.state = { tubes: tubes.map((tube) => [...tube]), moves: 0, status: 'playing' };
+      if (!rules.move(move.from, move.to).ok) continue;
+      const after = rules.state.tubes;
+      const name = key(after);
+      if (seen.has(name)) continue;
+      seen.add(name);
+      if (seen.size >= cap) break;
+      if (rules.status === 'playing') stack.push(after.map((tube) => [...tube]));
+    }
+  }
+  return seen.size;
+}
+
 export interface TubeReport { readonly seed: number; readonly tubes: Color[][]; readonly solution: TubeMove[]; readonly solveMs: number }
 
-export function author(colors: number, capacity: number, empties: number, spread: number, seed: number, moves: readonly [number, number], attempts = 400, maxSolveMs = 250): TubeReport {
+export function author(colors: number, capacity: number, empties: number, spread: number, seed: number, moves: readonly [number, number], attempts = 400): TubeReport {
   const palette = PALETTE.slice(0, colors);
   for (let candidate = seed; candidate < seed + attempts; candidate++) {
     const tubes = generate(palette, capacity, empties, spread, candidate);
@@ -61,10 +84,11 @@ export function author(colors: number, capacity: number, empties: number, spread
     const board: TubeDef = { kind: 'tube', id: `candidate-${candidate}`, title: 'Candidate', capacity, tubes, solution: [] };
     const started = Date.now();
     // The default budget is what the in-game hint gets, so a board it cannot solve is rejected.
-    const solution = solveTube(board, { tubes: tubes.map((tube) => [...tube]), moves: 0, status: 'playing' });
+    const { moves: solution, states } = solveTubeSearch(board, { tubes: tubes.map((tube) => [...tube]), moves: 0, status: 'playing' });
+    // Printed for information. The gates count states, so the same seed cannot flip with machine load.
     const solveMs = Date.now() - started;
-    // A hint must answer quickly on a phone, so slow starting positions are rejected too.
-    if (!solution || solution.length < moves[0] || solution.length > moves[1] || solveMs > maxSolveMs) continue;
+    if (!solution || solution.length < moves[0] || solution.length > moves[1] || states > HINT_STATE_CAP.tube) continue;
+    if (reachableTubeStates(board) > TUBE_GRAPH_CAP) continue;
     return { seed: candidate, tubes, solution, solveMs };
   }
   throw new Error(`No tube board for ${colors} colours, capacity ${capacity}, ${empties} empties within ${attempts} seeds`);
