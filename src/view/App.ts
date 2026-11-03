@@ -23,6 +23,9 @@ const button = (id: string): HTMLButtonElement => {
 };
 
 /** Campaign, controls and feedback only. Gameplay rules and entities belong to registered runtimes. */
+/** Ten rounds of the three games. */
+const CHAPTER_LEVELS = 30;
+
 export class App {
   /** Held fast forward runs this many ticks per real tick: a lap of a full belt in a third or a fifth of the time. */
   static readonly FAST_SPEED = 3;
@@ -82,7 +85,7 @@ export class App {
     button('hint').addEventListener('click', () => { sfx.unlock(); this.feedback(this.runtime.hint()); this.refresh(); });
     button('card-action').addEventListener('click', () => {
       sfx.unlock();
-      if (this.runtime.status === 'won') this.loadBoard((this.boardIndex + 1) % CAMPAIGN.length);
+      if (this.runtime.status === 'won') this.loadBoard(this.nextIndex());
       else this.card.hidden = true;
     });
     this.bindFastForward();
@@ -422,7 +425,8 @@ export class App {
   }
 
   private endingCard(): void {
-    const next = CAMPAIGN[this.boardIndex + 1];
+    const allDone = CAMPAIGN.every((level) => isCompleted(level.id));
+    const next = allDone ? undefined : CAMPAIGN[this.nextIndex()];
     if (this.runtime.status === 'won') this.showCard(
       next ? t('Nicely sorted!', 'Bien trié !') : t('Workshop complete!', 'Atelier terminé !'),
       next ? t(`Up next: ${next.name}.`, `À suivre : ${next.name}.`) : t('Every puzzle sorted. Pick a level above to play again.', 'Tous les puzzles sont triés. Choisissez un niveau pour rejouer.'),
@@ -452,22 +456,49 @@ export class App {
   private showLevels(open: boolean): void {
     element('levels').hidden = !open;
     button('levels-toggle').setAttribute('aria-expanded', String(open));
+    if (open) this.chips.querySelector('.chip.active')?.scrollIntoView({ block: 'center' });
     if (this.runtime) this.refreshGuide(this.runtime.targets());
   }
 
+  /** The next level the player has not completed, after this one and wrapping round; plain next when all are done. */
+  private nextIndex(): number {
+    for (let step = 1; step <= CAMPAIGN.length; step++) {
+      const index = (this.boardIndex + step) % CAMPAIGN.length;
+      if (!isCompleted(CAMPAIGN[index]!.id)) return index;
+    }
+    return (this.boardIndex + 1) % CAMPAIGN.length;
+  }
+
+  /** Chapters of ten rounds, thirty levels, each under a heading with its completion count; the list scrolls. */
   private renderChips(): void {
-    this.chips.replaceChildren(...CAMPAIGN.map((level, index) => {
-      const chip = document.createElement('button');
-      chip.className = 'chip';
-      chip.dataset['level'] = String(index);
-      chip.dataset['kind'] = level.kind;
-      chip.classList.toggle('active', index === this.boardIndex);
-      chip.textContent = isCompleted(level.id) ? '✓' : String(index + 1);
-      chip.setAttribute('aria-label', t(`Level ${index + 1}: ${level.name}, ${difficultyName(level.difficulty)}${isCompleted(level.id) ? ', completed' : ''}`, `Niveau ${index + 1} : ${level.name}, ${difficultyName(level.difficulty)}${isCompleted(level.id) ? ', terminé' : ''}`));
-      chip.setAttribute('aria-current', index === this.boardIndex ? 'step' : 'false');
-      chip.addEventListener('click', () => { sfx.unlock(); this.showLevels(false); if (index !== this.boardIndex) this.loadBoard(index); });
-      return chip;
-    }));
+    const groups: HTMLElement[] = [];
+    for (let start = 0; start < CAMPAIGN.length; start += CHAPTER_LEVELS) {
+      const levels = CAMPAIGN.slice(start, start + CHAPTER_LEVELS);
+      const done = levels.filter((level) => isCompleted(level.id)).length;
+      const last = start + levels.length;
+      const head = document.createElement('h3');
+      head.className = 'chapter';
+      head.textContent = `${t(`Levels ${start + 1}–${last}`, `Niveaux ${start + 1} à ${last}`)} · ${done}/${levels.length}`;
+      const grid = document.createElement('div');
+      grid.className = 'chapter-chips';
+      grid.append(...levels.map((_, offset) => this.chip(start + offset)));
+      groups.push(head, grid);
+    }
+    this.chips.replaceChildren(...groups);
+  }
+
+  private chip(index: number): HTMLButtonElement {
+    const level = CAMPAIGN[index]!;
+    const chip = document.createElement('button');
+    chip.className = 'chip';
+    chip.dataset['level'] = String(index);
+    chip.dataset['kind'] = level.kind;
+    chip.classList.toggle('active', index === this.boardIndex);
+    chip.textContent = isCompleted(level.id) ? '✓' : String(index + 1);
+    chip.setAttribute('aria-label', t(`Level ${index + 1}: ${level.name}, ${difficultyName(level.difficulty)}${isCompleted(level.id) ? ', completed' : ''}`, `Niveau ${index + 1} : ${level.name}, ${difficultyName(level.difficulty)}${isCompleted(level.id) ? ', terminé' : ''}`));
+    chip.setAttribute('aria-current', index === this.boardIndex ? 'step' : 'false');
+    chip.addEventListener('click', () => { sfx.unlock(); this.showLevels(false); if (index !== this.boardIndex) this.loadBoard(index); });
+    return chip;
   }
 
   private boxChip(color: Color): HTMLCanvasElement {

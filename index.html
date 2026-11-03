@@ -34,7 +34,9 @@
       #levels-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
       #wordmark { font-weight: 600; font-size: 20px; }
       #difficulty { font-size: 13px; opacity: 0.75; }
-      #chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 0 8px; }
+      #chips { max-height: min(42dvh, 320px); overflow-y: auto; overscroll-behavior: contain; padding: 0 2px 4px; margin-bottom: 6px; }
+      .chapter { position: sticky; top: 0; z-index: 1; margin: 0; padding: 4px 0 3px; font-size: 12px; font-weight: 600; background: rgb(255 249 238); opacity: 0.85; }
+      .chapter-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 0 8px; }
       .chip { width: 36px; height: 36px; border-radius: 50%; background: #fff; font-weight: 600; font-size: 15px; box-shadow: 0 2px 5px rgb(0 0 0 / 0.25); display: grid; place-items: center; padding: 0; border-bottom: 3px solid var(--accent) !important; }
       .chip.active { background: var(--ink); color: var(--cream) !important; }
       .chip[data-kind='loop'] { border-bottom-color: #ffd166 !important; }
