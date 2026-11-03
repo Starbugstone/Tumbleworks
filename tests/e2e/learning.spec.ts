@@ -78,7 +78,7 @@ test('the written instruction shows only during onboarding and stays readable be
   await tap(page, 'supply0');
   await expect(instruction).toBeHidden();
   // Levels without a guide never show it, however they are opened.
-  for (const index of [3, 24, 89]) {
+  for (const index of [3, 24, 35]) {
     await select(page, index);
     await expect(instruction).toBeHidden();
     await page.getByRole('button', { name: 'Restart', exact: true }).click();

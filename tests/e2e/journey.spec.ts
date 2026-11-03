@@ -3,7 +3,7 @@ import { TUBE_BOARDS } from '../../src/puzzles/levels';
 import { availableTubeMoves, TubeRules } from '../../src/puzzles/rules';
 import type { App } from '../../src/view/App';
 import { CAMPAIGN } from '../../src/campaign';
-import { FUNNEL_WITNESSES, LOOP_WITNESSES } from '../witnesses';
+import { FUNNEL_WITNESSES, LOOP_JAMS, LOOP_WITNESSES } from '../witnesses';
 
 type GameWindow = Window & { tumbleworks: { app: App } };
 const state = (page: Page) => page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.debugState());
@@ -139,15 +139,16 @@ test('each ruleset recovers from a real jam through the shared undo button', asy
   expect((await state(page)).status).toBe('playing');
   await expect(page.locator('#card')).toBeHidden();
 
-  await select(page, levelIndex('loop-3'));
-  await tap(page, 'lane0');
-  await tap(page, 'lane1');
+  const jammable = CAMPAIGN.find((level) => level.kind === 'loop' && LOOP_JAMS[level.id]);
+  if (!jammable) throw new Error('No Loop Sort level in the campaign has a losing order');
+  await select(page, levelIndex(jammable.id));
+  for (const letter of LOOP_JAMS[jammable.id] ?? '') await tap(page, `lane${letter.charCodeAt(0) - 65}`);
   expect((await state(page)).status).toBe('jammed');
   await page.getByRole('button', { name: 'Undo', exact: true }).click();
   expect((await state(page)).status).toBe('playing');
 
   // The first Tube Sort board that can be jammed in one move, found from the rules rather than hard-coded.
-  const trap = TUBE_BOARDS.flatMap((board) => availableTubeMoves(board, { tubes: board.tubes.map((tube) => [...tube]) })
+  const trap = TUBE_BOARDS.filter((board) => CAMPAIGN.some((level) => level.id === board.id)).flatMap((board) => availableTubeMoves(board, { tubes: board.tubes.map((tube) => [...tube]) })
     .filter((move) => { const rules = new TubeRules(board); return rules.move(move.from, move.to).ok && rules.status === 'jammed'; })
     .map((move) => ({ id: board.id, move })))[0];
   if (!trap) throw new Error('No Tube Sort board jams in one move');
@@ -191,7 +192,7 @@ test('desktop and narrow-phone boards keep targets and controls inside the viewp
   await ready(page);
   for (const viewport of [{ width: 1365, height: 900 }, { width: 320, height: 700 }]) {
     await page.setViewportSize(viewport);
-    for (const id of ['board-1', 'loop-1', 'tube-1', 'board-3', 'loop-4', 'tube-3', 'board-5', 'loop-5', 'board-6', 'loop-6', 'board-7', 'loop-7', 'board-9', 'loop-9', 'tube-7', 'board-11', 'loop-11', 'board-23', 'board-26', 'board-28', 'board-30', 'loop-15', 'loop-18', 'loop-20', 'loop-30', 'tube-15', 'tube-30']) {
+    for (const { id } of CAMPAIGN) {
       const index = levelIndex(id);
       await select(page, index);
       const targets = await page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.debugTargets());

@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { CAMPAIGN } from '../../src/campaign';
 import { LOOP_BOARDS } from '../../src/loop/boards';
-import { LOOP_WITNESSES } from '../witnesses';
+import { LOOP_JAMS, LOOP_WITNESSES } from '../witnesses';
 import type { App } from '../../src/view/App';
 type GameWindow = Window & { tumbleworks: { app: App } };
 
@@ -33,8 +33,8 @@ test('Loop Sort explains a refused tap: a full loop, a pour in progress, or a on
   await expect(page.locator('#message')).toContainText('one color');
   // Traffic pressure remains on later boards. The authored losing pours leave a visible paused tailboard.
   await page.locator('#levels-toggle').click();
-  await page.locator(`.chip[data-level="${CAMPAIGN.findIndex((level) => level.id === 'loop-3')}"]`).click();
-  for (const target of ['lane0', 'lane1']) {
+  await page.locator(`.chip[data-level="${CAMPAIGN.findIndex((level) => level.id === FULL_LOOP_LEVEL)}"]`).click();
+  for (const target of [...(LOOP_JAMS[FULL_LOOP_LEVEL] ?? '')].map((letter) => `lane${letter.charCodeAt(0) - 65}`)) {
     await tap(target);
     await page.evaluate(() => {
       const app = (window as unknown as GameWindow).tumbleworks.app;
@@ -51,7 +51,12 @@ test('Loop Sort explains a refused tap: a full loop, a pour in progress, or a on
   expect(errors).toEqual([]);
 });
 
+const QUEUED_LEVEL = 'loop-36';
+/** Its losing order fills the loop with a pour still waiting, so the tailboard shows the pause. */
+const FULL_LOOP_LEVEL = 'loop-32';
 const loopIndex = (id: string): number => CAMPAIGN.findIndex((level) => level.id === id);
+/** The Loop Sort levels in the campaign; a level outside it has no chip to open. */
+const CAMPAIGN_LOOPS = LOOP_BOARDS.filter((board) => loopIndex(board.id) >= 0);
 interface QueueBound { lane: number; slot: number; visible: boolean; left: number; right: number; top: number; bottom: number }
 interface LoadState { shares: { color: string; percent: number }[]; freePercent: number }
 const openGame = async (page: import('@playwright/test').Page) => {
@@ -69,7 +74,7 @@ test('at the player\'s phone size every number on every lorry on every level is 
   test.setTimeout(300_000);
   await openGame(page);
   await page.setViewportSize({ width: 375, height: 690 });
-  for (const board of LOOP_BOARDS) {
+  for (const board of CAMPAIGN_LOOPS) {
     await openLevel(page, loopIndex(board.id));
     const seen = await page.evaluate(() => { const state = (window as unknown as GameWindow).tumbleworks.app.debugState() as unknown as { printedNumbers: { font: number; clipped: boolean; text: string; lane: number }[]; dockedCardHeight: number }; return { numbers: state.printedNumbers, height: state.dockedCardHeight, words: [...document.querySelectorAll('.lr')].map((el) => el.textContent ?? '').join('').replace(/[0-9%+\s]/g, '') }; });
     const stretches = board.lanes.flat().reduce((sum, truck) => sum + truck.segments.length, 0);
@@ -90,7 +95,7 @@ test('every Loop Sort level keeps its lorry cards on screen and clear of the con
   await openGame(page);
   for (const viewport of [{ width: 375, height: 690 }, { width: 1365, height: 900 }, { width: 844, height: 390 }]) {
     await page.setViewportSize(viewport);
-    for (const board of LOOP_BOARDS) {
+    for (const board of CAMPAIGN_LOOPS) {
       await openLevel(page, loopIndex(board.id));
       const seen = await page.evaluate(() => {
         const app = (window as unknown as GameWindow).tumbleworks.app;
@@ -116,23 +121,23 @@ test('every Loop Sort level keeps its lorry cards on screen and clear of the con
   expect(errors).toEqual([]);
 });
 
-test('level 38 shows what is coming and how full each lorry is, through real taps, undo and a language change', async ({ page }) => {
+test('a level with queued lorries shows what is coming and how full each lorry is, through real taps, undo and a language change', async ({ page }) => {
   test.setTimeout(180_000);
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await openGame(page);
-  const index = loopIndex('loop-13');
-  expect(index).toBe(37);
-  await openLevel(page, index);
+  await openLevel(page, loopIndex(QUEUED_LEVEL));
+  const board = LOOP_BOARDS.find((candidate) => candidate.id === QUEUED_LEVEL)!;
+  const percents = (segments: readonly { color: string; count: number }[]) => segments.map((segment) => ({ color: segment.color, percent: Math.round(segment.count / board.truckCapacity * 100) }));
   const state = () => page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.debugState() as { loads: LoadState[]; queues: (LoadState & { finalColor: string })[][]; status: string });
   const start = await state();
-  expect(start.loads[0]).toEqual({ shares: [{ color: 'blue', percent: 8 }, { color: 'red', percent: 17 }, { color: 'green', percent: 75 }], freePercent: 0 });
-  expect(start.queues[0]).toEqual([{ finalColor: 'red', shares: [{ color: 'green', percent: 33 }, { color: 'red', percent: 67 }], freePercent: 0 }]);
+  const waiting = board.lanes[0]![1]!;
+  expect(start.queues[0]?.[0]).toEqual({ finalColor: waiting.segments.at(-1)!.color, shares: percents(waiting.segments), freePercent: 0 });
   await expect(page.locator('#board-controls button').first()).toContainText('Next truck finishes with');
-  await expect(page.locator('#board-controls button').first()).toContainText('67%');
+  await expect(page.locator('#board-controls button').first()).toContainText(`${percents(waiting.segments).at(-1)!.percent}%`);
 
   const before = JSON.stringify(start.queues);
-  const taps = [...(LOOP_WITNESSES['loop-13'] ?? '')].map((letter) => letter.charCodeAt(0) - 65);
+  const taps = [...(LOOP_WITNESSES[QUEUED_LEVEL] ?? '')].map((letter) => letter.charCodeAt(0) - 65);
   let replaced = false;
   for (const lane of taps) {
     const at = await page.evaluate((key) => (window as unknown as GameWindow).tumbleworks.app.debugTargets()[key], `lane${lane}`);
@@ -170,7 +175,7 @@ test('the ivory card pours, a waiting card answers without pouring, and a card m
   test.setTimeout(180_000);
   await openGame(page);
   await page.setViewportSize({ width: 375, height: 690 });
-  await openLevel(page, loopIndex('loop-13'));
+  await openLevel(page, loopIndex(QUEUED_LEVEL));
   const state = () => page.evaluate(() => { const { occupancy, pending, lanes } = (window as unknown as GameWindow).tumbleworks.app.debugState() as Record<string, unknown>; return JSON.stringify({ occupancy, pending, lanes }); });
   const centre = (selector: string) => page.evaluate((query) => { const r = document.querySelector(query)!.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }, selector);
   const before = await state();
@@ -184,7 +189,7 @@ test('the ivory card pours, a waiting card answers without pouring, and a card m
   const now = await centre('.lr-card.now[data-lane="0"]');
   await page.touchscreen.tap(now.x, now.y);
   await expect.poll(state).not.toBe(before);
-  const taps = [...(LOOP_WITNESSES['loop-13'] ?? '')].map((letter) => letter.charCodeAt(0) - 65).slice(1);
+  const taps = [...(LOOP_WITNESSES[QUEUED_LEVEL] ?? '')].map((letter) => letter.charCodeAt(0) - 65).slice(1);
   let moved = false;
   for (const lane of [-1, ...taps]) {
     if (lane >= 0) { const at = await page.evaluate((key) => (window as unknown as GameWindow).tumbleworks.app.debugTargets()[key], `lane${lane}`); await page.touchscreen.tap(at!.x, at!.y); }
@@ -194,7 +199,8 @@ test('the ivory card pours, a waiting card answers without pouring, and a card m
   expect(moved).toBe(true);
 });
 
-test('a lorry folded behind a +n tile shows its numbers on one tap', async ({ page }) => {
+// No campaign level holds enough lorries to fold yet; tests/loop/roster-layout.test.ts covers when they do. Comes back with the later rounds.
+test.fixme('a lorry folded behind a +n tile shows its numbers on one tap', async ({ page }) => {
   await openGame(page);
   await page.setViewportSize({ width: 320, height: 568 });
   await openLevel(page, loopIndex('loop-29'));
@@ -227,7 +233,7 @@ test('lorry cards release their resources between levels', async ({ page }) => {
   });
   const rounds = [];
   for (let round = 0; round < 3; round++) {
-    for (const id of ['loop-13', 'loop-27', 'loop-29']) await openLevel(page, loopIndex(id));
+    for (const id of ['loop-36', 'loop-38', 'loop-39']) await openLevel(page, loopIndex(id));
     rounds.push(await stats());
   }
   expect(rounds[1]).toEqual(rounds[0]);

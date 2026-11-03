@@ -1,15 +1,18 @@
 import { writeFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
+import { CAMPAIGN } from '../../src/campaign';
 import type { ReplayLog } from '../../src/engine/replay';
 import { initPhysics } from '../../src/machine/machine';
 import { replayed } from '../replay-target';
+
+const LEVEL = 'board-39';
 
 test('a game played by touch and copied from the picker replays to the same physics', async ({ page }) => {
   test.setTimeout(180_000);
   await page.goto('/');
   await page.waitForFunction(() => Boolean((window as never as { tumbleworks?: unknown }).tumbleworks), undefined, { timeout: 60_000 });
   await page.locator('#levels-toggle').click();
-  await page.locator('.chip[data-level="27"]').click();
+  await page.locator(`.chip[data-level="${CAMPAIGN.findIndex((level) => level.id === LEVEL)}"]`).click();
 
   const target = () => page.evaluate(() => {
     const { app } = (window as never as { tumbleworks: { app: { debugTargets(): Record<string, { x: number; y: number }> } } }).tumbleworks;
@@ -37,7 +40,7 @@ test('a game played by touch and copied from the picker replays to the same phys
   await page.locator('#copy-replay').click();
   const log = JSON.parse(await copied) as ReplayLog;
 
-  expect(log.level).toBe('board-10');
+  expect(log.level).toBe(LEVEL);
   expect(log.actions.map((action) => action.type)).toEqual(['tap', 'tap', 'undo', 'tap']);
   await initPhysics();
   const fingerprint = replayed(log).fingerprint();

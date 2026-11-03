@@ -26,6 +26,6 @@ test('the site boots, draws the toy and takes a real tap', async ({ page }) => {
   await expect(page.locator('#guide-text')).not.toHaveText(instruction ?? '', { timeout: 30_000 });
 
   await page.locator('#levels-toggle').click();
-  await expect(page.locator('.chip')).toHaveCount(90);
+  await expect(page.locator('.chip')).toHaveCount(36);
   expect(problems).toEqual([]);
 });

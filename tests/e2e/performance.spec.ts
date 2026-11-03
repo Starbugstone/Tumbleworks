@@ -1,4 +1,9 @@
 import { expect, test } from '@playwright/test';
+import { CAMPAIGN } from '../../src/campaign';
+import { LOOP_BOARDS } from '../../src/loop/boards';
+import type { LoopBoardDef } from '../../src/loop/types';
+import { BOARDS } from '../../src/sim/boards';
+import type { BoardDef } from '../../src/sim/types';
 
 /**
  * Real clock and real rendering on the busiest levels, with a 4x CPU slowdown standing in for a mid-range
@@ -7,12 +12,17 @@ import { expect, test } from '@playwright/test';
  * they're printed for comparison, and the ceilings apply to one tick and one draw of the game's own work.
  * Baselines and the reasoning behind these ceilings are in docs/verification.md.
  */
-/** Their place in the campaign's interleaving: three levels per round. */
+const inCampaign = <T extends { readonly id: string }>(bank: readonly T[]): T[] => bank.filter((board) => CAMPAIGN.some((level) => level.id === board.id));
+const most = <T>(items: readonly T[], measure: (item: T) => number): T => items.reduce((best, item) => (measure(item) > measure(best) ? item : best));
+const marbles = (board: BoardDef): number => board.supplies.flat().reduce((sum, tray) => sum + tray.count, 0);
+const ring = (board: LoopBoardDef): number => board.loop.reduce((sum, packet) => sum + packet.count, 0);
+const named = (name: string, id: string) => ({ name, id, index: CAMPAIGN.findIndex((level) => level.id === id) });
+/** The busiest levels the campaign has now, found from the boards so a new stretch cannot leave them stale. */
 const LEVELS = [
-  { name: 'Funnel Sort, most marbles', id: 'board-28', index: 81 },
-  { name: 'Funnel Sort, longest belt', id: 'board-30', index: 87 },
-  { name: 'Loop Sort, fullest loop', id: 'loop-5', index: 13 },
-  { name: 'Loop Sort, longest', id: 'loop-30', index: 88 },
+  named('Funnel Sort, most marbles', most(inCampaign(BOARDS), marbles).id),
+  named('Funnel Sort, longest belt', most(inCampaign(BOARDS), (board) => board.beltCapacity).id),
+  named('Loop Sort, fullest loop', most(inCampaign(LOOP_BOARDS), (board) => ring(board) + board.loopCapacity / 100).id),
+  named('Loop Sort, longest', most(inCampaign(LOOP_BOARDS), (board) => board.lanes.flat().length + board.loopCapacity / 100).id),
 ];
 const SECONDS = 20;
 const TICK_MS = Number(process.env.TUMBLEWORKS_TICK_MS ?? 10);
