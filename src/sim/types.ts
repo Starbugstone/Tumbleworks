@@ -10,7 +10,15 @@ export interface Packet {
   readonly count: number;
 }
 
-export interface BoardDef {
+/** Crate IDs are zero-based, in original supply/packet order (independent of marble counts). */
+export interface FunnelVariants {
+  readonly pairs?: readonly (readonly [number, number])[];
+  /** Replaces column access. Omitted IDs have no predecessors. */
+  readonly predecessors?: Readonly<Record<number, readonly number[]>>;
+  readonly seals?: readonly { readonly dock: number; readonly after: { readonly dock: number; readonly box: number } }[];
+}
+
+export interface BoardDef extends FunnelVariants {
   readonly trackShape?: BeltShape;
   readonly id: string;
   readonly title: string;
@@ -31,6 +39,7 @@ export interface Marble {
 }
 
 export interface SupplyPacket {
+  readonly id: number;
   readonly color: Color;
   readonly marbles: readonly Marble[];
 }

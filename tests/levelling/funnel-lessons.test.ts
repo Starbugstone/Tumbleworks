@@ -1,0 +1,32 @@
+import { readFileSync } from 'node:fs';
+import { expect, it } from 'vitest';
+import { PLAY_ORDER } from '../../src/campaign';
+import { BOARD_200, BOARD_201, BOARD_202 } from '../../src/sim/boards';
+import { MachineRules } from '../../src/sim/rules';
+import { hintConveyorSearch } from '../../src/sim/solver';
+import { hashBoard, winCeiling, type ScoreRow } from '../../scripts/level-curve';
+const table = new Map((JSON.parse(readFileSync('tests/levelling/scores.json','utf8')) as ScoreRow[]).map(row=>[row.id,row]));
+for(const [index,board] of [BOARD_200,BOARD_201,BOARD_202].entries()) it(`${board.id}: the bank lesson passes the machine, hint and cheese/spam gates`,()=>{
+  expect(PLAY_ORDER).not.toContain(board.id);
+  const row=table.get(board.id)!;
+  expect(row).toBeDefined();
+  expect(row.hash).toBe(hashBoard(board));
+  expect(row.hintStates).toBe(hintConveyorSearch(new MachineRules(board)).states);
+  expect(row.hintStates).toBeLessThanOrEqual(100);
+  expect(row.risk).toBeGreaterThanOrEqual(2);
+  expect(row.witnessWins).toBe(true);
+  expect(row.hasJam).toBe(true);
+  expect(row.naiveJams).toBe(3);
+  expect(row.jitter).toBeGreaterThanOrEqual(.9);
+  expect(row.shareBrisk).toBeGreaterThanOrEqual(.6);
+  expect(row.sharePatient).toBeGreaterThanOrEqual(.6);
+  expect(row.fastWitness).toBe(true);
+  const cheese=row.wins['cheese']!.win, spam=row.wins['spam']!.win, brisk=row.wins['brisk']!.win;
+  const allowed=winCeiling([41,57,73][index]!)!+.1;
+  expect(cheese).toBeLessThanOrEqual(allowed+1e-9);
+  expect(spam).toBeLessThanOrEqual(allowed+1e-9);
+  expect(100*cheese).toBeLessThanOrEqual(100-row.F1+40+1e-9);
+  expect(Math.max(cheese,spam)-brisk).toBeGreaterThanOrEqual(.1-1e-9);
+  for(const sample of Object.values(row.wins)){expect(sample.n).toBe(60);expect(sample.recoveries).toBe(0);}
+  expect(Number.isFinite(row.H)).toBe(true);
+});

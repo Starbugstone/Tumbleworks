@@ -8,7 +8,7 @@ import { MarbleCrowd } from '../engine/crowd';
 import { frameBoard } from '../engine/framing';
 import type { Stage } from '../engine/stage';
 import type { Machine, MachineEvent, Pose } from '../machine/machine';
-import { BOX, columnX, CRATE, FUNNEL, funnelFaces, funnelHalfWidth, MARBLE_RADIUS, RACEWAY, RIDE_Y, STACK, Track, dockX } from '../machine/layout';
+import { BOX, CRATE, FUNNEL, funnelFaces, funnelHalfWidth, MARBLE_RADIUS, RACEWAY, RIDE_Y, STACK, Track, dockX } from '../machine/layout';
 import type { Color } from '../sim/types';
 import { COLORS, decal } from './art';
 import { ARCADE, ArcadePop, ArcadeYard } from './arcade';
@@ -76,6 +76,8 @@ export class MachineScene {
   private readonly level = new THREE.Group();
   private belt: BeltSurface | null = null;
   private readonly tracked = new Map<number, Tracked>();
+  private readonly links: { group: THREE.Group; from: number; to: number; pair: boolean }[] = [];
+  private readonly shutters = new Map<number, { group: THREE.Group; lift: number }>();
   private readonly crates = new Map<number, THREE.Group>();
   private readonly boxes = new Map<string, { group: THREE.Group; lights: THREE.Mesh[]; pulse: number }>();
   private previousCrates: ReturnType<Machine['readCrates']> = [];
@@ -232,10 +234,12 @@ export class MachineScene {
       machine.readMarble(id, pose);
       this.tracked.set(id, { previous: { ...pose }, current: pose });
     }
-    this.buildFunnel(machine.board.supplies.length);
+    this.buildFunnel(machine.sourceColumns);
     this.buildChute(machine);
     for (const crate of machine.readCrates()) {
       const group = this.crateGroup(crate.color);
+      group.userData['action'] = crate.action;
+      group.userData['crateId'] = crate.id;
       this.crates.set(crate.key, group);
       this.level.add(group);
     }
@@ -244,13 +248,46 @@ export class MachineScene {
       this.boxes.set(`${box.dock}:${box.index}`, visual);
       this.level.add(visual.group);
     }
-    const columns = machine.board.supplies.length;
-    for (let supply = 0; supply < columns; supply++) {
-      const target = new THREE.Mesh(new THREE.BoxGeometry(CRATE.halfWidth * 2 + 0.3, 2.6, CRATE.halfDepth * 2 + 0.6), new THREE.MeshBasicMaterial({ visible: false }));
-      target.position.set(columnX(supply, columns), STACK.y + 0.9, STACK.z);
-      target.userData['supply'] = supply;
+    const columns = machine.sourceColumns;
+    const targets = machine.rules.crateActions ? machine.readCrates() : machine.readCrates().filter((crate) => crate.accessible);
+    for (const crate of targets) {
+      const target = new THREE.Mesh(new THREE.BoxGeometry(CRATE.halfWidth * 2 + 0.1, 0.9, 1.0), new THREE.MeshBasicMaterial({ visible: false }));
+      target.position.set(crate.x, crate.y + 0.4, crate.z + CRATE.halfDepth * 0.65);
+      target.userData['supply'] = crate.action;
       this.scene.add(target);
       this.hitTargets.push(target);
+    }
+    const link = (from: number, to: number, pair: boolean): void => {
+      const group = new THREE.Group();
+      const bar = rounded(1, 0.13, 0.16, shiny(pair ? 0xffd080 : 0x99adb2), 0.05);
+      group.add(bar);
+      if (pair) for (const x of [-0.5, 0.5]) {
+        const post = rounded(0.045, 0.55, 0.16, shiny(0xffd080), 0.03);
+        post.position.set(x, -0.24, 0);
+        group.add(post);
+      }
+      this.links.push({ group, from, to, pair });
+      this.level.add(group);
+    };
+    for (const [from, to] of machine.board.pairs ?? []) link(from, to, true);
+    for (const [to, predecessors] of Object.entries(machine.board.predecessors ?? {})) for (const from of predecessors) link(from, Number(to), false);
+    for (const seal of machine.board.seals ?? []) {
+      const group = new THREE.Group();
+      const panel = rounded(BOX.halfWidth * 2 + 0.14, 1.05, 0.12, shiny(0x273f48), 0.08);
+      group.add(panel);
+      const color = machine.board.docks[seal.after.dock]![seal.after.box]!;
+      const badge = decal(color, 0.62);
+      badge.position.z = 0.08;
+      group.add(badge);
+      // The matching badge remains on the named prerequisite box as well as on the shutter.
+      const prerequisite = this.boxes.get(`${seal.after.dock}:${seal.after.box}`);
+      const key = decal(color, 0.5);
+      key.rotation.x = -Math.PI / 2;
+      key.position.set(0, BOX.height + 0.08, -BOX.halfDepth * 0.7);
+      prerequisite?.group.add(key);
+      group.position.set(dockX(seal.dock, machine.board.docks.length), BOX.height + 0.45, BOX.z - BOX.halfDepth - 0.15);
+      this.shutters.set(seal.dock, { group, lift: 0 });
+      this.level.add(group);
     }
     const half = funnelHalfWidth(columns);
     const rows = Math.max(1, ...machine.board.supplies.map((queue) => queue.length));
@@ -272,6 +309,7 @@ export class MachineScene {
       { x: half, y: STACK.y + STACK.stepY * (rows - 1) + 1.1, z: STACK.z + STACK.stepZ * (rows - 1) - CRATE.halfDepth },
       { x: -dockHalf, y: 0, z: queueEnd }, { x: dockHalf, y: 0, z: queueEnd },
     ];
+    for (const crate of machine.readCrates()) for (const side of [-1,1]) this.framing.push({ x:crate.x + side * CRATE.halfWidth, y:crate.y + 1.1, z:crate.z - CRATE.halfDepth });
     for (let i = 0; i < 64; i++) for (const side of [-1, 1]) {
       const point = machine.track.point(i / 64 * machine.track.length, side * (RACEWAY.channelHalf + RACEWAY.wallThickness));
       this.framing.push({ x: point.x, y: RIM_TOP + point.y + MARBLE_RADIUS, z: point.z });
@@ -287,6 +325,8 @@ export class MachineScene {
     this.crowd = null;
     this.tracked.clear();
     this.crates.clear();
+    this.links.length = 0;
+    this.shutters.clear();
     this.boxes.clear();
     for (const target of this.hitTargets) {
       this.scene.remove(target);
@@ -346,6 +386,7 @@ export class MachineScene {
     if (!machine) return;
     this.previousCrates = this.currentCrates;
     this.currentCrates = machine.readCrates();
+    for (const [dock, shutter] of this.shutters) shutter.lift = machine.rules.dockOpen(dock) ? Math.min(1, shutter.lift + FIXED_SECONDS / 0.35) : 0;
     this.previousBoxes = this.currentBoxes;
     this.currentBoxes = machine.readBoxes();
     for (const [id, entry] of this.tracked) {
@@ -364,6 +405,7 @@ export class MachineScene {
     const machine = this.machine;
     if (!machine) return;
     this.previousCrates = this.currentCrates = machine.readCrates();
+    for (const [dock, shutter] of this.shutters) shutter.lift = machine.rules.dockOpen(dock) ? 1 : 0;
     this.previousBoxes = this.currentBoxes = machine.readBoxes();
     for (const [id, entry] of this.tracked) {
       machine.readMarble(id, entry.current);
@@ -392,6 +434,30 @@ export class MachineScene {
       group.rotation.x = -open * 0.9;
       group.scale.setScalar(1 - open * 0.85);
     }
+    for (const target of this.hitTargets) {
+      const action = Number(target.userData['supply']);
+      const at = machine.frontCrate(action);
+      target.visible = Boolean(at);
+      if (at) target.position.set(at.x, at.y + 0.4, at.z + CRATE.halfDepth * 0.65);
+    }
+    for (const link of this.links) {
+      const from = this.currentCrates.find((crate) => crate.id === link.from);
+      const to = this.currentCrates.find((crate) => crate.id === link.to);
+      link.group.visible = Boolean(from?.visible && to?.visible && !machine.rules.state.released.includes(link.from) && !machine.rules.state.released.includes(link.to));
+      if (!from || !to) continue;
+      const a = new THREE.Vector3(from.x, from.y + CRATE.wallHeight + (link.pair ? 0.55 : 0.2), from.z + CRATE.halfDepth + (link.pair ? 0.3 : 0));
+      const b = new THREE.Vector3(to.x, to.y + CRATE.wallHeight + (link.pair ? 0.55 : 0.2), to.z + CRATE.halfDepth + (link.pair ? 0.3 : 0));
+      const axis = b.clone().sub(a);
+      link.group.position.copy(a).addScaledVector(axis, 0.5);
+      link.group.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), axis.clone().normalize());
+      const bar = link.group.children[0];
+      if (bar) bar.scale.x = axis.length();
+      for (const [index, post] of link.group.children.slice(1).entries()) post.position.x = (index ? 1 : -1) * axis.length() / 2;
+    }
+    for (const shutter of this.shutters.values()) {
+      shutter.group.position.y = BOX.height + 0.45 + shutter.lift * 1.6;
+      shutter.group.visible = shutter.lift < 1;
+    }
     for (const [index, box] of this.currentBoxes.entries()) {
       const visual = this.boxes.get(`${box.dock}:${box.index}`);
       if (!visual) continue;
@@ -412,7 +478,19 @@ export class MachineScene {
     const rect = this.stage.renderer.domElement.getBoundingClientRect();
     const ndc = new THREE.Vector2(((x - rect.left) / rect.width) * 2 - 1, -((y - rect.top) / rect.height) * 2 + 1);
     this.raycaster.setFromCamera(ndc, this.camera);
-    const hit = this.raycaster.intersectObjects(this.hitTargets, false)[0];
+    const groups = [...this.crates.values()].filter((group) => group.visible && !this.machine?.rules.state.released.includes(Number(group.userData['crateId'])));
+    const surface = this.raycaster.intersectObjects(groups, true)[0];
+    if (surface) {
+      let group: THREE.Object3D | null = surface.object;
+      while (group && group.userData['action'] === undefined) group = group.parent;
+      const action: unknown = group?.userData['action'];
+      const crateId: unknown = group?.userData['crateId'];
+      // Waiting crates have real surfaces too. A classic column must not release its front when its rear was tapped.
+      if (typeof action === 'number' && (this.machine?.rules.crateActions || this.machine?.rules.packet(action)?.id === crateId)) return action;
+      return null;
+    }
+    // A small extension around the front rim gives the visible piece a comfortable touch floor.
+    const hit = this.raycaster.intersectObjects(this.hitTargets.filter((target) => target.visible), false)[0];
     const supply: unknown = hit?.object.userData['supply'];
     return typeof supply === 'number' ? supply : null;
   }

@@ -153,7 +153,7 @@ export function funnelStrongKey(state: ReturnType<MachineRules['snapshot']>): st
   const statuses = { 'in-supply': 's', pouring: 'p', 'on-belt': 'b', dropping: 'd', 'in-box': 'i' } as const;
   const reserved = state.dockNext.map((box, dock) => state.marbles.filter((marble) => marble.dock === dock && marble.box === box).length);
   return JSON.stringify([state.status, state.supplies.map((queue) => queue.length), state.pending,
-    state.dockNext, reserved, state.marbles.map((marble) => statuses[marble.status]).join('')]);
+    [...state.released].sort((a,b) => a-b), state.sealsOpen, state.dockNext, reserved, state.marbles.map((marble) => statuses[marble.status]).join('')]);
 }
 
 function funnelGraph(board: BoardDef) {
@@ -167,7 +167,7 @@ function funnelGraph(board: BoardDef) {
       rules.restore(state);
       return { status: rules.status, value: state.marbles.filter((m) => m.status === 'in-box' || m.status === 'dropping').length / tray - 2 * (rules.occupancy + rules.funnelCount) / board.beltCapacity };
     },
-    moves: (state) => state.supplies.flatMap((queue, index) => queue.length ? [index] : []),
+    moves: (state) => { rules.restore(state); return rules.actions(); },
     after(state, action) {
       rules.restore(state); rules.release(action);
       if (!settle(rules)) throw new Exhausted('settle');

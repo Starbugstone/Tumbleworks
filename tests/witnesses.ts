@@ -1,5 +1,8 @@
-/** Authored tap orders, shared by the rule, machine and browser specs. Letters are supply columns or truck lanes. */
+/** Authored tap orders, shared by the rule, machine and browser specs. Letters encode columns, crate IDs on source variants, or truck lanes. */
 export const FUNNEL_WITNESSES: Record<string, string> = {
+  'board-202': 'ACCABB',
+  'board-201': 'EFCDAB',
+  'board-200': 'ABEFD',
   'board-1': 'AAB', 'board-2': 'AABBC', 'board-3': 'AAABCCB', 'board-4': 'ABCAABBCC', 'board-5': 'AAABBBDCCCDD', 'board-6': 'AAACBBC',
   'board-7': 'AAACCBB', 'board-8': 'AAACBBBC', 'board-9': 'AABDBDCCDAB', 'board-10': 'AABBABCCC', 'board-11': 'AAABBCCCDDDB', 'board-12': 'ABBAAB',
   'board-13': 'ABABCC', 'board-14': 'BDDDAAACC', 'board-15': 'ABABCCDD', 'board-16': 'AAABCCBC', 'board-17': 'CCAABB', 'board-18': 'AABBACCCB',
@@ -10,6 +13,9 @@ export const FUNNEL_WITNESSES: Record<string, string> = {
   // END first stretch funnel witnesses
 };
 export const FUNNEL_JAMS: Record<string, string> = {
+  'board-202': 'AAB',
+  'board-201': 'AC',
+  'board-200': 'ABDE',
   'board-1': 'AB', 'board-2': 'AB', 'board-3': 'AAABB', 'board-4': 'AA', 'board-5': 'AAABBBC', 'board-6': 'AAAB',
   'board-7': 'AAABB', 'board-8': 'AAAB', 'board-9': 'AAA', 'board-10': 'AAAB', 'board-11': 'AAABBBC', 'board-12': 'AA',
   'board-13': 'AA', 'board-14': 'AAABC', 'board-15': 'AA', 'board-16': 'AAABBC', 'board-17': 'AA', 'board-18': 'AAAB',
@@ -50,6 +56,9 @@ export const LOOP_JAMS: Record<string, string> = {
  * It proves a fast line exists. scripts/level-emit.ts writes them; replay them with replayOnto.
  */
 export const FAST_WITNESSES: Record<string, { readonly steps: number; readonly taps: readonly (readonly [number, number])[] }> = {
+  'board-200': { steps: 834, taps: [[1,0],[13,1],[195,4],[205,5],[487,3]] },
+  'board-201': { steps: 885, taps: [[1,4],[13,5],[59,2],[61,3],[463,0],[469,1]] },
+  'board-202': { steps: 826, taps: [[1,0],[13,2],[178,2],[181,1],[463,1],[469,0]] },
   'loop-200': { steps: 1347, taps: [[1,1],[241,1],[511,2],[517,0],[731,0],[1091,0]] },
   'loop-201': { steps: 479, taps: [[1,0],[13,2],[58,0],[61,2],[106,0],[109,1]] },
   'loop-202': { steps: 1001, taps: [[1,0],[13,2],[208,2],[217,0],[570,1]] },

@@ -28,6 +28,7 @@ export interface Pose { x: number; y: number; z: number; qx: number; qy: number;
 type CratePhase = 'waiting' | 'opening' | 'gone';
 interface CrateControl {
   readonly key: number;
+  readonly id: number;
   readonly supply: number;
   readonly color: Color;
   readonly marbleIds: readonly number[];
@@ -121,6 +122,8 @@ export class Machine implements Replayable {
   readonly track: ReturnType<typeof conveyorTrack>;
   /** The belt is divided into capacity slots of this length, travelling with it. */
   readonly slotPitch: number;
+  readonly sourceColumns: number;
+  private readonly shelfLocations = new Map<number, { x: number; y: number; z: number }>();
   readonly entryDistance: number;
   world: RAPIER.World;
   private control: Control;
@@ -135,6 +138,19 @@ export class Machine implements Replayable {
 
   constructor(readonly board: BoardDef, private readonly physicsService: PhysicsService = physics) {
     this.rules = new MachineRules(board);
+    const layers = new Map<number, number[]>();
+    if (board.predecessors) {
+      const depth = (id: number): number => Math.max(-1, ...this.rules.predecessors(id).map(depth)) + 1;
+      for (const packet of this.rules.state.supplies.flat()) {
+        const layer = depth(packet.id);
+        layers.set(layer, [...(layers.get(layer) ?? []), packet.id]);
+      }
+      for (const [layer, ids] of layers) ids.forEach((id, index) => this.shelfLocations.set(id, {
+        x: columnX(index, ids.length), y: STACK.y + STACK.stepY * layer,
+        z: Math.max(FUNNEL.mouth.back + CRATE.halfDepth + 0.2, STACK.z + 1 + STACK.stepZ * layer),
+      }));
+    }
+    this.sourceColumns = Math.max(board.supplies.length, ...[...layers.values()].map((ids) => ids.length));
     this.track = conveyorTrack(board.trackShape, board.beltCapacity);
     this.slotPitch = this.track.length / board.beltCapacity;
     this.entryDistance = entryDistanceFor(this.track);
@@ -160,11 +176,11 @@ export class Machine implements Replayable {
       RAPIER.ColliderDesc.cuboid(span, 0.25, span).setTranslation(0, floorY - 0.25, RACEWAY.centerZ).setFriction(0.5).setRestitution(0.28), body).handle;
 
     const { mouth, neck, mouthY, neckY } = FUNNEL;
-    const mouthHalf = funnelHalfWidth(this.board.supplies.length);
+    const mouthHalf = funnelHalfWidth(this.sourceColumns);
     const midZ = (mouth.back + mouth.front) / 2;
     const halfZ = (mouth.front - mouth.back) / 2 + 0.2;
     const halfX = mouthHalf + 0.2;
-    for (const face of funnelFaces(this.board.supplies.length)) {
+    for (const face of funnelFaces(this.sourceColumns)) {
       const vertices = new Float32Array([...face, ...face.map((p) => ({ ...p, y: p.y - 0.12 }))].flatMap((p) => [p.x, p.y, p.z]));
       const collider = RAPIER.ColliderDesc.convexHull(vertices);
       if (!collider) throw new Error('Invalid funnel panel');
@@ -189,7 +205,7 @@ export class Machine implements Replayable {
       queue.forEach((packet, rank) => {
         const key = packet.marbles[0]?.id;
         if (key === undefined) return;
-        const crate: CrateControl = { key, supply, color: packet.color, marbleIds: packet.marbles.map((m) => m.id), phase: 'waiting', time: 0, slide: rank, rank, released: false };
+        const crate: CrateControl = { key, id: packet.id, supply, color: packet.color, marbleIds: packet.marbles.map((m) => m.id), phase: 'waiting', time: 0, slide: rank, rank, released: false };
         this.control.crates.push(crate);
         // Crates have no colliders: their marbles are placed while waiting, and a moving kinematic wall could fling a straggler.
         packet.marbles.forEach((marble, slot) => {
@@ -221,16 +237,29 @@ export class Machine implements Replayable {
   private crateOrigin(crate: CrateControl): { x: number; y: number; z: number } {
     // An opening crate stays put, so its walls never shove the marbles falling out of it.
     const count = this.board.supplies.length;
+    if (this.board.predecessors) {
+      const position = this.shelfPosition(crate.id);
+      return { ...position, y: position.y + (crate.phase === 'gone' ? 40 : 0) };
+    }
     return {
       x: columnX(crate.supply, count),
       y: STACK.y + STACK.stepY * crate.slide + (crate.phase === 'gone' ? 40 : 0),
-      z: STACK.z + STACK.stepZ * crate.slide,
+      z: this.rules.crateActions ? Math.max(FUNNEL.mouth.back + CRATE.halfDepth + 0.2, STACK.z + 1 + STACK.stepZ * crate.slide) : STACK.z + STACK.stepZ * crate.slide,
     };
+  }
+
+  /** A separate row per dependency depth keeps the join visible without overlapping sibling crates. */
+  private shelfPosition(id: number): { x: number; y: number; z: number } {
+    const at = this.shelfLocations.get(id);
+    if (!at) throw new Error(`Unknown shelf crate ${id}`);
+    return at;
   }
 
   private crateSlotWorld(crate: CrateControl, slot: number): { x: number; y: number; z: number } {
     const origin = this.crateOrigin(crate);
-    const local = CRATE.slots[slot];
+    // Small joined loads occupy the visible rows; a waiting crate must not conceal all three marbles.
+    const visibleSlot = this.rules.crateActions ? slot + Math.max(0, CRATE.slots.length - crate.marbleIds.length) : slot;
+    const local = CRATE.slots[visibleSlot];
     if (!local) throw new Error(`No crate slot ${slot}`);
     return { x: origin.x + local.x, y: origin.y + CRATE.floorThickness + MARBLE_RADIUS + 0.005, z: origin.z + local.z };
   }
@@ -280,9 +309,9 @@ export class Machine implements Replayable {
     into.x = t.x; into.y = t.y; into.z = t.z;
     into.qx = q.x; into.qy = q.y; into.qz = q.z; into.qw = q.w;
   }
-  readCrates(): { key: number; supply: number; color: Color; x: number; y: number; z: number; open: number; visible: boolean }[] {
+  readCrates(): { id: number; action: number; accessible: boolean; key: number; supply: number; color: Color; x: number; y: number; z: number; open: number; visible: boolean }[] {
     return this.control.crates.map((crate) => ({
-      key: crate.key, supply: crate.supply, color: crate.color, ...this.crateOrigin(crate),
+      id: crate.id, action: this.rules.crateActions ? crate.id : crate.supply, accessible: this.rules.accessible(crate.id), key: crate.key, supply: crate.supply, color: crate.color, ...this.crateOrigin(crate),
       open: crate.phase === 'opening' ? Math.min(crate.time / CRATE.openSeconds, 1) : 0, visible: crate.phase !== 'gone',
     }));
   }
@@ -295,7 +324,8 @@ export class Machine implements Replayable {
   }
   /** The world point a marble must pass to join a box: for hint arrows and tests. */
   frontCrate(supply: number): { x: number; y: number; z: number } | null {
-    const crate = this.control.crates.find((candidate) => candidate.supply === supply && candidate.phase === 'waiting' && !candidate.released && candidate.rank === 0);
+    const packet = this.rules.packet(supply);
+    const crate = this.control.crates.find((candidate) => candidate.id === packet?.id);
     return crate ? this.crateOrigin(crate) : null;
   }
 
@@ -307,8 +337,10 @@ export class Machine implements Replayable {
     if (!result.ok) return result;
     this.history.push(before);
     this.actions.push({ step: this.steps, type: 'tap', at: supply });
-    const crate = this.control.crates.find((candidate) => candidate.key === result.marbles[0]?.id);
-    if (crate) crate.released = true;
+    for (const packet of result.packets) {
+      const crate = this.control.crates.find((candidate) => candidate.id === packet.id);
+      if (crate) crate.released = true;
+    }
     return result;
   }
 
@@ -371,7 +403,7 @@ export class Machine implements Replayable {
       crate.time += dt;
       crate.rank = this.control.crates.filter((other) => other.supply === crate.supply && other.key < crate.key && other.phase === 'waiting').length;
       if (crate.slide > crate.rank) crate.slide = Math.max(crate.slide - dt / STACK.slideSeconds, crate.rank);
-      if (crate.phase === 'waiting' && crate.released && crate.rank === 0 && crate.slide === 0) {
+      if (crate.phase === 'waiting' && crate.released && (this.rules.crateActions || (crate.rank === 0 && crate.slide === 0))) {
         crate.phase = 'opening';
         crate.time = 0;
         this.events.push({ type: 'pour', supply: crate.supply, color: crate.color });
@@ -559,7 +591,7 @@ export class Machine implements Replayable {
     const body = this.marbleBody(marble.id);
     const t = body.translation();
     if (!this.control.neckOpen) marble.time = Math.min(marble.time, 1);
-    const lost = t.y < RACEWAY.floorY - 0.5 || Math.abs(t.x) > funnelHalfWidth(this.board.supplies.length) + 1 || t.z > 1.5 || t.z < FUNNEL.mouth.back - 2;
+    const lost = t.y < RACEWAY.floorY - 0.5 || Math.abs(t.x) > funnelHalfWidth(this.sourceColumns) + 1 || t.z > 1.5 || t.z < FUNNEL.mouth.back - 2;
     if (lost || marble.time > FALL_RESCUE_SECONDS) this.teleportToFunnel(marble, lost ? 'left the funnel' : 'never reached the neck');
     else if (marble.time > FALL_NUDGE_SECONDS && Math.floor(marble.time * 60) % 45 === 0) this.nudge(marble, { x: -t.x * 0.6, y: 2.2, z: (FUNNEL.neck.z - t.z) * 0.6 });
   }

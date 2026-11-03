@@ -1,4 +1,4 @@
-import { MachineRules } from './rules';
+import { MachineRules, funnelStateKey } from './rules';
 
 const DEFAULT_SEARCH_LIMIT = 5_000;
 
@@ -33,29 +33,29 @@ export function settle(rules: MachineRules): boolean {
   return false;
 }
 
-/** Returns a supply whose release has a verified winning continuation, without touching the live game. */
+/** A column action, or stable crate ID on source variants, with a verified winning continuation. */
 export function hintConveyor(rules: MachineRules, searchLimit = DEFAULT_SEARCH_LIMIT): number | null {
   return hintConveyorSearch(rules, searchLimit).supply;
 }
 
 /** The hint and the states it visited: authoring caps the count, because a clock would change with machine load. */
-export function hintConveyorSearch(rules: MachineRules, searchLimit = DEFAULT_SEARCH_LIMIT): { readonly supply: number | null; readonly states: number } {
-  if (rules.status !== 'playing' || !Number.isSafeInteger(searchLimit) || searchLimit <= 0) return { supply: null, states: 0 };
-  const candidates = rules.state.supplies.flatMap((supply, index) => (supply[0] ? [index] : []));
-  if (!candidates.length) return { supply: null, states: 0 };
+export function hintConveyorSearch(rules: MachineRules, searchLimit = DEFAULT_SEARCH_LIMIT): { readonly supply: number | null; readonly states: number; readonly crates: readonly number[] } {
+  if (rules.status !== 'playing' || !Number.isSafeInteger(searchLimit) || searchLimit <= 0) return { supply: null, crates: [], states: 0 };
+  const candidates = rules.actions();
+  if (!candidates.length) return { supply: null, crates: [], states: 0 };
   const settled = clone(rules);
-  if (!settle(settled) || settled.status !== 'playing') return { supply: null, states: 0 };
+  if (!settle(settled) || settled.status !== 'playing') return { supply: null, crates: [], states: 0 };
   const visited = new Set<string>();
   let exhausted = false;
 
   const canWin = (current: MachineRules): boolean => {
     if (current.status === 'won') return true;
     if (current.status === 'jammed' || exhausted) return false;
-    const key = JSON.stringify(current.snapshot());
+    const key = funnelStateKey(current);
     if (visited.has(key)) return false;
     if (visited.size >= searchLimit) { exhausted = true; return false; }
     visited.add(key);
-    for (let supply = 0; supply < current.board.supplies.length; supply += 1) {
+    for (const supply of current.actions()) {
       const branch = clone(current);
       if (!branch.release(supply).ok || !settle(branch)) continue;
       if (canWin(branch)) return true;
@@ -66,10 +66,10 @@ export function hintConveyorSearch(rules: MachineRules, searchLimit = DEFAULT_SE
   for (const supply of candidates) {
     const branch = clone(settled);
     if (!branch.release(supply).ok || !settle(branch)) continue;
-    if (canWin(branch)) return { supply, states: visited.size };
-    if (exhausted) return { supply: null, states: visited.size };
+    if (canWin(branch)) return { supply, crates: rules.releaseIds(supply), states: visited.size };
+    if (exhausted) return { supply: null, crates: [], states: visited.size };
   }
-  return { supply: null, states: visited.size };
+  return { supply: null, crates: [], states: visited.size };
 }
 
 /** Every settled release order, for authoring: how many win, how many jam, and one witness of each. */
@@ -80,7 +80,7 @@ export function releaseTree(rules: MachineRules, limit = 200_000): { wins: numbe
     if (visited++ > limit) return;
     if (current.status === 'won') { result.wins++; result.win ??= path; return; }
     if (current.status === 'jammed') { result.jams++; result.jam ??= path; return; }
-    for (let supply = 0; supply < current.board.supplies.length; supply++) {
+    for (const supply of current.actions()) {
       const branch = clone(current);
       if (!branch.release(supply).ok) continue;
       if (!settle(branch)) throw new Error(`Unsettled state after ${path}${supply}`);

@@ -1,10 +1,11 @@
-import { MachineRules } from '../src/sim/rules';
+import { funnelFeatureTrap } from './funnel-features';
+import { MachineRules, funnelStateKey } from '../src/sim/rules';
 import { initPhysics, Machine } from '../src/machine/machine';
 import { MIN_CAPACITY } from '../src/machine/layout';
 import { hintConveyorSearch, settle } from '../src/sim/solver';
 import { HINT_STATE_CAP } from './level-curve';
 import { SHORT_TRAY, SMALL_TRAY, TRAY_COUNT } from '../src/sim/boards';
-import { COLOR_CODE, COLORS, type BoardDef, type Color, type Packet } from '../src/sim/types';
+import { COLORS, type BoardDef, type Color, type Packet, type FunnelVariants } from '../src/sim/types';
 import type { BeltShape } from '../src/engine/belt-path';
 
 /**
@@ -16,7 +17,7 @@ import type { BeltShape } from '../src/engine/belt-path';
 const PALETTE: readonly Color[] = COLORS;
 const LETTER = (index: number): string => String.fromCharCode(65 + index);
 
-export interface FunnelRecipe {
+export interface FunnelRecipe extends FunnelVariants {
   readonly id: string;
   readonly title: string;
   readonly fr: string;
@@ -88,7 +89,8 @@ export function generate(recipe: FunnelRecipe, seed: number): BoardDef | null {
   const docks: Color[][] = Array.from({ length: recipe.docks }, (_, dock) => boxes.filter((_, index) => index % recipe.docks === dock));
   if (docks.some((queue) => !queue.length)) return null;
   const board: BoardDef = { id: recipe.id, title: recipe.title, beltCapacity: recipe.capacity, boxSize: 3, supplies, docks };
-  return recipe.shape ? { ...board, trackShape: recipe.shape } : board;
+  return { ...board, ...(recipe.shape ? { trackShape: recipe.shape } : {}),
+    ...(recipe.pairs ? { pairs: recipe.pairs } : {}), ...(recipe.predecessors ? { predecessors: recipe.predecessors } : {}), ...(recipe.seals ? { seals: recipe.seals } : {}) };
 }
 
 function clone(rules: MachineRules): MachineRules {
@@ -98,17 +100,11 @@ function clone(rules: MachineRules): MachineRules {
 }
 
 /** Marbles of a colour are interchangeable, so the state is the trays left, the funnel queue, the belt load and the boxes. */
-export function stateKey(rules: MachineRules): string {
-  const state = rules.state;
-  const belt: Record<string, number> = {};
-  for (const marble of state.marbles) if (marble.status === 'on-belt') belt[marble.color] = (belt[marble.color] ?? 0) + 1;
-  const pending = state.pending.map((id) => COLOR_CODE[state.marbles[id]!.color]).join('');
-  const boxes = state.dockNext.map((box, dock) => `${box}:${rules.reserved(dock, box)}`).join(',');
-  return `${state.supplies.map((queue) => queue.length).join(',')}|${boxes}|${JSON.stringify(belt)}|${pending}`;
-}
+export const stateKey = funnelStateKey;
 
 export interface Search {
   readonly solvable: boolean;
+  readonly complete: boolean;
   readonly witness: string | null;
   readonly jam: string | null;
   readonly states: number;
@@ -124,7 +120,7 @@ export interface Search {
 interface Node { readonly win: boolean; readonly orders: number; readonly winning: number; readonly random: number }
 
 /** Exhaustive over distinct settled states, with the first winning and first losing orders and order counts. */
-export function search(board: BoardDef, limit = 400_000): Search {
+export function search(board: BoardDef, limit = 400_000, snapshot?: ReturnType<MachineRules['snapshot']>): Search {
   const memo = new Map<string, Node>();
   let witness: string | null = null;
   const witnesses: string[] = [];
@@ -143,7 +139,7 @@ export function search(board: BoardDef, limit = 400_000): Search {
     let winning = 0;
     let random = 0;
     let choices = 0;
-    for (let supply = 0; supply < board.supplies.length; supply++) {
+    for (const supply of rules.actions()) {
       const branch = clone(rules);
       if (!branch.release(supply).ok) continue;
       if (!settle(branch)) throw new Error(`Unsettled state after ${path}${LETTER(supply)}`);
@@ -160,18 +156,33 @@ export function search(board: BoardDef, limit = 400_000): Search {
     return node;
   };
   const start = new MachineRules(board);
+  if (snapshot) start.restore(snapshot);
   settle(start);
   const root = walk(start, '');
-  return { solvable: root.win && !overflow, witness, witnesses, jam, states: memo.size, lost, orders: root.orders, winning: root.winning, random: root.random };
+  return { complete: !overflow, solvable: root.win && !overflow, witness, witnesses, jam, states: memo.size, lost, orders: root.orders, winning: root.winning, random: root.random };
 }
 
-/** The smallest belt that still has a winning order; room never hurts a winning order, so this is monotone. */
+/** Classic recipes use monotone tightening; structural variants enumerate their bounded capacities. */
 /**
  * The floor is the smallest track of that shape that still draws cleanly. The track is sized to the capacity,
  * so every capacity at or above it fills its belt with no gaps.
  */
 export const floorFor = (shape: BeltShape | undefined): number => MIN_CAPACITY[shape ?? 'oval'];
+export class FunnelSearchExhausted extends Error {}
+export function solvableCapacities(board: BoardDef, floor = floorFor(board.trackShape), searchLimit = 400_000): number[] {
+  const result: number[] = [];
+  for (let capacity = floor; capacity <= board.beltCapacity; capacity++) {
+    const found = search({ ...board, beltCapacity: capacity }, searchLimit);
+    if (!found.complete) throw new FunnelSearchExhausted(`Funnel capacity search budget exhausted at ${capacity}`);
+    if (found.solvable) result.push(capacity);
+  }
+  return result;
+}
 export function tighten(board: BoardDef, floor = floorFor(board.trackShape)): BoardDef {
+  if (board.pairs?.length || board.predecessors || board.seals?.length) {
+    const capacities = solvableCapacities(board, floor);
+    return { ...board, beltCapacity: capacities[0] ?? board.beltCapacity };
+  }
   let low = floor;
   let high = board.beltCapacity;
   while (low < high) {
@@ -193,6 +204,14 @@ export function play(board: BoardDef, order: readonly number[]): 'won' | 'jammed
   return rules.status;
 }
 export function naiveOrders(board: BoardDef): number[][] {
+  if (board.pairs?.length || board.predecessors) {
+    let id = 0;
+    const columns = board.supplies.map((q) => q.map(() => id++));
+    const columnMajor = columns.flat();
+    const roundRobin = Array.from({ length: Math.max(...columns.map((q) => q.length)) }, (_, i) => columns.flatMap((q) => q[i] === undefined ? [] : [q[i]!])).flat();
+    // Keep retrying blocked choices: a shelf join can become accessible after a later column is released.
+    return [columnMajor, roundRobin, [...columnMajor].reverse()].map((order) => Array.from({ length: id }, () => order).flat());
+  }
   const columns = board.supplies.length;
   const depth = Math.max(...board.supplies.map((queue) => queue.length));
   const columnMajor = board.supplies.flatMap((queue, index) => queue.map(() => index));
@@ -237,10 +256,20 @@ export async function winsEitherWay(board: BoardDef, order: string): Promise<boo
 export async function author(recipe: FunnelRecipe, attempts = 400): Promise<FunnelReport> {
   for (let seed = recipe.seed; seed < recipe.seed + attempts; seed++) {
     const loose = generate(recipe, seed);
-    if (!loose || !search(loose).solvable) continue;
-    const board = { ...loose, beltCapacity: Math.min(recipe.capacity, tighten(loose).beltCapacity + recipe.slack) };
+    if (!loose) continue;
+    const variant = loose.pairs?.length || loose.predecessors || loose.seals?.length;
+    if (!variant && !search(loose).solvable) continue;
+    let capacities: number[] | null;
+    try { capacities = variant ? solvableCapacities(loose) : null; }
+    catch (error) { if (error instanceof FunnelSearchExhausted) continue; throw error; }
+    if (capacities && !capacities.length) continue;
+    const target = Math.min(recipe.capacity, (capacities?.[0] ?? tighten(loose).beltCapacity) + recipe.slack);
+    const capacity = capacities ? capacities.find((value) => value >= target) : target;
+    if (capacity === undefined) continue;
+    const board = { ...loose, beltCapacity: capacity };
     const result = search(board);
     if (!result.solvable || !result.witness || !result.jam) continue;
+    if ((board.pairs?.length || board.predecessors || board.seals?.length) && funnelFeatureTrap(board) === null) continue;
     const lostShare = result.lost / result.states;
     const winShare = result.winning / result.orders;
     if (winShare < recipe.win[0] || winShare > recipe.win[1]) continue;
@@ -272,9 +301,17 @@ export function emitBoard(report: FunnelReport): string {
   const longest = Math.max(...board.docks.map((queue) => queue.length));
   for (let row = 0; row < longest; row++) for (const queue of board.docks) if (queue[row]) order.push(queue[row]!);
   const base = `board('${board.id}', '${board.title.replace(/'/g, '\\\'')}', ${board.beltCapacity},\n  [${supplies}],\n  docks(${board.docks.length}, ${order.map(quote).join(', ')}))`;
+  if (board.pairs || board.predecessors || board.seals) return `/** ${recipe.note} */\nexport const ${name}: BoardDef = ${JSON.stringify(board, null, 2)};`;
   const body = board.trackShape ? `{ ...${base}, trackShape: '${board.trackShape}' }` : base;
   return `/** ${recipe.note} */\nexport const ${name}: BoardDef = ${body};`;
 }
+
+/** Reproducible rule lessons; kept outside the campaign and its ordinary authoring batch. */
+export const FUNNEL_RULE_RECIPES: readonly FunnelRecipe[] = [
+  { id: 'board-200', title: 'One shared handle', fr: 'Une poignée pour deux', note: 'Round 41: a six and a three share one release.', colors: 3, columns: [2,2,2], shorts: 1, smalls: 1, docks: 3, capacity: 14, seed: 10920, win: [0,1], slack: 0, naiveJams: true, pairs: [[0,2]] },
+  { id: 'board-201', title: 'Two supports', fr: 'Deux appuis', note: 'Round 57: the central shelf needs both accepted releases.', colors: 3, columns: [2,2,2], shorts: 0, docks: 3, capacity: 14, seed: 226, win: [0,1], slack: 0, naiveJams: true, predecessors: {0:[],1:[0,2],2:[],3:[2],4:[],5:[4]} },
+  { id: 'board-202', title: 'Open the shutter', fr: 'Le volet se lève', note: 'Round 73: fill the blue box to open the green dock.', colors: 3, columns: [2,2,2], shorts: 0, docks: 3, capacity: 14, seed: 7, win: [0,1], slack: 0, naiveJams: true, seals: [{dock:0,after:{dock:1,box:0}}] },
+];
 
 export const FUNNEL_RECIPES: readonly FunnelRecipe[] = [
   // Boards 3 to 11 keep their titles and shapes; they are re-rolled here for a tighter belt and fewer winning orders.

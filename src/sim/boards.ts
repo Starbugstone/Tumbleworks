@@ -201,4 +201,28 @@ export const BOARD_47: BoardDef = board('board-47', 'Nine trays', 14,
   [trays('orange', 'blue', 'red'), trays('green', 'blue', 'green'), trays('orange', 'yellow', 'red')],
   docks(4, 'green', 'green', 'red', 'orange', 'blue', 'blue', 'orange', 'orange', 'yellow', 'red', 'red', 'green', 'yellow', 'orange', 'green', 'blue', 'green', 'blue', 'orange', 'blue', 'red', 'red', 'green', 'yellow', 'red', 'blue', 'orange'));
 // END first stretch
-export const BOARDS: readonly BoardDef[] = [BOARD_1, BOARD_2, BOARD_3, BOARD_4, BOARD_5, BOARD_6, BOARD_7, BOARD_8, BOARD_9, BOARD_10, BOARD_11, BOARD_12, BOARD_13, BOARD_14, BOARD_15, BOARD_16, BOARD_17, BOARD_18, BOARD_19, BOARD_20, BOARD_21, BOARD_22, BOARD_23, BOARD_24, BOARD_25, BOARD_26, BOARD_27, BOARD_28, BOARD_29, BOARD_30, BOARD_31, BOARD_32, BOARD_33, BOARD_34, BOARD_35, BOARD_36, BOARD_37, BOARD_38, BOARD_39, BOARD_40, BOARD_41, BOARD_42, BOARD_43, BOARD_44, BOARD_46, BOARD_47];
+/** Rule lesson for round 41; bank only. */
+export const BOARD_200: BoardDef = {
+  id: 'board-200', title: 'One shared handle', beltCapacity: 14, boxSize: 3,
+  supplies: [[tray('blue', 6), tray('red', 9)], [tray('red', 3), tray('red', 9)], [tray('blue', 9), tray('green', 9)]],
+  docks: [["green", "blue", "red", "blue", "red"], ["red", "red", "green", "red", "blue"], ["red", "red", "blue", "green", "blue"]],
+  pairs: [[0, 2]],
+};
+
+/** Rule lesson for round 57; bank only. */
+export const BOARD_201: BoardDef = {
+  id: 'board-201', title: 'Two supports', beltCapacity: 14, boxSize: 3,
+  supplies: [[tray('green', 9), tray('red', 9)], [tray('green', 9), tray('blue', 9)], [tray('green', 9), tray('red', 9)]],
+  docks: [["blue", "red", "green", "red", "blue", "green"], ["blue", "green", "green", "red", "green", "red"], ["red", "green", "red", "green", "green", "green"]],
+  predecessors: {"0": [], "1": [0, 2], "2": [], "3": [2], "4": [], "5": [4]},
+};
+
+/** Rule lesson for round 73; bank only. */
+export const BOARD_202: BoardDef = {
+  id: 'board-202', title: 'Open the shutter', beltCapacity: 14, boxSize: 3,
+  supplies: [[tray('green', 9), tray('red', 9)], [tray('red', 9), tray('green', 9)], [tray('red', 9), tray('blue', 9)]],
+  docks: [["green", "red", "green", "green", "red", "blue"], ["blue", "red", "green", "green", "red", "red"], ["green", "red", "red", "red", "blue", "red"]],
+  seals: [{"dock": 0, "after": {"dock": 1, "box": 0}}],
+};
+
+export const BOARDS: readonly BoardDef[] = [BOARD_1, BOARD_2, BOARD_3, BOARD_4, BOARD_5, BOARD_6, BOARD_7, BOARD_8, BOARD_9, BOARD_10, BOARD_11, BOARD_12, BOARD_13, BOARD_14, BOARD_15, BOARD_16, BOARD_17, BOARD_18, BOARD_19, BOARD_20, BOARD_21, BOARD_22, BOARD_23, BOARD_24, BOARD_25, BOARD_26, BOARD_27, BOARD_28, BOARD_29, BOARD_30, BOARD_31, BOARD_32, BOARD_33, BOARD_34, BOARD_35, BOARD_36, BOARD_37, BOARD_38, BOARD_39, BOARD_40, BOARD_41, BOARD_42, BOARD_43, BOARD_44, BOARD_46, BOARD_47, BOARD_200, BOARD_201, BOARD_202];

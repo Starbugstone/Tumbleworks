@@ -395,3 +395,72 @@ batch. No main-checkout artifacts are needed. New captures belong under
 allow lighter recording on a shared host. Pass the same `VIDEO_FPS` to the encoder.
 Recording advances browser timers with the game clock so feedback remains
 visible for its intended duration even when frame capture is slow.
+
+## Funnel Sort rule lessons in the bank
+
+`board-200`, `board-201` and `board-202` are bank lessons for rounds 41, 57 and
+73. They are outside `PLAY_ORDER`; open them with `/?try=board-200` (or the
+other ID). The campaign and existing saved IDs are unchanged.
+
+- **Paired release:** `pairs` lists disjoint pairs of stable crate IDs. The
+  shared handle belongs to the crates. Either endpoint releases both only when
+  both are accessible and unreleased; refusal changes nothing. Packets enter
+  pending inventory in increasing crate-ID order; physics may mix their fall.
+  The lesson pairs six marbles with three. One undo restores both crates and
+  the physics snapshot, including any receiver changes since the tap.
+- **Forked shelves:** `predecessors` replaces column access with an acyclic
+  dependency graph. Crate IDs are zero-based in original supply/packet order,
+  independent of marble count. All predecessors must have accepted releases;
+  opening animation never delays access. A crate has at most three distinct predecessors; shelves expose at most four crates.
+  The lesson joins two chains, with overlap and short support brackets.
+- **Sealed dock:** `seals` names a dock and an `after: {dock, box}` prerequisite
+  at another dock. At most two acyclic seals are allowed. A sealed dock cannot
+  reserve. Its shutter carries the prerequisite box's colour and container
+  pattern. The last reservation opens it permanently in that same transition,
+  before jam evaluation; capture and queue animation do not delay opening.
+  A belt full of colours wanted only by sealed docks is jammed unless existing
+  deliveries can free space. An imagined future release cannot rescue it.
+
+Existing boards keep column-index actions and replay input. Source variants
+use crate-ID actions. `MachineRules.actions()` enumerates one canonical endpoint
+per legal pair, `release()` owns the complete transition, and hints expose the
+stable member IDs. FIFO settling, exhaustive authoring, scorer graphs and the
+strong planner all use those transitions. Settled keys retain the released set
+and open seals; strong keys additionally retain active marble identity/order.
+
+`FunnelRecipe` and `FunnelTarget` accept `pairs`, `predecessors` and `seals`.
+Structural variants enumerate bounded capacity choices, including choices below
+an unsolvable maximum; they do not assume monotonicity. A causal trap check
+requires an attractive opening that cannot win with the restriction but can
+win with it removed, preserving cargo and queue order. Exhaustion is unknown,
+not an impossibility proof. Existing naive, cheese/spam, jitter, sampled-order
+and real-machine gates still apply. The executable interleaving model and its
+bounds are documented in [funnel-actions](models/funnel-actions/README.md).
+
+
+The three bank lessons pass the standalone lesson gates for their intended
+rounds. Their recorded S/H values are 50.04/0 (`board-200`), 61.45/1.67
+(`board-201`) and 54.91/0 (`board-202`), using the unchanged default scorer
+policy, 60 games per machine player and the strong planner's default seeds.
+All three naive orders jam. Both witness timings win, jitter wins 20/20, and
+all twelve sampled winning orders win at both timings. Every measured player
+has zero recoveries. Scores and recorded fast actions are committed with the
+fixtures; full score files from this run are in
+`output/current/funnel-rules/accepted-scores/`.
+
+Phone browser checks at 375×690 and desktop checks at 1280×800 cover real taps,
+locked shelves, successive releases, undo, cancelled/off-board gestures,
+language switching and grayscale containers. The three 15-second recordings
+are in `output/current/videos/funnel-{paired-release,forked-shelves,sealed-dock}.mp4`.
+They show real physics on the game's clock; they are short excerpts, not full
+witness recordings. The saved fast physics replays also reproduce exactly with
+`scripts/replay.ts`. The bank remains outside `PLAY_ORDER`; joint campaign
+placement and human calibration have not been performed.
+
+The build remains under the first-download budget (1.906 MB gzipped of 2 MB).
+Performance validation is unresolved on this host: the 4× CPU browser budget
+fails on this branch and on the unchanged parent `9112537`. The final focused
+run still fails after excluding generated output from Vite's watcher. No budget
+was raised; these measurements do not establish performance on a physical phone.
+Logs, screenshots, decoded-video checks and replay logs are under
+`output/current/funnel-rules/`.

@@ -2,6 +2,7 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   server: {
+    watch: { ignored: ['**/output/**'] },
     host: true,
     port: 5180,
     strictPort: true,
