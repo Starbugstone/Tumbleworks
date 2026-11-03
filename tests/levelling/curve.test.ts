@@ -49,6 +49,12 @@ describe('one level against its band and gates', () => {
     expect(levelViolations(placed({ ...loop, FM: 60, wins: { spam: { win: 0.95, n: 200 } } })).join()).toMatch(/spam wins/);
     expect(levelViolations(placed({ ...loop, FM: 60, maxSegments: 4 })).join()).toMatch(/4 segments/);
   });
+  it('reads the occasional-burst player for Loop Sort from round 13, the every-turn burst before', () => {
+    const loop: ScoreRow = { ...valid, game: 'loop', F1: 40, FM: 100, S: 52, maxSegments: 3, wins: { spam: { win: 0.2, n: 200 }, mixed: { win: 0.5, n: 200 } } };
+    expect(levelViolations(placed(loop, 8)).join()).toMatch(/fast tapping fail 100/);
+    expect(levelViolations(placed(loop, 14))).toEqual([]);
+    expect(levelViolations(placed({ ...loop, wins: { ...loop.wins, mixed: { win: 0.2, n: 200 } } }, 14)).join()).toMatch(/occasional bursts fail 80/);
+  });
   it('rejects a board the planner cannot resolve on the machine', () => {
     expect(levelViolations(placed({ ...valid, witnessWins: false })).join()).toMatch(/witness/);
     expect(levelViolations(placed({ ...valid, jitter: 0.8 })).join()).toMatch(/jitter/);

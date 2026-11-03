@@ -11,7 +11,7 @@ import { hintConveyorSearch } from '../src/sim/solver';
 import { COLORS, type BoardDef, type Color } from '../src/sim/types';
 import type { BeltShape } from '../src/engine/belt-path';
 import { generate as generateFunnel, naiveOrders, play as playOrder, search as searchFunnel, tighten as tightenFunnel, winsEitherWay as funnelWitnessWins, type FunnelRecipe } from './funnel-author';
-import { bandFor, funnelRating, HINT_STATE_CAP, levelViolations, LOOP_CAPACITY_MAX, loopRating, MIN_RISK_POSITIONS, multiTapFailure, OVAL_CAPACITY_MAX, stretchOf, TUBE_GRAPH_CAP, tubeRating, winCeiling, type Slot } from './level-curve';
+import { bandFor, funnelRating, HINT_STATE_CAP, levelViolations, LOOP_CAPACITY_MAX, loopRating, MIN_RISK_POSITIONS, multiTapFailure, OVAL_CAPACITY_MAX, STRICT_FROM, stretchOf, TUBE_GRAPH_CAP, tubeRating, winCeiling, type Slot } from './level-curve';
 import { funnelGame, funnelJitter, loopGame, loopJitter, scoreFunnel, scoreLoop, scoreTube, scoreTubeRow, settledFunnel, settledLoop, tally, type FunnelPlayer, type LoopPlayer, type ScoredFile, type Tally } from './level-score';
 import { generate as generateLoop, laneByLane, roundRobin, search as searchLoop, tighten as tightenLoop, winsEitherWay as loopWitnessWins, type LoopRecipe } from './loop-author';
 import { generate as generateTube } from './tube-author';
@@ -254,7 +254,7 @@ function loopCandidate(target: LoopTarget, seed: number): number {
     const S = loopRating(settled.F1, FM);
     const gate = { gatePassed: FM <= settled.F1 + gap, mixedGatePassed: FMmixed <= settled.F1 + gap };
     const figures = { F1: settled.F1, FM, FMmixed, S, spam: spam.win, ...gate };
-    if (target.round >= 4 && !gate.gatePassed) { say('multi-tap gap', figures); continue; }
+    if (target.round >= 4 && !(target.round >= STRICT_FROM ? gate.mixedGatePassed : gate.gatePassed)) { say('multi-tap gap', figures); continue; }
     if (S < band[0] - 2 || S > band[1] + 2) { say('S out of band', figures); continue; }
     const spamLimit = ceiling === null ? 1 : ceiling + (target.slot === 'relief' || target.slot === 'lesson' ? 0.1 : 0);
     if (spam.win > spamLimit + 1e-9) { say('auto win', figures); continue; }
@@ -308,6 +308,16 @@ if (process.argv[1]?.endsWith('level-author.ts')) {
   else {
     const want = Number(wantArg);
     const deadline = Date.now() + Number(minutesArg) * 60_000;
+    if (mode === 'recheck') {
+      // Re-runs Loop Sort seeds the old every-turn burst gate turned away but the mixed player passes.
+      const loopTarget = LOOP_TARGETS.find((target) => target.id === id);
+      if (!loopTarget) throw new Error(`No Loop Sort target ${id}`);
+      const seeds = [...new Set(logged(id).filter((entry) => entry.outcome === 'multi-tap gap' && entry.mixedGatePassed).map((entry) => entry.seed))];
+      let found = 0;
+      for (const seed of seeds) { try { found += loopCandidate(loopTarget, seed); } catch (error) { log(id, { seed, outcome: `error ${String(error).slice(0, 160)}` }); } }
+      console.error(`${id}: recheck of ${seeds.length} seeds accepted ${found}`);
+      process.exit(0);
+    }
     const funnel = FUNNEL_TARGETS.find((target) => target.id === id);
     const loop = LOOP_TARGETS.find((target) => target.id === id);
     const tube = TUBE_TARGETS.find((target) => target.id === id);

@@ -41,7 +41,7 @@ export const CURVE: readonly Stretch[] = [
   { first: 111, last: 118, ordinary: [76, 92], relief: [60, 74], peakMax: 99, gap: 30, ceiling: 0.5 },
   { first: 119, last: 120, ordinary: [80, 94], relief: [64, 76], peakMax: 100, gap: 30, ceiling: 0.5 },
 ];
-/** From this round a lesson may not rise more than any other level, and Funnel Sort's ceiling binds spam as well as cheese. */
+/** From this round a lesson may not rise more than any other level, Funnel Sort's ceiling binds spam as well as cheese, and Loop Sort's multi-tap gate reads the mixed player. */
 export const STRICT_FROM = 13;
 
 export function stretchOf(round: number): Stretch {
@@ -62,6 +62,8 @@ export const loopRating = (f1: number, fm: number): number => f1 + tempo(f1, fm)
 export const TUBE_LENGTH_CAP = 25;
 export const tubeRating = (f1: number, moves: number): number => Math.max(f1, Math.min(TUBE_LENGTH_CAP, 2.5 * (moves - 4)));
 export const multiTapFailure = (burst2: number, burst3: number): number => 100 * (1 - (burst2 + burst3) / 2);
+/** Failure of the planner who bursts two or three taps on about one turn in four; 100 when it was never measured. */
+export const mixedFailure = (row: { readonly wins: Readonly<Record<string, { readonly win: number }>> }): number => 100 * (1 - (row.wins['mixed']?.win ?? 0));
 /** Settled planners set F1 unless the same planners on the machine differ by more than this. */
 export const MACHINE_OVERRIDE = 15;
 export const chooseF1 = (settled: number, machine: number | null): number => machine !== null && Math.abs(machine - settled) > MACHINE_OVERRIDE ? machine : settled;
@@ -199,7 +201,11 @@ export function levelViolations(level: Placement): string[] {
   } else {
     if (allowed !== null && spam > allowed + 1e-9) say(`spam wins ${spam.toFixed(2)}, ceiling ${allowed.toFixed(2)}: an auto win`);
     const gap = stretchOf(round).gap;
-    if (gap !== null && row.FM > row.F1 + gap + 1e-9) say(`FM ${row.FM.toFixed(0)} above F1 ${row.F1.toFixed(0)} + ${gap}: fast tapping is fatal`);
+    // The owner's call (3 November 2026): from round 13 a hard Loop Sort level may punish bursting on every turn, but not a
+    // player who rapid-taps now and then, so the gate reads the mixed player, who bursts on about one turn in four.
+    const fast = round >= STRICT_FROM ? mixedFailure(row) : row.FM;
+    const who = round >= STRICT_FROM ? 'occasional bursts' : 'fast tapping';
+    if (gap !== null && fast > row.F1 + gap + 1e-9) say(`${who} fail ${fast.toFixed(0)}, above F1 ${row.F1.toFixed(0)} + ${gap}: fast tapping is fatal`);
     if ((row.maxSegments ?? 0) > LOOP_MAX_SEGMENTS) say(`a truck has ${row.maxSegments} segments`);
   }
   return out;

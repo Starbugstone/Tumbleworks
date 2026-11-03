@@ -613,14 +613,16 @@ export function scoreLoop(board: LoopBoardDef, witness: string | undefined, game
   const play = (player: LoopPlayer) => (seed: number): GameResult => loopGame(board, player, seed);
   const players: Record<string, Tally> = {};
   for (const player of ['burst2', 'burst3'] as const) players[player] = tally(play(player), games, true);
-  for (const player of ['mixed', 'mixedBrisk', 'single', 'spam', 'patient1', 'patient2'] as const) players[player] = tally(play(player), games);
+  players['mixed'] = tally(play('mixed'), games, true);
+  for (const player of ['mixedBrisk', 'single', 'spam', 'patient1', 'patient2'] as const) players[player] = tally(play(player), games);
   const F1machine = 100 * (1 - (players['patient1']!.win + players['patient2']!.win) / 2);
   const F1 = chooseF1(settled.F1, F1machine);
   const FM = multiTapFailure(players['burst2']!.win, players['burst3']!.win);
   const order = witness ?? found.witness ?? '';
   const naive = [laneByLane(board) === 'jammed', roundRobin(board) === 'jammed'];
   const share = loopShare(board);
-  const fast = players['burst2']!.fast ?? players['burst3']!.fast;
+  // A recorded win with taps inside one pour: an every-turn burst if one won, else the occasional-burst player's.
+  const fast = players['burst2']!.fast ?? players['burst3']!.fast ?? players['mixed']!.fast;
   const both = [false, true].every((patient) => { const game = playLoop(board, order, 185, patient); return game.status === 'won' && game.done; });
   const row: ScoreRow = {
     id: board.id, game: 'loop', hash: hashBoard(board), A: order.length, F1, F1settled: settled.F1, F1machine, FM, S: loopRating(F1, FM),
