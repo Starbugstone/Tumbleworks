@@ -12,7 +12,7 @@ import { MachineRules } from '../../src/sim/rules';
 import { BOARDS } from '../../src/sim/boards';
 import { hintConveyorSearch, settle } from '../../src/sim/solver';
 import { HINT_STATE_CAP, TUBE_GRAPH_CAP, type ScoreRow } from '../../scripts/level-curve';
-import { funnelGame, loopGame, scoreTube } from '../../scripts/level-score';
+import { extendTally, funnelGame, loopGame, scoreTube, tally } from '../../scripts/level-score';
 import { reachableTubeStates } from '../../scripts/tube-author';
 import { FAST_WITNESSES } from '../witnesses';
 
@@ -161,4 +161,14 @@ describe('the machine keeps a whole recorded game', () => {
     live.world.free();
     again.world.free();
   });
+});
+
+describe('a screen that grows', () => {
+  it('extends a short tally to the same result as playing every game at once', () => {
+    const board = campaignLoop.find((candidate) => candidate.id === 'loop-41')!;
+    const play = (seed: number) => loopGame(board, 'mixed', seed);
+    const whole = tally(play, 14, true);
+    const grown = extendTally(tally(play, 5, true), play, 14, true);
+    expect(grown).toEqual(whole);
+  }, 60_000);
 });

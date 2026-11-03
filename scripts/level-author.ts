@@ -12,7 +12,7 @@ import { COLORS, type BoardDef, type Color } from '../src/sim/types';
 import type { BeltShape } from '../src/engine/belt-path';
 import { generate as generateFunnel, naiveOrders, play as playOrder, search as searchFunnel, tighten as tightenFunnel, winsEitherWay as funnelWitnessWins, type FunnelRecipe } from './funnel-author';
 import { bandFor, funnelRating, HINT_STATE_CAP, levelViolations, LOOP_CAPACITY_MAX, loopRating, MIN_RISK_POSITIONS, multiTapFailure, OVAL_CAPACITY_MAX, STRICT_FROM, stretchOf, TUBE_GRAPH_CAP, tubeRating, winCeiling, type Slot } from './level-curve';
-import { funnelGame, funnelJitter, loopGame, loopJitter, scoreFunnel, scoreLoop, scoreTube, scoreTubeRow, settledFunnel, settledLoop, tally, type FunnelPlayer, type LoopPlayer, type ScoredFile, type Tally } from './level-score';
+import { funnelGame, funnelJitter, loopGame, loopJitter, scoreFunnel, scoreLoop, extendTally, scoreTube, scoreTubeRow, settledFunnel, settledLoop, tally, type FunnelPlayer, type LoopPlayer, type ScoredFile, type Tally } from './level-score';
 import { generate as generateLoop, laneByLane, roundRobin, search as searchLoop, tighten as tightenLoop, winsEitherWay as loopWitnessWins, type LoopRecipe } from './loop-author';
 import { findRuleTrap, withTubeRule, type TubeRuleRecipe, type TubeTrap, generate as generateTube } from './tube-author';
 
@@ -27,6 +27,10 @@ export const CANDIDATE_DIR = process.env['CANDIDATE_DIR'] ?? 'output/current/lev
 const NOISE = 0.13;
 const CONFIRM_GAMES = 200;
 const SCREEN_GAMES = 60;
+/** The short first screen, its margin on shares (about a 95% interval at 20 games) and on S. */
+const PRE_GAMES = 20;
+const PRE_NOISE = 0.22;
+const PRE_S_MARGIN = 8;
 
 interface Named {
   readonly id: string;
@@ -200,18 +204,25 @@ async function funnelCandidate(target: FunnelTarget, seed: number): Promise<numb
     if (hint.supply === null || hint.states > HINT_STATE_CAP.funnel) { say('hint', { F1: settled.F1 }); continue; }
     const play = (player: FunnelPlayer) => (game: number) => funnelGame(board, player, game);
     const players: Record<string, Tally> = {};
-    players['cheese'] = tally(play('cheese'), SCREEN_GAMES);
     const wins = (): { cheese: number; spam: number; brisk: number } => ({ cheese: players['cheese']!.win, spam: players['spam']?.win ?? 0, brisk: players['brisk']?.win ?? 0 });
     const allowed = ceiling === null ? 1 : ceiling + (target.slot === 'relief' || target.slot === 'lesson' ? 0.1 : 0);
     const limit = Math.min(allowed, (100 - settled.F1 + 40) / 100);
-    if (target.round >= 4 && wins().cheese > limit + NOISE) { say('auto win', { F1: settled.F1, ...wins() }); continue; }
-    players['spam'] = tally(play('spam'), SCREEN_GAMES);
-    players['brisk'] = tally(play('brisk'), SCREEN_GAMES);
     const reward = (): number => Math.max(wins().cheese, wins().spam) - wins().brisk;
+    // A short screen first: a board clearly outside a gate stops after PRE_GAMES per player; the rest grow to SCREEN_GAMES,
+    // reusing the games already played, and face the usual margins.
+    players['cheese'] = tally(play('cheese'), PRE_GAMES);
+    if (target.round >= 4 && wins().cheese > limit + PRE_NOISE) { say('auto win', { F1: settled.F1, ...wins() }); continue; }
+    players['spam'] = tally(play('spam'), PRE_GAMES);
+    players['brisk'] = tally(play('brisk'), PRE_GAMES);
+    if (target.round >= 4 && reward() < 0.1 - 1.4 * PRE_NOISE) { say('no reward', { F1: settled.F1, ...wins() }); continue; }
+    players['burst2'] = tally(play('burst2'), PRE_GAMES, true);
+    players['burst3'] = tally(play('burst3'), PRE_GAMES, true);
+    const preS = funnelRating(settled.F1, players['burst2'].win, players['burst3'].win, wins().cheese);
+    if (preS < band[0] - PRE_S_MARGIN || preS > band[1] + PRE_S_MARGIN) { say('S out of band', { F1: settled.F1, S: preS, ...wins() }); continue; }
+    for (const name of ['cheese', 'spam', 'brisk', 'burst2', 'burst3'] as const) players[name] = extendTally(players[name]!, play(name), SCREEN_GAMES, name.startsWith('burst'));
+    if (target.round >= 4 && wins().cheese > limit + NOISE) { say('auto win', { F1: settled.F1, ...wins() }); continue; }
     if (target.round >= 4 && reward() < 0.1 - NOISE) { say('no reward', { F1: settled.F1, ...wins() }); continue; }
-    players['burst2'] = tally(play('burst2'), SCREEN_GAMES, true);
-    players['burst3'] = tally(play('burst3'), SCREEN_GAMES, true);
-    const screenS = funnelRating(settled.F1, players['burst2'].win, players['burst3'].win, wins().cheese);
+    const screenS = funnelRating(settled.F1, players['burst2']!.win, players['burst3']!.win, wins().cheese);
     if (screenS < band[0] - 3 || screenS > band[1] + 3) { say('S out of band', { F1: settled.F1, S: screenS, ...wins() }); continue; }
     let witness: string | null = null;
     let jitterFail = 0;
@@ -223,9 +234,7 @@ async function funnelCandidate(target: FunnelTarget, seed: number): Promise<numb
     }
     if (!witness) { say(jitterFail ? 'witness jitter' : 'no machine witness', { F1: settled.F1, S: screenS, ...wins() }); continue; }
     if (target.round >= 4 && (Math.abs(wins().cheese - limit) < NOISE || Math.abs(reward() - 0.1) < NOISE)) {
-      players['cheese'] = tally(play('cheese'), CONFIRM_GAMES);
-      players['spam'] = tally(play('spam'), CONFIRM_GAMES);
-      players['brisk'] = tally(play('brisk'), CONFIRM_GAMES);
+      for (const name of ['cheese', 'spam', 'brisk'] as const) players[name] = extendTally(players[name]!, play(name), CONFIRM_GAMES);
     }
     const scored = await scoreFunnel(board, witness, SCREEN_GAMES, SCREEN_GAMES, players);
     const violations = levelViolations({ round: target.round, game: 'funnel', slot: target.slot, row: scored.row });

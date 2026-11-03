@@ -563,6 +563,24 @@ export function tally(play: (seed: number) => GameResult, games: number, keepWin
   }
   return { win: wins / games, n: games, recoveries, seconds: wins ? seconds / wins : null, first, fast };
 }
+/** Plays seeds after those already in `done` up to `games`, so a screen of a few games can grow into a full tally without
+ * replaying them; the result equals `tally(play, games, keepWin)`. */
+export function extendTally(done: Tally, play: (seed: number) => GameResult, games: number, keepWin = false): Tally {
+  if (games <= done.n) return done;
+  let wins = Math.round(done.win * done.n);
+  let recoveries = done.recoveries;
+  let seconds = (done.seconds ?? 0) * wins;
+  let first = done.first;
+  let fast = done.fast;
+  for (let seed = done.n + 1; seed <= games; seed++) {
+    const game = play(seed);
+    const won = game.status === 'won';
+    if (won) { wins += 1; seconds += game.seconds; if (keepWin) fast ??= game; }
+    recoveries += game.recoveries;
+    if (seed <= 6) first += won ? 'W' : 'L';
+  }
+  return { win: wins / games, n: games, recoveries, seconds: wins ? seconds / wins : null, first, fast };
+}
 export const winsOf = (players: Readonly<Record<string, Tally>>): ScoreRow['wins'] => Object.fromEntries(Object.entries(players).map(([name, entry]) => [name, { win: entry.win, n: entry.n, recoveries: entry.recoveries }]));
 
 export interface ScoredFile {
