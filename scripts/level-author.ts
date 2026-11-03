@@ -8,7 +8,7 @@ import { TUBE_BOARDS } from '../src/puzzles/levels';
 import type { TubeDef } from '../src/puzzles/types';
 import { MachineRules } from '../src/sim/rules';
 import { hintConveyorSearch } from '../src/sim/solver';
-import type { BoardDef, Color } from '../src/sim/types';
+import { COLORS, type BoardDef, type Color } from '../src/sim/types';
 import type { BeltShape } from '../src/engine/belt-path';
 import { generate as generateFunnel, naiveOrders, play as playOrder, search as searchFunnel, tighten as tightenFunnel, winsEitherWay as funnelWitnessWins, type FunnelRecipe } from './funnel-author';
 import { bandFor, funnelRating, HINT_STATE_CAP, levelViolations, LOOP_CAPACITY_MAX, loopRating, MIN_RISK_POSITIONS, multiTapFailure, OVAL_CAPACITY_MAX, stretchOf, TUBE_GRAPH_CAP, tubeRating, winCeiling, type Slot } from './level-curve';
@@ -245,7 +245,8 @@ function loopCandidate(target: LoopTarget, seed: number): number {
 }
 
 function tubeCandidate(target: TubeTarget, seed: number): number {
-  const palette: Color[] = (['red', 'blue', 'green', 'yellow', 'orange'] as Color[]).slice(0, target.colors);
+  if (target.colors > COLORS.length) throw new Error(`${target.id} asks for ${target.colors} colours; the palette has ${COLORS.length}`);
+  const palette: Color[] = COLORS.slice(0, target.colors);
   const tubes = generateTube(palette, target.capacity, target.empties, target.colors, seed);
   if (!tubes) return 0;
   const key = tubes.map((tube) => tube.join()).sort().join('|');

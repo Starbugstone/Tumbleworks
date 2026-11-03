@@ -8,7 +8,7 @@ import { availableTubeMoves, solveTubeSearch, TubeRules } from '../src/puzzles/r
 import type { TubeDef } from '../src/puzzles/types';
 import { MachineRules } from '../src/sim/rules';
 import { hintConveyorSearch, settle } from '../src/sim/solver';
-import type { BoardDef, Color } from '../src/sim/types';
+import { COLOR_CODE, COLORS, type BoardDef, type Color } from '../src/sim/types';
 import { naiveOrders, play as playFunnelOrder, playMachine as playFunnel, search as searchFunnel, tighten as tightenFunnel } from './funnel-author';
 import { chooseF1, funnelRating, hashBoard, loopRating, multiTapFailure, tubeRating, type ScoreRow } from './level-curve';
 import { laneByLane, playMachine as playLoop, roundRobin, search as searchLoop, tighten as tightenLoop } from './loop-author';
@@ -305,7 +305,7 @@ function funnelGraph(board: BoardDef): GraphNode[] {
     const state = rules.state;
     const belt: Record<string, number> = {};
     for (const marble of state.marbles) if (marble.status === 'on-belt') belt[marble.color] = (belt[marble.color] ?? 0) + 1;
-    const key = `${state.supplies.map((queue) => queue.length).join()}|${state.dockNext.map((box, dock) => `${box}:${rules.reserved(dock, box)}`).join()}|${JSON.stringify(belt)}|${state.pending.map((id) => state.marbles[id]!.color[0]).join('')}`;
+    const key = `${state.supplies.map((queue) => queue.length).join()}|${state.dockNext.map((box, dock) => `${box}:${rules.reserved(dock, box)}`).join()}|${JSON.stringify(belt)}|${state.pending.map((id) => COLOR_CODE[state.marbles[id]!.color]).join('')}`;
     const known = index.get(key);
     if (known !== undefined) return known;
     const id = nodes.length;
@@ -335,9 +335,9 @@ function loopGraph(board: LoopBoardDef): GraphNode[] {
   const index = new Map<string, number>();
   const trucks = board.lanes.flat().length;
   const extras0 = sum(board.lanes.flat().map((truck) => truck.segments.length - 1));
-  const colors: Color[] = ['red', 'blue', 'green', 'yellow', 'orange'];
+  const colors = COLORS;
   const add = (rules: LoopRules): number => {
-    const key = `${rules.state.lanes.map((queue) => queue.map((truck) => `${truck.index}:${truck.segments.map((segment) => `${segment.color[0]}${segment.marbles.length}`).join('.')}u${truck.unloading.length}`).join('/')).join('|')}#${colors.map((color) => rules.state.marbles.filter((marble) => marble.status === 'on-loop' && marble.color === color).length).join()}`;
+    const key = `${rules.state.lanes.map((queue) => queue.map((truck) => `${truck.index}:${truck.segments.map((segment) => `${COLOR_CODE[segment.color]}${segment.marbles.length}`).join('.')}u${truck.unloading.length}`).join('/')).join('|')}#${colors.map((color) => rules.state.marbles.filter((marble) => marble.status === 'on-loop' && marble.color === color).length).join()}`;
     const known = index.get(key);
     if (known !== undefined) return known;
     const id = nodes.length;
@@ -500,7 +500,7 @@ function funnelOrders(board: BoardDef, wanted: number): string[] {
   return sampleWinningOrders({
     start: start.snapshot(), count: board.supplies.length,
     status: (state) => state.status,
-    key: (state) => { rules.restore(state); const belt: Record<string, number> = {}; for (const marble of state.marbles) if (marble.status === 'on-belt') belt[marble.color] = (belt[marble.color] ?? 0) + 1; return `${state.supplies.map((queue) => queue.length).join()}|${state.dockNext.map((box, dock) => `${box}:${rules.reserved(dock, box)}`).join()}|${JSON.stringify(belt)}|${state.pending.map((id) => state.marbles[id]!.color[0]).join('')}`; },
+    key: (state) => { rules.restore(state); const belt: Record<string, number> = {}; for (const marble of state.marbles) if (marble.status === 'on-belt') belt[marble.color] = (belt[marble.color] ?? 0) + 1; return `${state.supplies.map((queue) => queue.length).join()}|${state.dockNext.map((box, dock) => `${box}:${rules.reserved(dock, box)}`).join()}|${JSON.stringify(belt)}|${state.pending.map((id) => COLOR_CODE[state.marbles[id]!.color]).join('')}`; },
     act: (state, choice) => { rules.restore(state); if (!rules.release(choice).ok) return null; settle(rules); return rules.snapshot(); },
   }, wanted);
 }
@@ -511,7 +511,7 @@ function loopOrders(board: LoopBoardDef, wanted: number): string[] {
   return sampleWinningOrders({
     start: start.snapshot(), count: board.lanes.length,
     status: (state) => state.status,
-    key: (state) => { const loop: Record<string, number> = {}; for (const marble of state.marbles) if (marble.status === 'on-loop') loop[marble.color] = (loop[marble.color] ?? 0) + 1; return `${state.lanes.map((queue) => queue.map((truck) => truck.segments.map((segment) => `${segment.color[0]}${segment.marbles.length}`).join('.') + (truck.unloading.length ? `u${truck.unloading.length}` : '')).join('/')).join('|')}#${JSON.stringify(loop)}`; },
+    key: (state) => { const loop: Record<string, number> = {}; for (const marble of state.marbles) if (marble.status === 'on-loop') loop[marble.color] = (loop[marble.color] ?? 0) + 1; return `${state.lanes.map((queue) => queue.map((truck) => truck.segments.map((segment) => `${COLOR_CODE[segment.color]}${segment.marbles.length}`).join('.') + (truck.unloading.length ? `u${truck.unloading.length}` : '')).join('/')).join('|')}#${JSON.stringify(loop)}`; },
     act: (state, choice) => { rules.restore(state); if (!rules.tap(choice).ok) return null; settleLoop(rules); return rules.snapshot(); },
   }, wanted);
 }

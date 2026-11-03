@@ -4,7 +4,7 @@ import { MIN_CAPACITY } from '../src/machine/layout';
 import { hintConveyorSearch, settle } from '../src/sim/solver';
 import { HINT_STATE_CAP } from './level-curve';
 import { SHORT_TRAY, TRAY_COUNT } from '../src/sim/boards';
-import type { BoardDef, Color, Packet } from '../src/sim/types';
+import { COLOR_CODE, COLORS, type BoardDef, type Color, type Packet } from '../src/sim/types';
 import type { BeltShape } from '../src/engine/belt-path';
 
 /**
@@ -13,7 +13,7 @@ import type { BeltShape } from '../src/engine/belt-path';
  *   npx tsx scripts/funnel-author.ts stats      # one line of search statistics per recipe
  * Each recipe fixes the shape of a level; the seed is advanced until a board satisfies its bar.
  */
-const PALETTE: Color[] = ['red', 'blue', 'green', 'yellow', 'orange'];
+const PALETTE: readonly Color[] = COLORS;
 const LETTER = (index: number): string => String.fromCharCode(65 + index);
 
 export interface FunnelRecipe {
@@ -96,7 +96,7 @@ function stateKey(rules: MachineRules): string {
   const state = rules.state;
   const belt: Record<string, number> = {};
   for (const marble of state.marbles) if (marble.status === 'on-belt') belt[marble.color] = (belt[marble.color] ?? 0) + 1;
-  const pending = state.pending.map((id) => state.marbles[id]!.color[0]).join('');
+  const pending = state.pending.map((id) => COLOR_CODE[state.marbles[id]!.color]).join('');
   const boxes = state.dockNext.map((box, dock) => `${box}:${rules.reserved(dock, box)}`).join(',');
   return `${state.supplies.map((queue) => queue.length).join(',')}|${boxes}|${JSON.stringify(belt)}|${pending}`;
 }

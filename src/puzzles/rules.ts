@@ -1,5 +1,5 @@
 import { fingerprintOf, type Replayable, type ReplayAction } from '../engine/replay';
-import type { Color } from '../sim/types';
+import { COLORS, type Color } from '../sim/types';
 import type {
   PuzzleStatus,
   TubeDef,
@@ -8,7 +8,6 @@ import type {
   TubeState,
 } from './types';
 
-const COLORS: readonly Color[] = ['red', 'blue', 'green', 'yellow', 'orange'];
 /** Seven tubes of five need a few hundred thousand states for a verified hint; it still takes well under a second. */
 const DEFAULT_SEARCH_LIMIT = 300_000;
 const isColor = (value: unknown): value is Color => typeof value === 'string' && (COLORS as readonly string[]).includes(value);
@@ -18,7 +17,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const isIndex = (value: unknown): value is number => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
 const cloneTubes = (tubes: readonly (readonly Color[])[]): Color[][] => tubes.map((tube) => [...tube]);
 const colorCounts = (colors: readonly Color[]): Record<Color, number> => {
-  const counts: Record<Color, number> = { red: 0, blue: 0, green: 0, yellow: 0, orange: 0 };
+  const counts = Object.fromEntries(COLORS.map((color) => [color, 0])) as Record<Color, number>;
   for (const color of colors) counts[color] += 1;
   return counts;
 };

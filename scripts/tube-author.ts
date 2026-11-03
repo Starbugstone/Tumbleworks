@@ -1,7 +1,7 @@
 import { availableTubeMoves, solveTubeSearch, TubeRules } from '../src/puzzles/rules';
 import { HINT_STATE_CAP, TUBE_GRAPH_CAP } from './level-curve';
 import type { TubeDef, TubeMove } from '../src/puzzles/types';
-import type { Color } from '../src/sim/types';
+import { COLORS, type Color } from '../src/sim/types';
 
 /**
  * Random Tube Sort boards with a verified shortest solution, for authoring:
@@ -10,7 +10,7 @@ import type { Color } from '../src/sim/types';
  *     <spread> starts the marbles in that many tubes instead of one full tube per colour.
  *   npx tsx scripts/tube-author.ts batch      # evaluate every recipe below and print the TypeScript
  */
-const PALETTE: Color[] = ['red', 'blue', 'green', 'yellow', 'orange'];
+const PALETTE: readonly Color[] = COLORS;
 
 export interface TubeRecipe {
   readonly id: string;

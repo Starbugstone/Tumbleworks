@@ -4,7 +4,7 @@ import { hintLoopSearch, settleLoop } from '../src/loop/solver';
 import { HINT_STATE_CAP, LOOP_MAX_SEGMENTS } from './level-curve';
 import { TRUCK_CAPACITY } from '../src/loop/boards';
 import type { LoopBoardDef, TruckDef } from '../src/loop/types';
-import type { Color, Packet } from '../src/sim/types';
+import { COLOR_CODE, COLORS, type Color, type Packet } from '../src/sim/types';
 import type { BeltShape } from '../src/engine/belt-path';
 import { random, shuffle } from './funnel-author';
 
@@ -13,7 +13,7 @@ import { random, shuffle } from './funnel-author';
  *   npx tsx scripts/loop-author.ts            # evaluate every recipe below and print the TypeScript
  *   npx tsx scripts/loop-author.ts stats      # one line of search statistics per recipe
  */
-const PALETTE: Color[] = ['red', 'blue', 'green', 'yellow', 'orange'];
+const PALETTE: readonly Color[] = COLORS;
 const LETTER = (index: number): string => String.fromCharCode(65 + index);
 
 export interface LoopRecipe {
@@ -203,7 +203,7 @@ export function generate(recipe: LoopRecipe, seed: number): LoopBoardDef | null 
   }
   unleave(order[0]!);
   unleave(second);
-  for (const truck of shuffle(fronts(), next)) if (!worked(truck) && !work(truck)) { lastReason = 'first'; lastState = JSON.stringify({ fresh: truck, fronts: fronts().map((t) => t.segments.map((g) => `${g.color[0]}${g.count}`).join('.')), loop: [...loop.entries()], pending }); return null; }
+  for (const truck of shuffle(fronts(), next)) if (!worked(truck) && !work(truck)) { lastReason = 'first'; lastState = JSON.stringify({ fresh: truck, fronts: fronts().map((t) => t.segments.map((g) => `${COLOR_CODE[g.color]}${g.count}`).join('.')), loop: [...loop.entries()], pending }); return null; }
   const target = count * (recipe.segments - 1) * (0.55 + 0.35 * next());
   for (let step = 0; step < 600; step++) {
     const segments = queues.flat().reduce((sum, truck) => sum + truck.segments.length - 1, 0);
@@ -217,7 +217,7 @@ export function generate(recipe: LoopRecipe, seed: number): LoopBoardDef | null 
         const others = pending.map((queue, other) => queue.length && (!queues[other]!.length || worked(queues[other]![0]!)) ? other : -1).filter((other) => other >= 0 && queues[other]![0] !== truck);
         if (others.length) { const partner = unleave(pick(others, next)); if (!work(partner) && !work(truck)) { lastReason = 'unleave'; return null; } if (!worked(truck) && !work(truck)) { lastReason = 'unleave'; return null; } }
       }
-      if (!worked(truck)) { lastReason = 'unleave'; lastState = JSON.stringify({ fresh: truck, fronts: fronts().map((t) => t.segments.map((g) => `${g.color[0]}${g.count}`).join('.')), loop: [...loop.entries()], pending }); return null; }
+      if (!worked(truck)) { lastReason = 'unleave'; lastState = JSON.stringify({ fresh: truck, fronts: fronts().map((t) => t.segments.map((g) => `${COLOR_CODE[g.color]}${g.count}`).join('.')), loop: [...loop.entries()], pending }); return null; }
     } else if (onLoop() > recipe.ringMax && roll < 0.8) { if (!take()) swap(); }
     else if (roll < 0.65) give(pick(fronts(), next), next() < 0.3);
     else if (roll < 0.8) { if (!swap()) take(); }
@@ -244,7 +244,7 @@ function stateKey(rules: LoopRules): string {
   const state = rules.state;
   const loop: Record<string, number> = {};
   for (const marble of state.marbles) if (marble.status === 'on-loop') loop[marble.color] = (loop[marble.color] ?? 0) + 1;
-  const lanes = state.lanes.map((queue) => queue.map((truck) => truck.segments.map((segment) => `${segment.color[0]}${segment.marbles.length}`).join('.') + (truck.unloading.length ? `u${truck.unloading.length}` : '')).join('/')).join('|');
+  const lanes = state.lanes.map((queue) => queue.map((truck) => truck.segments.map((segment) => `${COLOR_CODE[segment.color]}${segment.marbles.length}`).join('.') + (truck.unloading.length ? `u${truck.unloading.length}` : '')).join('/')).join('|');
   return `${lanes}#${JSON.stringify(loop)}`;
 }
 
