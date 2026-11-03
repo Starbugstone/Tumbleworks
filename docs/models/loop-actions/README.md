@@ -27,3 +27,7 @@ traps, full-but-drainable and irrecoverable jam cases, immediate unlock before
 visual departure, undo after unlocking, state-key distinctions, and replay through
 `LoopMachine`. A passing finite model does not establish arbitrary-board
 liveness, real-phone performance, or the geometry and timing of machine streams.
+
+Checked rule revision: `30c9472` (3 November 2026). The explorer and deliberate
+mutation were rerun after `59a06c9`; later commits changed presentation and
+recording, not those rule transitions.

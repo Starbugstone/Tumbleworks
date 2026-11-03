@@ -27,6 +27,7 @@ const level = new URLSearchParams(query).get('level');
 await page.goto(`${url}/${level === null && query ? `?${query}` : ''}`);
 await page.waitForFunction(() => Boolean(window.tumbleworks?.app?.runtime), undefined, { timeout: 90000 });
 await page.evaluate(() => { window.tumbleworks.app.manualClock = true; });
+await page.locator('#restart').click();
 await page.clock.install({ time: 0 });
 await page.clock.pauseAt(3600000);
 if (level !== null) {
