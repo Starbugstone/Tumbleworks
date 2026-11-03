@@ -1,4 +1,4 @@
-import { LoopRules } from '../src/loop/rules';
+import { LoopRules, loopStateKey } from '../src/loop/rules';
 import { LoopMachine } from '../src/loop/machine';
 import { hintLoopSearch, settleLoop } from '../src/loop/solver';
 import { HINT_STATE_CAP, LOOP_MAX_SEGMENTS } from './level-curve';
@@ -17,6 +17,9 @@ const PALETTE: readonly Color[] = COLORS;
 const LETTER = (index: number): string => String.fromCharCode(65 + index);
 
 export interface LoopRecipe {
+  readonly capacities?: readonly (readonly number[])[];
+  readonly latch?: readonly [string, string];
+  readonly coupling?: readonly [string, string];
   readonly id: string;
   readonly title: string;
   readonly fr: string;
@@ -56,7 +59,7 @@ export interface LoopReport {
   readonly marbles: number;
 }
 
-interface Built { readonly home: Color; segments: { color: Color; count: number }[] }
+interface Built { capacity: number; readonly home: Color; segments: { color: Color; count: number }[] }
 const load = (truck: Built): number => truck.segments.reduce((sum, segment) => sum + segment.count, 0);
 const evens = (low: number, high: number): number[] => { const out: number[] = []; for (let n = Math.ceil(low / 2) * 2; n <= high; n += 2) out.push(n); return out; };
 const pick = <T>(items: readonly T[], next: () => number): T => items[Math.floor(next() * items.length)]!;
@@ -89,11 +92,12 @@ export function generate(recipe: LoopRecipe, seed: number): LoopBoardDef | null 
   const onLoop = (): number => [...loop.values()].reduce((a, b) => a + b, 0);
   let peak = 0;
   const fronts = (): Built[] => queues.map((queue) => queue[0]).filter((truck): truck is Built => Boolean(truck));
-  const worked = (truck: Built): boolean => truck.segments.length > 1 || load(truck) < TRUCK_CAPACITY;
+  const worked = (truck: Built): boolean => truck.segments.length > 1 || load(truck) < truck.capacity;
   const wantedElsewhere = (color: Color, except: Built): boolean => fronts().some((truck) => truck !== except && truck.segments[0]!.color === color);
   const unleave = (lane: number): Built => {
     const home = pending[lane]!.pop()!;
-    const truck: Built = { home, segments: [{ color: home, count: TRUCK_CAPACITY }] };
+    const capacity = recipe.capacities?.[lane]?.[pending[lane]!.length] ?? TRUCK_CAPACITY;
+    const truck: Built = { capacity, home, segments: [{ color: home, count: capacity }] };
     queues[lane]!.unshift(truck);
     return truck;
   };
@@ -107,7 +111,7 @@ export function generate(recipe: LoopRecipe, seed: number): LoopBoardDef | null 
   };
   // B: a whole colour waiting on the loop becomes the top segment of a front truck that does not want it.
   const take = (only?: Built): boolean => {
-    const options = (only ? [only] : fronts()).flatMap((truck) => [...loop.entries()].filter(([color, k]) => k > 0 && truck.segments[0]!.color !== color && truck.segments.length < recipe.segments && load(truck) + k <= TRUCK_CAPACITY).map(([color, k]) => ({ truck, color, k })));
+    const options = (only ? [only] : fronts()).flatMap((truck) => [...loop.entries()].filter(([color, k]) => k > 0 && truck.segments[0]!.color !== color && truck.segments.length < recipe.segments && load(truck) + k <= truck.capacity).map(([color, k]) => ({ truck, color, k })));
     if (!options.length) return false;
     const { truck, color, k } = pick(options, next);
     loop.delete(color);
@@ -120,11 +124,11 @@ export function generate(recipe: LoopRecipe, seed: number): LoopBoardDef | null 
   const canDrop = (to: Built): boolean => !wantedElsewhere(to.segments[0]!.color, to) && to.segments[0]!.count - minKeep(to) >= 2;
   let relaxed = 0;
   const canReceive = (to: Built, color: Color, allowDrop: boolean): boolean => to.segments[0]!.color !== color && to.segments.length < recipe.segments + relaxed
-    && (load(to) + 2 <= TRUCK_CAPACITY || (allowDrop && canDrop(to)));
+    && (load(to) + 2 <= to.capacity || (allowDrop && canDrop(to)));
   const exchange = (from: Built, to: Built, allowDrop: boolean): boolean => {
     const top = from.segments[0]!;
     if (from === to || top.count - 2 < 2 || !canReceive(to, top.color, allowDrop)) return false;
-    const room = TRUCK_CAPACITY - load(to);
+    const room = to.capacity - load(to);
     const dropping = allowDrop && canDrop(to) && (room < 2 || next() < 0.35);
     const spare = recipe.capacity - onLoop();
     // With a drop of d marbles, the give k needs k <= room + d, d <= k and k + d <= spare.
@@ -156,7 +160,7 @@ export function generate(recipe: LoopRecipe, seed: number): LoopBoardDef | null 
     const { truck, color, n } = pick(candidates, next);
     const top = truck.segments[0]!;
     // Taking the whole top must not leave the incoming colour against a segment of the same colour.
-    const sizes = evens(Math.max(2, n - (TRUCK_CAPACITY - load(truck))), Math.min(top.count - minKeep(truck), recipe.capacity - onLoop()))
+    const sizes = evens(Math.max(2, n - (truck.capacity - load(truck))), Math.min(top.count - minKeep(truck), recipe.capacity - onLoop()))
       .filter((k) => k < top.count || truck.segments[1]?.color !== color);
     if (!sizes.length) return false;
     const k = pick(sizes, next);
@@ -170,10 +174,10 @@ export function generate(recipe: LoopRecipe, seed: number): LoopBoardDef | null 
   // (forward: that truck pours the bigger segment and this one takes back what it needs).
   const merge = (from: Built): boolean => {
     const top = from.segments[0]!;
-    const targets = shuffle(fronts().filter((to) => to !== from && to.segments[0]!.color === top.color && load(to) + 2 <= TRUCK_CAPACITY), next);
+    const targets = shuffle(fronts().filter((to) => to !== from && to.segments[0]!.color === top.color && load(to) + 2 <= to.capacity), next);
     const to = targets[0];
     if (!to) return false;
-    const sizes = evens(2, Math.min(top.count - minKeep(from), TRUCK_CAPACITY - load(to), recipe.capacity - onLoop()));
+    const sizes = evens(2, Math.min(top.count - minKeep(from), to.capacity - load(to), recipe.capacity - onLoop()));
     if (!sizes.length) return false;
     const k = pick(sizes, next);
     top.count -= k;
@@ -231,9 +235,15 @@ export function generate(recipe: LoopRecipe, seed: number): LoopBoardDef | null 
   if (queues.flat().some((truck) => truck.segments.some((segment, index) => index > 0 && segment.color === truck.segments[index - 1]!.color))) { lastReason = 'adjacent'; return null; }
   if (onLoop() > recipe.ringMax) { lastReason = `ring ${onLoop()}`; return null; }
   if (peak > recipe.capacity) { lastReason = `peak ${peak}`; return null; }
-  const lanes: TruckDef[][] = queues.map((queue) => queue.map((truck) => ({ segments: truck.segments.map((segment) => ({ ...segment })) })));
+  const lanes: TruckDef[][] = queues.map((queue) => queue.map((truck) => ({ ...(truck.capacity === TRUCK_CAPACITY ? {} : { capacity: truck.capacity }), segments: truck.segments.map((segment) => ({ ...segment })) })));
+  if (recipe.latch) {
+    const [id, prerequisite] = recipe.latch;
+    lanes.forEach((queue, lane) => queue.forEach((truck, index) => {
+      if (`${lane}:${index}` === id) queue[index] = { ...truck, pourAfter: prerequisite };
+    }));
+  }
   const ring: Packet[] = shuffle([...loop.entries()].filter(([, n]) => n > 0), next).map(([color, count]) => ({ color, count }));
-  const board: LoopBoardDef = { id: recipe.id, title: recipe.title, loopCapacity: recipe.capacity, truckCapacity: TRUCK_CAPACITY, lanes, loop: ring };
+  const board: LoopBoardDef = { id: recipe.id, title: recipe.title, loopCapacity: recipe.capacity, truckCapacity: TRUCK_CAPACITY, lanes, loop: ring, ...(recipe.coupling ? { couplings: [recipe.coupling] } : {}) };
   return recipe.shape ? { ...board, trackShape: recipe.shape } : board;
 }
 
@@ -243,11 +253,7 @@ function clone(rules: LoopRules): LoopRules {
   return copy;
 }
 export function stateKey(rules: LoopRules): string {
-  const state = rules.state;
-  const loop: Record<string, number> = {};
-  for (const marble of state.marbles) if (marble.status === 'on-loop') loop[marble.color] = (loop[marble.color] ?? 0) + 1;
-  const lanes = state.lanes.map((queue) => queue.map((truck) => truck.segments.map((segment) => `${COLOR_CODE[segment.color]}${segment.marbles.length}`).join('.') + (truck.unloading.length ? `u${truck.unloading.length}` : '')).join('/')).join('|');
-  return `${lanes}#${JSON.stringify(loop)}`;
+  return loopStateKey(rules.state);
 }
 
 export interface Search {
@@ -265,7 +271,7 @@ export interface Search {
   readonly random: number;
 }
 interface Node { readonly win: boolean; readonly orders: number; readonly winning: number; readonly random: number }
-export function search(board: LoopBoardDef, limit = 300_000): Search {
+export function search(board: LoopBoardDef, limit = 300_000, snapshot?: ReturnType<LoopRules['snapshot']>): Search {
   const memo = new Map<string, Node>();
   const open = new Set<string>();
   let witness: string | null = null;
@@ -287,7 +293,7 @@ export function search(board: LoopBoardDef, limit = 300_000): Search {
     let winning = 0;
     let random = 0;
     let choices = 0;
-    for (let lane = 0; lane < board.lanes.length; lane++) {
+    for (const lane of rules.actions()) {
       const branch = clone(rules);
       if (!branch.tap(lane).ok) continue;
       if (!settleLoop(branch)) throw new Error(`Unsettled after ${path}${LETTER(lane)}`);
@@ -305,6 +311,7 @@ export function search(board: LoopBoardDef, limit = 300_000): Search {
     return node;
   };
   const start = new LoopRules(board);
+  if (snapshot) start.restore(snapshot);
   settleLoop(start);
   const root = walk(start, '');
   return { solvable: root.win && !overflow, witness, witnesses, jam, states: memo.size, lost, orders: root.orders, winning: root.winning, random: root.random };
@@ -336,6 +343,12 @@ export function tighten(board: LoopBoardDef, floor = 20): LoopBoardDef {
   const ring = board.loop.reduce((sum, entry) => sum + entry.count, 0);
   let low = Math.max(floor, ring + 2 + ((ring + 2) % 2));
   let high = board.loopCapacity;
+  if (board.couplings?.length || board.lanes.flat().some((truck) => truck.pourAfter || truck.capacity !== undefined)) {
+    for (let capacity = low; capacity <= high; capacity += 2) {
+      if (search({ ...board, loopCapacity: capacity }).solvable) return { ...board, loopCapacity: capacity };
+    }
+    return board;
+  }
   while (low < high) {
     const middle = Math.floor((low + high) / 2 / 2) * 2;
     let ok = false;
@@ -399,7 +412,7 @@ export function author(recipe: LoopRecipe, attempts = 1500): LoopReport {
       if (winsEitherWay(board, candidate)) { witness = candidate; break; }
     }
     if (!witness) continue;
-    const marbles = board.lanes.flat().length * TRUCK_CAPACITY;
+    const marbles = board.lanes.flat().reduce((sum, truck) => sum + (truck.capacity ?? board.truckCapacity), 0);
     return { recipe, seed, board, witness, jam: result.jam, states: result.states, lostShare, winShare, orders: result.orders, random: result.random, hintMs, marbles };
   }
   throw new Error(`No board for ${recipe.id} within ${attempts} seeds`);
@@ -408,6 +421,7 @@ export function author(recipe: LoopRecipe, attempts = 1500): LoopReport {
 export function emitBoard(report: LoopReport): string {
   const { board, recipe } = report;
   const name = `LOOP_${board.id.split('-')[1]}`;
+  if (board.couplings?.length || board.lanes.flat().some((truck) => truck.id || truck.capacity !== undefined || truck.pourAfter)) return `/** ${recipe.note} */\nexport const ${name}: LoopBoardDef = ${JSON.stringify(board)};`;
   const seg = (packet: Packet): string => `seg('${packet.color}', ${packet.count})`;
   const lanes = board.lanes.map((queue) => `[${queue.map((truck) => `truck(${truck.segments.map(seg).join(', ')})`).join(', ')}]`).join(', ');
   const base = `board('${board.id}', '${board.title.replace(/'/g, '\\\'')}', ${board.loopCapacity},\n  [${lanes}],\n  ring(${board.loop.map(seg).join(', ')}))`;

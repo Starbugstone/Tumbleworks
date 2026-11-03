@@ -63,7 +63,7 @@ function rounded(width: number, height: number, depth: number, material: THREE.M
 }
 
 interface Block { readonly group: THREE.Group; readonly box: THREE.Mesh; readonly badge: THREE.Mesh; color: Color | null; units: number; previousUnits: number }
-interface TruckVisual { readonly group: THREE.Group; readonly blocks: Block[]; readonly setWheelTravel: (distance: number) => void; readonly setUnloading: (state: 'pouring' | 'waiting' | null, time: number) => void; pulse: number }
+interface TruckVisual { readonly group: THREE.Group; readonly blocks: Block[]; readonly setLatched: (latched: boolean) => void; readonly setWheelTravel: (distance: number) => void; readonly setUnloading: (state: 'pouring' | 'waiting' | null, time: number) => void; pulse: number }
 
 /** The Loop Sort toy: the belt and the row of docked lorries. Numbers and waiting lorries live in the cards beneath it. */
 export class LoopScene {
@@ -73,6 +73,7 @@ export class LoopScene {
   private machine: LoopMachine | null = null;
   private crowd: MarbleCrowd | null = null;
   private readonly level = new THREE.Group();
+  private readonly couplingBars: { pair: readonly [string, string]; mesh: THREE.Mesh }[] = [];
   private belt: BeltSurface | null = null;
   private readonly dummy = new THREE.Object3D();
   private readonly trucks = new Map<string, TruckVisual>();
@@ -151,9 +152,9 @@ export class LoopScene {
     return machine.mouthZ(lane) + TRUCK.bedLength + TRUCK.cabLength + 0.1;
   }
 
-  private truckVisual(color: Color, facing: number): TruckVisual {
+  private truckVisual(color: Color, facing: number, bedLength: number, latchColor: Color | null): TruckVisual {
     const group = new THREE.Group();
-    const shell = lorry(color, TRUCK);
+    const shell = lorry(color, { ...TRUCK, bedLength }, latchColor);
     shell.body.rotation.y = facing > 0 ? 0 : Math.PI;
     group.add(shell.body);
     const blocks: Block[] = [];
@@ -170,7 +171,7 @@ export class LoopScene {
       group.add(block);
       blocks.push({ group: block, box, badge, color: null, units: 0, previousUnits: 0 });
     }
-    return { group, blocks, setWheelTravel: shell.setWheelTravel, setUnloading: shell.setUnloading, pulse: 0 };
+    return { group, blocks, setLatched: shell.setLatched, setWheelTravel: shell.setWheelTravel, setUnloading: shell.setUnloading, pulse: 0 };
   }
 
   setMachine(machine: LoopMachine): void {
@@ -187,9 +188,15 @@ export class LoopScene {
       this.current.set(marble.id, Array.from({ length: this.perUnit }, () => ({ x: 0, y: 0, z: 0, roll: 0, visible: false })));
     }
     for (const truck of machine.readTrucks()) {
-      const visual = this.truckVisual(truck.finalColor, machine.facing(truck.lane));
+      const visual = this.truckVisual(truck.finalColor, machine.facing(truck.lane), truck.bedLength, truck.latchColor);
       this.trucks.set(`${truck.lane}:${truck.index}`, visual);
       this.level.add(visual.group);
+    }
+    for (const pair of machine.board.couplings ?? []) {
+      const mesh = rounded(1, 0.13, 0.18, plastic(0xffe5ac));
+      mesh.name = 'coupling-bar';
+      this.level.add(mesh);
+      this.couplingBars.push({ pair, mesh });
     }
     this.roster = new LoopRoster(machine);
     machine.bays.forEach((bay, lane) => {
@@ -246,6 +253,7 @@ export class LoopScene {
         }
       }
     });
+    this.couplingBars.length = 0;
     this.level.clear();
     this.belt = null;
   }
@@ -369,7 +377,6 @@ export class LoopScene {
       }
     }
     this.crowd.commit();
-    const unit = machine.unitLength;
     for (const truck of this.currentTrucks.values()) {
       const visual = this.trucks.get(`${truck.lane}:${truck.index}`);
       if (!visual) continue;
@@ -384,10 +391,11 @@ export class LoopScene {
       visual.group.position.set(truck.x, y + Math.sin(visual.pulse * Math.PI) * 0.1, z);
       visual.group.scale.setScalar(scale);
       visual.setWheelTravel(z);
+      visual.setLatched(truck.latchColor !== null);
       visual.setUnloading(truck.unloading, (machine.tick + alpha) * TICK_SECONDS);
       // Cargo packs against the cab; the mouth end stays open. Blocks are listed loop end first.
       const unit = machine.unitLength;
-      let edge = -facing * TRUCK.bedLength / 2;
+      let edge = -facing * truck.bedLength / 2;
       visual.blocks.forEach((block) => {
         const length = (block.previousUnits + (block.units - block.previousUnits) * alpha) * unit;
         block.group.visible = length > 0.005;
@@ -399,6 +407,17 @@ export class LoopScene {
         block.badge.scale.setScalar(side);
         edge += facing * length;
       });
+    }
+    for (const { pair, mesh } of this.couplingBars) {
+      const lanes = pair.map((id) => machine.rules.state.lanes.findIndex((queue) => queue[0]?.id === id && queue[0].coupledWith !== null));
+      mesh.visible = lanes.every((lane) => lane >= 0 && [...this.currentTrucks.values()].some((truck) => truck.lane === lane && truck.index === machine.rules.front(lane)?.index && truck.docked && !truck.departing));
+      if (!mesh.visible) continue;
+      const a = lanes[0]!, b = lanes[1]!;
+      const x1 = machine.bays[a]!.x, x2 = machine.bays[b]!.x;
+      const z1 = machine.mouthZ(a) + 0.16, z2 = machine.mouthZ(b) + 0.16;
+      mesh.position.set((x1 + x2) / 2, DECK_TOP + TRUCK.bedHeight + 0.4, (z1 + z2) / 2);
+      mesh.scale.x = Math.hypot(x2 - x1, z2 - z1);
+      mesh.rotation.y = -Math.atan2(z2 - z1, x2 - x1);
     }
     this.belt?.setTravel(machine.beltDistance + alpha * LOOP.speed * TICK_SECONDS);
     this.stage.renderer.render(this.scene, this.camera);

@@ -1,4 +1,4 @@
-import { LoopRules } from './rules';
+import { LoopRules, loopStateKey } from './rules';
 
 const DEFAULT_SEARCH_LIMIT = 4_000;
 
@@ -46,18 +46,18 @@ export function hintLoopSearch(rules: LoopRules, searchLimit = DEFAULT_SEARCH_LI
   const canWin = (current: LoopRules): boolean => {
     if (current.status === 'won') return true;
     if (current.status === 'jammed' || exhausted) return false;
-    const key = JSON.stringify(current.snapshot());
+    const key = loopStateKey(current.state);
     if (visited.has(key)) return false;
     if (visited.size >= searchLimit) { exhausted = true; return false; }
     visited.add(key);
-    for (let lane = 0; lane < current.board.lanes.length; lane += 1) {
+    for (const lane of current.actions()) {
       const branch = clone(current);
       if (!branch.tap(lane).ok || !settleLoop(branch)) continue;
       if (canWin(branch)) return true;
     }
     return false;
   };
-  for (let lane = 0; lane < rules.board.lanes.length; lane += 1) {
+  for (const lane of settled.actions()) {
     const branch = clone(settled);
     if (!branch.tap(lane).ok || !settleLoop(branch)) continue;
     if (canWin(branch)) return { lane, states: visited.size };
@@ -75,11 +75,11 @@ export function loopTree(rules: LoopRules, limit = 100_000): { wins: number; jam
     if (visited++ > limit) return;
     if (current.status === 'won') { result.wins++; result.win ??= path; return; }
     if (current.status === 'jammed') { result.jams++; result.jam ??= path; return; }
-    const key = JSON.stringify(current.state.lanes) + current.occupancy;
+    const key = loopStateKey(current.state);
     if (seen.has(key)) return;
     seen.add(key);
     let moved = false;
-    for (let lane = 0; lane < current.board.lanes.length; lane++) {
+    for (const lane of current.actions()) {
       const branch = clone(current);
       if (!branch.tap(lane).ok) continue;
       if (!settleLoop(branch)) throw new Error(`Unsettled after ${path}${lane}`);

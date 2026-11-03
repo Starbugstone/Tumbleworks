@@ -126,7 +126,7 @@ export class LoopMachine implements Replayable {
   facing(_lane: number): number { return -1; }
 
   /** A truck's bed, front (loop end) first, as colour blocks in rules units, plus its position. */
-  readTrucks(): { lane: number; index: number; x: number; y: number; z: number; scale: number; visible: boolean; docked: boolean; departing: boolean; finalColor: Color; unloading: 'pouring' | 'waiting' | null;
+  readTrucks(): { lane: number; index: number; x: number; y: number; z: number; scale: number; visible: boolean; docked: boolean; departing: boolean; capacity: number; bedLength: number; latchColor: Color | null; latchLane: number | null; coupledWith: string | null; finalColor: Color; unloading: 'pouring' | 'waiting' | null;
     /** Its place in the lane's waiting line, 0 next; null once it has left the line. */
     queueSlot: number | null;
     blocks: { color: Color; units: number; pouring: boolean }[] }[] {
@@ -139,6 +139,7 @@ export class LoopMachine implements Replayable {
       }
       const state = this.rules.state.lanes[truck.lane]?.find((candidate) => candidate.index === truck.index) ??
         (truck.complete ? null : null);
+      const prerequisite = state?.pourAfter ? this.truckReference(state.pourAfter) : null;
       const blocks: { color: Color; units: number; pouring: boolean }[] = [];
       if (state) {
         if (state.unloading.length) blocks.push({ color: this.rules.state.marbles[state.unloading[0]!]!.color, units: state.unloading.length, pouring: true });
@@ -154,14 +155,16 @@ export class LoopMachine implements Replayable {
       return { lane: truck.lane, index: truck.index, x: this.bays[truck.lane]!.x, y: truck.y, z: truck.z, scale: truck.scale,
         visible: truck.phase !== 'gone' && truck.phase !== 'queued', docked: truck.phase === 'docked',
         departing: truck.phase === 'leaving', queueSlot,
+        capacity: this.capacity(truck.lane, truck.index), bedLength: this.bedLength(truck.lane, truck.index),
+        latchColor: prerequisite?.color ?? null, latchLane: prerequisite?.lane ?? null,
+        coupledWith: state?.coupledWith ?? null,
         unloading: state?.unloading.length ? (this.rules.free === 0 ? 'waiting' : 'pouring') : null,
         finalColor: this.board.lanes[truck.lane]![truck.index]!.segments.at(-1)!.color, blocks };
     });
   }
 
   /** What a truck read from `readTrucks` is carrying and what room it has left. */
-  loadOf(blocks: readonly { readonly color: Color; readonly units: number }[]): TruckLoad {
-    const capacity = this.board.truckCapacity;
+  loadOf(blocks: readonly { readonly color: Color; readonly units: number }[], capacity = this.board.truckCapacity): TruckLoad {
     const carried = blocks.filter((block) => block.units > 0);
     return {
       shares: carried.map((block) => ({ color: block.color, percent: sharePercent(block.units, capacity) })),
@@ -212,7 +215,7 @@ export class LoopMachine implements Replayable {
     if (!result.ok) return result;
     this.history.push(before);
     this.actions.push({ step: this.steps, type: 'tap', at: lane });
-    this.events.push({ type: 'pour', lane, color: result.color });
+    for (const pour of result.pours) this.events.push({ type: 'pour', lane: pour.lane, color: pour.color });
     return result;
   }
 
@@ -222,6 +225,7 @@ export class LoopMachine implements Replayable {
     if (!saved) return false;
     this.rules.restore(saved.rules);
     this.control = structuredClone(saved.control);
+    this.events.length = 0;
     this.actions.push({ step: this.steps, type: 'undo' });
     return true;
   }
@@ -328,7 +332,7 @@ export class LoopMachine implements Replayable {
   /** Bed centre for a lane's docked truck; a leaving truck lifts away over the belt; a new one rises into place. */
   private truckTarget(truck: TruckControl): { z: number; y: number; scale: number } {
     const facing = this.facing(truck.lane);
-    const docked = this.mouthZ(truck.lane) - facing * TRUCK.bedLength / 2;
+    const docked = this.mouthZ(truck.lane) - facing * this.bedLength(truck.lane, truck.index) / 2;
     if (truck.phase === 'docked' || truck.phase === 'arriving') return { z: docked, y: DECK_TOP, scale: 1 };
     if (truck.phase === 'leaving') return { z: -(this.track.halfDepth + LOOP.channelHalf + LOOP.wallThickness), y: DECK_TOP, scale: 0 };
     return { z: docked, y: DECK_TOP - 1.4, scale: 0.3 };
@@ -373,6 +377,18 @@ export class LoopMachine implements Replayable {
     truck.time = 0;
     truck.duration = duration;
   }
+
+  truckReference(id: string): { lane: number; index: number; color: Color } | null {
+    for (let lane = 0; lane < this.board.lanes.length; lane++) {
+      const queue = this.board.lanes[lane]!;
+      const index = queue.findIndex((truck, at) => (truck.id ?? `${lane}:${at}`) === id);
+      if (index >= 0) return { lane, index, color: queue[index]!.segments.at(-1)!.color };
+    }
+    return null;
+  }
+
+  capacity(lane: number, index: number): number { return this.board.lanes[lane]![index]!.capacity ?? this.board.truckCapacity; }
+  bedLength(lane: number, index: number): number { return TRUCK.bedLength * this.capacity(lane, index) / this.board.truckCapacity; }
 
   /** Bed length per unit, for drawing blocks. */
   get unitLength(): number { return unitLength(this.board.truckCapacity); }

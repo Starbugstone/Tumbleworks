@@ -131,7 +131,7 @@ export interface ScoreRow {
 export interface Placement { readonly round: number; readonly game: Game; readonly slot: Slot; readonly row: ScoreRow; readonly signature?: string }
 
 /** A level's structure: the same structure may not recur within five rounds of itself. */
-export function signatureOf(board: { readonly supplies?: readonly (readonly { readonly count: number }[])[]; readonly docks?: readonly unknown[]; readonly trackShape?: string; readonly lanes?: readonly (readonly { readonly segments: readonly { readonly color: string }[] }[])[]; readonly loop?: readonly { readonly color: string; readonly count: number }[]; readonly tubes?: readonly (readonly string[])[]; readonly capacity?: number; readonly containers?: readonly unknown[] }): string {
+export function signatureOf(board: { readonly supplies?: readonly (readonly { readonly count: number }[])[]; readonly docks?: readonly unknown[]; readonly trackShape?: string; readonly lanes?: readonly (readonly { readonly id?: string; readonly capacity?: number; readonly pourAfter?: string; readonly segments: readonly { readonly color: string }[] }[])[]; readonly couplings?: readonly (readonly [string, string])[]; readonly loop?: readonly { readonly color: string; readonly count: number }[]; readonly tubes?: readonly (readonly string[])[]; readonly capacity?: number; readonly containers?: readonly unknown[] }): string {
   const sorted = (values: readonly number[]): string => [...values].sort((a, b) => b - a).join();
   const shape = board.trackShape ?? 'oval';
   if (board.supplies) {
@@ -143,7 +143,9 @@ export function signatureOf(board: { readonly supplies?: readonly (readonly { re
     const colors = new Set(board.lanes.flat().flatMap((truck) => truck.segments.map((segment) => segment.color))).size;
     const ring = (board.loop ?? []).reduce((sum, packet) => sum + packet.count, 0);
     const bucket = ring === 0 ? '0' : ring <= 12 ? '1-12' : ring <= 24 ? '13-24' : '25+';
-    return `c${colors} [${sorted(board.lanes.map((queue) => queue.length))}] seg${Math.max(...board.lanes.flat().map((truck) => truck.segments.length))} ring${bucket} ${shape}`;
+    const features = board.couplings?.length || board.lanes.flat().some((truck) => truck.pourAfter || truck.capacity !== undefined)
+      ? ` rules${JSON.stringify([board.lanes.map((queue, lane) => queue.map((truck, index) => [truck.id ?? `${lane}:${index}`, truck.capacity ?? 24, truck.pourAfter ?? null])), board.couplings ?? []])}` : '';
+    return `c${colors} [${sorted(board.lanes.map((queue) => queue.length))}] seg${Math.max(...board.lanes.flat().map((truck) => truck.segments.length))} ring${bucket} ${shape}${features}`;
   }
   const tubes = board.tubes ?? [];
   const colors = new Set(tubes.flat()).size;

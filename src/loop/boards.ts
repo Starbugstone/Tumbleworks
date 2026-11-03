@@ -200,4 +200,16 @@ export const LOOP_48: LoopBoardDef = board('loop-48', 'Rush hour', 26,
   [[truck(seg('yellow', 2), seg('red', 12), seg('blue', 10)), truck(seg('orange', 20), seg('red', 4))], [truck(seg('red', 10), seg('blue', 2), seg('red', 10)), truck(seg('green', 6), seg('red', 6), seg('orange', 4))], [truck(seg('green', 2), seg('yellow', 22)), truck(seg('green', 10), seg('red', 4), seg('green', 10))], [truck(seg('green', 6), seg('red', 2), seg('green', 14))]],
   ring(seg('blue', 12)));
 // END first stretch
-export const LOOP_BOARDS: readonly LoopBoardDef[] = [LOOP_1, LOOP_2, LOOP_3, LOOP_4, LOOP_5, LOOP_6, LOOP_7, LOOP_8, LOOP_9, LOOP_10, LOOP_11, LOOP_12, LOOP_13, LOOP_14, LOOP_15, LOOP_16, LOOP_17, LOOP_18, LOOP_19, LOOP_20, LOOP_21, LOOP_22, LOOP_23, LOOP_24, LOOP_25, LOOP_26, LOOP_27, LOOP_28, LOOP_29, LOOP_30, LOOP_31, LOOP_32, LOOP_33, LOOP_34, LOOP_35, LOOP_36, LOOP_37, LOOP_38, LOOP_39, LOOP_40, LOOP_41, LOOP_42, LOOP_43, LOOP_44, LOOP_45, LOOP_46, LOOP_47, LOOP_48];
+/** Rule lessons in the bank only; campaign placement is a separate decision. */
+export const LOOP_200: LoopBoardDef = board('loop-200', 'Open the latch', 28,
+  [[{ ...truck(seg('green', 4), seg('blue', 4), seg('green', 10)), pourAfter: '1:0' }, truck(seg('red', 14), seg('blue', 10))],
+    [truck(seg('green', 6), seg('blue', 10), seg('red', 6))], [truck(seg('green', 4), seg('red', 10))]], ring(seg('red', 18)));
+export const LOOP_201: LoopBoardDef = board('loop-201', 'Half the bed', 20,
+  [[{ ...truck(seg('red', 2), seg('green', 2), seg('red', 8)), capacity: 12 }, truck(seg('blue', 2), seg('red', 8))],
+    [truck(seg('red', 2), seg('blue', 20))], [truck(seg('green', 2), seg('blue', 2), seg('green', 20))]], ring(seg('red', 16)));
+export const LOOP_202: LoopBoardDef = { ...board('loop-202', 'Unload together', 24,
+  [[truck(seg('blue', 4), seg('red', 16)), truck(seg('blue', 8), seg('green', 16))],
+    [truck(seg('red', 8), seg('blue', 4), seg('red', 8))], [truck(seg('green', 8), seg('red', 8), seg('blue', 8))]], ring(seg('red', 8))),
+  couplings: [['0:0', '1:0']] };
+
+export const LOOP_BOARDS: readonly LoopBoardDef[] = [LOOP_1, LOOP_2, LOOP_3, LOOP_4, LOOP_5, LOOP_6, LOOP_7, LOOP_8, LOOP_9, LOOP_10, LOOP_11, LOOP_12, LOOP_13, LOOP_14, LOOP_15, LOOP_16, LOOP_17, LOOP_18, LOOP_19, LOOP_20, LOOP_21, LOOP_22, LOOP_23, LOOP_24, LOOP_25, LOOP_26, LOOP_27, LOOP_28, LOOP_29, LOOP_30, LOOP_31, LOOP_32, LOOP_33, LOOP_34, LOOP_35, LOOP_36, LOOP_37, LOOP_38, LOOP_39, LOOP_40, LOOP_41, LOOP_42, LOOP_43, LOOP_44, LOOP_45, LOOP_46, LOOP_47, LOOP_48, LOOP_200, LOOP_201, LOOP_202];

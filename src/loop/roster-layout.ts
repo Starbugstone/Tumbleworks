@@ -9,6 +9,7 @@ export interface CardBox { readonly x: number; readonly width: number; readonly 
 export interface LanePlacement { readonly cards: readonly CardBox[]; readonly foldedFrom: number | null; readonly foldX: number }
 export interface RosterLayout {
   readonly wide: boolean;
+  readonly ruleWidth: number;
   readonly toy: Rect;
   readonly panel: Rect;
   readonly rowHeight: number;
@@ -34,7 +35,8 @@ export const cardNeed = (stretches: number, cab: number): number =>
   cab + ROSTER.chrome + stretches * ROSTER.stretchLeast + Math.max(0, stretches - 1) * ROSTER.stretchGap;
 
 /** `lines` is one list per lane, front lorry first, of how many stretches each lorry prints, free room included. */
-export function rosterLayout(lines: readonly (readonly number[])[], width: number, height: number): RosterLayout {
+export function rosterLayout(lines: readonly (readonly number[])[], width: number, height: number, hasLatches = false): RosterLayout {
+  const ruleWidth = hasLatches ? 26 : 0;
   const compact = height < 600 && width > 600;
   const bottom = compact ? ROSTER.compactBottom : ROSTER.bottom;
   const usable = height - ROSTER.top - bottom;
@@ -53,14 +55,14 @@ export function rosterLayout(lines: readonly (readonly number[])[], width: numbe
   // The docked card takes what the longest line leaves, within limits: it is where a player looks first.
   // A docked lorry can open a stretch of free room during play; a fifth stretch prints tight rather than shrink every level.
   const docked = Math.min(4, Math.max(...lines.flat(), 1) + 1);
-  const least = cardNeed(docked, ROSTER.cabNow);
+  const least = cardNeed(docked, ROSTER.cabNow) + ruleWidth;
   const anyFollowers = lines.some((line) => line.length > 1);
-  const demand = Math.max(0, ...lines.map((line) => line.slice(1).reduce((sum, stretches, index) => sum + cardNeed(stretches, ROSTER.cabWaiting) + (index ? ROSTER.cardGap : 0), 0)));
+  const demand = Math.max(0, ...lines.map((line) => line.slice(1).reduce((sum, stretches, index) => sum + cardNeed(stretches, ROSTER.cabWaiting) + ruleWidth + (index ? ROSTER.cardGap : 0), 0)));
   const nowWidth = anyFollowers ? Math.max(least, Math.min(cardsWidth * 0.58, cardsWidth - demand - ROSTER.cardGap)) : Math.min(cardsWidth, 300);
 
   const toyHeight = wide ? usable : Math.max(0, usable - panelHeight - ROSTER.seam);
   return {
-    wide, rowHeight, fillHeight, numberSize, nowWidth, cardsWidth,
+    wide, ruleWidth, rowHeight, fillHeight, numberSize, nowWidth, cardsWidth,
     toy: wide ? { x: 0, y: ROSTER.top, width: width - panelWidth, height: usable } : { x: 0, y: ROSTER.top, width, height: toyHeight },
     panel: wide
       ? { x: width - panelWidth, y: ROSTER.top + Math.max(0, (usable - panelHeight) / 2), width: panelWidth, height: panelHeight }
@@ -69,12 +71,12 @@ export function rosterLayout(lines: readonly (readonly number[])[], width: numbe
 }
 
 /** Places a lane's cards: the docked one, then as many followers as fit, the rest folded. `line` is front lorry first. */
-export function placeLane(line: readonly number[], layout: RosterLayout): LanePlacement {
+export function placeLane(line: readonly number[], layout: RosterLayout, capacityRatios: readonly number[] = []): LanePlacement {
   if (!line.length) return { cards: [], foldedFrom: null, foldX: 0 };
   const cards: CardBox[] = [{ x: 0, width: layout.nowWidth, truck: 0 }];
   const start = layout.nowWidth + ROSTER.cardGap;
   const room = layout.cardsWidth - start;
-  const needs = line.slice(1).map((stretches) => cardNeed(stretches, ROSTER.cabWaiting));
+  const needs = line.slice(1).map((stretches) => cardNeed(stretches, ROSTER.cabWaiting) + layout.ruleWidth);
   let shown = 0, used = 0;
   for (; shown < needs.length; shown++) {
     const more = needs.length - shown - 1 > 0 ? ROSTER.foldWidth + ROSTER.cardGap : 0;
@@ -92,5 +94,15 @@ export function placeLane(line: readonly number[], layout: RosterLayout): LanePl
     cards.push({ x, width, truck: at + 1 });
     x += width + ROSTER.cardGap;
   }
-  return { cards, foldedFrom: folded ? shown + 1 : null, foldX: x };
+  let cursor = 0;
+  const sized = cards.map((card) => {
+    const ratio = capacityRatios[card.truck] ?? 1;
+    const cab = card.truck === 0 ? ROSTER.cabNow : ROSTER.cabWaiting;
+    const fixed = cab + ROSTER.chrome + layout.ruleWidth;
+    const width = Math.min(card.width, Math.max(cardNeed(line[card.truck]!, cab) + layout.ruleWidth, fixed + (card.width - fixed) * ratio));
+    const result = { ...card, x: cursor, width };
+    cursor += width + ROSTER.cardGap;
+    return result;
+  });
+  return { cards: sized, foldedFrom: folded ? shown + 1 : null, foldX: cursor };
 }

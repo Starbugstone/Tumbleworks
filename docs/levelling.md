@@ -311,3 +311,87 @@ without the required fixture. The local probe transcript is in
 
 The checked commitment model and its limits are described in
 [the Tube Sort model](models/tube-commitments/README.md).
+
+## Loop Sort rule lessons in the bank
+
+The expansion decision adds **latched trucks at round 43**, **short trucks at 59**
+and **coupled unload at 75**. The implementation fixtures are `loop-200`,
+`loop-201` and `loop-202`. They are bank boards, not campaign placements. Open
+`/?try=loop-200`, `/?try=loop-201` or `/?try=loop-202` to play them.
+
+The card latch includes its prerequisite lane number, so two cabs with the same
+pattern are unambiguous. Refusal feedback names and points to that lane. The toy
+latch carries only the pattern.
+
+A truck may declare `id`, `capacity` and `pourAfter`. Without an explicit ID its
+identity is its original `lane:index`, unaffected by departures. A latch names
+another truck's identity; unknown IDs and dependency cycles are rejected. The
+latched truck receives its exposed colour normally and may complete through
+intake. It cannot pour until the prerequisite's final intake reservation opens
+its latch. Opening happens before jam evaluation, not after the departure
+animation. One-colour trucks still cannot pour.
+
+A short truck has `capacity: 12` among ordinary 24-unit trucks. Intake, completion,
+percentages and conservation use the individual capacity. The total of a colour
+must equal the sum of capacities of trucks whose deepest segment has that colour.
+The bed is shorter, while cab, pattern badge and touch floor retain their size.
+`rosterLayout` and `placeLane` reserve latch badge room and size shorter cards
+without shrinking the percentage font or its minimum stretch width.
+
+A board's `couplings` is a list of disjoint `[truckId, truckId]` pairs. A tap on
+either member starts both exposed pours in one rules transaction only if both
+are fronts, unlatched, idle and contain at least two segments. Otherwise the
+whole action is refused with blocked feedback. Each stream retains its own unit
+slots and cadence. Completion of either member dissolves the connection before
+jam evaluation; the surviving member then accepts ordinary taps. One history
+entry covers both pours, and undo restores their streams and any opened latches.
+Hints name both trucks. The physical bar joins only currently docked tailboards.
+
+Latches do not change `wants`: a full loop with a matching latched receiver can
+drain. A full loop with no receiver is dead even if a prerequisite might finish
+in some hypothetical future. Starting a pour cannot help there: unloading blocks
+that truck's intake, and no unit can leave it without loop room. With spare room,
+pending units or a legal whole action may still make progress. An all-latched
+front row without useful intake, pending units or another legal action is dead.
+Completion removes dependencies before this test. The [bounded action check](models/loop-actions/README.md)
+and `tests/loop/features.test.ts` cover these cases.
+
+`LoopTarget` / `LoopRecipe` accept `capacities` (a grid matching lanes), `latch`
+(a truck/prerequisite pair), and `coupling` (two truck IDs). Set the target's
+`feature` to `latch`, `short` or `coupling` to require a causal trap. Reverse
+construction respects individual capacities; restrictions are applied afterward,
+so its output must still pass exhaustive forward search. Variant capacity
+search enumerates candidates rather than assuming monotonic solvability.
+`LoopRules.actions()` emits one successor for a coupled pair. The hint, author,
+score graphs and strong planner all preserve the new state. Board emission keeps
+the metadata, and structural signatures include capacities and dependencies.
+
+`featureTrap` requires an accepted losing line with a winning continuation in a
+conserved counterfactual: remove the latch or coupling, or swap short/full
+capacities between same-colour finishing trucks without moving cargo. A
+truncated search cannot certify that continuation. Reproducible seeds are 93,
+141 and 2 with three colours, lanes `[2,1,1]`, three segments, construction
+capacity 40 and ring maximum 20. The fixture loop capacities are 28, 20 and 24.
+Winning orders are `BBAACA`, `AAABCC`, `AABCC`; causal traps are `BCB`, `AABC`,
+`ACC`. Both machine timings win, each saved witness passes 20/20 jitter runs,
+and sampled settled-winning orders pass in both timings. The occasional-burst
+and existing authoring gates remain in force. A saved fast win must actually
+contain taps no more than 12 ticks apart; a patient win sampled by the mixed
+player is insufficient. These small rule fixtures are not calibrated campaign
+candidates and do not waive the placement, risk or naive-order gates.
+
+Scores were generated with the default scorer and merged while preserving the
+existing rows:
+
+```sh
+SCORE_DIR=output/current/loop-rules/scores npx tsx scripts/level-score.ts score loop-200 loop-201 loop-202
+SCORE_DIR=output/current/loop-rules/scores npx tsx scripts/level-score.ts merge
+```
+
+The merge command replaces the table with the directory's rows: seed that
+worktree-local directory with the existing table rows before merging a partial
+batch. No main-checkout artifacts are needed. New captures belong under
+`output/current/videos/`; `VIDEO_FPS` (default 30) and `VIDEO_SCALE` (default 2)
+allow lighter recording on a shared host. Pass the same `VIDEO_FPS` to the encoder.
+Recording advances browser timers with the game clock so feedback remains
+visible for its intended duration even when frame capture is slow.

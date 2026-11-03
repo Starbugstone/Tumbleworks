@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { LOOP_BOARDS } from '../../src/loop/boards';
 import { cardNeed, placeLane, ROSTER, rosterLayout } from '../../src/loop/roster-layout';
 
-const linesOf = (board: (typeof LOOP_BOARDS)[number]): number[][] => board.lanes.map((line) => line.map((truck) => truck.segments.length + (truck.segments.reduce((sum, s) => sum + s.count, 0) < board.truckCapacity ? 1 : 0)));
+const linesOf = (board: (typeof LOOP_BOARDS)[number]): number[][] => board.lanes.map((line) => line.map((truck) => truck.segments.length + (truck.segments.reduce((sum, s) => sum + s.count, 0) < (truck.capacity ?? board.truckCapacity) ? 1 : 0)));
 /** Levels that do not exist yet: later levels will have more lanes and longer queues. */
 const invented = (lanes: number, depth: number, stretches: number): number[][] => Array.from({ length: lanes }, () => Array.from({ length: depth }, () => stretches));
 const phone = { width: 375, height: 690 };
@@ -71,4 +71,28 @@ describe('the lorry card layout', () => {
       expect(layout.toy.height).toBeGreaterThan(200);
     }
   });
+});
+
+// Latches reserve a separate badge column; percentages keep their minimum width.
+it('feature lessons reserve latch room without shrinking card numbers or tap targets', () => {
+  for (const board of LOOP_BOARDS.filter((candidate) => Number(candidate.id.slice(5)) >= 200)) {
+    const lines = linesOf(board);
+    const latch = board.lanes.flat().some((truck) => Boolean(truck.pourAfter));
+    const layout = rosterLayout(lines, 375, 690, latch);
+    expect(layout.ruleWidth).toBe(latch ? 26 : 0);
+    for (const line of lines) for (const card of placeLane(line, layout).cards) {
+      expect(card.width - layout.ruleWidth).toBeGreaterThanOrEqual(cardNeed(line[card.truck]!, card.truck ? ROSTER.cabWaiting : ROSTER.cabNow));
+    }
+    expect(layout.numberSize).toBe(13);
+    expect(layout.rowHeight).toBeGreaterThanOrEqual(40);
+  }
+});
+
+it('short card beds shrink without reducing the cab or the number and touch floors', () => {
+  const layout = rosterLayout([[3], [3]], 375, 690);
+  const short = placeLane([3], layout, [0.5]).cards[0]!;
+  const full = placeLane([3], layout, [1]).cards[0]!;
+  expect(short.width).toBeLessThan(full.width);
+  expect(short.width).toBeGreaterThanOrEqual(cardNeed(3, ROSTER.cabNow));
+  expect(layout.rowHeight).toBeGreaterThanOrEqual(40);
 });

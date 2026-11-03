@@ -7,7 +7,7 @@ import { COLORS, decal } from './art';
 interface Dimensions { bedWidth: number; bedLength: number; bedHeight: number; cabLength: number }
 
 /** Cab faces local -z; the open tail faces the loop at +z. Cargo is added separately. */
-export function lorry(target: Color, dimensions: Dimensions): { body: THREE.Group; setWheelTravel: (distance: number) => void; setUnloading: (state: 'pouring' | 'waiting' | null, time: number) => void } {
+export function lorry(target: Color, dimensions: Dimensions, latchColor: Color | null = null): { body: THREE.Group; setWheelTravel: (distance: number) => void; setLatched: (latched: boolean) => void; setUnloading: (state: 'pouring' | 'waiting' | null, time: number) => void } {
   const { bedWidth: w, bedLength: length, bedHeight: h, cabLength: cab } = dimensions;
   const body = new THREE.Group();
   const paint = new THREE.MeshPhysicalMaterial({ color: COLORS[target].hex, roughness: 0.28, clearcoat: 0.8 });
@@ -126,5 +126,23 @@ export function lorry(target: Color, dimensions: Dimensions): { body: THREE.Grou
     });
   };
   setUnloading(null, 0);
-  return { body, setWheelTravel, setUnloading };
+  const latch = new THREE.Group();
+  latch.name = 'tailboard-latch';
+  latch.position.set(0, h + 0.42, length / 2 - 0.16);
+  const lock = new THREE.Mesh(new RoundedBoxGeometry(0.62, 0.12, 0.52, 2, 0.04), rubber);
+  latch.add(lock);
+  const shackle = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.045, 6, 12, Math.PI), chrome);
+  shackle.rotation.x = -Math.PI / 2;
+  shackle.position.z = -0.24;
+  latch.add(shackle);
+  if (latchColor) {
+    const mark = decal(latchColor, 0.43);
+    mark.rotation.x = -Math.PI / 2;
+    mark.position.y = 0.075;
+    latch.add(mark);
+  }
+  body.add(latch);
+  const setLatched = (latched: boolean): void => { latch.visible = latched; };
+  setLatched(latchColor !== null);
+  return { body, setWheelTravel, setUnloading, setLatched };
 }

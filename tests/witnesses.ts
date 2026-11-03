@@ -22,6 +22,7 @@ export const FUNNEL_JAMS: Record<string, string> = {
 /** Funnel Sort's easy opening boards have no real trap. */
 export const FUNNEL_NO_JAM: readonly string[] = ['board-31', 'board-32'];
 export const LOOP_WITNESSES: Record<string, string> = {
+  'loop-200': 'BBAACA',   'loop-201': 'AAABCC',   'loop-202': 'AABCC',
   'loop-1': 'AB', 'loop-2': 'ABC', 'loop-3': 'AABC', 'loop-4': 'ABDABC', 'loop-5': 'AACBBDACD', 'loop-6': 'AABBCDCBD',
   'loop-7': 'ABBACCABDDCD', 'loop-8': 'BDAABCBDD', 'loop-9': 'AABAABCDDEBDE', 'loop-10': 'CDDBCBCB', 'loop-11': 'AABBCDDADBC', 'loop-12': 'ABBABABA',
   'loop-13': 'AACACBCBC', 'loop-14': 'ABBCCDDDDCCB', 'loop-15': 'AABEEDC', 'loop-16': 'ACCDDBBCBAA', 'loop-17': 'ABBCCAB', 'loop-18': 'ABCDBEBDAECC',
@@ -34,6 +35,7 @@ export const LOOP_WITNESSES: Record<string, string> = {
 };
 /** The first two Loop levels teach exchange without losing tap orders; traffic pressure starts later. */
 export const LOOP_JAMS: Record<string, string> = {
+  'loop-200': 'BCB',   'loop-201': 'AABC',   'loop-202': 'ACC',
   'loop-3': 'AB', 'loop-4': 'AA', 'loop-5': 'AAB', 'loop-6': 'AABBCC', 'loop-7': 'AA', 'loop-8': 'BB',
   'loop-9': 'AABAAC', 'loop-10': 'B', 'loop-11': 'AABBCBDDA', 'loop-12': 'AABB', 'loop-13': 'AABCABC', 'loop-14': 'ABBCCCCD',
   'loop-15': 'AABC', 'loop-16': 'ABBCCD', 'loop-17': 'AA', 'loop-18': 'AA', 'loop-19': 'AABBCCABDD', 'loop-20': 'AABBABC',
@@ -48,6 +50,10 @@ export const LOOP_JAMS: Record<string, string> = {
  * It proves a fast line exists. scripts/level-emit.ts writes them; replay them with replayOnto.
  */
 export const FAST_WITNESSES: Record<string, { readonly steps: number; readonly taps: readonly (readonly [number, number])[] }> = {
+  'loop-200': { steps: 1347, taps: [[1,1],[241,1],[511,2],[517,0],[731,0],[1091,0]] },
+  'loop-201': { steps: 479, taps: [[1,0],[13,2],[58,0],[61,2],[106,0],[109,1]] },
+  'loop-202': { steps: 1001, taps: [[1,0],[13,2],[208,2],[217,0],[570,1]] },
+
   // BEGIN first stretch fast witnesses
   'board-2': { steps: 918, taps: [[1,0],[13,0],[59,1],[61,1],[569,2]] },
   'board-3': { steps: 923, taps: [[1,0],[13,0],[170,2],[181,0],[430,2],[433,1],[658,1]] },
