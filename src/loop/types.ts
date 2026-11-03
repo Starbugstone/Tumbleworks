@@ -3,11 +3,17 @@ import type { Color, Packet } from '../sim/types';
 
 /** One cargo truck: colour segments from the loop end backward. Totals never exceed the capacity. */
 export interface TruckDef {
+  /** Stable identity for dependencies; omitted IDs default to lane:index. */
+  readonly id?: string;
+  readonly capacity?: number;
+  readonly pourAfter?: string;
   readonly segments: readonly Packet[];
 }
 
 export interface LoopBoardDef {
   readonly trackShape?: BeltShape;
+  /** Disjoint pairs of stable truck IDs. */
+  readonly couplings?: readonly (readonly [string, string])[];
   readonly id: string;
   readonly title: string;
   /** Marbles the loop holds before it is full. Unloading pauses above this. */

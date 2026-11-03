@@ -1,4 +1,4 @@
-import type { Color, Marble, SimStatus } from '../sim/types';
+import { COLORS, type Color, type Marble, type SimStatus } from '../sim/types';
 import type { LoopBoardDef } from './types';
 
 export type LoopMarbleStatus = 'in-truck' | 'unloading' | 'on-loop' | 'absorbing';
@@ -13,6 +13,10 @@ export interface LoopMarble extends Marble {
 export interface Segment { readonly color: Color; readonly marbles: number[] }
 
 export interface TruckState {
+  readonly id: string;
+  readonly capacity: number;
+  pourAfter: string | null;
+  coupledWith: string | null;
   /** Position in the lane's original queue, stable for the whole game. */
   readonly index: number;
   /** Loop end first. A truck is complete when one segment holds the whole capacity. */
@@ -34,8 +38,8 @@ export type LoopEvent =
   | { readonly type: 'jammed' };
 
 export type TapResult =
-  | { readonly ok: true; readonly lane: number; readonly color: Color; readonly marbles: readonly number[] }
-  | { readonly ok: false; readonly reason: 'empty' | 'busy' | 'single' | 'finished' };
+  | { readonly ok: true; readonly lane: number; readonly color: Color; readonly marbles: readonly number[]; readonly pours: readonly { lane: number; color: Color; marbles: readonly number[] }[] }
+  | { readonly ok: false; readonly reason: 'empty' | 'busy' | 'single' | 'finished' | 'latched' | 'coupled' };
 
 export type PassResult =
   | { readonly result: 'absorb'; readonly truck: number; readonly fill: number; readonly events: LoopEvent[] }
@@ -59,29 +63,48 @@ export class LoopRules {
     const lanes = board.lanes.map((queue, lane) => queue.map((truck, index) => {
       const segments = truck.segments.map((segment) => ({ color: segment.color, marbles: packet(segment.color, segment.count, 'in-truck', lane, index) }));
       const load = segments.reduce((sum, segment) => sum + segment.marbles.length, 0);
-      if (load > board.truckCapacity) throw new Error(`Board ${board.id}: lane ${lane} truck ${index} carries ${load} of ${board.truckCapacity}`);
+      const capacity = truck.capacity ?? board.truckCapacity;
+      if (!Number.isSafeInteger(capacity) || capacity <= 0) throw new Error(`Invalid truck capacity ${capacity}`);
+      if (load > capacity) throw new Error(`Board ${board.id}: lane ${lane} truck ${index} carries ${load} of ${capacity}`);
       // Adjacent segments of one colour would let a one-colour truck be poured; they are a board error.
       for (let at = 1; at < segments.length; at++) {
         if (segments[at]!.color === segments[at - 1]!.color) throw new Error(`Board ${board.id}: lane ${lane} truck ${index} repeats ${segments[at]!.color} in adjacent segments`);
       }
       if (!segments.length) throw new Error(`Board ${board.id}: lane ${lane} truck ${index} is empty`);
-      return { index, segments, unloading: [], complete: false };
+      return { id: truck.id ?? `${lane}:${index}`, capacity, pourAfter: truck.pourAfter ?? null, coupledWith: null as string | null, index, segments, unloading: [], complete: false };
     }));
     for (const entry of board.loop) packet(entry.color, entry.count, 'on-loop', null, null);
-    const trucks = lanes.reduce((sum, queue) => sum + queue.length, 0);
-    if (marbles.length !== trucks * board.truckCapacity) throw new Error(`Board ${board.id}: ${marbles.length} marbles cannot fill ${trucks} trucks of ${board.truckCapacity}`);
+    const byId = new Map(lanes.flat().map((truck) => [truck.id, truck]));
+    if ([...byId.keys()].some((id) => !id)) throw new Error('Empty truck identity');
+    if (byId.size !== lanes.flat().length) throw new Error('Duplicate truck identity');
+    for (const truck of byId.values()) {
+      const seen = new Set([truck.id]);
+      let dependency = truck.pourAfter;
+      while (dependency !== null) {
+        if (seen.has(dependency)) throw new Error('Cyclic latch dependency');
+        seen.add(dependency);
+        const prerequisite = byId.get(dependency);
+        if (!prerequisite) throw new Error(`Unknown latch prerequisite ${dependency}`);
+        dependency = prerequisite.pourAfter;
+      }
+    }
+    for (const [a, b] of board.couplings ?? []) {
+      const first = byId.get(a), second = byId.get(b);
+      if (!first || !second || first === second || first.coupledWith || second.coupledWith) throw new Error('Couplings must be disjoint pairs of known trucks');
+      first.coupledWith = b; second.coupledWith = a;
+    }
     // A truck never pours its deepest segment, so that segment fixes the colour the truck ends up with.
     const totals = new Map<Color, number>();
     for (const marble of marbles) totals.set(marble.color, (totals.get(marble.color) ?? 0) + 1);
     const homes = new Map<Color, number>();
     for (const queue of lanes) for (const truck of queue) {
       const deepest = truck.segments[truck.segments.length - 1]!.color;
-      homes.set(deepest, (homes.get(deepest) ?? 0) + 1);
+      homes.set(deepest, (homes.get(deepest) ?? 0) + truck.capacity);
     }
     for (const color of new Set([...totals.keys(), ...homes.keys()])) {
       const total = totals.get(color) ?? 0;
-      const trucks = homes.get(color) ?? 0;
-      if (total !== trucks * board.truckCapacity) throw new Error(`Board ${board.id}: ${total} ${color} marbles for ${trucks} ${color} trucks`);
+      const capacity = homes.get(color) ?? 0;
+      if (total !== capacity) throw new Error(`Board ${board.id}: ${total} ${color} marbles for ${capacity} ${color} capacity`);
     }
     if (board.loop.reduce((sum, entry) => sum + entry.count, 0) > board.loopCapacity) throw new Error(`Board ${board.id} starts over loop capacity`);
     this.current = { lanes, marbles, status: 'playing' };
@@ -98,7 +121,7 @@ export class LoopRules {
   /** The colour a lane's front truck takes right now, or null when it is busy, full or missing. */
   wants(lane: number): Color | 'any' | null {
     const truck = this.front(lane);
-    if (!truck || truck.unloading.length || this.load(truck) >= this.board.truckCapacity) return null;
+    if (!truck || truck.unloading.length || this.load(truck) >= truck.capacity) return null;
     return truck.segments[0]?.color ?? 'any';
   }
   private laneFor(color: Color): number | null {
@@ -109,20 +132,48 @@ export class LoopRules {
     return null;
   }
 
-  /** Pour the front truck's loop-end segment onto the loop, to reach the segment behind it. */
-  tap(lane: number): TapResult {
-    if (this.status !== 'playing') return { ok: false, reason: 'finished' };
+  /** All members are checked before either unloading queue changes. */
+  tapLanes(lane: number): number[] {
     const truck = this.front(lane);
-    const segment = truck?.segments[0];
-    if (!truck || !segment) return { ok: false, reason: 'empty' };
-    if (truck.unloading.length) return { ok: false, reason: 'busy' };
-    // A truck of one colour is never emptied: it only has to fill up. So no truck is ever empty.
-    if (truck.segments.length < 2) return { ok: false, reason: 'single' };
-    truck.segments.shift();
-    truck.unloading = [...segment.marbles];
-    for (const id of segment.marbles) this.current.marbles[id]!.status = 'unloading';
+    if (!truck) return [];
+    if (!truck.coupledWith) return [lane];
+    const partner = this.current.lanes.findIndex((queue) => queue[0]?.id === truck.coupledWith);
+    return partner < 0 ? [] : [lane, partner].sort((a, b) => a - b);
+  }
+
+  tapReason(lane: number): Extract<TapResult, { ok: false }>['reason'] | null {
+    if (this.status !== 'playing') return 'finished';
+    const truck = this.front(lane);
+    if (!truck) return 'empty';
+    if (truck.pourAfter) return 'latched';
+    const members = this.tapLanes(lane);
+    if (!members.length) return 'coupled';
+    for (const member of members) {
+      const candidate = this.front(member)!;
+      const reason = candidate.pourAfter ? 'latched' : candidate.unloading.length ? 'busy' : candidate.segments.length < 2 ? 'single' : null;
+      if (reason) return member === lane ? reason : 'coupled';
+    }
+    return null;
+  }
+
+  /** A coupled pair is one successor, represented by its first lane. */
+  actions(): number[] {
+    return this.current.lanes.flatMap((_, lane) => this.tapReason(lane) === null && this.tapLanes(lane)[0] === lane ? [lane] : []);
+  }
+
+  tap(lane: number): TapResult {
+    const reason = this.tapReason(lane);
+    if (reason) return { ok: false, reason };
+    const pours = this.tapLanes(lane).map((member) => {
+      const truck = this.front(member)!;
+      const segment = truck.segments.shift()!;
+      truck.unloading = [...segment.marbles];
+      for (const id of segment.marbles) this.current.marbles[id]!.status = 'unloading';
+      return { lane: member, color: segment.color, marbles: segment.marbles };
+    });
     this.evaluateStatus([]);
-    return { ok: true, lane, color: segment.color, marbles: segment.marbles };
+    const tapped = pours.find((pour) => pour.lane === lane)!;
+    return { ok: true, ...tapped, pours };
   }
 
   /** The next unloading marble of a lane leaves the truck onto the loop, if the loop has room. */
@@ -148,9 +199,13 @@ export class LoopRules {
     else truck.segments.unshift({ color: marble.color, marbles: [marbleId] });
     const events: LoopEvent[] = [];
     const fill = this.load(truck);
-    if (fill >= this.board.truckCapacity && truck.segments.length === 1) {
+    if (fill >= truck.capacity && truck.segments.length === 1) {
       truck.complete = true;
       this.current.lanes[lane]!.shift();
+      for (const remaining of this.current.lanes.flat()) {
+        if (remaining.pourAfter === truck.id) remaining.pourAfter = null;
+        if (remaining.coupledWith === truck.id) remaining.coupledWith = null;
+      }
       events.push({ type: 'complete', lane, truck: truck.index, color: marble.color });
     }
     this.evaluateStatus(events);
@@ -172,13 +227,15 @@ export class LoopRules {
 
   /** True while some front truck still has a segment to pour; a truck of one colour cannot be tapped. */
   canPour(): boolean {
-    return this.current.lanes.some((queue) => queue[0] && !queue[0].unloading.length && queue[0].segments.length >= 2);
+    return this.actions().length > 0;
   }
 
   /**
    * A jam is any dead end: a full loop nobody can take from, or, with nothing left to pour and nothing
    * unloading, a loop nobody can take from. The second case happens when the marbles a truck still
-   * needs sit in a truck queued behind it.
+   * needs sit in a truck queued behind it. Latches never prevent intake. With a full undrainable loop,
+   * a tap only starts unloading (which itself blocks intake), so no tap can create a drain. With spare
+   * room, pending units or a legal whole action can still help; a future unlock with neither cannot.
    */
   private evaluateStatus(events: LoopEvent[]): void {
     const state = this.current;
@@ -191,4 +248,13 @@ export class LoopRules {
       events.push({ type: 'jammed' });
     }
   }
+}
+
+/** Shared settled-search identity; unit identities and transport positions do not affect settled choices. */
+export function loopStateKey(state: Readonly<LoopState>): string {
+  return JSON.stringify([state.status, state.lanes.map((queue) => queue.map((truck) => [
+    truck.id, truck.index, truck.capacity, truck.pourAfter, truck.coupledWith,
+    truck.segments.map((segment) => [segment.color, segment.marbles.length]),
+    truck.unloading.map((id) => state.marbles[id]!.color),
+  ])), COLORS.map((color) => state.marbles.filter((marble) => marble.status === 'on-loop' && marble.color === color).length)]);
 }
