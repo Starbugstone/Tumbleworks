@@ -8,6 +8,7 @@ export const colorName = (color: Color): string => ({ red: t('red', 'rouge'), bl
 export const patternName = (color: Color): string => ({ red: t('Ring', 'Anneau'), blue: t('Diamond', 'Losange'), green: t('Triangle', 'Triangle'), yellow: t('Star', 'Étoile'), orange: t('Cross', 'Croix'), black: t('Dots', 'Points'), white: t('Heart', 'Cœur') } satisfies Record<Color, string>)[color];
 export const difficultyName = (difficulty: Difficulty): string => ({ 'Getting started': t('Getting started', 'Premiers pas'), 'Finding a rhythm': t('Finding a rhythm', 'Trouver le rythme'), 'Thinking ahead': t('Thinking ahead', 'Anticiper'), 'Full spectrum': t('Full spectrum', 'Toutes les couleurs') })[difficulty];
 const frenchTitles: Record<string, string> = {
+  'board-200': 'Une poignée pour deux', 'board-201': 'Deux appuis', 'board-202': 'Le volet se lève',
   'board-1': 'Faire de la place', 'board-2': 'Une couleur d’avance', 'board-3': 'Derrière les lignes', 'board-4': 'Deux erreurs', 'board-5': 'Le grand détour',
   'board-6': 'Le premier pont', 'board-7': 'La grande traversée', 'board-8': 'L’orange arrive', 'board-9': 'Petits versements', 'board-10': 'Cinq couleurs en huit',
   'board-11': 'Le grand tour', 'board-12': 'Deux hautes piles', 'board-13': 'Tapis serré', 'board-14': 'Piles inégales', 'board-15': 'Court et doux',

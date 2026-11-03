@@ -395,3 +395,44 @@ batch. No main-checkout artifacts are needed. New captures belong under
 allow lighter recording on a shared host. Pass the same `VIDEO_FPS` to the encoder.
 Recording advances browser timers with the game clock so feedback remains
 visible for its intended duration even when frame capture is slow.
+
+## Funnel Sort rule lessons in the bank
+
+`board-200`, `board-201` and `board-202` are bank lessons for rounds 41, 57 and
+73. They are outside `PLAY_ORDER`; open them with `/?try=board-200` (or the
+other ID). The campaign and existing saved IDs are unchanged.
+
+- **Paired release:** `pairs` lists disjoint pairs of stable crate IDs. The
+  shared handle belongs to the crates. Either endpoint releases both only when
+  both are accessible and unreleased; refusal changes nothing. Packets enter
+  pending inventory in increasing crate-ID order; physics may mix their fall.
+  The lesson pairs six marbles with three. One undo restores both crates and
+  the physics snapshot, including any receiver changes since the tap.
+- **Forked shelves:** `predecessors` replaces column access with an acyclic
+  dependency graph. Crate IDs are zero-based in original supply/packet order,
+  independent of marble count. All predecessors must have accepted releases;
+  opening animation never delays access. Shelves expose at most four crates.
+  The lesson joins two chains, with overlap and short support brackets.
+- **Sealed dock:** `seals` names a dock and an `after: {dock, box}` prerequisite
+  at another dock. At most two acyclic seals are allowed. A sealed dock cannot
+  reserve. Its shutter carries the prerequisite box's colour and container
+  pattern. The last reservation opens it permanently in that same transition,
+  before jam evaluation; capture and queue animation do not delay opening.
+  A belt full of colours wanted only by sealed docks is jammed unless existing
+  deliveries can free space. An imagined future release cannot rescue it.
+
+Existing boards keep column-index actions and replay input. Source variants
+use crate-ID actions. `MachineRules.actions()` enumerates one canonical endpoint
+per legal pair, `release()` owns the complete transition, and hints expose the
+stable member IDs. FIFO settling, exhaustive authoring, scorer graphs and the
+strong planner all use those transitions. Settled keys retain the released set
+and open seals; strong keys additionally retain active marble identity/order.
+
+`FunnelRecipe` and `FunnelTarget` accept `pairs`, `predecessors` and `seals`.
+Structural variants enumerate bounded capacity choices, including choices below
+an unsolvable maximum; they do not assume monotonicity. A causal trap check
+requires an attractive opening that cannot win with the restriction but can
+win with it removed, preserving cargo and queue order. Exhaustion is unknown,
+not an impossibility proof. Existing naive, cheese/spam, jitter, sampled-order
+and real-machine gates still apply. The executable interleaving model and its
+bounds are documented in [funnel-actions](models/funnel-actions/README.md).

@@ -122,6 +122,8 @@ export class Machine implements Replayable {
   readonly track: ReturnType<typeof conveyorTrack>;
   /** The belt is divided into capacity slots of this length, travelling with it. */
   readonly slotPitch: number;
+  readonly sourceColumns: number;
+  private readonly shelfLocations = new Map<number, { x: number; y: number; z: number }>();
   readonly entryDistance: number;
   world: RAPIER.World;
   private control: Control;
@@ -136,6 +138,19 @@ export class Machine implements Replayable {
 
   constructor(readonly board: BoardDef, private readonly physicsService: PhysicsService = physics) {
     this.rules = new MachineRules(board);
+    const layers = new Map<number, number[]>();
+    if (board.predecessors) {
+      const depth = (id: number): number => Math.max(-1, ...this.rules.predecessors(id).map(depth)) + 1;
+      for (const packet of this.rules.state.supplies.flat()) {
+        const layer = depth(packet.id);
+        layers.set(layer, [...(layers.get(layer) ?? []), packet.id]);
+      }
+      for (const [layer, ids] of layers) ids.forEach((id, index) => this.shelfLocations.set(id, {
+        x: columnX(index, ids.length), y: STACK.y + STACK.stepY * layer,
+        z: Math.max(FUNNEL.mouth.back + CRATE.halfDepth + 0.2, STACK.z + 1 + STACK.stepZ * layer),
+      }));
+    }
+    this.sourceColumns = Math.max(board.supplies.length, ...[...layers.values()].map((ids) => ids.length));
     this.track = conveyorTrack(board.trackShape, board.beltCapacity);
     this.slotPitch = this.track.length / board.beltCapacity;
     this.entryDistance = entryDistanceFor(this.track);
@@ -161,11 +176,11 @@ export class Machine implements Replayable {
       RAPIER.ColliderDesc.cuboid(span, 0.25, span).setTranslation(0, floorY - 0.25, RACEWAY.centerZ).setFriction(0.5).setRestitution(0.28), body).handle;
 
     const { mouth, neck, mouthY, neckY } = FUNNEL;
-    const mouthHalf = funnelHalfWidth(this.board.supplies.length);
+    const mouthHalf = funnelHalfWidth(this.sourceColumns);
     const midZ = (mouth.back + mouth.front) / 2;
     const halfZ = (mouth.front - mouth.back) / 2 + 0.2;
     const halfX = mouthHalf + 0.2;
-    for (const face of funnelFaces(this.board.supplies.length)) {
+    for (const face of funnelFaces(this.sourceColumns)) {
       const vertices = new Float32Array([...face, ...face.map((p) => ({ ...p, y: p.y - 0.12 }))].flatMap((p) => [p.x, p.y, p.z]));
       const collider = RAPIER.ColliderDesc.convexHull(vertices);
       if (!collider) throw new Error('Invalid funnel panel');
@@ -229,23 +244,22 @@ export class Machine implements Replayable {
     return {
       x: columnX(crate.supply, count),
       y: STACK.y + STACK.stepY * crate.slide + (crate.phase === 'gone' ? 40 : 0),
-      z: this.rules.crateActions ? Math.max(FUNNEL.mouth.back + CRATE.halfDepth + 0.2, STACK.z + STACK.stepZ * crate.slide) : STACK.z + STACK.stepZ * crate.slide,
+      z: this.rules.crateActions ? Math.max(FUNNEL.mouth.back + CRATE.halfDepth + 0.2, STACK.z + 1 + STACK.stepZ * crate.slide) : STACK.z + STACK.stepZ * crate.slide,
     };
   }
 
-  /** Static shallow shelves: joins sit between their supports; all drops remain over the dish. */
+  /** A separate row per dependency depth keeps the join visible without overlapping sibling crates. */
   private shelfPosition(id: number): { x: number; y: number; z: number } {
-    const predecessors = this.rules.predecessors(id);
-    if (!predecessors.length) return { x: columnX(this.board.supplies.findIndex((q, i) => id >= this.board.supplies.slice(0, i).flat().length && id < this.board.supplies.slice(0, i + 1).flat().length), this.board.supplies.length), y: STACK.y, z: STACK.z };
-    const supports = predecessors.map((before) => this.shelfPosition(before));
-    return { x: supports.reduce((sum, p) => sum + p.x, 0) / supports.length,
-      y: Math.max(...supports.map((p) => p.y)) + STACK.stepY,
-      z: Math.max(FUNNEL.mouth.back + CRATE.halfDepth + 0.2, Math.min(...supports.map((p) => p.z)) + STACK.stepZ) };
+    const at = this.shelfLocations.get(id);
+    if (!at) throw new Error(`Unknown shelf crate ${id}`);
+    return at;
   }
 
   private crateSlotWorld(crate: CrateControl, slot: number): { x: number; y: number; z: number } {
     const origin = this.crateOrigin(crate);
-    const local = CRATE.slots[slot];
+    // Small joined loads occupy the visible rows; a waiting crate must not conceal all three marbles.
+    const visibleSlot = this.rules.crateActions ? slot + Math.max(0, CRATE.slots.length - crate.marbleIds.length) : slot;
+    const local = CRATE.slots[visibleSlot];
     if (!local) throw new Error(`No crate slot ${slot}`);
     return { x: origin.x + local.x, y: origin.y + CRATE.floorThickness + MARBLE_RADIUS + 0.005, z: origin.z + local.z };
   }
@@ -577,7 +591,7 @@ export class Machine implements Replayable {
     const body = this.marbleBody(marble.id);
     const t = body.translation();
     if (!this.control.neckOpen) marble.time = Math.min(marble.time, 1);
-    const lost = t.y < RACEWAY.floorY - 0.5 || Math.abs(t.x) > funnelHalfWidth(this.board.supplies.length) + 1 || t.z > 1.5 || t.z < FUNNEL.mouth.back - 2;
+    const lost = t.y < RACEWAY.floorY - 0.5 || Math.abs(t.x) > funnelHalfWidth(this.sourceColumns) + 1 || t.z > 1.5 || t.z < FUNNEL.mouth.back - 2;
     if (lost || marble.time > FALL_RESCUE_SECONDS) this.teleportToFunnel(marble, lost ? 'left the funnel' : 'never reached the neck');
     else if (marble.time > FALL_NUDGE_SECONDS && Math.floor(marble.time * 60) % 45 === 0) this.nudge(marble, { x: -t.x * 0.6, y: 2.2, z: (FUNNEL.neck.z - t.z) * 0.6 });
   }

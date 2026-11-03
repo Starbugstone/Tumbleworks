@@ -299,6 +299,13 @@ export function emitBoard(report: FunnelReport): string {
   return `/** ${recipe.note} */\nexport const ${name}: BoardDef = ${body};`;
 }
 
+/** Reproducible rule lessons; kept outside the campaign and its ordinary authoring batch. */
+export const FUNNEL_RULE_RECIPES: readonly FunnelRecipe[] = [
+  { id: 'board-200', title: 'One shared handle', fr: 'Une poignée pour deux', note: 'Round 41: a six and a three share one release.', colors: 3, columns: [2,2,2], shorts: 1, smalls: 1, docks: 3, capacity: 14, seed: 10920, win: [0,1], slack: 0, naiveJams: true, pairs: [[0,2]] },
+  { id: 'board-201', title: 'Two supports', fr: 'Deux appuis', note: 'Round 57: the central shelf needs both accepted releases.', colors: 3, columns: [2,2,2], shorts: 0, docks: 3, capacity: 14, seed: 19, win: [0,1], slack: 0, naiveJams: true, predecessors: {0:[],1:[0,2],2:[],3:[2],4:[],5:[4]} },
+  { id: 'board-202', title: 'Open the shutter', fr: 'Le volet se lève', note: 'Round 73: fill the blue box to open the green dock.', colors: 3, columns: [2,2,2], shorts: 0, docks: 3, capacity: 14, seed: 7, win: [0,1], slack: 0, naiveJams: true, seals: [{dock:0,after:{dock:1,box:0}}] },
+];
+
 export const FUNNEL_RECIPES: readonly FunnelRecipe[] = [
   // Boards 3 to 11 keep their titles and shapes; they are re-rolled here for a tighter belt and fewer winning orders.
   { id: 'board-3', title: 'Behind the lines', fr: 'Derrière les lignes', note: 'Seven trays and four docks; every column hides a colour the docks want behind one they do not.', colors: 4, columns: [3, 2, 2], shorts: 0, docks: 4, capacity: 18, seed: 1, win: [0.2, 0.45], slack: 4, naiveJams: true },

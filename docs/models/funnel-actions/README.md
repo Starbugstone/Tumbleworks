@@ -20,3 +20,6 @@ rules oracle or a proof for arbitrary boards. The existing TLC belt-slot model
 is unchanged: the neck arbitration, future landing-slot reservation and landing
 transitions are unchanged. Physical pile mixing remains independent of FIFO
 settling. See the lesson scores and real Machine witnesses for that boundary.
+
+Checked rule revision: `3a54384`. Presentation changes after that revision do not
+change the checked transitions. Rerun both tests whenever those transitions change.

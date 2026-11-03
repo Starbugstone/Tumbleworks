@@ -1,5 +1,8 @@
 /** Authored tap orders, shared by the rule, machine and browser specs. Letters are supply columns or truck lanes. */
 export const FUNNEL_WITNESSES: Record<string, string> = {
+  'board-202': 'ACCABB',
+  'board-201': 'CDABEF',
+  'board-200': 'ABEFD',
   'board-1': 'AAB', 'board-2': 'AABBC', 'board-3': 'AAABCCB', 'board-4': 'ABCAABBCC', 'board-5': 'AAABBBDCCCDD', 'board-6': 'AAACBBC',
   'board-7': 'AAACCBB', 'board-8': 'AAACBBBC', 'board-9': 'AABDBDCCDAB', 'board-10': 'AABBABCCC', 'board-11': 'AAABBCCCDDDB', 'board-12': 'ABBAAB',
   'board-13': 'ABABCC', 'board-14': 'BDDDAAACC', 'board-15': 'ABABCCDD', 'board-16': 'AAABCCBC', 'board-17': 'CCAABB', 'board-18': 'AABBACCCB',
@@ -10,6 +13,9 @@ export const FUNNEL_WITNESSES: Record<string, string> = {
   // END first stretch funnel witnesses
 };
 export const FUNNEL_JAMS: Record<string, string> = {
+  'board-202': 'AAB',
+  'board-201': 'AC',
+  'board-200': 'ABDE',
   'board-1': 'AB', 'board-2': 'AB', 'board-3': 'AAABB', 'board-4': 'AA', 'board-5': 'AAABBBC', 'board-6': 'AAAB',
   'board-7': 'AAABB', 'board-8': 'AAAB', 'board-9': 'AAA', 'board-10': 'AAAB', 'board-11': 'AAABBBC', 'board-12': 'AA',
   'board-13': 'AA', 'board-14': 'AAABC', 'board-15': 'AA', 'board-16': 'AAABBC', 'board-17': 'AA', 'board-18': 'AAAB',
