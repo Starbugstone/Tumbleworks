@@ -1,5 +1,5 @@
 import { sfx } from '../audio';
-import { CAMPAIGN } from '../campaign';
+import { CAMPAIGN, TRY_LEVEL } from '../campaign';
 import type { Feedback, GameRuntime, GameServices, ScreenPoint } from '../engine/contracts';
 import { FIXED_SECONDS, physics } from '../engine/physics';
 import { replayLog, type ReplayLog } from '../engine/replay';
@@ -176,9 +176,10 @@ export class App {
     await physics.init();
     const app = new App(canvas);
     const saved = currentLevel();
+    const tried = CAMPAIGN.findIndex((level) => level.id === TRY_LEVEL);
     const selected = CAMPAIGN.findIndex((level) => level.id === saved && !isCompleted(level.id));
     const open = CAMPAIGN.findIndex((level) => !isCompleted(level.id));
-    app.loadBoard(selected >= 0 ? selected : Math.max(0, open));
+    app.loadBoard(tried >= 0 ? tried : selected >= 0 ? selected : Math.max(0, open));
     element('boot').hidden = true;
     requestAnimationFrame(app.frame);
     return app;
