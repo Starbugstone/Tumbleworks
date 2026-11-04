@@ -8,12 +8,13 @@ import { LoopRules } from '../../src/loop/rules';
 import { hintLoopSearch, settleLoop } from '../../src/loop/solver';
 import { initPhysics, Machine } from '../../src/machine/machine';
 import { TUBE_BOARDS } from '../../src/puzzles/levels';
-import { MachineRules } from '../../src/sim/rules';
+import { funnelStateKey, MachineRules } from '../../src/sim/rules';
 import { BOARDS } from '../../src/sim/boards';
 import { hintConveyorSearch, settle } from '../../src/sim/solver';
 import { HINT_STATE_CAP, TUBE_GRAPH_CAP, type ScoreRow } from '../../scripts/level-curve';
 import { extendTally, funnelGame, loopGame, scoreTube, tally } from '../../scripts/level-score';
 import { reachableTubeStates } from '../../scripts/tube-author';
+import { stateKey as loopStateKey } from '../../scripts/loop-author';
 import { FAST_WITNESSES } from '../witnesses';
 
 beforeAll(initPhysics);
@@ -94,37 +95,41 @@ describe('Tube Sort stays small enough that a null hint is a proof', () => {
 
 describe('a declared jam is truly dead', () => {
   type Machineish = { status: string; snapshot(): { status: string }; restore(value: unknown): void };
-  /** With the jam check off, nothing within reach of a declared jam can still win. */
-  const explore = <R extends Machineish>(make: () => R, choices: number, act: (rules: R, choice: number) => boolean, proto: Record<'evaluateStatus', () => void>, won: (rules: R) => boolean): { jams: number; live: number; dead: number } => {
+  /**
+   * With the jam check off, nothing within reach of a declared jam can still win. States are keyed the way the authoring
+   * search keys them (marbles of one colour are interchangeable), so twelve-crate boards finish in seconds.
+   */
+  const explore = <R extends Machineish>(make: () => R, choices: number, act: (rules: R, choice: number) => boolean, proto: Record<'evaluateStatus', () => void>, won: (rules: R) => boolean, key: (rules: R) => string): { jams: number; live: number; dead: number } => {
     const rules = make();
     const seen = new Set<string>();
-    const stack = [JSON.stringify(rules.snapshot())];
+    const stack = [rules.snapshot()];
     let jams = 0;
     let live = 0;
     let dead = 0;
     while (stack.length) {
       const here = stack.pop()!;
-      if (seen.has(here)) continue;
-      seen.add(here);
-      rules.restore(JSON.parse(here));
+      rules.restore(here);
+      const id = `${rules.status}|${key(rules)}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
       if (rules.status === 'won') continue;
       if (rules.status === 'jammed') {
         jams += 1;
         const spy = vi.spyOn(proto, 'evaluateStatus').mockImplementation(() => undefined);
         const probe = make();
-        const opened = JSON.parse(here) as { status: string };
-        opened.status = 'playing';
+        const opened = { ...structuredClone(here), status: 'playing' };
         const inner = new Set<string>();
-        const frontier = [JSON.stringify(opened)];
+        const frontier = [opened];
         while (frontier.length && inner.size < 150) {
           const at = frontier.pop()!;
-          if (inner.has(at)) continue;
-          inner.add(at);
-          probe.restore(JSON.parse(at));
+          probe.restore(at);
+          const atKey = key(probe);
+          if (inner.has(atKey)) continue;
+          inner.add(atKey);
           if (won(probe)) { live += 1; break; }
           for (let choice = 0; choice < choices; choice++) {
-            probe.restore(JSON.parse(at));
-            if (act(probe, choice)) frontier.push(JSON.stringify(probe.snapshot()));
+            probe.restore(at);
+            if (act(probe, choice)) frontier.push(probe.snapshot());
           }
         }
         spy.mockRestore();
@@ -132,20 +137,20 @@ describe('a declared jam is truly dead', () => {
       }
       let moved = false;
       for (let choice = 0; choice < choices; choice++) {
-        rules.restore(JSON.parse(here));
-        if (act(rules, choice)) { moved = true; stack.push(JSON.stringify(rules.snapshot())); }
+        rules.restore(here);
+        if (act(rules, choice)) { moved = true; stack.push(rules.snapshot()); }
       }
       if (!moved) dead += 1;
     }
     return { jams, live, dead };
   };
   it.each(campaignFunnel)('$id', (board) => {
-    const result = explore(() => new MachineRules(board) as unknown as Machineish & MachineRules, board.supplies.length, (rules, choice) => { if (!rules.release(choice).ok) return false; settle(rules); return true; }, MachineRules.prototype as unknown as Record<'evaluateStatus', () => void>, (rules) => rules.state.marbles.every((marble) => marble.status === 'in-box'));
+    const result = explore(() => new MachineRules(board) as unknown as Machineish & MachineRules, board.supplies.length, (rules, choice) => { if (!rules.release(choice).ok) return false; settle(rules); return true; }, MachineRules.prototype as unknown as Record<'evaluateStatus', () => void>, (rules) => rules.state.marbles.every((marble) => marble.status === 'in-box'), (rules) => funnelStateKey(rules));
     expect(result.live).toBe(0);
     expect(result.dead).toBe(0);
   }, 60_000);
   it.each(campaignLoop)('$id', (board) => {
-    const result = explore(() => new LoopRules(board) as unknown as Machineish & LoopRules, board.lanes.length, (rules, choice) => { if (!rules.tap(choice).ok) return false; settleLoop(rules); return true; }, LoopRules.prototype as unknown as Record<'evaluateStatus', () => void>, (rules) => rules.state.lanes.every((queue) => queue.length === 0));
+    const result = explore(() => new LoopRules(board) as unknown as Machineish & LoopRules, board.lanes.length, (rules, choice) => { if (!rules.tap(choice).ok) return false; settleLoop(rules); return true; }, LoopRules.prototype as unknown as Record<'evaluateStatus', () => void>, (rules) => rules.state.lanes.every((queue) => queue.length === 0), (rules) => loopStateKey(rules));
     expect(result.live).toBe(0);
   }, 60_000);
 });

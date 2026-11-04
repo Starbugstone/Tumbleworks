@@ -232,6 +232,86 @@ export const BOARD_54: BoardDef = board('board-54', 'Five in the vice', 16,
 export const BOARD_55: BoardDef = board('board-55', 'Full shelves', 16,
   [trays('red', 'red', 'green'), trays('green', 'yellow', 'orange'), trays('orange', 'red', 'blue')],
   docks(4, 'green', 'yellow', 'red', 'blue', 'red', 'green', 'red', 'blue', 'orange', 'orange', 'red', 'red', 'orange', 'orange', 'green', 'red', 'blue', 'green', 'orange', 'green', 'red', 'red', 'orange', 'green', 'red', 'yellow', 'yellow'));
+/** Small crates of three: one box each, the cheapest pour of all. */
+export const BOARD_56: BoardDef = board('board-56', 'Crates of three', 15,
+  [trays('red', 'blue', 'blue'), [tray('red'), tray('red', SMALL_TRAY), tray('green')], [tray('green', SMALL_TRAY), tray('yellow'), tray('red', SMALL_TRAY)]],
+  docks(3, 'red', 'yellow', 'red', 'yellow', 'red', 'blue', 'green', 'blue', 'green', 'red', 'red', 'yellow', 'red', 'red', 'green', 'blue', 'red', 'blue', 'blue', 'green', 'blue'));
+/** Twelve trays share three docks. */
+export const BOARD_57: BoardDef = board('board-57', 'Twelve on three', 14,
+  [trays('red', 'yellow', 'green'), trays('red', 'blue', 'red'), trays('green', 'red', 'orange'), trays('orange', 'red', 'orange')],
+  docks(3, 'green', 'red', 'blue', 'red', 'red', 'orange', 'red', 'green', 'red', 'orange', 'red', 'blue', 'red', 'green', 'green', 'yellow', 'orange', 'orange', 'red', 'red', 'red', 'orange', 'green', 'orange', 'yellow', 'red', 'yellow', 'red', 'blue', 'red', 'orange', 'red', 'orange', 'red', 'green', 'orange'));
+/** Nine trays, five colours, three docks. */
+export const BOARD_58: BoardDef = board('board-58', 'Nine on three', 20,
+  [trays('yellow', 'orange', 'yellow'), trays('blue', 'yellow', 'green'), trays('blue', 'red', 'red')],
+  docks(3, 'yellow', 'orange', 'red', 'green', 'yellow', 'yellow', 'blue', 'blue', 'orange', 'orange', 'yellow', 'blue', 'blue', 'red', 'red', 'green', 'yellow', 'yellow', 'red', 'yellow', 'blue', 'green', 'red', 'yellow', 'yellow', 'blue', 'red'));
+/** One column four deep. */
+export const BOARD_59: BoardDef = board('board-59', 'A deep column', 15,
+  [trays('red', 'green', 'yellow', 'green'), trays('blue', 'yellow', 'orange'), trays('red', 'red', 'green')],
+  docks(3, 'green', 'blue', 'yellow', 'red', 'red', 'red', 'red', 'green', 'green', 'yellow', 'red', 'blue', 'red', 'yellow', 'orange', 'green', 'orange', 'yellow', 'green', 'red', 'red', 'yellow', 'green', 'green', 'blue', 'green', 'red', 'green', 'yellow', 'orange'));
+/** Crates of six among full ones, with room to spare. */
+export const BOARD_60: BoardDef = board('board-60', 'Short crates again', 14,
+  [[tray('red'), tray('red', SHORT_TRAY), tray('green', SHORT_TRAY)], trays('red', 'yellow', 'yellow'), [tray('blue'), tray('green', SHORT_TRAY), tray('yellow')]],
+  docks(3, 'red', 'green', 'yellow', 'blue', 'yellow', 'red', 'yellow', 'red', 'red', 'yellow', 'red', 'yellow', 'red', 'red', 'yellow', 'yellow', 'green', 'green', 'yellow', 'red', 'yellow', 'green', 'blue', 'blue'));
+/** Black and its three dots, with three familiar colours. */
+export const BOARD_61: BoardDef = board('board-61', 'Black arrives', 16,
+  [trays('black', 'red', 'green'), trays('black', 'yellow', 'green'), trays('red', 'green')],
+  docks(3, 'yellow', 'green', 'yellow', 'yellow', 'red', 'red', 'red', 'green', 'green', 'red', 'red', 'black', 'black', 'black', 'green', 'green', 'black', 'red', 'black', 'green', 'green', 'black', 'green', 'green'));
+/** Four columns of three, four docks. */
+export const BOARD_62: BoardDef = board('board-62', 'Four by three', 15,
+  [trays('green', 'green', 'blue'), trays('red', 'red', 'green'), trays('red', 'red', 'blue'), trays('orange', 'yellow', 'orange')],
+  docks(4, 'yellow', 'red', 'blue', 'green', 'red', 'red', 'green', 'green', 'red', 'orange', 'yellow', 'green', 'green', 'blue', 'orange', 'orange', 'red', 'blue', 'red', 'red', 'red', 'red', 'red', 'green', 'blue', 'green', 'green', 'orange', 'red', 'green', 'orange', 'red', 'orange', 'blue', 'yellow', 'blue'));
+/** Four columns of two, three docks. */
+export const BOARD_63: BoardDef = board('board-63', 'Two by four', 15,
+  [trays('orange', 'blue'), trays('yellow', 'blue'), trays('red', 'green'), trays('green', 'red')],
+  docks(3, 'orange', 'blue', 'green', 'red', 'yellow', 'yellow', 'blue', 'green', 'green', 'red', 'green', 'blue', 'blue', 'orange', 'red', 'yellow', 'orange', 'red', 'blue', 'blue', 'green', 'green', 'red', 'red'));
+/** Nine trays, five colours, a tight belt. */
+export const BOARD_64: BoardDef = board('board-64', 'Nine and five', 20,
+  [trays('yellow', 'yellow', 'orange'), trays('green', 'red', 'red'), trays('yellow', 'green', 'blue')],
+  docks(3, 'red', 'red', 'blue', 'red', 'yellow', 'yellow', 'yellow', 'yellow', 'green', 'green', 'green', 'yellow', 'red', 'yellow', 'blue', 'yellow', 'blue', 'yellow', 'green', 'yellow', 'green', 'orange', 'red', 'orange', 'orange', 'red', 'green'));
+/** Columns of one to three trays. */
+export const BOARD_65: BoardDef = board('board-65', 'Odd heights', 15,
+  [trays('red', 'green', 'yellow'), trays('red'), trays('yellow', 'green'), trays('red', 'blue', 'orange')],
+  docks(4, 'green', 'yellow', 'blue', 'red', 'yellow', 'red', 'yellow', 'red', 'red', 'yellow', 'red', 'orange', 'blue', 'red', 'red', 'orange', 'green', 'green', 'red', 'green', 'red', 'orange', 'yellow', 'yellow', 'green', 'green', 'blue'));
+/** Ten trays in four columns, four docks. */
+export const BOARD_66: BoardDef = board('board-66', 'Ten and four', 15,
+  [trays('red', 'green', 'yellow'), trays('red', 'green', 'orange'), trays('red', 'red'), trays('blue', 'orange')],
+  docks(4, 'red', 'green', 'red', 'red', 'red', 'blue', 'yellow', 'red', 'green', 'green', 'orange', 'orange', 'blue', 'red', 'yellow', 'red', 'orange', 'red', 'green', 'orange', 'orange', 'red', 'blue', 'green', 'orange', 'green', 'red', 'red', 'red', 'yellow'));
+/** Two columns four deep beside a short one. */
+export const BOARD_67: BoardDef = board('board-67', 'Two tall stacks', 18,
+  [trays('orange', 'red', 'yellow', 'yellow'), trays('blue', 'red', 'green', 'red'), trays('green', 'yellow')],
+  docks(3, 'red', 'yellow', 'yellow', 'green', 'yellow', 'red', 'blue', 'blue', 'green', 'yellow', 'red', 'yellow', 'red', 'orange', 'yellow', 'red', 'green', 'orange', 'red', 'red', 'yellow', 'yellow', 'blue', 'orange', 'green', 'yellow', 'green', 'red', 'red', 'green'));
+/** Black with three familiar colours. */
+export const BOARD_68: BoardDef = board('board-68', 'Black and three', 16,
+  [trays('red', 'yellow', 'green'), trays('red', 'red', 'black'), trays('red', 'black')],
+  docks(3, 'black', 'green', 'black', 'red', 'red', 'yellow', 'red', 'red', 'red', 'red', 'red', 'red', 'green', 'yellow', 'red', 'yellow', 'red', 'red', 'green', 'red', 'black', 'black', 'black', 'black'));
+/** Twelve trays, four docks, little belt. */
+export const BOARD_69: BoardDef = board('board-69', 'The grand shelf', 16,
+  [trays('blue', 'blue', 'red'), trays('green', 'red', 'red'), trays('red', 'orange', 'yellow'), trays('green', 'yellow', 'green')],
+  docks(4, 'red', 'red', 'orange', 'red', 'yellow', 'red', 'green', 'red', 'yellow', 'green', 'blue', 'yellow', 'red', 'blue', 'red', 'green', 'red', 'blue', 'blue', 'orange', 'blue', 'yellow', 'blue', 'green', 'red', 'yellow', 'green', 'green', 'green', 'red', 'green', 'red', 'red', 'orange', 'yellow', 'green'));
+/** Black among four colours, crates of every size. */
+export const BOARD_70: BoardDef = board('board-70', 'Black in the mix', 16,
+  [trays('red', 'black', 'red'), trays('orange', 'green', 'black'), [tray('blue'), tray('blue', SHORT_TRAY)], [tray('black', SMALL_TRAY), tray('orange', SHORT_TRAY)]],
+  docks(3, 'black', 'blue', 'black', 'black', 'green', 'red', 'red', 'blue', 'orange', 'blue', 'red', 'orange', 'black', 'green', 'red', 'orange', 'green', 'red', 'blue', 'red', 'orange', 'black', 'black', 'black', 'blue', 'orange'));
+/** Every colour so far on one board. */
+export const BOARD_71: BoardDef = board('board-71', 'Six colours', 21,
+  [trays('red', 'black', 'red'), trays('green', 'yellow', 'red'), trays('blue', 'orange', 'orange')],
+  docks(4, 'orange', 'red', 'black', 'yellow', 'red', 'orange', 'red', 'black', 'blue', 'red', 'green', 'red', 'red', 'red', 'yellow', 'orange', 'orange', 'red', 'green', 'black', 'blue', 'orange', 'orange', 'green', 'yellow', 'blue', 'red'));
+/** A column four deep and three docks. */
+export const BOARD_72: BoardDef = board('board-72', 'Deep and narrow', 16,
+  [trays('blue', 'red', 'blue', 'orange'), trays('yellow', 'red', 'green'), trays('green', 'red', 'orange')],
+  docks(3, 'red', 'yellow', 'blue', 'red', 'green', 'blue', 'red', 'green', 'red', 'red', 'green', 'green', 'red', 'blue', 'blue', 'yellow', 'orange', 'orange', 'orange', 'orange', 'yellow', 'blue', 'green', 'blue', 'orange', 'red', 'red', 'red', 'green', 'orange'));
+/** Mixed crates in four columns. */
+export const BOARD_73: BoardDef = board('board-73', 'Short and full', 14,
+  [trays('blue', 'red', 'blue'), [tray('orange', SHORT_TRAY), tray('yellow')], [tray('red'), tray('green'), tray('green', SHORT_TRAY)], [tray('red', SHORT_TRAY), tray('orange', SHORT_TRAY)]],
+  docks(3, 'red', 'green', 'red', 'red', 'green', 'blue', 'blue', 'blue', 'orange', 'green', 'blue', 'yellow', 'red', 'yellow', 'red', 'orange', 'yellow', 'blue', 'green', 'blue', 'orange', 'red', 'red', 'red', 'green', 'orange'));
+/** Nine trays on a figure eight, black included. */
+export const BOARD_74: BoardDef = { ...board('board-74', 'Black over the bridge', 26,
+  [trays('yellow', 'orange', 'black'), trays('green', 'black', 'yellow'), trays('yellow', 'orange', 'red')],
+  docks(3, 'black', 'red', 'black', 'orange', 'yellow', 'green', 'yellow', 'orange', 'orange', 'red', 'black', 'orange', 'black', 'orange', 'red', 'black', 'orange', 'yellow', 'yellow', 'yellow', 'yellow', 'black', 'yellow', 'yellow', 'green', 'green', 'yellow')), trackShape: 'eight' };
+/** Ten trays and only two docks. */
+export const BOARD_75: BoardDef = board('board-75', 'Two docks, ten trays', 18,
+  [trays('red', 'blue', 'yellow', 'blue'), trays('red', 'blue', 'green'), trays('green', 'green', 'red')],
+  docks(2, 'red', 'green', 'red', 'green', 'red', 'yellow', 'blue', 'blue', 'green', 'blue', 'blue', 'green', 'blue', 'red', 'blue', 'green', 'green', 'green', 'red', 'yellow', 'blue', 'yellow', 'green', 'red', 'red', 'red', 'blue', 'green', 'red', 'blue'));
 // END first stretch
 /** Rule lesson for round 41; bank only. */
 export const BOARD_200: BoardDef = {
@@ -257,4 +337,4 @@ export const BOARD_202: BoardDef = {
   seals: [{"dock": 0, "after": {"dock": 1, "box": 0}}],
 };
 
-export const BOARDS: readonly BoardDef[] = [BOARD_1, BOARD_2, BOARD_3, BOARD_4, BOARD_5, BOARD_6, BOARD_7, BOARD_8, BOARD_9, BOARD_10, BOARD_11, BOARD_12, BOARD_13, BOARD_14, BOARD_15, BOARD_16, BOARD_17, BOARD_18, BOARD_19, BOARD_20, BOARD_21, BOARD_22, BOARD_23, BOARD_24, BOARD_25, BOARD_26, BOARD_27, BOARD_28, BOARD_29, BOARD_30, BOARD_31, BOARD_32, BOARD_33, BOARD_34, BOARD_35, BOARD_36, BOARD_37, BOARD_38, BOARD_39, BOARD_40, BOARD_41, BOARD_42, BOARD_43, BOARD_44, BOARD_46, BOARD_47, BOARD_48, BOARD_49, BOARD_50, BOARD_51, BOARD_52, BOARD_53, BOARD_54, BOARD_55, BOARD_200, BOARD_201, BOARD_202];
+export const BOARDS: readonly BoardDef[] = [BOARD_1, BOARD_2, BOARD_3, BOARD_4, BOARD_5, BOARD_6, BOARD_7, BOARD_8, BOARD_9, BOARD_10, BOARD_11, BOARD_12, BOARD_13, BOARD_14, BOARD_15, BOARD_16, BOARD_17, BOARD_18, BOARD_19, BOARD_20, BOARD_21, BOARD_22, BOARD_23, BOARD_24, BOARD_25, BOARD_26, BOARD_27, BOARD_28, BOARD_29, BOARD_30, BOARD_31, BOARD_32, BOARD_33, BOARD_34, BOARD_35, BOARD_36, BOARD_37, BOARD_38, BOARD_39, BOARD_40, BOARD_41, BOARD_42, BOARD_43, BOARD_44, BOARD_46, BOARD_47, BOARD_48, BOARD_49, BOARD_50, BOARD_51, BOARD_52, BOARD_53, BOARD_54, BOARD_55, BOARD_56, BOARD_57, BOARD_58, BOARD_59, BOARD_60, BOARD_61, BOARD_62, BOARD_63, BOARD_64, BOARD_65, BOARD_66, BOARD_67, BOARD_68, BOARD_69, BOARD_70, BOARD_71, BOARD_72, BOARD_73, BOARD_74, BOARD_75, BOARD_200, BOARD_201, BOARD_202];

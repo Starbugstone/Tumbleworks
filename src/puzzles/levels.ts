@@ -915,6 +915,356 @@ export const TUBE_BOARDS: readonly TubeDef[] = [
       { from: 3, to: 1 }, { from: 4, to: 3 }, { from: 2, to: 4 }, { from: 1, to: 2 },
     ],
   },
+  /** Five colours in tubes of five. */
+  {
+    kind: 'tube', id: 'tube-55', title: 'Five tall', capacity: 5,
+    tubes: [
+      ['orange', 'blue', 'yellow', 'orange', 'green'],
+      ['green', 'green', 'orange', 'red', 'red'],
+      ['blue', 'red', 'orange', 'yellow', 'red'],
+      ['blue', 'orange', 'yellow', 'blue', 'yellow'],
+      ['yellow', 'green', 'green', 'blue', 'red'],
+      [],
+    ],
+    solution: [
+      { from: 1, to: 5 }, { from: 2, to: 5 }, { from: 3, to: 2 }, { from: 4, to: 5 },
+      { from: 4, to: 3 }, { from: 0, to: 4 }, { from: 0, to: 1 }, { from: 2, to: 0 },
+      { from: 1, to: 2 }, { from: 4, to: 1 }, { from: 0, to: 4 }, { from: 3, to: 0 },
+      { from: 3, to: 4 }, { from: 2, to: 3 }, { from: 2, to: 5 }, { from: 0, to: 2 },
+      { from: 3, to: 0 }, { from: 2, to: 3 },
+    ],
+  },
+  /** Four colours, one spare, few moves, many traps. */
+  {
+    kind: 'tube', id: 'tube-56', title: 'Short and sharp', capacity: 4,
+    tubes: [
+      ['yellow', 'red', 'green', 'green'],
+      ['green', 'red', 'blue', 'yellow'],
+      ['red', 'blue', 'yellow', 'blue'],
+      ['blue', 'yellow', 'green', 'red'],
+      [],
+    ],
+    solution: [
+      { from: 0, to: 4 }, { from: 3, to: 0 }, { from: 3, to: 4 }, { from: 1, to: 3 },
+      { from: 2, to: 1 }, { from: 2, to: 3 }, { from: 1, to: 2 }, { from: 0, to: 1 },
+      { from: 3, to: 0 }, { from: 2, to: 3 }, { from: 1, to: 2 }, { from: 1, to: 4 },
+    ],
+  },
+  /** The spare room is spread over part-full tubes. */
+  {
+    kind: 'tube', id: 'tube-57', title: 'Scattered room', capacity: 4,
+    tubes: [
+      ['red', 'yellow', 'yellow', 'green'],
+      ['blue', 'blue', 'yellow', 'green'],
+      ['red', 'red', 'green'],
+      ['blue', 'blue', 'green'],
+      ['yellow', 'red'],
+    ],
+    solution: [
+      { from: 2, to: 3 }, { from: 2, to: 4 }, { from: 0, to: 2 }, { from: 1, to: 2 },
+      { from: 1, to: 0 }, { from: 3, to: 2 }, { from: 1, to: 3 }, { from: 0, to: 1 },
+      { from: 4, to: 0 }, { from: 1, to: 4 },
+    ],
+  },
+  /** Five colours over six part-full tubes. */
+  {
+    kind: 'tube', id: 'tube-58', title: 'Half-full rest', capacity: 4,
+    tubes: [
+      ['orange', 'green', 'red', 'green'],
+      ['red', 'yellow'],
+      ['blue', 'blue', 'blue', 'green'],
+      ['yellow', 'yellow', 'green', 'orange'],
+      ['blue', 'orange', 'orange'],
+      ['yellow', 'red', 'red'],
+    ],
+    solution: [
+      { from: 3, to: 4 }, { from: 0, to: 3 }, { from: 0, to: 5 }, { from: 3, to: 0 },
+      { from: 1, to: 3 }, { from: 5, to: 1 }, { from: 3, to: 5 }, { from: 0, to: 3 },
+      { from: 2, to: 3 }, { from: 4, to: 0 }, { from: 2, to: 4 },
+    ],
+  },
+  /** Black and its three dots, with three familiar colours. */
+  {
+    kind: 'tube', id: 'tube-59', title: 'Black in the tubes', capacity: 4,
+    tubes: [
+      ['black', 'red', 'black', 'blue'],
+      ['blue', 'yellow', 'blue', 'red'],
+      ['yellow', 'blue', 'yellow', 'black'],
+      ['red', 'red', 'yellow', 'black'],
+      [],
+    ],
+    solution: [
+      { from: 2, to: 4 }, { from: 3, to: 4 }, { from: 2, to: 3 }, { from: 0, to: 2 },
+      { from: 0, to: 4 }, { from: 1, to: 0 }, { from: 1, to: 2 }, { from: 3, to: 1 },
+      { from: 0, to: 3 }, { from: 0, to: 4 }, { from: 1, to: 0 }, { from: 2, to: 1 },
+      { from: 0, to: 2 },
+    ],
+  },
+  /** Five colours spread over seven tubes. */
+  {
+    kind: 'tube', id: 'tube-60', title: 'Seven part-full', capacity: 4,
+    tubes: [
+      ['green', 'orange', 'yellow'],
+      ['red', 'orange', 'yellow', 'orange'],
+      ['yellow', 'blue', 'red'],
+      ['blue', 'green'],
+      ['orange', 'blue'],
+      ['green', 'yellow'],
+      ['green', 'blue', 'red', 'red'],
+    ],
+    solution: [
+      { from: 0, to: 5 }, { from: 1, to: 0 }, { from: 1, to: 5 }, { from: 0, to: 1 },
+      { from: 3, to: 0 }, { from: 4, to: 3 }, { from: 1, to: 4 }, { from: 2, to: 1 },
+      { from: 2, to: 3 }, { from: 5, to: 2 }, { from: 0, to: 5 }, { from: 6, to: 1 },
+      { from: 6, to: 3 }, { from: 5, to: 6 },
+    ],
+  },
+  /** Four colours in tubes of five. */
+  {
+    kind: 'tube', id: 'tube-61', title: 'Five-high puzzle', capacity: 5,
+    tubes: [
+      ['yellow', 'red', 'green', 'green', 'blue'],
+      ['yellow', 'green', 'red', 'yellow', 'blue'],
+      ['red', 'blue', 'blue', 'green', 'yellow'],
+      ['green', 'yellow', 'blue', 'red', 'red'],
+      [],
+    ],
+    solution: [
+      { from: 0, to: 4 }, { from: 1, to: 4 }, { from: 2, to: 1 }, { from: 2, to: 0 },
+      { from: 2, to: 4 }, { from: 3, to: 2 }, { from: 3, to: 4 }, { from: 1, to: 3 },
+      { from: 1, to: 2 }, { from: 0, to: 1 }, { from: 0, to: 2 }, { from: 3, to: 0 },
+      { from: 1, to: 3 }, { from: 0, to: 1 },
+    ],
+  },
+  /** Black with three colours, one spare. */
+  {
+    kind: 'tube', id: 'tube-62', title: 'Black and spare', capacity: 4,
+    tubes: [
+      ['black', 'yellow', 'yellow', 'yellow'],
+      ['yellow', 'blue', 'red', 'black'],
+      ['red', 'blue', 'red', 'blue'],
+      ['blue', 'red', 'black', 'black'],
+      [],
+    ],
+    solution: [
+      { from: 0, to: 4 }, { from: 1, to: 0 }, { from: 3, to: 0 }, { from: 1, to: 3 },
+      { from: 2, to: 1 }, { from: 2, to: 3 }, { from: 2, to: 1 }, { from: 3, to: 2 },
+      { from: 1, to: 3 }, { from: 1, to: 4 },
+    ],
+  },
+  /** Black with three colours, a gentle sort. */
+  {
+    kind: 'tube', id: 'tube-63', title: 'Black, gently', capacity: 4,
+    tubes: [
+      ['black', 'blue', 'yellow', 'red'],
+      ['yellow', 'red', 'black', 'yellow'],
+      ['blue', 'black', 'blue', 'yellow'],
+      ['red', 'red', 'blue', 'black'],
+      [],
+    ],
+    solution: [
+      { from: 1, to: 4 }, { from: 2, to: 4 }, { from: 3, to: 1 }, { from: 2, to: 3 },
+      { from: 1, to: 2 }, { from: 0, to: 1 }, { from: 0, to: 4 }, { from: 3, to: 0 },
+      { from: 1, to: 3 }, { from: 1, to: 4 }, { from: 0, to: 1 }, { from: 2, to: 0 },
+      { from: 1, to: 2 },
+    ],
+  },
+  /** Five colours, one spare. */
+  {
+    kind: 'tube', id: 'tube-64', title: 'Five and a spare', capacity: 4,
+    tubes: [
+      ['red', 'red', 'blue', 'blue'],
+      ['green', 'green', 'yellow', 'orange'],
+      ['blue', 'red', 'orange', 'yellow'],
+      ['yellow', 'green', 'green', 'orange'],
+      ['yellow', 'blue', 'orange', 'red'],
+      [],
+    ],
+    solution: [
+      { from: 1, to: 5 }, { from: 2, to: 1 }, { from: 2, to: 5 }, { from: 3, to: 5 },
+      { from: 4, to: 2 }, { from: 4, to: 5 }, { from: 0, to: 4 }, { from: 2, to: 0 },
+      { from: 4, to: 2 }, { from: 1, to: 4 }, { from: 3, to: 1 }, { from: 3, to: 4 },
+    ],
+  },
+  /** Four colours, one spare, most openings lose. */
+  {
+    kind: 'tube', id: 'tube-65', title: 'One wrong move', capacity: 4,
+    tubes: [
+      ['yellow', 'blue', 'blue', 'green'],
+      ['blue', 'red', 'yellow', 'green'],
+      ['green', 'green', 'red', 'blue'],
+      ['yellow', 'red', 'yellow', 'red'],
+      [],
+    ],
+    solution: [
+      { from: 0, to: 4 }, { from: 1, to: 4 }, { from: 2, to: 0 }, { from: 3, to: 2 },
+      { from: 1, to: 3 }, { from: 2, to: 1 }, { from: 2, to: 4 }, { from: 1, to: 2 },
+      { from: 0, to: 1 }, { from: 3, to: 0 }, { from: 3, to: 2 }, { from: 0, to: 3 },
+    ],
+  },
+  /** Five colours in tubes of five. */
+  {
+    kind: 'tube', id: 'tube-66', title: 'Tower of five', capacity: 5,
+    tubes: [
+      ['blue', 'red', 'blue', 'green', 'orange'],
+      ['green', 'green', 'yellow', 'red', 'yellow'],
+      ['orange', 'yellow', 'green', 'blue', 'green'],
+      ['orange', 'yellow', 'orange', 'yellow', 'red'],
+      ['blue', 'blue', 'red', 'orange', 'red'],
+      [],
+    ],
+    solution: [
+      { from: 3, to: 5 }, { from: 1, to: 3 }, { from: 1, to: 5 }, { from: 3, to: 1 },
+      { from: 0, to: 3 }, { from: 2, to: 0 }, { from: 4, to: 5 }, { from: 4, to: 3 },
+      { from: 4, to: 5 }, { from: 2, to: 4 }, { from: 0, to: 2 }, { from: 0, to: 4 },
+      { from: 0, to: 5 }, { from: 0, to: 4 }, { from: 1, to: 0 }, { from: 2, to: 1 },
+      { from: 2, to: 0 }, { from: 3, to: 2 }, { from: 3, to: 0 }, { from: 2, to: 3 },
+    ],
+  },
+  /** Every colour so far, one spare. */
+  {
+    kind: 'tube', id: 'tube-67', title: 'Six colours', capacity: 4,
+    tubes: [
+      ['blue', 'blue', 'black', 'green'],
+      ['green', 'yellow', 'yellow', 'orange'],
+      ['red', 'black', 'blue', 'green'],
+      ['black', 'red', 'black', 'orange'],
+      ['green', 'orange', 'orange', 'yellow'],
+      ['yellow', 'blue', 'red', 'red'],
+      [],
+    ],
+    solution: [
+      { from: 1, to: 6 }, { from: 3, to: 6 }, { from: 4, to: 1 }, { from: 4, to: 6 },
+      { from: 0, to: 4 }, { from: 0, to: 3 }, { from: 2, to: 4 }, { from: 2, to: 0 },
+      { from: 3, to: 2 }, { from: 5, to: 3 }, { from: 5, to: 0 }, { from: 1, to: 5 },
+      { from: 1, to: 4 }, { from: 2, to: 1 }, { from: 3, to: 2 }, { from: 1, to: 3 },
+    ],
+  },
+  /** Four colours, one spare. */
+  {
+    kind: 'tube', id: 'tube-68', title: 'Breathing space', capacity: 4,
+    tubes: [
+      ['red', 'yellow', 'yellow', 'yellow'],
+      ['yellow', 'green', 'blue', 'red'],
+      ['blue', 'green', 'blue', 'green'],
+      ['green', 'blue', 'red', 'red'],
+      [],
+    ],
+    solution: [
+      { from: 0, to: 4 }, { from: 1, to: 0 }, { from: 3, to: 0 }, { from: 1, to: 3 },
+      { from: 2, to: 1 }, { from: 2, to: 3 }, { from: 2, to: 1 }, { from: 3, to: 2 },
+      { from: 1, to: 3 }, { from: 1, to: 4 },
+    ],
+  },
+  /** Five colours in tubes of six. */
+  {
+    kind: 'tube', id: 'tube-69', title: 'Tall and long', capacity: 6,
+    tubes: [
+      ['red', 'orange', 'yellow', 'orange', 'blue', 'green'],
+      ['blue', 'yellow', 'red', 'orange', 'red', 'green'],
+      ['yellow', 'red', 'red', 'blue', 'green', 'blue'],
+      ['yellow', 'green', 'orange', 'orange', 'yellow', 'blue'],
+      ['orange', 'blue', 'yellow', 'green', 'green', 'red'],
+      [],
+    ],
+    solution: [
+      { from: 0, to: 5 }, { from: 1, to: 5 }, { from: 2, to: 0 }, { from: 2, to: 5 },
+      { from: 3, to: 2 }, { from: 4, to: 1 }, { from: 4, to: 5 }, { from: 4, to: 3 },
+      { from: 0, to: 4 }, { from: 2, to: 4 }, { from: 1, to: 2 }, { from: 0, to: 1 },
+      { from: 3, to: 0 }, { from: 1, to: 3 }, { from: 1, to: 2 }, { from: 0, to: 1 },
+      { from: 3, to: 0 }, { from: 3, to: 5 }, { from: 1, to: 3 }, { from: 4, to: 1 },
+      { from: 0, to: 4 }, { from: 2, to: 0 }, { from: 2, to: 3 },
+    ],
+  },
+  /** Six colours over eight part-full tubes. */
+  {
+    kind: 'tube', id: 'tube-70', title: 'Spread across eight', capacity: 4,
+    tubes: [
+      ['black', 'green'],
+      ['black', 'black', 'blue'],
+      ['red', 'red', 'orange'],
+      ['black', 'orange', 'blue'],
+      ['yellow', 'green', 'blue'],
+      ['blue', 'orange', 'green', 'yellow'],
+      ['yellow', 'orange'],
+      ['yellow', 'red', 'green', 'red'],
+    ],
+    solution: [
+      { from: 1, to: 3 }, { from: 2, to: 6 }, { from: 7, to: 2 }, { from: 0, to: 7 },
+      { from: 0, to: 1 }, { from: 7, to: 0 }, { from: 7, to: 2 }, { from: 5, to: 7 },
+      { from: 5, to: 0 }, { from: 5, to: 6 }, { from: 3, to: 5 }, { from: 4, to: 5 },
+      { from: 4, to: 0 }, { from: 4, to: 7 }, { from: 3, to: 4 }, { from: 1, to: 3 },
+      { from: 6, to: 4 }, { from: 6, to: 7 },
+    ],
+  },
+  /** No empty tube, little room. */
+  {
+    kind: 'tube', id: 'tube-71', title: 'Tight spread', capacity: 4,
+    tubes: [
+      ['yellow', 'blue', 'green'],
+      ['red', 'blue', 'red', 'blue'],
+      ['green', 'yellow', 'red', 'yellow'],
+      ['blue', 'yellow', 'green'],
+      ['green', 'red'],
+    ],
+    solution: [
+      { from: 0, to: 3 }, { from: 1, to: 0 }, { from: 1, to: 4 }, { from: 0, to: 1 },
+      { from: 2, to: 0 }, { from: 2, to: 4 }, { from: 2, to: 0 }, { from: 3, to: 2 },
+      { from: 3, to: 0 }, { from: 1, to: 3 }, { from: 4, to: 1 }, { from: 2, to: 4 },
+    ],
+  },
+  /** Three colours in tubes of six. */
+  {
+    kind: 'tube', id: 'tube-72', title: 'Three tall', capacity: 6,
+    tubes: [
+      ['blue', 'green', 'green', 'green', 'blue', 'red'],
+      ['green', 'green', 'green', 'red', 'blue', 'blue'],
+      ['red', 'blue', 'red', 'red', 'blue', 'red'],
+      [],
+    ],
+    solution: [
+      { from: 0, to: 3 }, { from: 2, to: 3 }, { from: 2, to: 0 }, { from: 2, to: 3 },
+      { from: 0, to: 2 }, { from: 1, to: 2 }, { from: 1, to: 3 }, { from: 0, to: 1 },
+      { from: 2, to: 0 }, { from: 2, to: 3 },
+    ],
+  },
+  /** Five colours with black, tubes of five. */
+  {
+    kind: 'tube', id: 'tube-73', title: 'Black and five high', capacity: 5,
+    tubes: [
+      ['red', 'orange', 'orange', 'red', 'yellow'],
+      ['yellow', 'red', 'green', 'black', 'orange'],
+      ['yellow', 'black', 'orange', 'red', 'green'],
+      ['green', 'yellow', 'red', 'green', 'orange'],
+      ['black', 'green', 'black', 'yellow', 'black'],
+      [],
+    ],
+    solution: [
+      { from: 1, to: 5 }, { from: 3, to: 5 }, { from: 2, to: 3 }, { from: 4, to: 1 },
+      { from: 0, to: 4 }, { from: 0, to: 2 }, { from: 0, to: 5 }, { from: 2, to: 0 },
+      { from: 2, to: 5 }, { from: 1, to: 2 }, { from: 3, to: 1 }, { from: 3, to: 0 },
+      { from: 4, to: 3 }, { from: 4, to: 2 }, { from: 1, to: 4 }, { from: 1, to: 0 },
+      { from: 3, to: 1 }, { from: 4, to: 3 }, { from: 2, to: 4 }, { from: 1, to: 2 },
+    ],
+  },
+  /** Five colours, one spare. */
+  {
+    kind: 'tube', id: 'tube-74', title: 'Last of the forty', capacity: 4,
+    tubes: [
+      ['orange', 'orange', 'red', 'blue'],
+      ['green', 'blue', 'orange', 'red'],
+      ['blue', 'red', 'yellow', 'yellow'],
+      ['orange', 'yellow', 'green', 'green'],
+      ['yellow', 'green', 'blue', 'red'],
+      [],
+    ],
+    solution: [
+      { from: 1, to: 5 }, { from: 4, to: 5 }, { from: 0, to: 4 }, { from: 0, to: 5 },
+      { from: 1, to: 0 }, { from: 4, to: 1 }, { from: 3, to: 4 }, { from: 2, to: 3 },
+      { from: 2, to: 5 }, { from: 1, to: 2 }, { from: 4, to: 1 }, { from: 3, to: 4 },
+      { from: 0, to: 3 },
+    ],
+  },
 // END first stretch
   /** Rule lesson in the bank only; see docs/levelling.md. */
   {

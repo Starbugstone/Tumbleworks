@@ -22,9 +22,9 @@ const conveyorDifficulty = (index: number, colors: readonly Color[]): Difficulty
  * keyed to the same board. Every definition stays in its bank until the owner has played and confirmed what retires.
  */
 export const PLAY_ORDER = {
-  conveyor: ['board-1', 'board-31', 'board-32', 'board-40', 'board-41', 'board-42', 'board-43', 'board-44', 'board-17', 'board-46', 'board-2', 'board-47', 'board-48', 'board-49', 'board-50', 'board-51', 'board-52', 'board-53', 'board-54', 'board-55'],
-  loop: ['loop-1', 'loop-2', 'loop-31', 'loop-41', 'loop-42', 'loop-43', 'loop-44', 'loop-45', 'loop-46', 'loop-48', 'loop-39', 'loop-47', 'loop-50', 'loop-51', 'loop-52', 'loop-53', 'loop-54', 'loop-55', 'loop-56', 'loop-57'],
-  tube: ['tube-1', 'tube-31', 'tube-32', 'tube-38', 'tube-39', 'tube-40', 'tube-41', 'tube-42', 'tube-43', 'tube-44', 'tube-37', 'tube-46', 'tube-47', 'tube-48', 'tube-49', 'tube-50', 'tube-51', 'tube-52', 'tube-53', 'tube-54'],
+  conveyor: ['board-1', 'board-31', 'board-32', 'board-40', 'board-41', 'board-42', 'board-43', 'board-44', 'board-17', 'board-46', 'board-2', 'board-47', 'board-48', 'board-49', 'board-50', 'board-51', 'board-52', 'board-53', 'board-54', 'board-55', 'board-56', 'board-57', 'board-58', 'board-59', 'board-60', 'board-61', 'board-62', 'board-63', 'board-64', 'board-65', 'board-66', 'board-67', 'board-68', 'board-69', 'board-70', 'board-71', 'board-72', 'board-73', 'board-74', 'board-75'],
+  loop: ['loop-1', 'loop-2', 'loop-31', 'loop-41', 'loop-42', 'loop-43', 'loop-44', 'loop-45', 'loop-46', 'loop-48', 'loop-39', 'loop-47', 'loop-50', 'loop-51', 'loop-52', 'loop-53', 'loop-54', 'loop-55', 'loop-56', 'loop-57', 'loop-58', 'loop-59', 'loop-60', 'loop-61', 'loop-62', 'loop-63', 'loop-64', 'loop-65', 'loop-66', 'loop-67', 'loop-68', 'loop-69', 'loop-70', 'loop-71', 'loop-72', 'loop-73', 'loop-74', 'loop-75', 'loop-76', 'loop-77'],
+  tube: ['tube-1', 'tube-31', 'tube-32', 'tube-38', 'tube-39', 'tube-40', 'tube-41', 'tube-42', 'tube-43', 'tube-44', 'tube-37', 'tube-46', 'tube-47', 'tube-48', 'tube-49', 'tube-50', 'tube-51', 'tube-52', 'tube-53', 'tube-54', 'tube-55', 'tube-56', 'tube-57', 'tube-58', 'tube-59', 'tube-60', 'tube-61', 'tube-62', 'tube-63', 'tube-64', 'tube-65', 'tube-66', 'tube-67', 'tube-68', 'tube-69', 'tube-70', 'tube-71', 'tube-72', 'tube-73', 'tube-74'],
 } as const;
 /**
  * Development only: `?try=<id>` adds a bank board that is not in the campaign yet after its game's last level and opens it,

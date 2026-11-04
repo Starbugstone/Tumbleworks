@@ -31,10 +31,10 @@ describe('the lorry card layout', () => {
     });
   }
 
-  it('shows every lorry with its numbers on every current level', () => {
+  it('folds lorries on the player’s phone only in lanes four or more deep', () => {
     for (const board of LOOP_BOARDS) {
       const layout = rosterLayout(linesOf(board), phone.width, phone.height);
-      for (const line of linesOf(board)) expect(placeLane(line, layout).foldedFrom, board.id).toBeNull();
+      for (const line of linesOf(board)) if (line.length < 4) expect(placeLane(line, layout).foldedFrom, board.id).toBeNull();
     }
   });
 

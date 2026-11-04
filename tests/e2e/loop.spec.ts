@@ -199,11 +199,11 @@ test('the ivory card pours, a waiting card answers without pouring, and a card m
   expect(moved).toBe(true);
 });
 
-// No campaign level holds enough lorries to fold yet; tests/loop/roster-layout.test.ts covers when they do. Comes back with the later rounds.
-test.fixme('a lorry folded behind a +n tile shows its numbers on one tap', async ({ page }) => {
+// loop-58 has a lane four deep, the first campaign level whose back lorries fold on the player's phone.
+test('a lorry folded behind a +n tile shows its numbers on one tap', async ({ page }) => {
   await openGame(page);
-  await page.setViewportSize({ width: 320, height: 568 });
-  await openLevel(page, loopIndex('loop-29'));
+  await page.setViewportSize({ width: 375, height: 690 });
+  await openLevel(page, loopIndex('loop-58'));
   const tile = page.locator('.lr-fold:not([hidden])').first();
   await expect(tile).toBeVisible();
   const box = (await tile.boundingBox())!;
