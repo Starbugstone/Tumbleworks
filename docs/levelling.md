@@ -158,6 +158,22 @@ What changed in building it:
    lessons, so the assembler enforces it.
 5. **`board-45` was authored and not used**: `board-17` from the old campaign took the round-9 peak.
 
+## Rounds 13 to 20
+
+Registered 4 November 2026: Funnel Sort `board-48` to `board-55`, Loop Sort `loop-50` to `loop-57`, Tube Sort `tube-47` to
+`tube-54`. They come from board families: one structure each (`fam-…` targets in `scripts/level-author.ts`), searched once
+into `output/current/levelling/expansion/candidates/` and judged on the family's own `want` range rather than one slot's
+band. `output/current/levelling/expansion/assemble.ts` (not tracked) then places candidates into a plan's slots so the whole
+campaign from round 1 passes every curve rule, never reuses a board, and never shows an element before its lesson: crates of
+six from Funnel 17, crates of three from Funnel 21, part-full tubes from Tube 16, a lane three deep from Loop 18, black from
+Tube 25, Funnel 26 and Loop 28, six colours from Tube 33, Funnel 36 and Loop 38. `scripts/level-emit.ts` writes the chosen
+boards under fresh IDs with names from a `LEVEL_NAMES` file, migrates their score hash, measures their opening hint, and
+records a Funnel Sort losing order that also jams on the physics machine.
+
+Funnel Sort authoring screens each candidate with twenty machine games per player before sixty, reusing the games played.
+From round 13 cheese is also counted as rewarded when the best fast line wins at least double careful random play plus three
+points (`cheeseRewarded` in `scripts/level-curve.ts`), because on hard boards every random line wins rarely.
+
 ## Retirements, confirmed at n=200
 
 Nothing has been retired on this branch. With the committed players at 200 games each, every Funnel Sort retirement still fails
