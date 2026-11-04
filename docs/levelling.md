@@ -174,6 +174,22 @@ Funnel Sort authoring screens each candidate with twenty machine games per playe
 From round 13 cheese is also counted as rewarded when the best fast line wins at least double careful random play plus three
 points (`cheeseRewarded` in `scripts/level-curve.ts`), because on hard boards every random line wins rarely.
 
+## Rounds 21 to 40
+
+Registered 4 November 2026, completing the first 120 levels: Funnel Sort `board-56` to `board-75`, Loop Sort `loop-58` to
+`loop-77`, Tube Sort `tube-55` to `tube-74`, assembled the same way as rounds 13 to 20. Lessons: crates of three at Funnel
+21, black at Tube 25, Funnel 26 and Loop 28, six colours at Tube 33, Funnel 36 and Loop 38. Peaks are staggered: Funnel at
+24, 29, 34 and 39, Loop at 25, 30, 35 and 40, Tube at 22, 27, 32 and 37. Ordinary S climbs from about 50 at round 21 to
+about 60 to 68 at round 40; peaks reach 73.
+
+The assembler now places each slot in turn with the candidate that leaves the fewest curve breaches, never reusing a board.
+A family keeps one capacity per seed, since the others are nearly the same board. The structure label counts crates of three
+apart from crates of six.
+
+Lanes four deep first appear here (`loop-58`, `loop-59`, `loop-66`, `loop-76`): on the player's phone their back lorries fold
+behind a `+n` tile, which a tap opens. `tests/loop/roster-layout.test.ts` allows folds only in lanes four or more deep, and
+`tests/e2e/loop.spec.ts` opens the tile on `loop-58` at 375x690.
+
 ## Retirements, confirmed at n=200
 
 Nothing has been retired on this branch. With the committed players at 200 games each, every Funnel Sort retirement still fails
