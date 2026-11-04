@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { CAMPAIGN } from '../../src/campaign';
 import { LOOP_BOARDS } from '../../src/loop/boards';
+import { placeLane, rosterLayout } from '../../src/loop/roster-layout';
 import { LOOP_JAMS, LOOP_WITNESSES } from '../witnesses';
 import type { App } from '../../src/view/App';
 type GameWindow = Window & { tumbleworks: { app: App } };
@@ -55,6 +56,14 @@ const QUEUED_LEVEL = 'loop-42';
 /** Its losing order fills the loop with a pour still waiting, so the tailboard shows the pause. */
 const FULL_LOOP_LEVEL = 'loop-39';
 const loopIndex = (id: string): number => CAMPAIGN.findIndex((level) => level.id === id);
+/** Card content per lorry as the layout counts it: its stretches, plus one when it has free room. */
+const linesOf = (board: (typeof LOOP_BOARDS)[number]): number[][] => board.lanes.map((line) => line.map((truck) => truck.segments.length + (truck.segments.reduce((sum, segment) => sum + segment.count, 0) < (truck.capacity ?? board.truckCapacity) ? 1 : 0)));
+/** Lorries that fold behind the +n tile at a size: lanes four or more deep, on the player's phone. */
+const foldedAt = (board: (typeof LOOP_BOARDS)[number], width: number, height: number): number[] => {
+  const lines = linesOf(board);
+  const layout = rosterLayout(lines, width, height);
+  return lines.map((line) => { const from = placeLane(line, layout).foldedFrom; return from === null ? 0 : line.length - from; });
+};
 /** The Loop Sort levels in the campaign; a level outside it has no chip to open. */
 const CAMPAIGN_LOOPS = LOOP_BOARDS.filter((board) => loopIndex(board.id) >= 0);
 interface QueueBound { lane: number; slot: number; visible: boolean; left: number; right: number; top: number; bottom: number }
@@ -77,7 +86,9 @@ test('at the player\'s phone size every number on every lorry on every level is 
   for (const board of CAMPAIGN_LOOPS) {
     await openLevel(page, loopIndex(board.id));
     const seen = await page.evaluate(() => { const state = (window as unknown as GameWindow).tumbleworks.app.debugState() as unknown as { printedNumbers: { font: number; clipped: boolean; text: string; lane: number }[]; dockedCardHeight: number }; return { numbers: state.printedNumbers, height: state.dockedCardHeight, words: [...document.querySelectorAll('.lr')].map((el) => el.textContent ?? '').join('').replace(/[0-9%+\s]/g, '') }; });
-    const stretches = board.lanes.flat().reduce((sum, truck) => sum + truck.segments.length, 0);
+    // Lorries folded behind the +n tile print their numbers when the tile opens, not on the cards.
+    const folded = foldedAt(board, 375, 690);
+    const stretches = board.lanes.reduce((sum, line, lane) => sum + line.slice(0, line.length - folded[lane]!).reduce((inner, truck) => inner + truck.segments.length, 0), 0);
     expect(seen.numbers.length, board.id).toBeGreaterThanOrEqual(stretches);
     expect(seen.words, `${board.id} prints no words`).toBe('');
     expect(seen.height, board.id).toBeGreaterThanOrEqual(40);
@@ -107,7 +118,7 @@ test('every Loop Sort level keeps its lorry cards on screen and clear of the con
       const where = `${board.id} at ${viewport.width}x${viewport.height}`;
       expect(seen.queues, where).toEqual(board.lanes.map((line) => line.length - 1));
       expect(seen.bounds.length + seen.folded, where).toBe(board.lanes.reduce((sum, line) => sum + line.length - 1, 0));
-      if (viewport.width === 375) expect(seen.folded, where).toBe(0);
+      if (viewport.width === 375) expect(seen.folded, where).toBe(foldedAt(board, 375, 690).reduce((sum, count) => sum + count, 0));
       for (const bound of seen.bounds) {
         const name = `${where}, lane ${bound.lane} place ${bound.slot}`;
         expect(bound.visible, name).toBe(true);

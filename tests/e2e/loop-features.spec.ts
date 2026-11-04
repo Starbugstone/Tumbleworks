@@ -42,12 +42,12 @@ for (const id of [200, 201, 202]) test(`Loop Sort feature ${id}: phone input, un
     await tap(page, 'lane0');
     await expect(page.locator('#message')).toContainText('Terminez d’abord');
   } else if (id === 201) {
-    await expect(page.locator('.lr-card.now[data-lane="0"] .lr-number').first()).toContainText('67');
+    await expect(page.locator('.lr-card.now:not(.leaving)[data-lane="0"] .lr-number').first()).toContainText('67');
     await tap(page, 'lane0'); await advance(page, 180);
     await tap(page, 'lane0'); await advance(page, 360);
-    await expect(page.locator('.lr-card.now[data-lane="0"]')).toHaveAttribute('data-truck', '1');
+    await expect(page.locator('.lr-card.now:not(.leaving)[data-lane="0"]')).toHaveAttribute('data-truck', '1');
     await tap(page, 'undo');
-    await expect(page.locator('.lr-card.now[data-lane="0"]')).toHaveAttribute('data-truck', '0');
+    await expect(page.locator('.lr-card.now:not(.leaving)[data-lane="0"]')).toHaveAttribute('data-truck', '0');
   } else {
     await tap(page, 'hint');
     await expect(page.locator('#message')).toContainText('trucks 1 and 2');
