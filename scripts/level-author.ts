@@ -104,6 +104,12 @@ export const FUNNEL_TARGETS: readonly FunnelTarget[] = [
   { id: 'fam-f25c', want: [44, 78], round: 31, slot: 'ordinary', title: 'The wide crossing', fr: 'La grande traversée', note: 'Nine trays over the wide eight, two docks.', colors: 5, columns: [3, 3, 3], docks: 2, slack: [0, 1, 2, 3], shape: 'wide-eight' },
   { id: 'fam-f25d', want: [44, 78], round: 31, slot: 'ordinary', title: 'Black in the mix', fr: 'Du noir dans le lot', note: 'Black among four other colours, crates of all sizes.', colors: 5, palette: ['black', 'red', 'blue', 'green', 'orange'], columns: [3, 3, 2, 2], docks: 3, slack: [0, 1, 2], shorts: 2, smalls: 1 },
   { id: 'fam-f25e', want: [44, 78], round: 31, slot: 'ordinary', title: 'Eight with black', fr: 'Un huit avec du noir', note: 'Ten trays on a figure eight, black included.', colors: 5, palette: ['black', 'blue', 'green', 'yellow', 'orange'], columns: [3, 3, 2, 2], docks: 3, slack: [0, 1, 2, 3], shape: 'eight' },
+  // More families for rounds 31-40, for variety: longer and wider shelves, two-dock boards and black outside its lesson.
+  { id: 'fam-f31a', want: [48, 78], round: 31, slot: 'ordinary', title: 'Twelve on three', fr: 'Douze sur trois', note: 'Twelve trays, three docks.', colors: 5, columns: [3, 3, 3, 3], docks: 3, slack: [0, 1, 2] },
+  { id: 'fam-f31b', want: [48, 78], round: 31, slot: 'ordinary', title: 'Two tall stacks', fr: 'Deux hautes piles', note: 'Two columns four deep beside a short one.', colors: 5, columns: [4, 4, 2], docks: 3, slack: [0, 1, 2] },
+  { id: 'fam-f31c', want: [48, 78], round: 31, slot: 'ordinary', title: 'Black over the bridge', fr: 'Du noir sur le pont', note: 'Nine trays on a figure eight, black included.', colors: 5, palette: ['black', 'red', 'green', 'yellow', 'orange'], columns: [3, 3, 3], docks: 3, slack: [0, 1, 2, 3], shape: 'eight' },
+  { id: 'fam-f31d', want: [48, 78], round: 31, slot: 'ordinary', title: 'Every size, wide', fr: 'Toutes tailles, au large', note: 'Crates of three, six and nine over the wide crossing.', colors: 5, columns: [3, 3, 2, 2], docks: 3, slack: [0, 1, 2, 3], shorts: 2, smalls: 2, shape: 'wide-eight' },
+  { id: 'fam-f31e', want: [48, 78], round: 31, slot: 'ordinary', title: 'Two docks, ten trays', fr: 'Deux quais, dix plateaux', note: 'Ten trays and only two docks.', colors: 4, columns: [4, 3, 3], docks: 2, slack: [0, 1, 2] },
 ];
 export const LOOP_TARGETS: readonly LoopTarget[] = [
   { id: 'loop-200', round: 43, slot: 'lesson', title: 'Open the latch', fr: 'Ouvrir le verrou', note: 'A receiving latch opened by the red cab.', colors: 3, lanes: [2, 1, 1], segments: 3, ringMin: 0, ringMax: 20, feature: 'latch', latch: ['0:0', '1:0'] },
@@ -142,6 +148,10 @@ export const LOOP_TARGETS: readonly LoopTarget[] = [
   { id: 'fam-l25b', want: [44, 78], round: 31, slot: 'ordinary', title: 'Three deep everywhere', fr: 'Trois partout', note: 'Three lanes, three trucks each.', colors: 4, lanes: [3, 3, 3], segments: 3, ringMin: 2, ringMax: 12 },
   { id: 'fam-l25c', want: [44, 78], round: 31, slot: 'ordinary', title: 'Black on a busy loop', fr: 'Du noir sur un anneau chargé', note: 'Black among four colours, the loop already busy.', colors: 5, palette: ['black', 'red', 'blue', 'yellow', 'orange'], lanes: [2, 2, 2, 1], segments: 3, ringMin: 13, ringMax: 24 },
   { id: 'fam-l25d', want: [44, 78], round: 31, slot: 'ordinary', title: 'Two long lanes', fr: 'Deux longues files', note: 'Two lanes of four trucks.', colors: 5, lanes: [4, 4], segments: 3, ringMin: 0, ringMax: 12 },
+  { id: 'fam-l31a', want: [48, 78], round: 31, slot: 'ordinary', title: 'Nine trucks', fr: 'Neuf camions', note: 'Three lanes of three.', colors: 5, lanes: [3, 3, 3], segments: 3, ringMin: 2, ringMax: 12 },
+  { id: 'fam-l31b', want: [48, 78], round: 31, slot: 'ordinary', title: 'Empty loop, ten trucks', fr: 'Anneau vide, dix camions', note: 'Ten trucks and nothing on the loop to start.', colors: 5, lanes: [3, 3, 2, 2], segments: 3, ringMin: 0, ringMax: 0 },
+  { id: 'fam-l31c', want: [48, 78], round: 31, slot: 'ordinary', title: 'Black in four lanes', fr: 'Du noir sur quatre files', note: 'Black among four colours, four full lanes.', colors: 5, palette: ['black', 'red', 'green', 'yellow', 'orange'], lanes: [2, 2, 2, 2], segments: 3, ringMin: 2, ringMax: 12 },
+  { id: 'fam-l31d', want: [48, 78], round: 31, slot: 'ordinary', title: 'One long lane', fr: 'Une longue file', note: 'A lane four deep beside two shorter ones.', colors: 5, lanes: [4, 3, 2], segments: 3, ringMin: 2, ringMax: 12 },
 ];
 export const TUBE_TARGETS: readonly TubeTarget[] = [
   { id: 'tube-31', round: 2, slot: 'ordinary', title: 'Short shuffle', fr: 'Petit mélange', note: 'A few moves with two spares.', colors: 3, capacity: 4, empties: 2, moves: [5, 6] },
@@ -268,6 +278,8 @@ async function funnelCandidate(target: FunnelTarget, seed: number): Promise<numb
     if (violations.length) { say(`gates: ${violations.join('; ')}`, { F1: scored.row.F1, S: scored.row.S, ...wins() }); continue; }
     say('accepted', { F1: scored.row.F1, S: scored.row.S, ...wins(), scored });
     accepted += 1;
+    // A family keeps one capacity per seed: the others are nearly the same board and cost a full scoring each.
+    if (target.id.startsWith('fam-')) break;
   }
   return accepted;
 }
@@ -332,6 +344,8 @@ function loopCandidate(target: LoopTarget, seed: number): number {
     if (violations.length) { say(`gates: ${violations.join('; ')}`, figures); continue; }
     say('accepted', { ...figures, F1: scored.row.F1, FM: scored.row.FM, S: scored.row.S, FMmixed: 100 * (1 - scored.row.wins['mixed']!.win), scored });
     accepted += 1;
+    // A family keeps one capacity per seed: the others are nearly the same board and cost a full scoring each.
+    if (target.id.startsWith('fam-')) break;
   }
   return accepted;
 }

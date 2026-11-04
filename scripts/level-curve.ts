@@ -143,7 +143,9 @@ export function signatureOf(board: { readonly supplies?: readonly (readonly { re
   if (board.supplies) {
     const trays = board.supplies.flat();
     const colors = new Set((trays as readonly { readonly color?: string }[]).map((tray) => tray.color)).size;
-    return `c${colors} [${sorted(board.supplies.map((column) => column.length))}] sh${trays.filter((tray) => tray.count < 9).length} d${board.docks?.length} ${shape}`;
+    // Crates of three teach something other than crates of six, so they count apart; boards without them keep their label.
+    const smalls = trays.filter((tray) => tray.count <= 3).length;
+    return `c${colors} [${sorted(board.supplies.map((column) => column.length))}] sh${trays.filter((tray) => tray.count < 9 && tray.count > 3).length}${smalls ? ` sm${smalls}` : ''} d${board.docks?.length} ${shape}`;
   }
   if (board.lanes) {
     const colors = new Set(board.lanes.flat().flatMap((truck) => truck.segments.map((segment) => segment.color))).size;
