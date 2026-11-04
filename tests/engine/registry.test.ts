@@ -51,12 +51,14 @@ function syntheticLevel(kind: string, id: string): GameLevel {
 }
 
 describe('gameplay registry', () => {
-  it('registers the first stretch in play order, one level per game per round', () => {
-    const rounds = 12;
+  it('registers the campaign in play order, one level per game per round', () => {
+    const rounds = PLAY_ORDER.conveyor.length;
+    expect(PLAY_ORDER.loop).toHaveLength(rounds);
+    expect(PLAY_ORDER.tube).toHaveLength(rounds);
     const expected: string[] = [];
     for (let round = 0; round < rounds; round++) expected.push(PLAY_ORDER.conveyor[round]!, PLAY_ORDER.loop[round]!, PLAY_ORDER.tube[round]!);
     expect(CAMPAIGN.map((level) => level.id)).toEqual(expected);
-    expect(CAMPAIGN).toHaveLength(36);
+    expect(CAMPAIGN).toHaveLength(3 * rounds);
     expect(CAMPAIGN.slice(0, 6).map((level) => level.id)).toEqual(['board-1', 'loop-1', 'tube-1', 'board-31', 'loop-2', 'tube-31']);
     expect([...new Set(CAMPAIGN.map((level) => level.kind))]).toEqual(['conveyor', 'loop', 'tube']);
   });

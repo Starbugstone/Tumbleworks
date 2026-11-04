@@ -83,7 +83,10 @@ export class ConveyorRuntime implements GameRuntime {
       const at = this.machine.frontCrate(action);
       if (!at) return [];
       const color = this.machine.rules.packet(action)?.color;
-      return [[`supply${action}`, { ...this.view.toScreen(at.x, at.y + 0.4, at.z), label: color ? marbleName(color) : '' }]];
+      const name = color ? marbleName(color) : '';
+      // Screen readers and keyboards name the column on classic boards and the crate where crates have their own actions.
+      const label = this.machine.rules.crateActions ? t(`Crate ${action + 1}: ${name}`, `Caisse ${action + 1} : ${name}`) : t(`Column ${action + 1}: ${name}`, `Colonne ${action + 1} : ${name}`);
+      return [[`supply${action}`, { ...this.view.toScreen(at.x, at.y + 0.4, at.z), label }]];
     }));
   }
 

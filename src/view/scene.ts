@@ -485,9 +485,10 @@ export class MachineScene {
       while (group && group.userData['action'] === undefined) group = group.parent;
       const action: unknown = group?.userData['action'];
       const crateId: unknown = group?.userData['crateId'];
-      // Waiting crates have real surfaces too. A classic column must not release its front when its rear was tapped.
-      if (typeof action === 'number' && (this.machine?.rules.crateActions || this.machine?.rules.packet(action)?.id === crateId)) return action;
-      return null;
+      // A classic column pours its front crate wherever on the column it is tapped, as before, so a quick second tap on
+      // the crate sliding forward still lands; shelves and pairs map each crate to its own action.
+      void crateId;
+      return typeof action === 'number' ? action : null;
     }
     // A small extension around the front rim gives the visible piece a comfortable touch floor.
     const hit = this.raycaster.intersectObjects(this.hitTargets.filter((target) => target.visible), false)[0];

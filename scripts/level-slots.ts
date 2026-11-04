@@ -8,4 +8,7 @@ export const SLOTS: Readonly<Record<string, Slot>> = {
   'loop-44': 'lesson', 'loop-45': 'ordinary', 'loop-46': 'ordinary', 'loop-48': 'peak', 'loop-39': 'relief', 'loop-47': 'relief',
   'tube-1': 'tutorial', 'tube-31': 'ordinary', 'tube-32': 'ordinary', 'tube-38': 'lesson', 'tube-39': 'ordinary', 'tube-40': 'lesson',
   'tube-41': 'peak', 'tube-42': 'ordinary', 'tube-43': 'lesson', 'tube-44': 'lesson', 'tube-37': 'relief', 'tube-46': 'peak',
+  'board-48': 'ordinary', 'board-49': 'peak', 'board-50': 'ordinary', 'board-51': 'relief', 'board-52': 'lesson', 'board-53': 'ordinary', 'board-54': 'peak', 'board-55': 'ordinary',
+  'loop-50': 'ordinary', 'loop-51': 'ordinary', 'loop-52': 'peak', 'loop-53': 'ordinary', 'loop-54': 'relief', 'loop-55': 'lesson', 'loop-56': 'ordinary', 'loop-57': 'peak',
+  'tube-47': 'ordinary', 'tube-48': 'relief', 'tube-49': 'ordinary', 'tube-50': 'lesson', 'tube-51': 'peak', 'tube-52': 'ordinary', 'tube-53': 'relief', 'tube-54': 'ordinary',
 };

@@ -199,6 +199,38 @@ export const LOOP_47: LoopBoardDef = board('loop-47', 'Two stretches each', 20,
 export const LOOP_48: LoopBoardDef = board('loop-48', 'Rush hour', 26,
   [[truck(seg('yellow', 2), seg('red', 12), seg('blue', 10)), truck(seg('orange', 20), seg('red', 4))], [truck(seg('red', 10), seg('blue', 2), seg('red', 10)), truck(seg('green', 6), seg('red', 6), seg('orange', 4))], [truck(seg('green', 2), seg('yellow', 22)), truck(seg('green', 10), seg('red', 4), seg('green', 10))], [truck(seg('green', 6), seg('red', 2), seg('green', 14))]],
   ring(seg('blue', 12)));
+/** Eight trucks in four lanes. */
+export const LOOP_50: LoopBoardDef = board('loop-50', 'Four full lanes', 24,
+  [[truck(seg('blue', 2), seg('red', 2), seg('blue', 20)), truck(seg('orange', 6), seg('red', 18))], [truck(seg('yellow', 8), seg('green', 8)), truck(seg('blue', 2), seg('red', 2), seg('orange', 18))], [truck(seg('yellow', 6), seg('orange', 2), seg('yellow', 16)), truck(seg('green', 8), seg('red', 16))], [truck(seg('yellow', 8), seg('orange', 6), seg('yellow', 10)), truck(seg('red', 10), seg('orange', 12))]],
+  ring(seg('orange', 4), seg('green', 8)));
+/** Seven trucks in four lanes. */
+export const LOOP_51: LoopBoardDef = board('loop-51', 'Side by side', 26,
+  [[truck(seg('red', 12), seg('yellow', 12)), truck(seg('blue', 8), seg('green', 16))], [truck(seg('green', 8), seg('red', 16)), truck(seg('green', 14), seg('blue', 10))], [truck(seg('red', 8), seg('blue', 6), seg('red', 10)), truck(seg('red', 22), seg('green', 2))], [truck(seg('red', 2), seg('green', 8), seg('red', 2))]],
+  ring(seg('yellow', 12)));
+/** Four lanes and nothing on the loop yet. */
+export const LOOP_52: LoopBoardDef = board('loop-52', 'Empty road, full plan', 38,
+  [[truck(seg('blue', 4), seg('red', 18), seg('orange', 2)), truck(seg('red', 22), seg('blue', 2))], [truck(seg('red', 4), seg('blue', 18), seg('red', 2)), truck(seg('orange', 8), seg('yellow', 14), seg('red', 2))], [truck(seg('orange', 12), seg('green', 2), seg('yellow', 10))], [truck(seg('green', 12), seg('orange', 2), seg('green', 10))]],
+  ring());
+/** Seven trucks, five colours. */
+export const LOOP_53: LoopBoardDef = board('loop-53', 'Evening traffic', 30,
+  [[truck(seg('blue', 2), seg('green', 8), seg('red', 14)), truck(seg('red', 8), seg('orange', 16))], [truck(seg('orange', 4), seg('red', 10), seg('yellow', 6)), truck(seg('orange', 6), seg('red', 14))], [truck(seg('green', 14), seg('yellow', 6), seg('green', 2)), truck(seg('orange', 8), seg('blue', 16))], [truck(seg('blue', 6), seg('red', 2), seg('orange', 14))]],
+  ring(seg('yellow', 12)));
+/** Three lanes again, with a little room. */
+export const LOOP_54: LoopBoardDef = board('loop-54', 'After the rush', 36,
+  [[truck(seg('green', 4), seg('blue', 4), seg('green', 16)), truck(seg('yellow', 18), seg('blue', 6))], [truck(seg('blue', 2), seg('green', 2), seg('red', 20)), truck(seg('green', 2), seg('blue', 10), seg('yellow', 6))], [truck(seg('green', 2), seg('blue', 2), seg('green', 20)), truck(seg('green', 2), seg('red', 18))]],
+  ring(seg('red', 10)));
+/** Two lanes, three trucks in each. */
+export const LOOP_55: LoopBoardDef = board('loop-55', 'Three deep', 24,
+  [[truck(seg('yellow', 4), seg('red', 8), seg('green', 4)), truck(seg('blue', 20), seg('red', 4)), truck(seg('blue', 22), seg('red', 2))], [truck(seg('yellow', 8), seg('red', 4), seg('yellow', 12)), truck(seg('green', 20), seg('blue', 4)), truck(seg('red', 22), seg('blue', 2))]],
+  ring(seg('red', 8)));
+/** Three lanes, two of them three deep. */
+export const LOOP_56: LoopBoardDef = board('loop-56', 'Eight trucks', 22,
+  [[truck(seg('red', 6), seg('green', 2), seg('blue', 16)), truck(seg('yellow', 6), seg('orange', 18)), truck(seg('green', 6), seg('yellow', 2), seg('red', 16))], [truck(seg('orange', 2), seg('red', 8), seg('green', 10)), truck(seg('yellow', 16)), truck(seg('blue', 4), seg('yellow', 20))], [truck(seg('orange', 4), seg('green', 2), seg('red', 18)), truck(seg('yellow', 4), seg('blue', 20))]],
+  ring(seg('green', 4), seg('blue', 8)));
+/** Four lanes, four colours, little room. */
+export const LOOP_57: LoopBoardDef = board('loop-57', 'Gridlock', 34,
+  [[truck(seg('blue', 4), seg('red', 10), seg('blue', 8)), truck(seg('green', 8), seg('blue', 8), seg('red', 8))], [truck(seg('red', 4), seg('blue', 8), seg('yellow', 12)), truck(seg('blue', 4), seg('red', 20))], [truck(seg('red', 6), seg('blue', 2), seg('green', 16)), truck(seg('green', 10), seg('blue', 4))], [truck(seg('green', 10), seg('blue', 10), seg('green', 4))]],
+  ring(seg('yellow', 12)));
 // END first stretch
 /** Rule lessons in the bank only; campaign placement is a separate decision. */
 export const LOOP_200: LoopBoardDef = board('loop-200', 'Open the latch', 28,
@@ -212,4 +244,4 @@ export const LOOP_202: LoopBoardDef = { ...board('loop-202', 'Unload together', 
     [truck(seg('red', 8), seg('blue', 4), seg('red', 8))], [truck(seg('green', 8), seg('red', 8), seg('blue', 8))]], ring(seg('red', 8))),
   couplings: [['0:0', '1:0']] };
 
-export const LOOP_BOARDS: readonly LoopBoardDef[] = [LOOP_1, LOOP_2, LOOP_3, LOOP_4, LOOP_5, LOOP_6, LOOP_7, LOOP_8, LOOP_9, LOOP_10, LOOP_11, LOOP_12, LOOP_13, LOOP_14, LOOP_15, LOOP_16, LOOP_17, LOOP_18, LOOP_19, LOOP_20, LOOP_21, LOOP_22, LOOP_23, LOOP_24, LOOP_25, LOOP_26, LOOP_27, LOOP_28, LOOP_29, LOOP_30, LOOP_31, LOOP_32, LOOP_33, LOOP_34, LOOP_35, LOOP_36, LOOP_37, LOOP_38, LOOP_39, LOOP_40, LOOP_41, LOOP_42, LOOP_43, LOOP_44, LOOP_45, LOOP_46, LOOP_47, LOOP_48, LOOP_200, LOOP_201, LOOP_202];
+export const LOOP_BOARDS: readonly LoopBoardDef[] = [LOOP_1, LOOP_2, LOOP_3, LOOP_4, LOOP_5, LOOP_6, LOOP_7, LOOP_8, LOOP_9, LOOP_10, LOOP_11, LOOP_12, LOOP_13, LOOP_14, LOOP_15, LOOP_16, LOOP_17, LOOP_18, LOOP_19, LOOP_20, LOOP_21, LOOP_22, LOOP_23, LOOP_24, LOOP_25, LOOP_26, LOOP_27, LOOP_28, LOOP_29, LOOP_30, LOOP_31, LOOP_32, LOOP_33, LOOP_34, LOOP_35, LOOP_36, LOOP_37, LOOP_38, LOOP_39, LOOP_40, LOOP_41, LOOP_42, LOOP_43, LOOP_44, LOOP_45, LOOP_46, LOOP_47, LOOP_48, LOOP_50, LOOP_51, LOOP_52, LOOP_53, LOOP_54, LOOP_55, LOOP_56, LOOP_57, LOOP_200, LOOP_201, LOOP_202];

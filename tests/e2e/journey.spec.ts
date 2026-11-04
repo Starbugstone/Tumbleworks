@@ -116,7 +116,12 @@ test.describe('the whole campaign completes through real touch input', () => {
         await expect(page.locator('#card')).toBeVisible();
         if (index < CAMPAIGN.length - 1) await page.getByRole('button', { name: 'Next level', exact: true }).click();
       }
-      if (last === CAMPAIGN.length) await expect(page.locator('#card-title')).toHaveText('Workshop complete!');
+      if (last === CAMPAIGN.length && first === 0) await expect(page.locator('#card-title')).toHaveText('Workshop complete!');
+      if (last === CAMPAIGN.length && first > 0) {
+        // Only this slice's levels are finished in this browser, so Next wraps round to the first unfinished level.
+        await page.getByRole('button', { name: 'Next level', exact: true }).click();
+        await expect.poll(async () => (await state(page)).levelIndex).toBe(0);
+      }
       await page.reload();
       await ready(page);
       await page.locator('#levels-toggle').click();
@@ -185,7 +190,8 @@ test('hints explain current board actions without playing them; restart resets t
 });
 
 test('desktop and narrow-phone boards keep targets and controls inside the viewport', async ({ page }) => {
-  test.setTimeout(900_000);
+  // Two viewports, every level: about half a minute a level on the software renderer.
+  test.setTimeout(120_000 + 30_000 * CAMPAIGN.length);
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/');

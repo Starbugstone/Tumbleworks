@@ -62,6 +62,7 @@ const accepted = (id: string, seed: number, capacity?: number): ScoredFile => {
   return line.scored;
 };
 
+const NAMES: Record<string, { title: string; fr: string; note: string }> = process.env['LEVEL_NAMES'] ? JSON.parse(readFileSync(process.env['LEVEL_NAMES'], 'utf8')) : {};
 const funnel: { name: string; code: string }[] = [];
 const loop: { name: string; code: string }[] = [];
 const tube: string[] = [];
@@ -83,15 +84,48 @@ function openingHintStates(scored: ScoredFile): number {
   const board = scored.board as TubeDef;
   return solveTubeSearch(board, new TubeRules(board).state).states;
 }
-const { search: searchFunnel } = await import('./funnel-author');
+const { search: searchFunnel, play: playSettled, playMachine: playFunnelMachine } = await import('./funnel-author');
+/**
+ * The recorded losing order must also jam on the physics machine, where tests/machine/machine.test.ts replays it: the
+ * settled search's jam can drain there when the pile mixes. Try it first, then complete orders that jam settled.
+ */
+async function machineJam(board: BoardDef, settledJam: string | null): Promise<string | null> {
+  if (settledJam && (await playFunnelMachine(board, settledJam)).status === 'jammed') return settledJam;
+  if (board.pairs?.length || board.predecessors) return settledJam;
+  const orders: string[] = [];
+  const walk = (left: number[], prefix: string): void => {
+    if (left.every((count) => count === 0)) { orders.push(prefix); return; }
+    left.forEach((count, column) => { if (count > 0) { const next = [...left]; next[column]! -= 1; walk(next, prefix + String.fromCharCode(65 + column)); } });
+  };
+  walk(board.supplies.map((queue) => queue.length), '');
+  let tried = 0;
+  // The stored order stops where the rules jam (tests/rules/rules.test.ts releases every tap), so try that prefix.
+  const jamPrefix = (order: string): string | null => {
+    for (let length = 1; length <= order.length; length++) {
+      if (playSettled(board, [...order.slice(0, length)].map((letter) => letter.charCodeAt(0) - 65)) === 'jammed') return order.slice(0, length);
+    }
+    return null;
+  };
+  const seen = new Set<string>();
+  for (const order of orders) {
+    const prefix = jamPrefix(order);
+    if (!prefix || seen.has(prefix)) continue;
+    seen.add(prefix);
+    if ((await playFunnelMachine(board, prefix)).status === 'jammed') return prefix;
+    if (++tried >= 60) break;
+  }
+  console.warn(`${board.id}: no losing order jams on the machine within ${tried} tries`);
+  return settledJam;
+}
 const { search: searchLoop } = await import('./loop-author');
 const { solveTubeSearch, TubeRules } = await import('../src/puzzles/rules');
 for (const choice of process.argv.slice(2)) {
   const [rename, source = ''] = choice.includes('=') ? choice.split('=') : [undefined, choice];
   const [from = '', seed, capacity] = source.split(':');
   const id = rename ?? from;
-  const target = ALL_TARGETS.find((candidate) => candidate.id === id);
-  if (!target) throw new Error(`No target ${id}`);
+  // A placed level's name comes from its own target, or from the LEVEL_NAMES file the assembler's plan writes.
+  const target = ALL_TARGETS.find((candidate) => candidate.id === id) ?? (NAMES[id] ? { id, ...NAMES[id] } : undefined);
+  if (!target) throw new Error(`No target or name for ${id}`);
   let scored: ScoredFile = seed ? accepted(from, Number(seed), capacity ? Number(capacity) : undefined) : JSON.parse(readFileSync(`${SCORE_DIR}/${from}.json`, 'utf8')) as ScoredFile;
   if (rename) {
     const board = { ...(scored.board as object), id, title: target.title };
@@ -108,7 +142,7 @@ for (const choice of process.argv.slice(2)) {
     const board = scored.board as BoardDef;
     funnel.push(funnelSource(board, target.note));
     funnelWitness.push(`${quote(id)}: ${quote(witness)}`);
-    const jam = searchFunnel(board).jam;
+    const jam = await machineJam(board, searchFunnel(board).jam);
     if (jam) funnelJam.push(`${quote(id)}: ${quote(jam)}`); else noJam.push(quote(id));
   } else if (scored.row.game === 'loop') {
     const board = scored.board as LoopBoardDef;
