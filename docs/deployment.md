@@ -34,7 +34,7 @@ The browser job runs [input-regressions.spec.ts](../tests/e2e/input-regressions.
 passed three consecutive local repetitions with two workers: 48/48 in 6.6 minutes.
 The [checkpoint hosted run](https://github.com/Starbugstone/Tumbleworks/actions/runs/42108426683)
 passed all three jobs on `34bf302`, including its then-fourteen-case browser subset.
-The expanded subset still needs the follow-up commit's hosted result. Rule-variant specs such as
+Every follow-up commit runs the current subset again. Rule-variant specs such as
 [loop-features.spec.ts](../tests/e2e/loop-features.spec.ts) remain part of the full
 local release verification.
 

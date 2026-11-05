@@ -1,8 +1,11 @@
 # Alpha 0.0.1 review
 
-Local release verification passes, including the corrected performance workload
-at its recorded limits. **The release is not ready to tag yet:** the third and
-final Sol review and hosted CI on the final follow-up commit remain pending.
+The three-round Sol loop approved the final behavior diff at `b647956`, with no
+open findings. Local release verification passes, including the corrected
+performance workload at its recorded limits. This is the review evidence record;
+the [pull request](https://github.com/Starbugstone/Tumbleworks/pull/1) records the
+current hosted checks and publication state. Review approval is not a tag or
+deployment.
 
 The review started at `26dda18cd4d5a3449a6d12d8f6335b1278b0e7dc` on
 `release/alpha-0.0.1-review`. It covers the whole codebase, with fixes limited to
@@ -35,7 +38,7 @@ the independent Sol decisions audit (`D`), and the supervising agent (`P`).
 | C-12, P01 | Fix material sharing between ordinary and instanced lorry meshes, and give instanced shadow casters their own scene-owned depth material. Repair the shader test that previously hid the defect. Share lorry trims within each level, remove the covered arcade floor and merge opaque Funnel rim pieces. Frozen-state draw budgets fail on the original code and pass after these changes; shader and resource checks cover ownership. |
 | C-13 | Refused Funnel taps use blocked feedback. |
 | C-14 | Check GPU resource counts across repeated changes through all three games, including shader programs. |
-| C-15, D06, S8 | Add a focused touch and rendering browser job to the deployment gate. The final sixteen-test subset passes three repetitions (48/48); the job handles fresh-runner ownership and server readiness. Hosted game, browser and hosting jobs pass on checkpoint `34bf302`; the follow-up commit needs its own hosted result. Keep timing benchmarks separate from CI contention. |
+| C-15, D06, S8 | Add a focused touch and rendering browser job to the deployment gate. The final sixteen-test subset passes three repetitions (48/48); the job handles fresh-runner ownership and server readiness. Hosted game, browser and hosting jobs pass on checkpoint `34bf302`; each subsequent head requires its own hosted result. Keep timing benchmarks separate from CI contention. |
 | C-20, C-21, C-24, D11 | Align package metadata to 0.0.1, check every registered French title, label the old cleanup proposal historical, and rename the lorry's local `window` material. Duplicate display titles do not threaten ID-keyed progress. |
 | D10 | Check lesson membership against the flattened campaign order. A deliberate inserted lesson makes the guard fail. |
 | Sol R2-01 | A new Hint request clears the previous blocked-tap ring before displaying its own feedback. The saved Loop case fails before the fix and passes afterward for both the button and `h`, with the feedback timer frozen and the game fingerprint unchanged. |
@@ -126,10 +129,16 @@ tree, not a published tag.
 No physical phone has been measured. Browser timing and deterministic input
 tests cannot establish physical-phone frame rate, heat or perceived fluidity.
 
-## Remaining release work
+## Review handoff
 
-Complete the third Sol round on the small follow-up diff, then publish that commit
-to the draft PR and check its hosted CI. The second Sol round approved the main
-implementation with the two follow-ups now addressed. Once the hardening review
-is complete, prepare the final release handoff and the team's proposed arcade-feel
-additions. No merge, tag or release has been published.
+Sol 6.1 at xhigh completed three rounds: whole-codebase findings, implementation
+review and final follow-up review. Round 3 approved `b647956`, resolving R2-01 and
+R2-02 with no new findings. It independently inspected the saved baseline, limit
+arithmetic, final eighteen performance samples and unchanged source hashes; it did
+not rerun the tests. Token usage was not supplied. Opus, Fable and the independent
+Sol audit informed the decisions above; their debates are not represented as
+final tag approvals.
+
+Hosted checks must pass on the head proposed for merge. Consult the PR for that
+result and any subsequent release action. The arcade-feel proposal is separate
+from these hardening changes.

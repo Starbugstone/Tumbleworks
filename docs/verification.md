@@ -15,9 +15,10 @@ also passes all three jobs. The full 59-test browser run preceded the final inpu
 and rendering follow-ups; their focused checks are recorded separately in the
 [alpha review](alpha-0.0.1-review.md). After the final Hint-feedback and test
 follow-ups, lint, typecheck, build, 48 repeated input/render cases, six variant
-cases, three resource cases and 18 standalone performance cases pass. The final
-Sol round and hosted CI on the follow-up commit remain pending. Historical results
-below do not certify this revision.
+cases, three resource cases and 18 standalone performance cases pass. Sol's third
+round approved the final behavior diff at `b647956`. The [pull request](https://github.com/Starbugstone/Tumbleworks/pull/1)
+records hosted checks for subsequent heads; the checkpoint run does not certify
+them. Historical results below do not certify this revision.
 
 ## Alpha rendering baseline — 5 November 2026
 
