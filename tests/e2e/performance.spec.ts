@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 import { CAMPAIGN } from '../../src/campaign';
 import { LOOP_BOARDS } from '../../src/loop/boards';
 import type { LoopBoardDef } from '../../src/loop/types';
@@ -12,7 +13,7 @@ import { chooseLevel } from '../fixtures/picker';
  * Real clock and real rendering on the busiest levels, with a 4x CPU slowdown standing in for a mid-range
  * phone. Phones can't be driven from here, so this guards against our own code getting slower; it doesn't
  * measure a phone. SwiftShader draws on the CPU, and render submission can include driver stalls.
- * The historical ceilings apply to one tick plus one draw, not all the work in a displayed frame.
+ * The ceilings apply to one tick plus one draw, not all the work in a displayed frame.
  * Whole-advance duration, ticks per frame, actual quality and accepted actions are reported separately.
  * Baselines and the reasoning behind these ceilings are in docs/verification.md.
  */
@@ -33,12 +34,14 @@ const CASES = [
   ...[LEVELS[0]!, LEVELS[3]!].map((level) => ({ ...level, speed: 5 })),
 ];
 const SECONDS = 20;
-const TICK_MS = Number(process.env.TUMBLEWORKS_TICK_MS ?? 10);
 // A new busiest board needs its own recorded baseline, not a ceiling inherited from another level.
-const TICK_AND_DRAW_MS: Record<string, number> = {
-  'board-57:1': 26, 'board-46:1': 26, 'loop-61:1': 26, 'loop-70:1': 26,
-  'board-57:5': 26, 'loop-70:5': 26,
+// Read limits from the recorded evidence so changing a ceiling also changes its baseline artifact.
+const recordedBaseline = JSON.parse(readFileSync('docs/performance/alpha-0.0.1-baseline.json', 'utf8')) as {
+  cases: { level: string; speed: number; limitsMs: { tick: number; tickAndDraw: number } }[];
 };
+const BUDGETS: Record<string, { tick: number; tickAndDraw: number }> = Object.fromEntries(
+  recordedBaseline.cases.map((entry) => [`${entry.level}:${entry.speed}`, entry.limitsMs]),
+);
 const RATE = Number(process.env.TUMBLEWORKS_CPU_SLOWDOWN ?? 4);
 
 interface Sample {
@@ -52,8 +55,13 @@ interface Sample {
 for (const level of CASES) {
   test(`${level.name} (${level.id}, ×${level.speed}) stays inside its frame budget`, async ({ page }) => {
     test.setTimeout(180_000);
-    const baseline = TICK_AND_DRAW_MS[`${level.id}:${level.speed}`];
+    const baseline = BUDGETS[`${level.id}:${level.speed}`];
     expect(baseline, 'new busiest level: recalibrate with a recorded baseline in docs/verification.md').toBeDefined();
+    if (!baseline) throw new Error(`No recorded baseline for ${level.id} at ×${level.speed}`);
+    const limits = {
+      tick: Number(process.env.TUMBLEWORKS_TICK_MS ?? baseline.tick),
+      tickAndDraw: Number(process.env.TUMBLEWORKS_FRAME_MS ?? baseline.tickAndDraw),
+    };
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
     page.on('response', (response) => { if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`); });
@@ -137,7 +145,7 @@ for (const level of CASES) {
 
     const p = (values: number[], at: number) => [...values].sort((a, b) => a - b)[Math.floor(values.length * at)] ?? 0;
     const accepted = sample.actions.filter((action) => action.type === 'tap');
-    const report = { level: level.id, cpu: RATE, speed: level.speed, workload,
+    const report = { level: level.id, cpu: RATE, speed: level.speed, limits, workload,
       window: { elapsedMs: sample.elapsedMs, actions: accepted, busyFrames: sample.busyFrames, peakLoad: sample.peakLoad },
       qualityStart: sample.qualityStart, qualityEnd: sample.qualityEnd,
       advanceP50: +p(sample.advances, 0.5).toFixed(2), advanceP95: +p(sample.advances, 0.95).toFixed(2),
@@ -145,7 +153,7 @@ for (const level of CASES) {
       tickP50: +p(sample.ticks, 0.5).toFixed(2), tickP95: +p(sample.ticks, 0.95).toFixed(2), drawP50: +p(sample.draws, 0.5).toFixed(2), drawP95: +p(sample.draws, 0.95).toFixed(2), frames: sample.frames.length, frameP50: +p(sample.frames, 0.5).toFixed(1), frameP95: +p(sample.frames, 0.95).toFixed(1), ticks: sample.ticks.length, onBelt: sample.state['occupancy'], funnel: sample.state['funnel'] };
     console.log(JSON.stringify(report));
     expect(errors, 'the measured game remained free of runtime and asset errors').toEqual([]);
-    expect(sample.qualityStart.ratio, 'the warmed-up full-size phone canvas').toBe(1);
+    expect(sample.qualityStart, 'the warmed-up full-size phone canvas').toEqual({ ratio: 1, width: 375, height: 690 });
     expect(sample.qualityEnd, 'quality and canvas dimensions must stay fixed during the sample').toEqual(sample.qualityStart);
     expect(accepted.length, 'touches accepted inside the measured window').toBeGreaterThanOrEqual(3);
     expect(new Set(accepted.map((action) => action.at)).size, 'several lanes poured inside the measured window').toBeGreaterThanOrEqual(2);
@@ -153,7 +161,7 @@ for (const level of CASES) {
     expect(sample.busyFrames, 'frames included active transfers').toBeGreaterThan(0);
     expect(sample.draws.length, 'active game frames were drawn').toBeGreaterThan(20);
     expect(sample.ticks.length, 'the game ran').toBeGreaterThan(20);
-    expect(report.tickP50, 'a typical tick of rules and physics').toBeLessThan(TICK_MS);
-    expect(report.tickP50 + report.drawP50, 'a typical tick and draw').toBeLessThan(Number(process.env.TUMBLEWORKS_FRAME_MS ?? baseline));
+    expect(report.tickP50, 'a typical tick of rules and physics').toBeLessThan(limits.tick);
+    expect(report.tickP50 + report.drawP50, 'a typical tick and draw').toBeLessThan(limits.tickAndDraw);
   });
 }

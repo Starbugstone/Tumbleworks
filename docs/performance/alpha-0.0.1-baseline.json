@@ -1,0 +1,585 @@
+{
+  "date": "2026-11-05",
+  "baseRevision": "26dda18cd4d5a3449a6d12d8f6335b1278b0e7dc",
+  "candidateRevision": "34bf302a7174d92eb3b87065d767c145ba43bdae",
+  "harness": "tests/e2e/performance.spec.ts",
+  "harnessSha256": "583b559053ae002decddc9e7023d08aaf5357beaacffe62e172733057aa892ea",
+  "environment": {
+    "cpu": "Intel Core i7-10750H, 8 logical CPUs exposed to WSL2",
+    "kernel": "Linux 6.18.54.1-microsoft-standard-WSL2",
+    "image": "mcr.microsoft.com/playwright:v1.64.1-noble",
+    "renderer": "SwiftShader",
+    "cpuSlowdown": 4,
+    "canvas": {
+      "width": 375,
+      "height": 690,
+      "pixelRatio": 1
+    }
+  },
+  "method": {
+    "windowSeconds": 20,
+    "orderPerCase": [
+      "base",
+      "candidate",
+      "candidate",
+      "base",
+      "base",
+      "candidate"
+    ],
+    "quality": "Natural warmup to ratio 1, Restart, unchanged ratio and dimensions throughout each sample",
+    "workload": "busyTouches: sequential legal real touches, visiting ready lanes, 700 ms between attempts",
+    "calibrationOnlyTimingOverridesMs": 1000,
+    "guards": "All 36 samples passed runtime/asset/font, quality and accepted-action/activity checks; this collection run was not a release-budget pass",
+    "combinedLimitRule": "ceil(max(1.2 * candidate median, 1.1 * candidate maximum)) for tickP50 + drawP50",
+    "tickLimitRule": "Retain 10 ms except board-57 x1: original also straddled 10 ms; same margin rule yields 12 ms",
+    "boundary": "Per-operation p50 proxy in a saturated software-rendered loop, not complete frame time or physical-phone performance"
+  },
+  "cases": [
+    {
+      "level": "board-57",
+      "speed": 1,
+      "base": [
+        {
+          "run": 0,
+          "tickP50": 8.7,
+          "drawP50": 23.4,
+          "advanceP50": 97.1,
+          "advanceP95": 137.7,
+          "ticksPerFrameP50": 8,
+          "ticksPerFrameP95": 8,
+          "acceptedActions": 12,
+          "lanes": 4,
+          "busyFrames": 66,
+          "peakLoad": 85
+        },
+        {
+          "run": 3,
+          "tickP50": 9.6,
+          "drawP50": 26.3,
+          "advanceP50": 112.7,
+          "advanceP95": 168.9,
+          "ticksPerFrameP50": 8,
+          "ticksPerFrameP95": 8,
+          "acceptedActions": 12,
+          "lanes": 4,
+          "busyFrames": 60,
+          "peakLoad": 84
+        },
+        {
+          "run": 4,
+          "tickP50": 10.4,
+          "drawP50": 26.4,
+          "advanceP50": 123.1,
+          "advanceP95": 169.2,
+          "ticksPerFrameP50": 8,
+          "ticksPerFrameP95": 8,
+          "acceptedActions": 12,
+          "lanes": 4,
+          "busyFrames": 62,
+          "peakLoad": 83
+        }
+      ],
+      "candidate": [
+        {
+          "run": 1,
+          "tickP50": 9.2,
+          "drawP50": 23.6,
+          "advanceP50": 103.4,
+          "advanceP95": 137.5,
+          "ticksPerFrameP50": 8,
+          "ticksPerFrameP95": 8,
+          "acceptedActions": 12,
+          "lanes": 4,
+          "busyFrames": 76,
+          "peakLoad": 78
+        },
+        {
+          "run": 2,
+          "tickP50": 9.8,
+          "drawP50": 23.3,
+          "advanceP50": 108.6,
+          "advanceP95": 162.6,
+          "ticksPerFrameP50": 8,
+          "ticksPerFrameP95": 8,
+          "acceptedActions": 12,
+          "lanes": 4,
+          "busyFrames": 71,
+          "peakLoad": 83
+        },
+        {
+          "run": 5,
+          "tickP50": 8.1,
+          "drawP50": 27.1,
+          "advanceP50": 93.4,
+          "advanceP95": 186.6,
+          "ticksPerFrameP50": 8,
+          "ticksPerFrameP95": 8,
+          "acceptedActions": 7,
+          "lanes": 4,
+          "busyFrames": 37,
+          "peakLoad": 56
+        }
+      ],
+      "limitsMs": {
+        "tick": 12,
+        "tickAndDraw": 40
+      },
+      "baseMedianExceedsCombinedLimit": false
+    },
+    {
+      "level": "board-46",
+      "speed": 1,
+      "base": [
+        {
+          "run": 0,
+          "tickP50": 6.5,
+          "drawP50": 23.9,
+          "advanceP50": 75.1,
+          "advanceP95": 131.6,
+          "ticksPerFrameP50": 8,
+          "ticksPerFrameP95": 8,
+          "acceptedActions": 7,
+          "lanes": 3,
+          "busyFrames": 31,
+          "peakLoad": 63
+        },
+        {
+          "run": 3,
+          "tickP50": 6.6,
+          "drawP50": 22.4,
+          "advanceP50": 80.5,
+          "advanceP95": 134.8,
+          "ticksPerFrameP50": 8,
+          "ticksPerFrameP95": 8,
+          "acceptedActions": 7,
+          "lanes": 3,
+          "busyFrames": 31,
+          "peakLoad": 63
+        },
+        {
+          "run": 4,
+          "tickP50": 7.4,
+          "drawP50": 21.5,
+          "advanceP50": 96.1,
+          "advanceP95": 126.4,
+          "ticksPerFrameP50": 8,
+          "ticksPerFrameP95": 8,
+          "acceptedActions": 7,
+          "lanes": 3,
+          "busyFrames": 31,
+          "peakLoad": 63
+        }
+      ],
+      "candidate": [
+        {
+          "run": 1,
+          "tickP50": 6.5,
+          "drawP50": 20.1,
+          "advanceP50": 77,
+          "advanceP95": 121.5,
+          "ticksPerFrameP50": 8,
+          "ticksPerFrameP95": 8,
+          "acceptedActions": 6,
+          "lanes": 3,
+          "busyFrames": 30,
+          "peakLoad": 54
+        },
+        {
+          "run": 2,
+          "tickP50": 6.6,
+          "drawP50": 21,
+          "advanceP50": 76,
+          "advanceP95": 119.8,
+          "ticksPerFrameP50": 8,
+          "ticksPerFrameP95": 8,
+          "acceptedActions": 6,
+          "lanes": 3,
+          "busyFrames": 32,
+          "peakLoad": 54
+        },
+        {
+          "run": 5,
+          "tickP50": 6.3,
+          "drawP50": 22.7,
+          "advanceP50": 87.1,
+          "advanceP95": 123.4,
+          "ticksPerFrameP50": 8,
+          "ticksPerFrameP95": 8,
+          "acceptedActions": 6,
+          "lanes": 3,
+          "busyFrames": 32,
+          "peakLoad": 54
+        }
+      ],
+      "limitsMs": {
+        "tick": 10,
+        "tickAndDraw": 34
+      },
+      "baseMedianExceedsCombinedLimit": false
+    },
+    {
+      "level": "loop-61",
+      "speed": 1,
+      "base": [
+        {
+          "run": 0,
+          "tickP50": 2.2,
+          "drawP50": 29.4,
+          "advanceP50": 54.5,
+          "advanceP95": 100.2,
+          "ticksPerFrameP50": 8,
+          "ticksPerFrameP95": 8,
+          "acceptedActions": 5,
+          "lanes": 3,
+          "busyFrames": 64,
+          "peakLoad": 38
+        },
+        {
+          "run": 3,
+          "tickP50": 2,
+          "drawP50": 34.1,
+          "advanceP50": 60.2,
+          "advanceP95": 118.5,
+          "ticksPerFrameP50": 8,
+          "ticksPerFrameP95": 8,
+          "acceptedActions": 5,
+          "lanes": 3,
+          "busyFrames": 63,
+          "peakLoad": 38
+        },
+        {
+          "run": 4,
+          "tickP50": 3,
+          "drawP50": 31.8,
+          "advanceP50": 59.1,
+          "advanceP95": 103.3,
+          "ticksPerFrameP50": 8,
+          "ticksPerFrameP95": 8,
+          "acceptedActions": 5,
+          "lanes": 3,
+          "busyFrames": 62,
+          "peakLoad": 38
+        }
+      ],
+      "candidate": [
+        {
+          "run": 1,
+          "tickP50": 3.1,
+          "drawP50": 26.2,
+          "advanceP50": 62.1,
+          "advanceP95": 301.8,
+          "ticksPerFrameP50": 8,
+          "ticksPerFrameP95": 8,
+          "acceptedActions": 4,
+          "lanes": 3,
+          "busyFrames": 35,
+          "peakLoad": 30
+        },
+        {
+          "run": 2,
+          "tickP50": 2.4,
+          "drawP50": 22.7,
+          "advanceP50": 48.7,
+          "advanceP95": 107.2,
+          "ticksPerFrameP50": 8,
+          "ticksPerFrameP95": 8,
+          "acceptedActions": 5,
+          "lanes": 3,
+          "busyFrames": 67,
+          "peakLoad": 38
+        },
+        {
+          "run": 5,
+          "tickP50": 2.3,
+          "drawP50": 23.7,
+          "advanceP50": 49.6,
+          "advanceP95": 87.6,
+          "ticksPerFrameP50": 8,
+          "ticksPerFrameP95": 8,
+          "acceptedActions": 5,
+          "lanes": 3,
+          "busyFrames": 67,
+          "peakLoad": 38
+        }
+      ],
+      "limitsMs": {
+        "tick": 10,
+        "tickAndDraw": 33
+      },
+      "baseMedianExceedsCombinedLimit": true
+    },
+    {
+      "level": "loop-70",
+      "speed": 1,
+      "base": [
+        {
+          "run": 0,
+          "tickP50": 3.8,
+          "drawP50": 39.1,
+          "advanceP50": 76.4,
+          "advanceP95": 116.8,
+          "ticksPerFrameP50": 8,
+          "ticksPerFrameP95": 8,
+          "acceptedActions": 4,
+          "lanes": 4,
+          "busyFrames": 63,
+          "peakLoad": 34
+        },
+        {
+          "run": 3,
+          "tickP50": 3.5,
+          "drawP50": 37.8,
+          "advanceP50": 76.1,
+          "advanceP95": 119.9,
+          "ticksPerFrameP50": 8,
+          "ticksPerFrameP95": 8,
+          "acceptedActions": 4,
+          "lanes": 4,
+          "busyFrames": 65,
+          "peakLoad": 34
+        },
+        {
+          "run": 4,
+          "tickP50": 3.3,
+          "drawP50": 35.5,
+          "advanceP50": 69.9,
+          "advanceP95": 118,
+          "ticksPerFrameP50": 8,
+          "ticksPerFrameP95": 8,
+          "acceptedActions": 4,
+          "lanes": 4,
+          "busyFrames": 64,
+          "peakLoad": 34
+        }
+      ],
+      "candidate": [
+        {
+          "run": 1,
+          "tickP50": 3.7,
+          "drawP50": 25.5,
+          "advanceP50": 62.7,
+          "advanceP95": 96.5,
+          "ticksPerFrameP50": 8,
+          "ticksPerFrameP95": 8,
+          "acceptedActions": 4,
+          "lanes": 4,
+          "busyFrames": 71,
+          "peakLoad": 34
+        },
+        {
+          "run": 2,
+          "tickP50": 4.9,
+          "drawP50": 24,
+          "advanceP50": 75.6,
+          "advanceP95": 149.3,
+          "ticksPerFrameP50": 8,
+          "ticksPerFrameP95": 8,
+          "acceptedActions": 5,
+          "lanes": 4,
+          "busyFrames": 71,
+          "peakLoad": 34
+        },
+        {
+          "run": 5,
+          "tickP50": 3.7,
+          "drawP50": 26.3,
+          "advanceP50": 63.6,
+          "advanceP95": 104,
+          "ticksPerFrameP50": 8,
+          "ticksPerFrameP95": 8,
+          "acceptedActions": 4,
+          "lanes": 4,
+          "busyFrames": 69,
+          "peakLoad": 34
+        }
+      ],
+      "limitsMs": {
+        "tick": 10,
+        "tickAndDraw": 36
+      },
+      "baseMedianExceedsCombinedLimit": true
+    },
+    {
+      "level": "board-57",
+      "speed": 5,
+      "base": [
+        {
+          "run": 0,
+          "tickP50": 7.3,
+          "drawP50": 29.3,
+          "advanceP50": 151.6,
+          "advanceP95": 230.1,
+          "ticksPerFrameP50": 15,
+          "ticksPerFrameP95": 15,
+          "acceptedActions": 11,
+          "lanes": 4,
+          "busyFrames": 59,
+          "peakLoad": 65
+        },
+        {
+          "run": 3,
+          "tickP50": 7.2,
+          "drawP50": 29.9,
+          "advanceP50": 147.1,
+          "advanceP95": 189.4,
+          "ticksPerFrameP50": 15,
+          "ticksPerFrameP95": 15,
+          "acceptedActions": 12,
+          "lanes": 4,
+          "busyFrames": 60,
+          "peakLoad": 54
+        },
+        {
+          "run": 4,
+          "tickP50": 6.9,
+          "drawP50": 27.5,
+          "advanceP50": 139.5,
+          "advanceP95": 208.4,
+          "ticksPerFrameP50": 15,
+          "ticksPerFrameP95": 15,
+          "acceptedActions": 11,
+          "lanes": 4,
+          "busyFrames": 61,
+          "peakLoad": 60
+        }
+      ],
+      "candidate": [
+        {
+          "run": 1,
+          "tickP50": 7.2,
+          "drawP50": 26,
+          "advanceP50": 145.3,
+          "advanceP95": 219.1,
+          "ticksPerFrameP50": 15,
+          "ticksPerFrameP95": 15,
+          "acceptedActions": 12,
+          "lanes": 4,
+          "busyFrames": 71,
+          "peakLoad": 57
+        },
+        {
+          "run": 2,
+          "tickP50": 7.3,
+          "drawP50": 26.2,
+          "advanceP50": 147.8,
+          "advanceP95": 215.9,
+          "ticksPerFrameP50": 15,
+          "ticksPerFrameP95": 15,
+          "acceptedActions": 12,
+          "lanes": 4,
+          "busyFrames": 70,
+          "peakLoad": 61
+        },
+        {
+          "run": 5,
+          "tickP50": 7.3,
+          "drawP50": 25.8,
+          "advanceP50": 139.5,
+          "advanceP95": 215.3,
+          "ticksPerFrameP50": 15,
+          "ticksPerFrameP95": 15,
+          "acceptedActions": 12,
+          "lanes": 4,
+          "busyFrames": 72,
+          "peakLoad": 61
+        }
+      ],
+      "limitsMs": {
+        "tick": 10,
+        "tickAndDraw": 40
+      },
+      "baseMedianExceedsCombinedLimit": false
+    },
+    {
+      "level": "loop-70",
+      "speed": 5,
+      "base": [
+        {
+          "run": 0,
+          "tickP50": 3.2,
+          "drawP50": 37.1,
+          "advanceP50": 103.6,
+          "advanceP95": 226.9,
+          "ticksPerFrameP50": 15,
+          "ticksPerFrameP95": 15,
+          "acceptedActions": 6,
+          "lanes": 4,
+          "busyFrames": 49,
+          "peakLoad": 36
+        },
+        {
+          "run": 3,
+          "tickP50": 3.8,
+          "drawP50": 40.4,
+          "advanceP50": 112.3,
+          "advanceP95": 169.9,
+          "ticksPerFrameP50": 15,
+          "ticksPerFrameP95": 15,
+          "acceptedActions": 7,
+          "lanes": 4,
+          "busyFrames": 58,
+          "peakLoad": 40
+        },
+        {
+          "run": 4,
+          "tickP50": 3.3,
+          "drawP50": 40.2,
+          "advanceP50": 104,
+          "advanceP95": 191.1,
+          "ticksPerFrameP50": 15,
+          "ticksPerFrameP95": 15,
+          "acceptedActions": 6,
+          "lanes": 4,
+          "busyFrames": 49,
+          "peakLoad": 36
+        }
+      ],
+      "candidate": [
+        {
+          "run": 1,
+          "tickP50": 3.6,
+          "drawP50": 26.6,
+          "advanceP50": 98.4,
+          "advanceP95": 174.9,
+          "ticksPerFrameP50": 15,
+          "ticksPerFrameP95": 15,
+          "acceptedActions": 6,
+          "lanes": 4,
+          "busyFrames": 40,
+          "peakLoad": 37
+        },
+        {
+          "run": 2,
+          "tickP50": 4.1,
+          "drawP50": 24.5,
+          "advanceP50": 102.5,
+          "advanceP95": 170.8,
+          "ticksPerFrameP50": 15,
+          "ticksPerFrameP95": 15,
+          "acceptedActions": 6,
+          "lanes": 4,
+          "busyFrames": 42,
+          "peakLoad": 36
+        },
+        {
+          "run": 5,
+          "tickP50": 4.5,
+          "drawP50": 26.9,
+          "advanceP50": 102.3,
+          "advanceP95": 222.6,
+          "ticksPerFrameP50": 15,
+          "ticksPerFrameP95": 15,
+          "acceptedActions": 6,
+          "lanes": 4,
+          "busyFrames": 42,
+          "peakLoad": 33
+        }
+      ],
+      "limitsMs": {
+        "tick": 10,
+        "tickAndDraw": 37
+      },
+      "baseMedianExceedsCombinedLimit": true
+    }
+  ]
+}

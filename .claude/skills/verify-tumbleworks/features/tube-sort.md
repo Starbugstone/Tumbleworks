@@ -29,6 +29,6 @@ Preconditions:
 
 ## Gotchas
 
-- `tw` has no drag journey yet; `tests/e2e/drag.spec.ts` shows how to drag with touch (`page.touchscreen` move sequence) and covers cancellation.
+- `tw` has no drag journey yet; `tests/e2e/drag.spec.ts` drives native touch events through CDP and covers cancellation.
 - A resting Tube Sort board isn't redrawn until something changes; a screenshot taken without a tick or input shows the last drawn frame, which is correct.
-- Tube Sort has no losing order: a stuck board is undone, not jammed by design.
+- Tube Sort becomes jammed when no legal moves remain; Undo or Restart lets the player recover. There is no authored Tube losing-order table, so `tw jam` currently supports only Funnel Sort and Loop Sort.

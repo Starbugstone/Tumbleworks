@@ -8,12 +8,79 @@ current release. `PLAY_ORDER` in [src/campaign.ts](../src/campaign.ts) is the
 order authority. The [tracked expansion decision](levelling-decision-2026-11-03.md)
 preserves the rationale and identifies the missing scratch assembly inputs.
 
-The alpha hardening checks must be recorded against the final reviewed revision.
-The historical pass totals and performance tables below do not certify that
-revision. Fresh release results belong here once that revision is checked; this
-section records scope, not a passing run. Keep existing ceilings until a measured
-baseline justifies a change. Browser measurements do not establish physical-phone
-performance.
+The hardening checkpoint is `34bf302a7174d92eb3b87065d767c145ba43bdae`.
+Its typecheck, lint, 1,502 unit tests, build, focused browser repetitions, variants,
+resource checks and local hosting checks pass. Its [hosted CI run](https://github.com/Starbugstone/Tumbleworks/actions/runs/42108426683)
+also passes all three jobs. The full 59-test browser run preceded the final input
+and rendering follow-ups; their focused checks are recorded separately in the
+[alpha review](alpha-0.0.1-review.md). After the final Hint-feedback and test
+follow-ups, lint, typecheck, build, 48 repeated input/render cases, six variant
+cases, three resource cases and 18 standalone performance cases pass. The final
+Sol round and hosted CI on the follow-up commit remain pending. Historical results
+below do not certify this revision.
+
+## Alpha rendering baseline — 5 November 2026
+
+The [recorded measurements](performance/alpha-0.0.1-baseline.json) compare original
+`26dda18` with candidate `34bf302`, using the same maintained performance harness.
+For each case, three samples per revision ran in A/B/B/A/A/B order, alone from
+other project tests, builds and browsers. Each sample lasted 20 seconds after the
+natural quality reduction and Restart, at a full 375×690 canvas, pixel ratio 1,
+4× CPU slowdown and SwiftShader. The machine exposes eight logical CPUs from an
+Intel i7-10750H to WSL2; the pinned Playwright image is recorded in the artifact.
+All 36 samples passed asset, font, runtime, fixed-quality and real-touch workload
+checks. Timing limits were disabled only for that diagnostic collection; it was
+not a passing release-budget run.
+
+The table gives the median of three runs, with their min–max in parentheses,
+in milliseconds. “Tick + draw” is the sum of the per-tick and per-draw medians,
+not the median cost of a whole frame.
+
+| Case | Base tick | Candidate tick | Base tick + draw | Candidate tick + draw | Limits: tick / tick + draw |
+| --- | --- | --- | --- | --- | --- |
+| `board-57` ×1 | 9.6 (8.7–10.4) | 9.2 (8.1–9.8) | 35.9 (32.1–36.8) | 33.1 (32.8–35.2) | 12 / 40 |
+| `board-46` ×1 | 6.6 (6.5–7.4) | 6.5 (6.3–6.6) | 29.0 (28.9–30.4) | 27.6 (26.6–29.0) | 10 / 34 |
+| `loop-61` ×1 | 2.2 (2.0–3.0) | 2.4 (2.3–3.1) | 34.8 (31.6–36.1) | 26.0 (25.1–29.3) | 10 / 33 |
+| `loop-70` ×1 | 3.5 (3.3–3.8) | 3.7 (3.7–4.9) | 41.3 (38.8–42.9) | 29.2 (28.9–30.0) | 10 / 36 |
+| `board-57` ×5 | 7.2 (6.9–7.3) | 7.3 (7.2–7.3) | 36.6 (34.4–37.1) | 33.2 (33.1–33.5) | 10 / 40 |
+| `loop-70` ×5 | 3.3 (3.2–3.8) | 4.1 (3.6–4.5) | 43.5 (40.3–44.2) | 30.2 (28.6–31.4) | 10 / 37 |
+
+The combined ceiling is `ceil(max(1.2 × candidate median, 1.1 × candidate max))`.
+Existing 10 ms tick limits remain, except `board-57` ×1: the original itself crossed
+10 ms, and the same margin rule gives 12 ms. The performance spec reads these
+limits from the recorded JSON, rejects a new busiest ID/speed without a baseline,
+and checks the full canvas dimensions. All six cases passed three standalone
+repetitions at these limits: **18/18 in 11.1 minutes**, without timing overrides.
+The source, harness and baseline hashes stayed fixed through the run. The limits
+were selected before validation and were not raised again. A future failure
+requires investigation, not another margin increase to obtain a pass.
+
+The original combined median exceeds the new limit in all three Loop cases. It
+does not in the Funnel cases, where this timing guard catches only larger
+regressions. Frozen-state guards separately cap `board-57` at 118 draws and
+`loop-70` at 129; the originals make 125 and 130. The shader-churn and resource
+checks cover different failure modes. Draw counts alone do not protect every
+material-sharing change.
+
+Real-touch timing produces different accepted-action sequences and loads; the
+artifact records those counts, busy frames and peak loads for every sample. These
+are operational baselines, not matched-state proof of a percentage speedup. In
+this saturated software-rendered loop, median ticks per drawn frame are 8 at ×1
+and 15 at ×5, so simulation falls behind real time. Complete advance durations
+are reported separately and are not the gated proxy. Neither these timings nor
+the passing behavioral checks establish physical-phone frame rate, heat or feel.
+The earlier asset-invalid or mixed-resolution runs are diagnostic only.
+
+Recheck the gate alone:
+
+```sh
+docker compose --profile e2e run --rm e2e npx playwright test tests/e2e/performance.spec.ts --no-deps --workers=1 --repeat-each=3
+```
+
+The post-baseline Hint-feedback correction only runs on a Hint request; the
+calibration workload never asks for hints. The subsequent harness edits read the
+recorded ceilings and assert full canvas dimensions after sampling; they do not
+change the timed workload.
 
 ## Historical automated checks — 1 November 2026
 

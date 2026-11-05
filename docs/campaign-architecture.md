@@ -1,13 +1,13 @@
 # Campaign architecture
 
-The campaign has seven levels each of Funnel Sort and Loop Sort, and three of Tube Sort. Every level can be completed, undone and restarted through the same interface, and completed levels survive a reload.
+The registered campaign follows `PLAY_ORDER` in [src/campaign.ts](../src/campaign.ts), interleaving Funnel Sort, Loop Sort and Tube Sort by round. Every level can be completed, undone and restarted through the same interface, and completed levels survive a reload. The current release scope and future campaign target are recorded in [verification.md](verification.md).
 
 ## Ownership
 
 - `App` owns the campaign and the HUD. It never reads gameplay state directly.
-- `CampaignRegistry` interleaves the registered gameplay packs by round.
+- `PLAY_ORDER` selects stable level IDs; `CampaignRegistry` resolves their registered gameplay factories.
 - A level factory creates a `GameRuntime`, which owns its rules, animation and scene.
-- `Stage` keeps one renderer, the lighting setup and `MarbleFactory` for the whole campaign.
+- `Stage` keeps one renderer, environment and `MarbleFactory` for the whole campaign. Each scene owns its lighting.
 - `MarbleCrowd` draws the many marbles in the two conveyor games with instancing.
 - `PhysicsService` owns initialization, world timing and marble body construction.
 - `MarbleDrop` is the shared physics landing for Tube Sort.

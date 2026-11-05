@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { CAMPAIGN } from '../../src/campaign';
 import type { App } from '../../src/view/App';
 import type { LoopRuntime } from '../../src/gameplays/loop';
+import { TUBE_BOARDS } from '../../src/puzzles/levels';
 import { chooseLevel } from '../fixtures/picker';
 
 type GameWindow = Window & { tumbleworks: { app: App } };
@@ -10,12 +11,64 @@ const state = (page: Page) => page.evaluate(() => (window as unknown as GameWind
 const actions = (page: Page) => page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.replay().actions);
 
 async function open(page: Page, id = 'board-1') {
-  await page.goto('/');
+  const index = CAMPAIGN.findIndex((level) => level.id === id);
+  await page.goto(index >= 0 ? '/' : `/?try=${id}`);
   await page.waitForFunction(() => Boolean((window as Partial<GameWindow>).tumbleworks?.app));
   await page.evaluate(() => { (window as unknown as GameWindow).tumbleworks.app.manualClock = true; });
-  await chooseLevel(page, CAMPAIGN.findIndex((level) => level.id === id));
+  if (index >= 0) await chooseLevel(page, index);
   await page.getByRole('button', { name: 'Restart', exact: true }).click();
 }
+
+test('Tube taps and small slides agree for selection, destinations and capped sources', async ({ page }) => {
+  const capped = TUBE_BOARDS.find((board) => board.id === 'tube-200')!;
+  const scenarios = [
+    { level: 'tube-1', prefix: [], target: 0 },
+    { level: 'tube-1', prefix: [0], target: 0 },
+    { level: 'tube-1', prefix: [0], target: 3 },
+    { level: 'tube-1', prefix: [0], target: 1 },
+    { level: 'tube-1', prefix: [0, 3, 1, 4, 1], target: 3 },
+    { level: 'tube-200', prefix: [], target: capped.containers!.findIndex((container) => container.role === 'capped') },
+  ];
+  let level = '';
+  for (const scenario of scenarios) {
+    if (scenario.level !== level) { await open(page, scenario.level); level = scenario.level; }
+    const outcomes = [];
+    for (const slide of [false, true]) {
+      await page.getByRole('button', { name: 'Restart', exact: true }).click();
+      const points = await page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.debugTargets());
+      for (const source of scenario.prefix) {
+        const at = points[`tube${source}`]!;
+        await page.touchscreen.tap(at.x, at.y);
+        await page.evaluate(() => {
+          const { app } = (window as unknown as GameWindow).tumbleworks;
+          for (let frame = 0; frame < 60; frame++) app.advance(1 / 60, frame === 59);
+        });
+      }
+      const at = points[`tube${scenario.target}`]!;
+      if (slide) {
+        const touch = await touches(page);
+        await touch('touchStart', [{ ...at, id: 1 }]);
+        await touch('touchMove', [{ x: at.x + 12, y: at.y, id: 1 }]);
+        await touch('touchEnd', []);
+      } else await page.touchscreen.tap(at.x, at.y);
+      outcomes.push({ state: await state(page), message: await page.locator('#message').textContent() });
+    }
+    expect(outcomes[1], JSON.stringify(scenario)).toEqual(outcomes[0]);
+  }
+});
+
+test('the densest registered Tube board keeps finger wobble inside every target', async ({ page }) => {
+  const board = TUBE_BOARDS.filter((candidate) => CAMPAIGN.some((level) => level.id === candidate.id))
+    .reduce((largest, candidate) => candidate.tubes.length > largest.tubes.length ? candidate : largest);
+  await open(page, board.id);
+  const misses = await page.evaluate(() => {
+    const { app } = (window as unknown as GameWindow).tumbleworks;
+    return Object.entries(app.runtime.targets()).flatMap(([target, point]) =>
+      ([[12, 0], [-12, 0], [0, 12], [0, -12]] as const).flatMap(([dx, dy]) =>
+        app.runtime.pick(point.x + dx, point.y + dy) === target ? [] : [target]));
+  });
+  expect(misses).toEqual([]);
+});
 
 async function touches(page: Page) {
   const client = await page.context().newCDPSession(page);
@@ -90,11 +143,19 @@ test('Hint during a Loop pour explains the wait without naming a refused truck',
   await page.touchscreen.tap(at.x, at.y);
   expect(await actions(page)).toEqual([{ type: 'tap', step: 0, at: 0 }]);
   const before = await page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.replay().fingerprint);
-  await page.getByRole('button', { name: 'Hint', exact: true }).click();
-  await expect(page.locator('#message')).toContainText('Wait');
-  await expect(page.locator('#message')).toContainText('Hold ×5');
-  await expect(page.locator('#focus-ring')).toBeHidden();
-  expect(await page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.replay().fingerprint)).toBe(before);
+  // Keep old feedback alive: timer expiry must not make the replacement check pass by accident.
+  await page.clock.install({ time: 0 });
+  await page.clock.pauseAt(1000);
+  for (const keyboard of [false, true]) {
+    await page.touchscreen.tap(at.x, at.y); // this second pour is refused and rings the busy truck
+    await expect(page.locator('#focus-ring')).toBeVisible();
+    if (keyboard) await page.keyboard.press('h');
+    else await page.getByRole('button', { name: 'Hint', exact: true }).click();
+    await expect(page.locator('#message')).toContainText('Wait');
+    await expect(page.locator('#message')).toContainText('Hold ×5');
+    await expect(page.locator('#focus-ring')).toBeHidden();
+    expect(await page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.replay().fingerprint)).toBe(before);
+  }
   await page.keyboard.down('g');
   const settled = await page.evaluate(() => {
     const { app } = (window as unknown as GameWindow).tumbleworks;

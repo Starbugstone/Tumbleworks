@@ -87,7 +87,7 @@ export class App {
     });
     this.undoButton.addEventListener('click', () => this.undo());
     button('restart').addEventListener('click', () => { sfx.unlock(); this.loadBoard(this.boardIndex); });
-    button('hint').addEventListener('click', () => { sfx.unlock(); this.feedback(this.runtime.hint()); this.refresh(); });
+    button('hint').addEventListener('click', () => { this.hint(); this.refresh(); });
     button('card-action').addEventListener('click', () => {
       sfx.unlock();
       if (this.runtime.status === 'won') this.loadBoard(this.nextIndex());
@@ -293,6 +293,16 @@ export class App {
     this.focusTarget = null;
     this.setMessage('');
     element('instruction').hidden = true;
+  }
+
+  private hint(): void {
+    if (this.runtime.status !== 'playing') return;
+    sfx.unlock();
+    window.clearTimeout(this.hintTimer);
+    this.ring.hidden = true;
+    this.focusTarget = null;
+    this.setMessage('');
+    this.feedback(this.runtime.hint());
   }
 
   private feedback(events: readonly Feedback[]): void {
@@ -585,7 +595,7 @@ export class App {
     if (event.key === 'u') this.undo();
     else if (event.key === 'f' || event.key === 'F') { if (!event.repeat) { sfx.unlock(); this.holdSpeed('key:f', App.FAST_SPEED, true); } }
     else if (event.key === 'g' || event.key === 'G') { if (!event.repeat) { sfx.unlock(); this.holdSpeed('key:g', App.FASTER_SPEED, true); } }
-    else if (event.key === 'h' && !event.repeat && this.runtime.status === 'playing') this.feedback(this.runtime.hint());
+    else if (event.key === 'h' && !event.repeat) this.hint();
     else if (event.key === 'r' && !event.repeat) this.loadBoard(this.boardIndex);
     else if (event.key.startsWith('Arrow')) {
       event.preventDefault();
