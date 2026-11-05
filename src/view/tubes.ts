@@ -216,7 +216,7 @@ export class TubeView extends BoardView {
     this.select(highlight);
   }
 
-  endDrag(state: TubeState): Point3[] {
+  endDrag(): Point3[] {
     const positions = this.dragging.flatMap((id) => { const at = this.marblePosition(id); return at ? [at] : []; });
     this.dragging.forEach((id) => this.restoreMarble(id));
     this.dragging = [];

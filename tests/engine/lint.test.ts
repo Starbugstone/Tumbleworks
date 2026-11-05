@@ -27,6 +27,10 @@ describe('the determinism lint', () => {
     ['src/machine/page.ts', 'export const canvas = document.body;'],
     ['src/machine/trig.ts', 'export const turn = Math.cos(1);'],
     ['src/engine/belt-path.ts', 'export const turn = Math.hypot(1, 2);'],
+    ['src/sim/uuid.ts', 'export const id = crypto.randomUUID();'],
+    ['src/loop/global.ts', 'export const pick = globalThis.Math.random();'],
+    ['src/machine/worker.ts', 'export const bytes = self.crypto.getRandomValues(new Uint8Array(4));'],
+    ['src/puzzles/subpath.ts', "import { generateUUID } from 'three/src/math/MathUtils.js'; export const id = generateUUID();"],
   ])('rejects %s', (file, source) => {
     expect(lint(file, source).ok).toBe(false);
   });
@@ -36,6 +40,7 @@ describe('the determinism lint', () => {
     ['src/audio.ts', 'export const pitch = Math.random() + Date.now();'],
     ['src/machine/good.ts', "import { sin } from '../engine/exact-math';\nexport const jitter = (id: number) => sin(id * 12.9898) + Math.sqrt(id);"],
     ['src/view/spin.ts', 'export const spin = Math.sin(1);'],
+    ['src/view/uuid.ts', 'export const id = crypto.randomUUID();'],
   ])('accepts %s', (file, source) => {
     expect(lint(file, source)).toMatchObject({ ok: true });
   });

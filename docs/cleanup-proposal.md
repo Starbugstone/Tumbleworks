@@ -1,4 +1,31 @@
-# Cleanup proposal — phase 1
+# Cleanup record
+
+## Current status — alpha 0.0.1 review, 5 November 2026
+
+The survey and phase 2 outcome below are an archive of the 31 October rework.
+Their sizes, line numbers, mode names, removal commands, questions and ownership
+rules describe that historical tree. They are not instructions for current work
+and grant no new deletion authority. In particular, do not restore Tray Match or
+Connected Match, the old marble surface patterns or the old HUD from those rows.
+The current scope and player requirements live in [AGENTS.md](../AGENTS.md).
+
+The registered campaign is now 40 rounds, 120 levels, with 120 rounds/360 levels
+as the target. [The tracked expansion decision](levelling-decision-2026-11-03.md)
+preserves the design record; it does not promote the scratch assembler into a
+reproducible tool. Current verification procedures and dated results belong in
+[verification.md](verification.md).
+
+During alpha hardening, `scripts/snapshot.sh` was removed: it had no tracked
+consumer and its broad process-name kill could stop a preview owned by someone
+else. Removal does not delete or rebuild `output/snapshot/`, free port 5181 or
+stop an existing preview. Preserve historical artifacts and user processes.
+New captures go under `output/current`, in a distinct run folder where supported.
+The verification skill's `launch.sh <unique-run-id>` and `cleanup.sh <same-id>`
+use exact-container leases; they preserve reused servers, replacement containers
+and containers leased by another run. See the [skill](../.claude/skills/verify-tumbleworks/SKILL.md)
+for the lifecycle contract. The old snapshot procedure below is obsolete.
+
+## Archived phase 1 proposal — 31 October 2026
 
 Surveyed on 31 October 2026 against HEAD `60eb9461a652e588528acdaf9d629b31acd6c751`. This is a proposal, not authorization to remove anything. Only this file was created; no existing file, process, build or historical artifact was changed. No capture, build or test command was run because those commands can overwrite evidence or compete with the ongoing rework.
 
@@ -132,9 +159,9 @@ Do not clean up `src/sim/*`, `src/machine/*`, `src/view/scene.ts`, `src/gameplay
 
 Compatibility review before phase 2 must confirm that retained code and replacement tests cover nine-marble trays, three docks, segments/preload, falling bodies, undo and current-state hints; that shared contracts/resources still serve the unchanged modes; and that removed script purposes have maintained replacements. This is a comparison against the supplied plan, not a claim to have verified the unfinished implementation. After agreement, repeat reference searches on the resulting tree and run the repository's normal checks for actual source/script/doc changes, writing fresh evidence to a distinct destination. Do not run snapshot.sh unchanged.
 
-## 1. Exact phase 2 commands for delete rows only
+## Archived phase 2 command plan — do not run
 
-**Not run.** These commands are conditional on the owner/reworking agent resolving the questions below, migrating needed research citations, settling `AGENTS.md:7`, confirming replacement capture tools, rechecking references, and establishing that `dist/` is not being served or written. They remove only the seven tracked delete candidates and the rebuildable production directory. The tracked files total **105,331 B**; including `dist/`, the candidate file payload is **5,240,100 B (4.997 MiB)**. Archiving output is intentionally absent from these deletion commands.
+**Historical plan, superseded by the recorded outcome below. Do not run these commands against the current tree.** At survey time these commands were conditional on the owner/reworking agent resolving the questions below, migrating needed research citations, settling `AGENTS.md:7`, confirming replacement capture tools, rechecking references, and establishing that `dist/` is not being served or written. They remove only the seven tracked delete candidates and the rebuildable production directory. The tracked files total **105,331 B**; including `dist/`, the candidate file payload is **5,240,100 B (4.997 MiB)**. Archiving output is intentionally absent from these deletion commands.
 
 ```sh
 cd /home/stone/dev/Tumbleworks
@@ -149,7 +176,7 @@ rm -- \
 rm -rf -- dist
 ```
 
-## 2. Questions requiring the owner or reworking agent
+## Archived questions to the owner or reworking agent
 
 1. **Reworking agent:** Do you confirm that none of the seven tracked delete candidates is needed by the new rules, authoring work or capture workflow? Is `scripts/board-tree.ts` the maintained replacement for the old Python exploration, and are the feedback scripts the maintained capture entrypoints?
 2. **Owner:** May the earlier research be removed from the working tree, with `AGENTS.md:7` revised accordingly? Which design decisions or source citations, if any, should be retained in maintained docs for their continuing value?
@@ -160,7 +187,7 @@ rm -rf -- dist
 7. **Reworking agent:** Will new captures use a distinct destination/run folder so current `output/poc12` evidence is preserved? Who will update README/verification references and repair absolute gallery links before archiving the old evidence?
 8. **Reworking agent:** After the new scene/instanced renderer lands, is `src/view/art.ts::symbolTexture` still unused? Confirm before a later surgical removal, preserving all surface and container patterns. No source edit is included in this phase's delete commands.
 
-## Phase 2 outcome (reworking agent, 31 October 2026)
+## Archived phase 2 outcome (reworking agent, 31 October 2026)
 
 Validated against the finished rework and applied:
 

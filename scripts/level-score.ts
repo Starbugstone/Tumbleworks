@@ -8,13 +8,13 @@ import { availableTubeMoves, completedTube, moveTubeState, solveTubeSearch, tube
 import type { TubeDef } from '../src/puzzles/types';
 import { MachineRules, funnelStateKey } from '../src/sim/rules';
 import { hintConveyorSearch, settle } from '../src/sim/solver';
-import { COLOR_CODE, COLORS, type BoardDef, type Color } from '../src/sim/types';
-import { naiveOrders, play as playFunnelOrder, playMachine as playFunnel, search as searchFunnel, tighten as tightenFunnel } from './funnel-author';
+import type { BoardDef } from '../src/sim/types';
+import { naiveOrders, play as playFunnelOrder, playMachine as playFunnel, search as searchFunnel, tighten as tightenFunnel, winsEitherWay } from './funnel-author';
 import { chooseF1, funnelRating, hashBoard, loopRating, multiTapFailure, tubeRating, TUBE_GRAPH_CAP, type ScoreRow } from './level-curve';
 import { laneByLane, playMachine as playLoop, roundRobin, search as searchLoop, tighten as tightenLoop } from './loop-author';
 import { reachableTubeStates } from './tube-author';
 import { strongFunnel, strongLoop, strongTube } from './level-strong';
-import { scorePolicy } from './level-policy';
+import { seeded, scorePolicy } from './level-policy';
 
 /**
  * Scores a board with fixed seeds and no clocks, so a result is a function of board, player and seed.
@@ -28,10 +28,7 @@ export const LIMIT_TICKS = 60 * 240;
 const LAPSE = 0.15;
 const SETTLED = 1e6;
 
-export const seeded = (seed: number): (() => number) => {
-  let state = (seed * 7919 + 17) % 2147483646 + 1;
-  return () => { state = (state * 16807) % 2147483647; return state / 2147483647; };
-};
+export { seeded } from './level-policy';
 
 export type FunnelPlayer = 'patient1' | 'patient2' | 'burst2' | 'burst3' | 'brisk' | 'spam' | 'cheese';
 export type LoopPlayer = 'patient1' | 'patient2' | 'burst2' | 'burst3' | 'mixed' | 'mixedBrisk' | 'single' | 'spam';
@@ -541,6 +538,7 @@ export function loopShare(board: LoopBoardDef, wanted = 12): { brisk: number; pa
 
 // ---- Tallies ----
 export interface Tally { readonly win: number; readonly n: number; readonly recoveries: number; readonly seconds: number | null; readonly first: string; readonly fast: GameResult | null }
+const hasRapidTaps = (game: GameResult): boolean => game.actions.some(([tick], at) => at > 0 && tick - game.actions[at - 1]![0] <= 12);
 export function tally(play: (seed: number) => GameResult, games: number, keepWin = false): Tally {
   let wins = 0;
   let recoveries = 0;
@@ -550,7 +548,7 @@ export function tally(play: (seed: number) => GameResult, games: number, keepWin
   for (let seed = 1; seed <= games; seed++) {
     const game = play(seed);
     const won = game.status === 'won';
-    if (won) { wins += 1; seconds += game.seconds; if (keepWin && game.actions.some(([tick], at) => at > 0 && tick - game.actions[at - 1]![0] <= 12)) fast ??= game; }
+    if (won) { wins += 1; seconds += game.seconds; if (keepWin && hasRapidTaps(game)) fast ??= game; }
     recoveries += game.recoveries;
     if (seed <= 6) first += won ? 'W' : 'L';
   }
@@ -568,7 +566,7 @@ export function extendTally(done: Tally, play: (seed: number) => GameResult, gam
   for (let seed = done.n + 1; seed <= games; seed++) {
     const game = play(seed);
     const won = game.status === 'won';
-    if (won) { wins += 1; seconds += game.seconds; if (keepWin) fast ??= game; }
+    if (won) { wins += 1; seconds += game.seconds; if (keepWin && hasRapidTaps(game)) fast ??= game; }
     recoveries += game.recoveries;
     if (seed <= 6) first += won ? 'W' : 'L';
   }
@@ -616,7 +614,7 @@ export async function scoreFunnel(board: BoardDef, witness: string | undefined, 
     states: settled.shape.states, risk: settled.shape.risk, lostShare: settled.shape.lostShare, silent: settled.shape.silent,
     hintStates: hintConveyorSearch(new MachineRules(board)).states, wins: winsOf(players), probe: players['burst2'].first,
     hasJam: Boolean(found.jam), naiveJams: naive.filter(Boolean).length, naiveOrders: naive.length,
-    witnessWins: (await playFunnel(board, order, 150, false)).status === 'won' && (await playFunnel(board, order, 150, true)).status === 'won',
+    witnessWins: await winsEitherWay(board, order),
     jitter: funnelJitter(board, order), shareBrisk: share.brisk, sharePatient: share.patient, shareOrders: share.orders,
     fastWitness: Boolean(fast), capacity: board.beltCapacity, tight: tightenFunnel(board).beltCapacity,
   };

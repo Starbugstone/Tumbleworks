@@ -26,10 +26,10 @@ const positional = args.filter((arg, index) => !arg.startsWith('--') && !args[in
 const [journey = 'doctor', levelArg] = positional;
 const run = option('run') ?? new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 
-type State = Record<string, unknown> & { levelIndex: number; levelId: string; kind: string; status: string; busy: boolean; settling?: boolean; speed: number };
+type State = Record<string, unknown> & { levelIndex: number; levelId: string; kind: string; status: string; busy: boolean; settling?: boolean; speed: number; gameFingerprint: string };
 type Point = { x: number; y: number };
 type GameWindow = { tumbleworks?: { app: {
-  manualClock: boolean; runtime: unknown;
+  manualClock: boolean; runtime: { game: { fingerprint(): string }; render(alpha: number, seconds: number): void };
   advance(seconds: number, draw?: boolean): boolean;
   debugState(): State; debugTargets(): Record<string, Point>;
   stage: { renderer: { info: { render: { calls: number; triangles: number }; programs: unknown[] }; getPixelRatio(): number } };
@@ -58,7 +58,10 @@ function target(arg: string | undefined): Target {
   return { id: arg, kind, index: null };
 }
 
-const state = (page: Page): Promise<State> => page.evaluate(() => (window as unknown as GameWindow).tumbleworks!.app.debugState());
+const state = (page: Page): Promise<State> => page.evaluate(() => {
+  const { app } = (window as unknown as GameWindow).tumbleworks!;
+  return { ...app.debugState(), gameFingerprint: app.runtime.game.fingerprint() };
+});
 
 /** Screenshot plus the rule state at that moment: the action and its result, not only the last screen. */
 async function evidence(page: Page, label: string): Promise<State> {
@@ -83,20 +86,20 @@ async function settle(page: Page): Promise<void> {
 }
 
 /** A real touch at a board target's projected screen point; retried only if the board did not react at all. */
-async function tap(page: Page, target: string): Promise<void> {
+async function tap(page: Page, target: string, settleAfter = true): Promise<void> {
   const point = await page.evaluate((id) => (window as unknown as GameWindow).tumbleworks!.app.debugTargets()[id], target);
   if (!point) throw new Error(`No target ${target} on this board`);
-  const reaction = (s: State) => JSON.stringify([s.busy, s.status, s['pending'], s['occupancy'], s['moves'], s['selected']]);
+  const reaction = (s: State) => JSON.stringify([s.gameFingerprint, s['selected'], s.busy, s.status]);
   for (let attempt = 0; attempt < 3; attempt++) {
     const before = reaction(await state(page));
     await page.touchscreen.tap(point.x, point.y);
     if (reaction(await state(page)) !== before) break;
   }
-  await settle(page);
+  if (settleAfter) await settle(page);
 }
 
 async function open(browser: Browser, level?: Target): Promise<Page> {
-  const context = await browser.newContext(flag('desktop') ? { viewport: { width: 1365, height: 900 } }
+  const context = await browser.newContext(flag('desktop') ? { viewport: { width: 1365, height: 900 }, hasTouch: true }
     : { ...devices['Pixel 7'], viewport: { width: 375, height: 690 } });
   const page = await context.newPage();
   page.on('pageerror', (error) => failures.push(`page error: ${error.message}`));
@@ -189,15 +192,24 @@ const journeys: Record<string, (browser: Browser) => Promise<void>> = {
     const level = target(levelArg);
     const page = await open(browser, level);
     const first = order(level, 'win').slice(0, level.kind === 'tube' ? 2 : 1);
-    const before = await evidence(page, 'start');
+    if (!first.length) throw new Error(`${level.id} has no authored opening move for controls`);
+    // Loading and picking may advance the running belt. Restart under the stopped clock gives tick zero.
+    await page.getByRole('button', { name: 'Restart', exact: true }).click();
+    const initial = await evidence(page, 'initial');
     check(await page.getByRole('button', { name: 'Undo', exact: true }).isDisabled(), 'Undo is disabled before any move');
-    for (const target of first) await tap(page, target);
-    const moved = await evidence(page, 'after-move');
-    check(JSON.stringify(moved) !== JSON.stringify(before), 'a move changed the board');
-    await page.getByRole('button', { name: 'Undo', exact: true }).click();
+    for (const target of first.slice(0, -1)) await tap(page, target, false);
+    const before = await evidence(page, 'before-action');
+    check(before.gameFingerprint === initial.gameFingerprint, 'selecting a source leaves the initial game state unchanged');
+    await tap(page, first.at(-1)!, false);
+    const accepted = await evidence(page, 'accepted-action');
+    check(accepted.gameFingerprint !== before.gameFingerprint, 'the accepted action changes the game before any tick');
+    check(await page.getByRole('button', { name: 'Undo', exact: true }).isEnabled(), 'the action can be undone');
     await settle(page);
+    await evidence(page, 'after-move');
+    await page.getByRole('button', { name: 'Undo', exact: true }).click();
+    // Read immediately: even a single belt tick would change the restored machine fingerprint.
     const undone = await evidence(page, 'after-undo');
-    check(undone['moves'] === before['moves'] && undone['occupancy'] === before['occupancy'], 'Undo restores the start');
+    check(undone.gameFingerprint === before.gameFingerprint, 'Undo restores the complete pre-action game state');
     await page.getByRole('button', { name: 'Hint', exact: true }).click();
     await evidence(page, 'hint');
     check(await page.locator('#focus-ring').isVisible() || await page.locator('#message').isVisible(), 'Hint points at a piece or explains');
@@ -208,11 +220,15 @@ const journeys: Record<string, (browser: Browser) => Promise<void>> = {
     check((await state(page)).speed === 3 && await fast.getAttribute('aria-pressed') === 'true', 'holding ×3 runs at triple speed');
     await page.mouse.up();
     check((await state(page)).speed === 1, 'letting go returns to normal speed');
-    for (const target of first) await tap(page, target);
-    await page.getByRole('button', { name: 'Restart', exact: true }).click();
+    for (const target of first) await tap(page, target, false);
+    const movedAgain = await evidence(page, 'accepted-before-restart');
+    check(movedAgain.gameFingerprint !== initial.gameFingerprint, 'the game has changed before Restart');
     await settle(page);
+    await evidence(page, 'before-restart');
+    await page.getByRole('button', { name: 'Restart', exact: true }).click();
     const restarted = await evidence(page, 'after-restart');
-    check(restarted['moves'] === before['moves'] && restarted.levelId === level.id, 'Restart reloads the same level from the start');
+    check(restarted.gameFingerprint === initial.gameFingerprint && restarted.levelId === initial.levelId,
+      'Restart restores the same level and complete initial game state');
     const mute = page.getByRole('button', { name: 'Sound', exact: true });
     await mute.click();
     check(await mute.getAttribute('aria-pressed') === 'true', 'Sound toggles off');
@@ -243,14 +259,18 @@ const journeys: Record<string, (browser: Browser) => Promise<void>> = {
     for (const target of first) await tap(page, target);
     const info = await page.evaluate(() => {
       const { app } = (window as unknown as GameWindow).tumbleworks!;
-      app.advance(1 / 60, true);
+      // Taps have settled. Render without a simulation tick, including a still Tube Sort board.
+      app.runtime.render(0, 0);
       const { render, programs } = app.stage.renderer.info;
-      return { drawCalls: render.calls, triangles: render.triangles, programs: programs.length, pixelRatio: app.stage.renderer.getPixelRatio() };
+      const now = app.debugState();
+      return { evidence: 'settled-scene-census', busy: now.busy, settling: now.settling ?? false,
+        drawCalls: render.calls, triangles: render.triangles, programs: programs.length, pixelRatio: app.stage.renderer.getPixelRatio() };
     });
-    await evidence(page, 'busy-frame');
+    await evidence(page, 'settled-scene');
     writeFileSync(`${dir}/render.json`, JSON.stringify(info, null, 2));
     console.log(JSON.stringify(info));
-    check(info.drawCalls > 0, 'the frame drew');
+    check(!info.busy && !info.settling, 'the scene is settled');
+    check(info.drawCalls > 0, 'the settled scene drew');
   },
 };
 
@@ -261,6 +281,8 @@ mkdirSync(dir, { recursive: true });
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 try { await run_(browser); } catch (error) { failures.push(`stopped: ${(error as Error).message}`); console.log(`FAIL stopped: ${(error as Error).message}`); }
 await browser.close();
-writeFileSync(`${dir}/result.json`, JSON.stringify({ journey, level: levelArg ?? null, run, ok: failures.length === 0, failures }, null, 2));
+writeFileSync(`${dir}/result.json`, JSON.stringify({ journey, level: levelArg ?? null, run,
+  evidenceKind: journey === 'render' ? 'settled-scene-census' : 'functional-journey',
+  ok: failures.length === 0, failures }, null, 2));
 console.log(`${failures.length ? 'FAILED' : 'OK'} ${journey}${levelArg ? ` ${levelArg}` : ''}: evidence in ${dir}`);
 process.exit(failures.length ? 1 : 0);

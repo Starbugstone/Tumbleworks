@@ -1,5 +1,7 @@
 /** Bump this when scoring semantics, heuristics, rules or simulator behavior changes. */
 export const SCORER_VERSION = 'level-score-h1';
+/** Role-aware Tube graphs distinguish spent cups and locked spare capacity. Classic scores are unchanged. */
+export const TUBE_ROLE_SCORER_VERSION = 'tube-roles-h2';
 export const STRONG_POLICY = {
   depths: [4, 6], lapse: 0.03, zeroLapse: 0,
   seeds: Array.from({ length: 60 }, (_, index) => index + 1),

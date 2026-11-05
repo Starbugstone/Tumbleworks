@@ -49,6 +49,7 @@ for (const id of [200, 201, 202]) test(`Loop Sort feature ${id}: phone input, un
     await tap(page, 'undo');
     await expect(page.locator('.lr-card.now:not(.leaving)[data-lane="0"]')).toHaveAttribute('data-truck', '0');
   } else {
+    await advance(page, 240);
     await tap(page, 'hint');
     await expect(page.locator('#message')).toContainText('trucks 1 and 2');
     await tap(page, 'lane1');

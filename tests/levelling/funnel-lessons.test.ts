@@ -7,7 +7,7 @@ import { hintConveyorSearch } from '../../src/sim/solver';
 import { hashBoard, winCeiling, type ScoreRow } from '../../scripts/level-curve';
 const table = new Map((JSON.parse(readFileSync('tests/levelling/scores.json','utf8')) as ScoreRow[]).map(row=>[row.id,row]));
 for(const [index,board] of [BOARD_200,BOARD_201,BOARD_202].entries()) it(`${board.id}: the bank lesson passes the machine, hint and cheese/spam gates`,()=>{
-  expect(PLAY_ORDER).not.toContain(board.id);
+  expect(Object.values(PLAY_ORDER).flat()).not.toContain(board.id);
   const row=table.get(board.id)!;
   expect(row).toBeDefined();
   expect(row.hash).toBe(hashBoard(board));

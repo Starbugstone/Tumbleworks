@@ -7,6 +7,8 @@ import type { Color } from '../../src/sim/types';
 import { BOARDS } from '../../src/sim/boards';
 import { LOOP_BOARDS } from '../../src/loop/boards';
 import { TUBE_BOARDS } from '../../src/puzzles/levels';
+import { levelTitle } from '../../src/i18n';
+import { locale, setLocale } from '../../src/preferences';
 
 class SpinRuntime implements GameRuntime {
   readonly game = { steps: 0, actions: [], step: () => undefined, perform: () => false, fingerprint: () => '' };
@@ -51,6 +53,14 @@ function syntheticLevel(kind: string, id: string): GameLevel {
 }
 
 describe('gameplay registry', () => {
+  it('provides a French title for every registered level', () => {
+    const before = locale();
+    try {
+      setLocale('fr');
+      for (const level of CAMPAIGN) expect(levelTitle(level.id, '__missing__'), level.id).not.toBe('__missing__');
+    } finally { setLocale(before); }
+  });
+
   it('registers the campaign in play order, one level per game per round', () => {
     const rounds = PLAY_ORDER.conveyor.length;
     expect(PLAY_ORDER.loop).toHaveLength(rounds);

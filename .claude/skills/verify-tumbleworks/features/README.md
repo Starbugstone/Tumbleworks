@@ -8,7 +8,7 @@ docker compose --profile e2e run --rm -e npm_config_cache=/app/output/.npm-cache
 
 ## Baseline preconditions
 
-- The `dev` service answers on port 5180 (`scripts/launch.sh`), and `scripts/doctor.sh` passes.
+- Launch with a unique run ID: `scripts/launch.sh <id>`. Reuse that ID for `RUN_ID=<id> scripts/doctor.sh`, journey `--run <id>` and `scripts/cleanup.sh <id>`. The `dev` service answers on port 5180 and doctor passes. See the skill for exact-container lease rules; existing servers and other runs are preserved.
 - Each journey opens a fresh phone-sized browser context (375x690, touch): level 1, no saved progress, English unless the browser prefers French.
 - Nobody is editing `src/` during the run: Vite reloads the page on every save.
 
@@ -21,9 +21,10 @@ docker compose --profile e2e run --rm -e npm_config_cache=/app/output/.npm-cache
 
 ## Proof and skip reporting
 
-- Every journey leaves numbered screenshots, `steps.jsonl` (state per screenshot) and `result.json` in `output/current/verify/<run>/`.
+- Every journey leaves numbered screenshots, `steps.jsonl` (inspected state and full game fingerprint per screenshot) and `result.json` in `output/current/verify/<run>/`.
 - A win is proven by the status, the card, stored completion and the ✓ after a reload, never by the status alone.
 - Report a journey that cannot run (no authored order for that level) as not verified, with the reason.
+- `tw render` is a settled scene census. It records `busy` and `settling` and never establishes busy-frame cost or phone performance.
 - Phone feel, sound and frame rate on a real device are outside what this map can prove: ask the owner for a capture.
 
 ## Feature entry contract
@@ -37,3 +38,5 @@ Each feature file starts with an H1 title and one paragraph describing the playe
 - [Tube Sort](./tube-sort.md): groups move between tubes by two taps or a drag.
 - [Controls](./controls.md): Undo, Restart, Hint, held fast forward and Sound on every game.
 - [Level picker and progress](./level-picker.md): choosing levels, stored completion, Next level, language and the bug-report copy.
+
+Focused release coverage also lives in [`tests/e2e/input-regressions.spec.ts`](../../../../tests/e2e/input-regressions.spec.ts). The map describes coverage, not a passing release run; record the command, revision and result when it runs.

@@ -137,8 +137,7 @@ export class LoopMachine implements Replayable {
         queueSlot = waitingAhead.get(truck.lane) ?? 0;
         waitingAhead.set(truck.lane, queueSlot + 1);
       }
-      const state = this.rules.state.lanes[truck.lane]?.find((candidate) => candidate.index === truck.index) ??
-        (truck.complete ? null : null);
+      const state = this.rules.state.lanes[truck.lane]?.find((candidate) => candidate.index === truck.index) ?? null;
       const prerequisite = state?.pourAfter ? this.truckReference(state.pourAfter) : null;
       const blocks: { color: Color; units: number; pouring: boolean }[] = [];
       if (state) {

@@ -132,9 +132,11 @@ export class MachineScene {
     }
     const outer = track.radius + RACEWAY.channelHalf + RACEWAY.wallThickness;
     const inner = track.radius - RACEWAY.channelHalf;
-    const deck = slab(stadium(track, outer), 0, DECK_TOP, plastic(PLATFORM_DARK), plastic(CHANNEL, 0.55));
-    const rim = slab(ring(track, outer, track.radius + RACEWAY.channelHalf), DECK_TOP, RIM_TOP, plastic(PLATFORM_DARK), shiny(PLATFORM));
-    const island = slab(stadium(track, inner), DECK_TOP, RIM_TOP, plastic(PLATFORM_DARK), shiny(PLATFORM));
+    const side = plastic(PLATFORM_DARK);
+    const top = shiny(PLATFORM);
+    const deck = slab(stadium(track, outer), 0, DECK_TOP, side, plastic(CHANNEL, 0.55));
+    const rim = slab(ring(track, outer, track.radius + RACEWAY.channelHalf), DECK_TOP, RIM_TOP, side, top);
+    const island = slab(stadium(track, inner), DECK_TOP, RIM_TOP, side, top);
     this.level.add(deck, rim, island);
   }
 
@@ -179,6 +181,7 @@ export class MachineScene {
     }
     const rimHeight = rimY - mouthY;
     const rimMaterial = shiny(0xffc857);
+    const lips: THREE.BufferGeometry[] = [];
     for (const [x, z, w, d] of [[-half, midZ, 0.14, depth + 0.14], [half, midZ, 0.14, depth + 0.14], [0, mouth.back, half * 2 + 0.14, 0.14], [0, mouth.front, half * 2 + 0.14, 0.14]] as const) {
       const wall = this.glass.mesh(new THREE.BoxGeometry(w, 0.06, d));
       wall.position.set(x, mouthY + rimHeight / 2, z);
@@ -186,8 +189,15 @@ export class MachineScene {
       group.add(wall);
       const lip = rounded(w + 0.1, 0.16, d + 0.1, rimMaterial, 0.06);
       lip.position.set(x, rimY + 0.06, z);
-      group.add(lip);
+      lip.updateMatrix();
+      lips.push(lip.geometry.applyMatrix4(lip.matrix));
     }
+    const rimGeometry = mergeGeometries(lips);
+    for (const geometry of lips) geometry.dispose();
+    if (!rimGeometry) throw new Error('Funnel rim geometry could not be merged');
+    const rim = new THREE.Mesh(rimGeometry, rimMaterial);
+    rim.castShadow = true;
+    group.add(rim);
     const neckRing = new THREE.Mesh(new THREE.TorusGeometry(neck.halfX + 0.16, 0.07, 10, 28), shiny(0xf25f33));
     neckRing.rotation.x = Math.PI / 2;
     neckRing.position.set(0, neckY + 0.02, neck.z);
@@ -518,10 +528,8 @@ export class MachineScene {
       let group: THREE.Object3D | null = surface.object;
       while (group && group.userData['action'] === undefined) group = group.parent;
       const action: unknown = group?.userData['action'];
-      const crateId: unknown = group?.userData['crateId'];
       // A classic column pours its front crate wherever on the column it is tapped, as before, so a quick second tap on
       // the crate sliding forward still lands; shelves and pairs map each crate to its own action.
-      void crateId;
       return typeof action === 'number' ? action : null;
     }
     // A small extension around the front rim gives the visible piece a comfortable touch floor.

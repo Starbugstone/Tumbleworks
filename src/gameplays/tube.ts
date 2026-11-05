@@ -11,32 +11,37 @@ export class TubeRuntime implements GameRuntime {
   private readonly view: TubeView;
   private selected: number | null = null;
   private dragFrom: number | null = null;
+  private dragLeftSource = false;
   readonly drag = {
     start: (target: string, point: ScreenPoint): boolean => {
       const index = this.index(target);
       if (this.status !== 'playing' || index === null || !this.rules.state.tubes[index]?.length) return false;
       if (this.sourceBlocked(index)) return false;
       this.dragFrom = index;
+      this.dragLeftSource = false;
       this.view.beginDrag(index, this.rules.state, point);
       return true;
     },
     move: (point: ScreenPoint, target: string | null): void => {
       const to = this.index(target);
+      if (to !== this.dragFrom) this.dragLeftSource = true;
       const valid = this.dragFrom !== null && to !== null && tubeMoveRejection(this.board, this.rules.state, this.dragFrom, to) === null;
       this.view.moveDrag(point, valid && to !== null ? to : this.dragFrom ?? -1);
     },
     end: (target: string | null): readonly Feedback[] => {
       const from = this.dragFrom;
       const to = this.index(target);
-      const starts = this.view.endDrag(this.rules.state);
+      const starts = this.view.endDrag();
       this.dragFrom = null;
       this.view.select(this.selected ?? -1);
+      // A wobble inside the source is still a tap; dragging away and back keeps its cancel meaning.
+      if (from !== null && from === to && !this.dragLeftSource) return this.activate(target!);
       return from !== null && to !== null && from !== to ? this.transfer(from, to, starts) : [];
     },
     cancel: (): void => {
       if (this.dragFrom === null) return;
       this.dragFrom = null;
-      this.view.endDrag(this.rules.state);
+      this.view.endDrag();
       this.view.select(this.selected ?? -1);
     },
   };
@@ -123,6 +128,7 @@ export class TubeRuntime implements GameRuntime {
     return [];
   }
   hint(): readonly Feedback[] {
+    if (this.status !== 'playing') return [];
     const move = this.rules.hint();
     if (!move) return [{ type: 'message', text: t('No safe move found from here. Try undoing a move.', 'Aucun déplacement sûr trouvé. Essayez d’annuler un déplacement.') }];
     const color = this.rules.state.tubes[move.from]?.at(-1);

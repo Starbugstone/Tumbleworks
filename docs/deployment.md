@@ -21,11 +21,20 @@ Every job in `ci.yml` gates deployment.
 | Job | Checks |
 | --- | --- |
 | `game` | `npm ci`, typecheck, lint, unit tests including the physics and scripted witnesses, build with its first-download budget |
+| `browser` | Fourteen real-touch and rendering checks, using the Compose game server and pinned Playwright image with two workers |
 | `hosting` | The controller's own tests, then `tests/o2switch/site-test.sh` |
 
-`site-test.sh` builds the commit with the real controller and the settings below, and serves the release with Apache. It checks the cache headers, the 404 and 403 rules, the HTTPS redirect and certificate renewal, then runs `tests/e2e/smoke.spec.ts` in Chromium: the page boots, the board draws, a real tap reaches the game and all ninety levels are listed.
+`site-test.sh` builds the commit with the real controller and the settings below, and serves the release with Apache. It checks the cache headers, the 404 and 403 rules, the HTTPS redirect and certificate renewal, then runs `tests/e2e/smoke.spec.ts` in Chromium: the page boots, the board draws, a real tap reaches the game and all registered campaign levels are listed (currently 120), derived from `CAMPAIGN` rather than an old fixed count.
 
-The full Playwright suite is not in the gate. It takes about 21 minutes, and its instruction-toast test can fail under load, which would hold back a good release. Run it locally before a change you consider risky.
+The full Playwright suite and standalone performance test are not currently in the gate. The earlier 21-minute run and loaded instruction-toast failure are historical ninety-level observations, not the duration or result of the 120-level release. Run the full suite on the reviewed release revision, then run performance alone with `--no-deps`, and record actual results in [verification.md](verification.md). Browser measurements do not establish physical-phone performance.
+
+The browser job runs [input-regressions.spec.ts](../tests/e2e/input-regressions.spec.ts)
+(picker swipes, slide taps, independent fast-forward holds, wait hints and Restart) and
+[render-hygiene.spec.ts](../tests/e2e/render-hygiene.spec.ts). These fourteen tests passed
+three consecutive local repetitions with two workers: 42/42 in 5.0 minutes. The
+first hosted run is still pending during this review. Rule-variant specs such as
+[loop-features.spec.ts](../tests/e2e/loop-features.spec.ts) remain part of the full
+local release verification.
 
 ## Settings on the host
 

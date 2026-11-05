@@ -25,7 +25,7 @@ Preconditions:
 
 - **Win.** Run `tw win board-1 --run <id>`. The steps show each pour; `result.json` is `ok`, the last state has `status: "won"`, the card offers `Next level`, and the picker shows ✓ on that chip after a reload.
 - **Jam.** Run `tw jam board-1 --run <id>`. The last state has `status: "jammed"`, the card reads `A little tangled!`, Undo carries the `attention` class, and after Undo the status is `playing`.
-- **Busy board.** Run `tw render board-57 --run <id>` for draw calls and triangles with marbles moving (`render.json`).
+- **Settled scene census.** Run `tw render board-57 --run <id>` for draw calls and triangles after up to three pours, settling after each (`render.json`). It does not measure moving marbles or frame time.
 - **Proof.** Look at the screenshots: crates and boxes carry their pattern badges, the belt is visibly full when `occupancy` equals capacity.
 
 ## Gotchas

@@ -1,3 +1,4 @@
+import { funnelSource } from './level-source';
 import { funnelFeatureTrap } from './funnel-features';
 import { MachineRules, funnelStateKey } from '../src/sim/rules';
 import { initPhysics, Machine } from '../src/machine/machine';
@@ -290,20 +291,8 @@ export async function author(recipe: FunnelRecipe, attempts = 400): Promise<Funn
   throw new Error(`No board for ${recipe.id} within ${attempts} seeds`);
 }
 
-const quote = (color: Color): string => `'${color}'`;
 export function emitBoard(report: FunnelReport): string {
-  const { board, recipe } = report;
-  const name = `BOARD_${board.id.split('-')[1]}`;
-  const supplies = board.supplies.map((queue) => queue.every((tray) => tray.count === TRAY_COUNT)
-    ? `trays(${queue.map((tray) => quote(tray.color)).join(', ')})`
-    : `[${queue.map((tray) => tray.count === TRAY_COUNT ? `tray(${quote(tray.color)})` : `tray(${quote(tray.color)}, SHORT_TRAY)`).join(', ')}]`).join(', ');
-  const order: Color[] = [];
-  const longest = Math.max(...board.docks.map((queue) => queue.length));
-  for (let row = 0; row < longest; row++) for (const queue of board.docks) if (queue[row]) order.push(queue[row]!);
-  const base = `board('${board.id}', '${board.title.replace(/'/g, '\\\'')}', ${board.beltCapacity},\n  [${supplies}],\n  docks(${board.docks.length}, ${order.map(quote).join(', ')}))`;
-  if (board.pairs || board.predecessors || board.seals) return `/** ${recipe.note} */\nexport const ${name}: BoardDef = ${JSON.stringify(board, null, 2)};`;
-  const body = board.trackShape ? `{ ...${base}, trackShape: '${board.trackShape}' }` : base;
-  return `/** ${recipe.note} */\nexport const ${name}: BoardDef = ${body};`;
+  return funnelSource(report.board, report.recipe.note).code;
 }
 
 /** Reproducible rule lessons; kept outside the campaign and its ordinary authoring batch. */

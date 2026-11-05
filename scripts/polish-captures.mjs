@@ -4,7 +4,7 @@ const output = 'output/current/polish';
 mkdirSync(output, { recursive: true });
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const errors = [];
-for (const [name, viewport] of [['phone', { width: 390, height: 844 }], ['narrow', { width: 320, height: 700 }], ['desktop', { width: 1365, height: 900 }]]) {
+for (const [name, viewport] of [['phone', { width: 375, height: 690 }], ['desktop', { width: 1365, height: 900 }]]) {
   const page = await browser.newPage({ viewport, deviceScaleFactor: 1, hasTouch: true });
   page.on('pageerror', e => errors.push(e.message));
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });

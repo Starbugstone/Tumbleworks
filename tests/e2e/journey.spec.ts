@@ -1,3 +1,4 @@
+import { PHONE, DESKTOP } from '../fixtures/viewports';
 import { expect, test, type Page } from '@playwright/test';
 import { TUBE_BOARDS } from '../../src/puzzles/levels';
 import { availableTubeMoves, TubeRules } from '../../src/puzzles/rules';
@@ -194,14 +195,14 @@ test('hints explain current board actions without playing them; restart resets t
   await expect(page.getByRole('button', { name: 'Sound', exact: true })).toHaveClass(/muted/);
 });
 
-test('desktop and narrow-phone boards keep targets and controls inside the viewport', async ({ page }) => {
+test('desktop and reference-phone boards keep targets and controls inside the viewport', async ({ page }) => {
   // Two viewports, every level: about half a minute a level on the software renderer.
   test.setTimeout(120_000 + 30_000 * CAMPAIGN.length);
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/');
   await ready(page);
-  for (const viewport of [{ width: 1365, height: 900 }, { width: 320, height: 700 }]) {
+  for (const viewport of [DESKTOP, PHONE]) {
     await page.setViewportSize(viewport);
     for (const { id } of CAMPAIGN) {
       const index = levelIndex(id);

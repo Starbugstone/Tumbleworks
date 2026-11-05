@@ -1,7 +1,8 @@
+import { funnelSource, loopSource, tubeSource } from './level-source';
 import { readFileSync, writeFileSync } from 'node:fs';
 import type { LoopBoardDef } from '../src/loop/types';
 import type { TubeDef } from '../src/puzzles/types';
-import type { BoardDef, Color, Packet } from '../src/sim/types';
+import type { BoardDef } from '../src/sim/types';
 import { ALL_TARGETS, CANDIDATE_DIR } from './level-author';
 import type { ScoredFile } from './level-score';
 import { SCORE_DIR } from './level-score';
@@ -26,33 +27,6 @@ const replaceBlock = (path: string, marker: string, body: string): void => {
   writeFileSync(path, `${source.slice(0, at)}${begin}\n${body}\n${indent}${source.slice(to)}`);
 };
 const quote = (text: string): string => `'${text.replace(/'/g, '\\\'')}'`;
-const color = (value: Color): string => `'${value}'`;
-
-function funnelSource(board: BoardDef, note: string): { name: string; code: string } {
-  const name = `BOARD_${board.id.split('-')[1]}`;
-  // A crate of another size than nine must keep its count, or the bank would hold a different board from the one scored.
-  const crate = (packet: Packet): string => (packet.count === 9 ? `tray(${color(packet.color)})` : `tray(${color(packet.color)}, ${packet.count === 6 ? 'SHORT_TRAY' : packet.count === 3 ? 'SMALL_TRAY' : packet.count})`);
-  const supplies = board.supplies.map((queue) => (queue.every((packet) => packet.count === 9) ? `trays(${queue.map((packet) => color(packet.color)).join(', ')})` : `[${queue.map(crate).join(', ')}]`)).join(', ');
-  const order: Color[] = [];
-  const longest = Math.max(...board.docks.map((queue) => queue.length));
-  for (let row = 0; row < longest; row++) for (const queue of board.docks) if (queue[row]) order.push(queue[row]!);
-  const made = `board(${quote(board.id)}, ${quote(board.title)}, ${board.beltCapacity},\n  [${supplies}],\n  docks(${board.docks.length}, ${order.map(color).join(', ')}))`;
-  // The belt shape is part of the board: an eight written without it would load as an oval.
-  return { name, code: `/** ${note} */\nexport const ${name}: BoardDef = ${board.trackShape ? `{ ...${made}, trackShape: ${quote(board.trackShape)} }` : made};` };
-}
-function loopSource(board: LoopBoardDef, note: string): { name: string; code: string } {
-  const name = `LOOP_${board.id.split('-')[1]}`;
-  if (board.couplings?.length || board.lanes.flat().some((truck) => truck.id || truck.capacity !== undefined || truck.pourAfter)) return { name, code: `/** ${note} */\nexport const ${name}: LoopBoardDef = ${JSON.stringify(board)};` };
-  const seg = (packet: Packet): string => `seg(${color(packet.color)}, ${packet.count})`;
-  const lanes = board.lanes.map((queue) => `[${queue.map((truck) => `truck(${truck.segments.map(seg).join(', ')})`).join(', ')}]`).join(', ');
-  return { name, code: `/** ${note} */\nexport const ${name}: LoopBoardDef = board(${quote(board.id)}, ${quote(board.title)}, ${board.loopCapacity},\n  [${lanes}],\n  ring(${board.loop.map(seg).join(', ')}));` };
-}
-function tubeSource(board: TubeDef, note: string, solution: readonly { from: number; to: number }[]): string {
-  const tubes = board.tubes.map((tube) => `      [${tube.map(color).join(', ')}],`).join('\n');
-  const rows: string[] = [];
-  for (let at = 0; at < solution.length; at += 4) rows.push(`      ${solution.slice(at, at + 4).map((move) => `{ from: ${move.from}, to: ${move.to} },`).join(' ')}`);
-  return `  /** ${note} */\n  {\n    kind: 'tube', id: ${quote(board.id)}, title: ${quote(board.title)}, capacity: ${board.capacity},\n    ${board.containers ? `containers: ${JSON.stringify(board.containers)},\n    ` : ''}tubes: [\n${tubes}\n    ],\n    solution: [\n${rows.join('\n')}\n    ],\n  },`;
-}
 
 interface Logged { seed: number; capacity?: number; outcome: string; scored?: ScoredFile }
 const accepted = (id: string, seed: number, capacity?: number): ScoredFile => {

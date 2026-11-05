@@ -4,7 +4,7 @@ import { LOOP_BOARDS } from '../../src/loop/boards';
 import { bays, bedSpans, DECK_TOP, RoundedTrack, sharePercent, TRUCK } from '../../src/loop/layout';
 import { LoopMachine, type UnitPose } from '../../src/loop/machine';
 import type { LoopBoardDef } from '../../src/loop/types';
-import { hintLoop } from '../../src/loop/solver';
+import { LoopRuntime } from '../../src/gameplays/loop';
 import { LOOP_JAMS, LOOP_WITNESSES } from '../witnesses';
 
 /** Taps the next lane once the loop has stopped changing, like a patient player. */
@@ -273,14 +273,16 @@ describe('the rules and the machine tell the same story', () => {
   });
 
   for (const board of LOOP_BOARDS) {
-    it(`${board.id}: following the hint to the end wins`, { timeout: 120_000 }, () => {
+    it(`${board.id}: following live runtime hints to the end wins`, { timeout: 120_000 }, () => {
       const machine = new LoopMachine(board);
+      const runtime: LoopRuntime = Object.create(LoopRuntime.prototype);
+      Object.defineProperty(runtime, 'machine', { value: machine });
       for (let tick = 0; tick < 60 * 400; tick++) {
         machine.step();
         if (machine.rules.status !== 'playing' && !machine.transferring) break;
-        if (machine.rules.pending !== 0 || machine.rules.canDrain() || tick % 10) continue;
-        const lane = hintLoop(machine.rules);
-        if (lane !== null) machine.tap(lane);
+        if (tick % 10) continue;
+        const target = runtime.hint().find((event) => event.target)?.target;
+        if (target) expect(machine.tap(Number(target.slice(4))).ok).toBe(true);
       }
       expect(machine.rules.status).toBe('won');
     });

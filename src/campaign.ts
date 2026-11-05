@@ -12,14 +12,15 @@ import type { Color } from './sim/types';
 const difficulties: readonly Difficulty[] = ['Getting started', 'Finding a rhythm', 'Thinking ahead'];
 /** Full spectrum marks every board where the fifth colour appears; the first levels of each bank teach the controls. */
 const hasOrange = (colors: readonly Color[]): boolean => colors.includes('orange');
-/** Tube Sort: one level per tier, then the fifth colour arrives from its sixth level. */
+/** Tube Sort tiers follow campaign position until orange in the board content marks Full spectrum. */
 const difficulty = (index: number, colors: readonly Color[]): Difficulty => hasOrange(colors) ? 'Full spectrum' : difficulties[index] ?? 'Thinking ahead';
-/** Conveyor banks begin with two easy levels, then one middle level, the harder layouts, and orange from the eighth. */
+/** Conveyor games begin with two easy levels and one middle level; orange in the content overrides the tier. */
 const conveyorDifficulty = (index: number, colors: readonly Color[]): Difficulty => hasOrange(colors) ? 'Full spectrum' : difficulties[index < 2 ? 0 : index < 3 ? 1 : 2] ?? 'Thinking ahead';
 
 /**
  * Play order, per game. IDs carry no order: a save stores IDs, so a level can move or leave the campaign and progress stays
- * keyed to the same board. Every definition stays in its bank until the owner has played and confirmed what retires.
+ * keyed to the same board. Currently 40 rounds (120 levels), toward the 120-round target. Every definition stays in its
+ * bank until the owner has played and confirmed what retires.
  */
 export const PLAY_ORDER = {
   conveyor: ['board-1', 'board-31', 'board-32', 'board-40', 'board-41', 'board-42', 'board-43', 'board-44', 'board-17', 'board-46', 'board-2', 'board-47', 'board-48', 'board-49', 'board-50', 'board-51', 'board-52', 'board-53', 'board-54', 'board-55', 'board-56', 'board-57', 'board-58', 'board-59', 'board-60', 'board-61', 'board-62', 'board-63', 'board-64', 'board-65', 'board-66', 'board-67', 'board-68', 'board-69', 'board-70', 'board-71', 'board-72', 'board-73', 'board-74', 'board-75'],

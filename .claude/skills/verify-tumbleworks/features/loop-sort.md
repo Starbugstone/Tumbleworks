@@ -1,6 +1,6 @@
 # Loop Sort
 
-The player taps a docked lorry to pour its open-end stretch onto a moving loop; lorries take their final colour from the loop as it passes, and a lorry full of one colour leaves for the next in its lane. Below the toy, numbered lorry cards show every lane's queue with the stretches and percentages in packing order. A full loop nobody can take from is a jam.
+The player taps a docked lorry to pour its open-end stretch onto a moving loop; lorries take their current open-end colour as it passes, and a lorry full of one colour leaves for the next in its lane. The deepest stretch fixes the finishing colour shown on the cab. Below the toy, numbered lorry cards show every lane's queue with the stretches and percentages in packing order. A full loop nobody can take from is a jam; so is an undrainable loop with nothing left for any front truck to pour.
 
 ## Sub-features
 
@@ -25,7 +25,7 @@ Preconditions:
 
 - **Win.** Run `tw win loop-31 --run <id>`. Screens show the cards updating as lorries pour and leave; `result.json` is `ok` and the chip shows ✓ after a reload.
 - **Jam.** Run `tw jam loop-41 --run <id>`. The last state is `jammed`; Undo brings it back to `playing`.
-- **Cards.** Open any later level (`tw render loop-61 --run <id>`) and check in the screenshot that every lane has a numbered row, the docked card is raised and ivory, and each stretch prints a whole percentage.
+- **Cards.** Open any later level (`tw render loop-61 --run <id>`) and check in the settled screenshot that every lane has a numbered row, the docked card is raised and ivory, and each stretch prints a whole percentage. The render report is a settled scene census, not a busy-frame or performance measurement.
 
 ## Gotchas
 

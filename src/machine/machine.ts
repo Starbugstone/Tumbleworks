@@ -2,7 +2,7 @@ import { cos, hypot, sin } from '../engine/exact-math';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { FALLING_GROUPS, PARKED_GROUPS, PLACED_GROUPS, physics, type PhysicsService } from '../engine/physics';
 import { fingerprintOf, type Replayable, type ReplayAction } from '../engine/replay';
-import { MachineRules, type ReleaseResult, type RulesEvent } from '../sim/rules';
+import { MachineRules, type ReleaseResult } from '../sim/rules';
 import type { BoardDef, Color } from '../sim/types';
 import {
   BOX, columnX, conveyorTrack, CRATE, dockX, entryDistanceFor, FLIGHT, FUNNEL, funnelFaces, funnelHalfWidth, GRAVITY, MARBLE_RADIUS,
@@ -115,7 +115,6 @@ const EXIT_STEPS = Math.ceil((FUNNEL.exitSeconds + FUNNEL.dropSeconds) / TICK_SE
 const FALL_NUDGE_SECONDS = 4;
 const FALL_RESCUE_SECONDS = 8;
 const easeInOut = (t: number): number => t * t * (3 - 2 * t);
-const easeOut = (t: number): number => 1 - (1 - t) * (1 - t);
 
 export class Machine implements Replayable {
   readonly rules: MachineRules;
@@ -131,7 +130,6 @@ export class Machine implements Replayable {
   readonly actions: ReplayAction[] = [];
   steps = 0;
   private readonly marbleHandles = new Map<number, number>();
-  private beltFloorHandle = -1;
   private readonly events: MachineEvent[] = [];
   private readonly dockDistances: number[];
   lastRecovery = '';
@@ -172,8 +170,8 @@ export class Machine implements Replayable {
     const body = this.world.createRigidBody(RAPIER.RigidBodyDesc.fixed());
     const { floorY, channelHalf, wallThickness } = RACEWAY;
     const span = Math.max(...Array.from({ length: 64 }, (_, i) => Math.abs(this.track.point(i / 64 * this.track.length).x))) + channelHalf + wallThickness + 0.5;
-    this.beltFloorHandle = this.world.createCollider(
-      RAPIER.ColliderDesc.cuboid(span, 0.25, span).setTranslation(0, floorY - 0.25, RACEWAY.centerZ).setFriction(0.5).setRestitution(0.28), body).handle;
+    this.world.createCollider(
+      RAPIER.ColliderDesc.cuboid(span, 0.25, span).setTranslation(0, floorY - 0.25, RACEWAY.centerZ).setFriction(0.5).setRestitution(0.28), body);
 
     const { mouth, neck, mouthY, neckY } = FUNNEL;
     const mouthHalf = funnelHalfWidth(this.sourceColumns);

@@ -88,9 +88,13 @@ Replay any counterexample against the implementation before calling it a game bu
 
 ## Hold the performance and download budgets
 
-**Frame cost:** `tests/e2e/performance.spec.ts` plays the busiest levels in a browser
-at a 4x CPU slowdown, in place of a mid-range phone, and fails if the game's own work
-gets slower. Other load skews it, so it is its own Playwright project that the full run starts only
+**Frame cost:** `tests/e2e/performance.spec.ts` plays the busiest levels through real
+touches at a 4x CPU slowdown. It waits for adaptive resolution to settle, then
+restarts and samples at a fixed full-phone canvas size. Its timing guard covers
+one tick plus one draw; complete advance time and ticks per frame are reported
+separately. Draw submission can include SwiftShader stalls, so this is a regression
+proxy, not a measurement of a phone or the whole displayed frame. A new busiest
+level requires its own recorded baseline. Other load skews it, so it is its own Playwright project that the full run starts only
 after every other test has finished; run it by itself with `--no-deps`, or Playwright runs the rest first. A browser test can't measure
 a phone, so feel on the player's phone remains a separate check, and frame intervals
 under SwiftShader mostly measure the software renderer. Profile before changing
