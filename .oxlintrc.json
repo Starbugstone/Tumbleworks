@@ -136,6 +136,11 @@
             "object": "Math",
             "property": "log1p",
             "message": "Math.log1p can differ in the last bit between browsers, and physics grows that into a different game. Use src/engine/exact-math.ts."
+          },
+          {
+            "object": "crypto",
+            "property": "randomUUID",
+            "message": "Rules replay from their inputs: use stable IDs from the board, never random UUIDs."
           }
         ],
         "no-restricted-globals": [
@@ -151,6 +156,14 @@
           {
             "name": "document",
             "message": "Rules run headless in tests and replays: keep browser access in src/view."
+          },
+          {
+            "name": "globalThis",
+            "message": "Keep clocks, randomness and browser globals outside replayable rules."
+          },
+          {
+            "name": "self",
+            "message": "Keep clocks, randomness and browser globals outside replayable rules."
           }
         ],
         "no-restricted-imports": [
@@ -160,6 +173,12 @@
               {
                 "name": "three",
                 "message": "Rules run headless in tests and replays: drawing belongs in src/view."
+              }
+            ],
+            "patterns": [
+              {
+                "regex": "^three/",
+                "message": "Drawing libraries belong outside replayable rules."
               }
             ]
           }

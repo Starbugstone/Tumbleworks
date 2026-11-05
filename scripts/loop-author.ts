@@ -1,3 +1,4 @@
+import { loopSource } from './level-source';
 import { LoopRules, loopStateKey } from '../src/loop/rules';
 import { LoopMachine } from '../src/loop/machine';
 import { hintLoopSearch, settleLoop } from '../src/loop/solver';
@@ -419,14 +420,7 @@ export function author(recipe: LoopRecipe, attempts = 1500): LoopReport {
 }
 
 export function emitBoard(report: LoopReport): string {
-  const { board, recipe } = report;
-  const name = `LOOP_${board.id.split('-')[1]}`;
-  if (board.couplings?.length || board.lanes.flat().some((truck) => truck.id || truck.capacity !== undefined || truck.pourAfter)) return `/** ${recipe.note} */\nexport const ${name}: LoopBoardDef = ${JSON.stringify(board)};`;
-  const seg = (packet: Packet): string => `seg('${packet.color}', ${packet.count})`;
-  const lanes = board.lanes.map((queue) => `[${queue.map((truck) => `truck(${truck.segments.map(seg).join(', ')})`).join(', ')}]`).join(', ');
-  const base = `board('${board.id}', '${board.title.replace(/'/g, '\\\'')}', ${board.loopCapacity},\n  [${lanes}],\n  ring(${board.loop.map(seg).join(', ')}))`;
-  const body = board.trackShape ? `{ ...${base}, trackShape: '${board.trackShape}' }` : base;
-  return `/** ${recipe.note} */\nexport const ${name}: LoopBoardDef = ${body};`;
+  return loopSource(report.board, report.recipe.note).code;
 }
 
 export const LOOP_RECIPES: readonly LoopRecipe[] = [

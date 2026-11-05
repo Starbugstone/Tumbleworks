@@ -1,3 +1,4 @@
+import { PHONE } from './tests/fixtures/viewports';
 import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
@@ -5,10 +6,11 @@ export default defineConfig({
   timeout: 240_000,
   fullyParallel: false,
   reporter: 'list',
-  outputDir: 'output/playwright',
+  outputDir: 'output/current/playwright',
   use: {
     baseURL: process.env.TUMBLEWORKS_URL ?? 'http://game-server:5180',
     ...devices['Pixel 7'],
+    viewport: PHONE,
     launchOptions: { args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] },
     trace: 'retain-on-failure',
   },

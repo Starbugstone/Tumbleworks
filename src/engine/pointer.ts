@@ -36,10 +36,12 @@ export class BoardPointer {
       if (!gesture || event.pointerId !== gesture.id) return;
       this.gesture = null;
       if (gesture.dragging) actions.end(actions.pick({ x: event.clientX, y: event.clientY }));
-      else if (!gesture.moved && gesture.target) actions.tap(gesture.target);
+      else if (gesture.target && (!gesture.moved || actions.pick({ x: event.clientX, y: event.clientY }) === gesture.target)) actions.tap(gesture.target);
       if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
     });
-    for (const type of ['pointercancel', 'lostpointercapture']) canvas.addEventListener(type, () => this.cancel());
+    for (const type of ['pointercancel', 'lostpointercapture'] as const) canvas.addEventListener(type, (event) => {
+      if (event.pointerId === this.gesture?.id) this.cancel();
+    });
     window.addEventListener('blur', () => this.cancel());
   }
 

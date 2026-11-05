@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { CAMPAIGN } from '../../src/campaign';
+import type { App } from '../../src/view/App';
 
 /**
  * Work the renderer must not repeat on every frame. Each check failed before the rendering pass that added
@@ -12,6 +13,29 @@ const LEVELS = [
   { kind: 'loop', index: last('loop') },
   { kind: 'tube', index: last('tube') },
 ];
+
+// Frozen busy states from the alpha rendering baseline, independent of host timing noise.
+for (const sample of [
+  { id: 'board-57', prefix: 'supply', pours: [0, 1, 2, 3, 0, 1], fingerprint: 'd46abc05', calls: 118 },
+  { id: 'loop-70', prefix: 'lane', pours: [0, 1, 2, 3], fingerprint: '5bfa6650', calls: 129 },
+]) {
+  test(`${sample.id}: a busy scene keeps its recorded draw-call budget`, async ({ page }) => {
+    await open(page, CAMPAIGN.findIndex((level) => level.id === sample.id));
+    const result = await page.evaluate(({ prefix, pours }) => {
+      const { app } = (window as unknown as { tumbleworks: { app: App } }).tumbleworks;
+      for (let tick = 0; tick < 240; tick++) {
+        const lane = tick % 40 === 0 ? pours[tick / 40] : undefined;
+        if (lane !== undefined) app['activate'](`${prefix}${lane}`);
+        app.advance(1 / 60, false);
+      }
+      app.runtime.render(0.5, 0);
+      return { fingerprint: app.replay().fingerprint, calls: app.stage.renderer.info.render.calls };
+    }, sample);
+    expect(result.fingerprint, 'the measured busy state must match its baseline').toBe(sample.fingerprint);
+    expect(result.calls).toBeGreaterThan(0);
+    expect(result.calls, 'extra draws need measurement and a recorded baseline').toBeLessThanOrEqual(sample.calls);
+  });
+}
 
 async function open(page: Page, index: number): Promise<void> {
   await page.goto('/');
@@ -54,17 +78,27 @@ for (const level of LEVELS) {
       // A shader lookup leaves its mark on the material's renderer properties; count whose frames repeat one.
       const lookups = new Map<string, number>();
       const draw = renderer.renderBufferDirect.bind(renderer);
+      const restore: (() => void)[] = [];
+      const observed = new Set<string>();
       renderer.renderBufferDirect = (...args: unknown[]) => {
         const material = args[3] as Material;
         const properties = renderer.properties.get(material);
-        const before = properties['instancing'];
-        properties['instancing'] = 'probe';
+        if (!observed.has(material.uuid)) {
+          observed.add(material.uuid);
+          let instancing = properties['instancing'];
+          const key = `${material.type} ${material.uuid}`;
+          Object.defineProperty(properties, 'instancing', {
+            configurable: true,
+            get: () => instancing,
+            set: (value: unknown) => { instancing = value; lookups.set(key, (lookups.get(key) ?? 0) + 1); },
+          });
+          restore.push(() => Object.defineProperty(properties, 'instancing', { configurable: true, writable: true, enumerable: true, value: instancing }));
+        }
         draw(...args);
-        if (properties['instancing'] === 'probe') properties['instancing'] = before;
-        else lookups.set(`${material.type} ${material.uuid}`, (lookups.get(`${material.type} ${material.uuid}`) ?? 0) + 1);
       };
       for (let frame = 0; frame < 12; frame++) app.advance(1 / 60, true);
       renderer.renderBufferDirect = draw;
+      for (const reset of restore) reset();
       return { missing, repeated: [...lookups].filter(([, count]) => count > 1).map(([key, count]) => `${key} ×${count}`) };
     });
     expect(result.missing, 'materials drawn without a compiled shader at load').toEqual([]);

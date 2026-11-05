@@ -59,8 +59,8 @@ All games share one table of S. No band builds in a ranking of the games.
 | 111-118 | 76-92 | 60-74 | 99 | 30 | 50% |
 | 119-120 | 80-94 | 64-76 | 100 | 30 | 50% |
 
-The campaign has 120 rounds, 360 levels: rounds 1-40 continue the accepted opening's feel and rounds 41-120 climb to the
-ending (decided 3 November 2026; the reasoning is in `output/current/levelling/expansion/decision.md`, not tracked). Bands
+The registered campaign has 40 rounds, 120 levels. The target is 120 rounds, 360 levels: rounds 1-40 continue the accepted
+opening's feel and rounds 41-120 climb to the ending (see the tracked [3 November decision](levelling-decision-2026-11-03.md)). Bands
 from round 41 are provisional until the strong planner's H is calibrated. From round 13 a lesson is held to the +20 rise like
 any other level, G stops at 30, and Funnel Sort's ceiling binds spam as well as cheese.
 
@@ -129,6 +129,9 @@ docker compose exec -T dev npx tsx scripts/level-emit.ts <id:seed[:capacity]>...
 ```
 
 Every candidate an author tries leaves a line in `output/current/levelling/first-stretch/candidates/<id>.jsonl`. Scores are keyed by a versioned hash of the scorer policy, seed sets and board rules (excluding ID, title and stored solution): changing a board without a re-score fails `tests/levelling/curve.test.ts`. A full re-score takes hours, so CI checks the table and replays six recorded games per game.
+
+The alpha 0.0.1 review adds `tube-roles-h2` to score hashes for boards with container roles. The strong Tube graph now retains opened caps and spent cups, and its heuristic counts only usable free containers. `tube-200` and `tube-201` were rescored; their legacy difficulty figures did not change. Classic boards keep their existing policy hash.
+
 
 ## The first stretch
 

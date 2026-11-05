@@ -10,7 +10,6 @@ import { MachineScene } from '../view/scene';
 export class ConveyorRuntime implements GameRuntime {
   readonly machine: Machine;
   private readonly view: MachineScene;
-  private chain = 0;
 
   constructor(readonly board: BoardDef, services: GameServices) {
     this.machine = new Machine(board, services.physics);
@@ -33,7 +32,7 @@ export class ConveyorRuntime implements GameRuntime {
   activate(target: string): readonly Feedback[] {
     if (!/^supply\d+$/.test(target) || this.status !== 'playing') return [];
     const result = this.machine.tap(Number(target.slice(6)));
-    return result.ok ? [{ type: 'move' }] : [{ type: 'tap' }];
+    return result.ok ? [{ type: 'move' }] : [{ type: 'blocked' }];
   }
   step(): readonly Feedback[] {
     const feedback: Feedback[] = [];
@@ -47,7 +46,6 @@ export class ConveyorRuntime implements GameRuntime {
           if (event.fill >= this.board.boxSize) feedback.push({ type: 'match' });
           else feedback.push({ type: 'tap' });
           break;
-        case 'boxGone': this.chain++; break;
         default: break;
       }
     }

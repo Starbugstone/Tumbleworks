@@ -5,7 +5,7 @@ mkdirSync(output, { recursive: true });
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const errors = [], resources = [], markers = [];
 for (const [name, viewport, locale] of [
-  ['phone-en', { width: 390, height: 844 }, 'en-GB'], ['narrow-fr', { width: 320, height: 700 }, 'fr-FR'], ['desktop', { width: 1365, height: 900 }, 'en-GB'],
+  ['phone-en', { width: 375, height: 690 }, 'en-GB'], ['phone-fr', { width: 375, height: 690 }, 'fr-FR'], ['desktop', { width: 1365, height: 900 }, 'en-GB'],
 ]) {
   const page = await browser.newPage({ viewport, locale, hasTouch: true, deviceScaleFactor: 1 });
   page.on('pageerror', error => errors.push(error.message));

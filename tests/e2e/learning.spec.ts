@@ -1,3 +1,4 @@
+import { PHONE } from '../fixtures/viewports';
 import { expect, test, type Page } from '@playwright/test';
 import type { App } from '../../src/view/App';
 import { TUBE_BOARDS } from '../../src/puzzles/levels';
@@ -37,7 +38,7 @@ const settle = async (page: Page) => page.evaluate(() => {
 });
 
 test('French is detected, changing language preserves the live puzzle, and the choice survives reload', async ({ browser }) => {
-  const context = await browser.newContext({ locale: 'fr-FR', viewport: { width: 320, height: 700 }, hasTouch: true });
+  const context = await browser.newContext({ locale: 'fr-FR', viewport: PHONE, hasTouch: true });
   const page = await context.newPage();
   await ready(page);
   await expect(page.locator('html')).toHaveAttribute('lang', 'fr');

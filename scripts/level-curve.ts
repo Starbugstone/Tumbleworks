@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { SCORE_POLICY } from './level-policy';
+import { SCORE_POLICY, TUBE_ROLE_SCORER_VERSION } from './level-policy';
 import type { StrongScore } from './level-strong';
 
 /**
@@ -86,9 +86,10 @@ export const MIN_RISK_POSITIONS = 2;
 /** Stable property order as well as stable identity: labels and stored witnesses are not rules. */
 export const hashBoard = (board: object, policy: object = SCORE_POLICY): string => {
   const { id: _id, title: _title, solution: _solution, ...rules } = board as Record<string, unknown>;
+  const scoring = rules['containers'] ? { ...policy, tubeRoles: TUBE_ROLE_SCORER_VERSION } : policy;
   const canonical = (value: unknown): unknown => Array.isArray(value) ? value.map(canonical)
     : value !== null && typeof value === 'object' ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => [key, canonical(item)])) : value;
-  return createHash('sha256').update(JSON.stringify(canonical({ rules, policy }))).digest('hex').slice(0, 16);
+  return createHash('sha256').update(JSON.stringify(canonical({ rules, policy: scoring }))).digest('hex').slice(0, 16);
 };
 
 /** Everything measured about one board. Conveyor figures are absent on Tube Sort. */

@@ -3,7 +3,7 @@ import { BeltSurface } from './belt-surface';
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { Sparks } from '../engine/sparks';
-import { lorry } from './lorry';
+import { lorry, lorryMaterials, type LorryMaterials } from './lorry';
 import { LoopRoster, type RosterPick } from './loop-roster';
 import { MarbleCrowd } from '../engine/crowd';
 import { frameBoard } from '../engine/framing';
@@ -118,17 +118,19 @@ export class LoopScene {
     // Long enough that five ticks per frame at 30 fps still reads as forward travel.
     this.belt = new BeltSurface(track, LOOP.channelHalf - 0.03, LOOP.floorY, MARBLE_RADIUS * 13);
     this.level.add(this.belt.mesh);
+    const top = shiny(PLATFORM);
     if (!eight) {
-    const deck = slab(roundedRect(outerW, outerD, cornerOut), 0, LOOP.floorY, plastic(PLATFORM_DARK), plastic(CHANNEL, 0.55));
-    const rim = slab(ring(roundedRect(outerW, outerD, cornerOut), roundedRect(track.halfWidth + LOOP.channelHalf, track.halfDepth + LOOP.channelHalf, track.corner + LOOP.channelHalf)), LOOP.floorY, DECK_TOP, plastic(PLATFORM_DARK), shiny(PLATFORM));
-    const plateau = slab(roundedRect(innerW, innerD, Math.max(0.2, track.corner - LOOP.channelHalf)), LOOP.floorY, DECK_TOP, plastic(PLATFORM_DARK), shiny(PLATFORM));
-    this.level.add(deck, rim, plateau);
+      const side = plastic(PLATFORM_DARK);
+      const deck = slab(roundedRect(outerW, outerD, cornerOut), 0, LOOP.floorY, side, plastic(CHANNEL, 0.55));
+      const rim = slab(ring(roundedRect(outerW, outerD, cornerOut), roundedRect(track.halfWidth + LOOP.channelHalf, track.halfDepth + LOOP.channelHalf, track.corner + LOOP.channelHalf)), LOOP.floorY, DECK_TOP, side, top);
+      const plateau = slab(roundedRect(innerW, innerD, Math.max(0.2, track.corner - LOOP.channelHalf)), LOOP.floorY, DECK_TOP, side, top);
+      this.level.add(deck, rim, plateau);
     } else this.level.add(beltDeck(track, LOOP.channelHalf, LOOP.floorY, LOOP.wallHeight));
     // One slab under the belt and every column: the toy, with no decorative margin.
     const ends = machine.bays.map((_, lane) => this.columnEnd(machine, lane));
     const front = Math.max(eight ? Math.max(...ends) : 0, outerD) + 0.2;
     const width = Math.max(outerW * 2 + 0.3, (machine.bays.at(-1)!.x - machine.bays[0]!.x) + TRUCK.bedWidth + 0.6);
-    const base = rounded(width, 1.1, front + outerD + 0.3, shiny(PLATFORM), 0.3, true);
+    const base = rounded(width, 1.1, front + outerD + 0.3, top, 0.3, true);
     base.position.set(0, -0.55, (front - outerD - 0.3) / 2);
     this.level.add(base);
     this.yard = new ArcadeYard(this.scene, outerW + 0.55, -outerD - 0.55, front);
@@ -156,9 +158,9 @@ export class LoopScene {
     return machine.mouthZ(lane) + TRUCK.bedLength + TRUCK.cabLength + 0.1;
   }
 
-  private truckVisual(color: Color, facing: number, bedLength: number, latchColor: Color | null): TruckVisual {
+  private truckVisual(color: Color, facing: number, bedLength: number, latchColor: Color | null, materials: LorryMaterials): TruckVisual {
     const group = new THREE.Group();
-    const shell = lorry(color, { ...TRUCK, bedLength }, latchColor, this.decals);
+    const shell = lorry(color, { ...TRUCK, bedLength }, materials, latchColor, this.decals);
     shell.body.rotation.y = facing > 0 ? 0 : Math.PI;
     group.add(shell.body);
     const blocks: Block[] = [];
@@ -191,8 +193,9 @@ export class LoopScene {
       this.previous.set(marble.id, Array.from({ length: this.perUnit }, () => ({ x: 0, y: 0, z: 0, roll: 0, visible: false })));
       this.current.set(marble.id, Array.from({ length: this.perUnit }, () => ({ x: 0, y: 0, z: 0, roll: 0, visible: false })));
     }
+    const materials = lorryMaterials();
     for (const truck of machine.readTrucks()) {
-      const visual = this.truckVisual(truck.finalColor, machine.facing(truck.lane), truck.bedLength, truck.latchColor);
+      const visual = this.truckVisual(truck.finalColor, machine.facing(truck.lane), truck.bedLength, truck.latchColor, materials);
       this.trucks.set(`${truck.lane}:${truck.index}`, visual);
       this.level.add(visual.group);
     }

@@ -118,8 +118,6 @@ export const CRATE = {
   wallThickness: 0.1,
   /** How long the opened crate stays before it is gone. */
   openSeconds: 0.32,
-  /** A marble still sitting in an opened crate after this long is dropped by force. */
-  stuckSeconds: 0.9,
   slots: [-0.7, 0, 0.7].flatMap((z) => [-0.7, 0, 0.7].map((x) => ({ x, z }))),
 } as const;
 

@@ -1,17 +1,32 @@
 #!/usr/bin/env bash
-# Stops the dev server only if launch.sh started it. Never touches evidence under output/current/verify/<run>/,
-# other servers (the snapshot preview on 5181 belongs to the owner) or containers this run did not create.
+# Release this run's lease; never stop a replacement container or a server another run is using.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/../../../.." && pwd)"
 cd "$root"
-marker="output/current/verify/.dev-started-by-verify"
+run="${1:?Usage: cleanup.sh <run-id>}"
+[[ "$run" =~ ^[a-zA-Z0-9_-]+$ ]] || { echo 'Invalid run ID' >&2; exit 1; }
+leases=output/current/verify/.sessions
+mkdir -p "$leases"
+exec 9>"$leases/.lock"
+flock 9
+marker="$leases/$run"
 if [ -f "$marker" ]; then
-  docker compose stop dev
-  rm -f "$marker"
-  echo "stopped the dev server this verification started"
+  read -r container owned < "$marker"
+  rm "$marker"
+  current=$(docker compose ps --status running -q dev)
+  others=0
+  for lease in "$leases"/*; do
+    [ -f "$lease" ] || continue
+    read -r active _ < "$lease"
+    if [ "$active" = "$container" ]; then others=1; fi
+  done
+  if [ "$owned" = 1 ] && [ "$current" = "$container" ] && [ "$others" = 0 ]; then
+    docker stop "$container"
+    echo 'stopped the exact dev container this run started'
+  else
+    echo 'dev server left running: reused, replaced, or another run still uses it'
+  fi
 else
-  echo "dev server was already running before verification: left running"
+  echo 'no ownership for this run: dev server left running'
 fi
-# Journeys run with --rm, so finished e2e containers are already gone; report any still running.
-docker compose ps --services --status running | grep -x e2e && echo "an e2e container is still running: wait for its journey to finish" || true
-echo "evidence kept in output/current/verify/"
+echo 'evidence kept in output/current/verify/'

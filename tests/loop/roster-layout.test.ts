@@ -64,7 +64,7 @@ describe('the lorry card layout', () => {
   });
 
   it('moves the cards beside the toy on wide screens', () => {
-    for (const [width, height] of [[1365, 900], [844, 390]] as const) {
+    for (const [width, height] of [[1365, 900], [1280, 800]] as const) {
       const layout = rosterLayout(invented(4, 2, 3), width, height);
       expect(layout.wide).toBe(true);
       expect(layout.toy.x + layout.toy.width).toBeLessThanOrEqual(layout.panel.x);

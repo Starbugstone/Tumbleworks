@@ -1,17 +1,16 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { woodTexture } from '../view/art';
 import { MarbleFactory } from './marbles';
 import { useOneTapShadows } from './shadow-filter';
 
-/** The renderer, lighting and toy materials survive every level transition. */
+/** The renderer, environment and shared marble materials survive level transitions. */
 export class Stage {
   /** Device pixels per CSS pixel, from the sharpest down; a phone that can't keep up steps down one at a time. */
   static readonly PIXEL_RATIOS = [1.25, 1] as const;
   readonly renderer: THREE.WebGLRenderer;
   readonly marbles = new MarbleFactory();
   private readonly environment: THREE.Texture;
-  private readonly tableMaterial: THREE.MeshStandardMaterial;
+  private readonly instancedShadows = new WeakMap<THREE.Scene, THREE.MeshDepthMaterial>();
   private readonly compiled = new WeakSet<THREE.Scene>();
   private quality = 0;
   private bounds: DOMRect | null = null;
@@ -31,14 +30,13 @@ export class Stage {
     const pmrem = new THREE.PMREMGenerator(this.renderer);
     this.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     pmrem.dispose();
-    this.tableMaterial = new THREE.MeshStandardMaterial({ map: woodTexture(), roughness: 0.62, envMapIntensity: 0.35 });
   }
 
-  createScene(backdrop: 'wood' | 'studio' | 'arcade' = 'wood'): THREE.Scene {
+  createScene(backdrop: 'studio' | 'arcade' = 'studio'): THREE.Scene {
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(backdrop === 'wood' ? 0x6e4a2b : backdrop === 'arcade' ? 0x0b172b : 0x1f2650);
+    scene.background = new THREE.Color(backdrop === 'arcade' ? 0x0b172b : 0x1f2650);
     scene.environment = this.environment;
-    scene.environmentIntensity = backdrop === 'wood' ? 0.38 : 0.5;
+    scene.environmentIntensity = 0.5;
     const key = new THREE.DirectionalLight(0xfff0dc, backdrop === 'arcade' ? 2.3 : 3.2);
     key.position.set(-7, 22, 11);
     key.castShadow = true;
@@ -46,14 +44,9 @@ export class Stage {
     Object.assign(key.shadow.camera, { left: -13, right: 13, top: 13, bottom: -13, near: 4, far: 50 });
     key.shadow.bias = -0.0006;
     key.shadow.normalBias = 0.02;
-    scene.add(key, new THREE.HemisphereLight(0xffffff, backdrop === 'wood' ? 0x8a5a30 : 0x2b3473, backdrop === 'wood' ? 0.35 : 0.55));
-    if (backdrop === 'wood') {
-      const table = new THREE.Mesh(new THREE.PlaneGeometry(90, 90), this.tableMaterial);
-      table.rotation.x = -Math.PI / 2;
-      table.receiveShadow = true;
-      scene.add(table);
-    } else {
-      // A soft studio floor far below the platform, so the platform reads as a chunky toy on a stand.
+    scene.add(key, new THREE.HemisphereLight(0xffffff, 0x2b3473, 0.55));
+    // ArcadeYard supplies the arcade floor; another floor below it only adds overdraw.
+    if (backdrop === 'studio') {
       const floor = new THREE.Mesh(new THREE.CircleGeometry(40, 48), new THREE.MeshStandardMaterial({ color: 0x2a3366, roughness: 0.95 }));
       floor.rotation.x = -Math.PI / 2;
       floor.position.y = -6;
@@ -76,7 +69,7 @@ export class Stage {
         return true;
       }
     }
-    return this.marbles.useSolidGlass();
+    return false;
   }
 
   /**
@@ -85,6 +78,15 @@ export class Stage {
    */
   draw(scene: THREE.Scene, camera: THREE.Camera): void {
     if (!this.compiled.has(scene)) {
+      // Three's default depth material alternates shader variants between plain and instanced casters.
+      // Keep one scene-owned instanced variant, including after clearLevel removes its meshes.
+      // Every caster is built before this first draw, including waiting lorries and hidden effects.
+      scene.traverse((object) => {
+        if (!(object instanceof THREE.InstancedMesh) || !object.castShadow || object.customDepthMaterial) return;
+        let depth = this.instancedShadows.get(scene);
+        if (!depth) { depth = new THREE.MeshDepthMaterial(); this.instancedShadows.set(scene, depth); }
+        object.customDepthMaterial = depth;
+      });
       this.renderer.compile(scene, camera);
       this.compiled.add(scene);
     }
@@ -106,7 +108,7 @@ export class Stage {
       if (object instanceof THREE.Mesh) {
         geometries.add(object.geometry);
         for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
-          if (material !== this.tableMaterial) materials.add(material);
+          materials.add(material);
         }
       }
       if (object instanceof THREE.DirectionalLight) object.shadow.dispose();
@@ -116,6 +118,8 @@ export class Stage {
       if ('map' in material && material.map instanceof THREE.Texture) material.map.dispose();
       material.dispose();
     }
+    this.instancedShadows.get(scene)?.dispose();
+    this.instancedShadows.delete(scene);
     scene.clear();
   }
 }

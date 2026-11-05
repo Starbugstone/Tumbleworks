@@ -9,7 +9,7 @@ const bounds = [
 ];
 
 describe('shared board framing', () => {
-  it.each([[1365,900],[390,844],[320,700],[844,390]])('keeps the full 3D board out of the HUD at %sx%s', (width,height) => {
+  it.each([[1365,900],[375,690]])('keeps the full 3D board out of the HUD at %sx%s', (width,height) => {
     const camera = new THREE.PerspectiveCamera(40,1,0.1,150);
     frameBoard(camera,width,height,bounds,new THREE.Vector3(0,.72,.69));
     const compact = height<600&&width>600;

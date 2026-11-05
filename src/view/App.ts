@@ -62,8 +62,8 @@ export class App {
     { speed: App.FAST_SPEED, element: button('fast') },
     { speed: App.FASTER_SPEED, element: button('faster') },
   ];
-  /** The speeds being held right now; the fastest wins, and releasing it falls back to the other. */
-  private readonly heldSpeeds = new Set<number>();
+  /** Independent inputs held right now; the fastest wins, and releasing it falls back to the other. */
+  private readonly heldSpeeds = new Map<string, number>();
   private readonly card = element('card');
   private readonly chips = element('chips');
   private readonly ring = element('focus-ring');
@@ -87,7 +87,7 @@ export class App {
     });
     this.undoButton.addEventListener('click', () => this.undo());
     button('restart').addEventListener('click', () => { sfx.unlock(); this.loadBoard(this.boardIndex); });
-    button('hint').addEventListener('click', () => { sfx.unlock(); this.feedback(this.runtime.hint()); this.refresh(); });
+    button('hint').addEventListener('click', () => { this.hint(); this.refresh(); });
     button('card-action').addEventListener('click', () => {
       sfx.unlock();
       if (this.runtime.status === 'won') this.loadBoard(this.nextIndex());
@@ -108,8 +108,8 @@ export class App {
     window.addEventListener('blur', () => this.setFast(false));
     document.addEventListener('keydown', (event) => this.key(event));
     document.addEventListener('keyup', (event) => {
-      if (event.key === 'f' || event.key === 'F') this.holdSpeed(App.FAST_SPEED, false);
-      if (event.key === 'g' || event.key === 'G') this.holdSpeed(App.FASTER_SPEED, false);
+      if (event.key === 'f' || event.key === 'F') this.holdSpeed('key:f', App.FAST_SPEED, false);
+      if (event.key === 'g' || event.key === 'G') this.holdSpeed('key:g', App.FASTER_SPEED, false);
     });
     button('language-en').addEventListener('click', () => setLocale('en'));
     button('language-fr').addEventListener('click', () => setLocale('fr'));
@@ -142,25 +142,28 @@ export class App {
         event.preventDefault();
         sfx.unlock();
         fast.setPointerCapture(event.pointerId);
-        this.holdSpeed(speed, true);
+        this.holdSpeed(`pointer:${speed}:${event.pointerId}`, speed, true);
       });
-      for (const type of ['pointerup', 'pointercancel', 'lostpointercapture'] as const) fast.addEventListener(type, () => this.holdSpeed(speed, false));
-      fast.addEventListener('keydown', (event) => { if ((event.key === ' ' || event.key === 'Enter') && !event.repeat) { event.preventDefault(); this.holdSpeed(speed, true); } });
-      fast.addEventListener('keyup', (event) => { if (event.key === ' ' || event.key === 'Enter') this.holdSpeed(speed, false); });
-      fast.addEventListener('blur', () => this.holdSpeed(speed, false));
+      for (const type of ['pointerup', 'pointercancel', 'lostpointercapture'] as const) fast.addEventListener(type, (event) => this.holdSpeed(`pointer:${speed}:${event.pointerId}`, speed, false));
+      fast.addEventListener('keydown', (event) => { if ((event.key === ' ' || event.key === 'Enter') && !event.repeat) { event.preventDefault(); this.holdSpeed(`button-key:${speed}:${event.key}`, speed, true); } });
+      fast.addEventListener('keyup', (event) => { if (event.key === ' ' || event.key === 'Enter') this.holdSpeed(`button-key:${speed}:${event.key}`, speed, false); });
+      fast.addEventListener('blur', () => {
+        this.holdSpeed(`button-key:${speed}: `, speed, false);
+        this.holdSpeed(`button-key:${speed}:Enter`, speed, false);
+      });
     }
   }
 
   get fastForward(): boolean { return this.speed > 1; }
 
-  private holdSpeed(speed: number, on: boolean): void {
-    if (on) this.heldSpeeds.add(speed); else this.heldSpeeds.delete(speed);
+  private holdSpeed(source: string, speed: number, on: boolean): void {
+    if (on) this.heldSpeeds.set(source, speed); else this.heldSpeeds.delete(source);
     this.applySpeed();
   }
 
   /** Hold at this speed, or release every held speed. */
   setFast(on: boolean, speed: number = App.FAST_SPEED): void {
-    if (on) this.holdSpeed(speed, true);
+    if (on) this.holdSpeed('manual', speed, true);
     else {
       this.heldSpeeds.clear();
       this.applySpeed();
@@ -170,7 +173,7 @@ export class App {
   private applySpeed(): void {
     const playing = Boolean(this.runtime) && this.runtime.status === 'playing';
     if (!playing) this.heldSpeeds.clear();
-    this.speed = Math.max(1, ...this.heldSpeeds);
+    this.speed = Math.max(1, ...this.heldSpeeds.values());
     for (const { speed, element: fast } of this.fastButtons) {
       const active = this.speed === speed;
       fast.classList.toggle('active', active);
@@ -290,6 +293,16 @@ export class App {
     this.focusTarget = null;
     this.setMessage('');
     element('instruction').hidden = true;
+  }
+
+  private hint(): void {
+    if (this.runtime.status !== 'playing') return;
+    sfx.unlock();
+    window.clearTimeout(this.hintTimer);
+    this.ring.hidden = true;
+    this.focusTarget = null;
+    this.setMessage('');
+    this.feedback(this.runtime.hint());
   }
 
   private feedback(events: readonly Feedback[]): void {
@@ -580,10 +593,10 @@ export class App {
     if (event.ctrlKey || event.metaKey || event.altKey) return;
     if (event.target instanceof HTMLButtonElement && (event.key === 'Enter' || event.key === ' ')) return;
     if (event.key === 'u') this.undo();
-    else if (event.key === 'f' || event.key === 'F') { if (!event.repeat) { sfx.unlock(); this.holdSpeed(App.FAST_SPEED, true); } }
-    else if (event.key === 'g' || event.key === 'G') { if (!event.repeat) { sfx.unlock(); this.holdSpeed(App.FASTER_SPEED, true); } }
-    else if (event.key === 'h') this.feedback(this.runtime.hint());
-    else if (event.key === 'r') this.loadBoard(this.boardIndex);
+    else if (event.key === 'f' || event.key === 'F') { if (!event.repeat) { sfx.unlock(); this.holdSpeed('key:f', App.FAST_SPEED, true); } }
+    else if (event.key === 'g' || event.key === 'G') { if (!event.repeat) { sfx.unlock(); this.holdSpeed('key:g', App.FASTER_SPEED, true); } }
+    else if (event.key === 'h' && !event.repeat) this.hint();
+    else if (event.key === 'r' && !event.repeat) this.loadBoard(this.boardIndex);
     else if (event.key.startsWith('Arrow')) {
       event.preventDefault();
       this.stage.canvas.focus({ preventScroll: true });

@@ -1,10 +1,30 @@
 // Render cost survey: draw calls, triangles, scene makeup and a CPU profile per busy level.
 // docker compose --profile e2e run --rm e2e node scripts/render-profile.mjs [levelIndex…]
+import { busyTouches } from './busy-touches.ts';
 import { chromium, devices } from 'playwright';
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 const url = process.env.TUMBLEWORKS_URL ?? 'http://game-server:5180';
 const RATE = Number(process.env.CPU_RATE ?? 4);
 const SECONDS = Number(process.env.SECONDS ?? 8);
+const output = 'output/current/profile';
+mkdirSync(output, { recursive: true });
+
+async function tubeTouches(page, moves, seconds) {
+  const end = Date.now() + seconds * 1000;
+  let attempts = 0;
+  const before = await page.evaluate(() => window.tumbleworks.app.runtime.game.actions.length);
+  for (const move of moves) {
+    if (Date.now() >= end) break;
+    for (const tube of [move.from, move.to]) {
+      const point = await page.evaluate((index) => window.tumbleworks.app.debugTargets()[`tube${index}`], tube);
+      await page.touchscreen.tap(point.x, point.y);
+    }
+    attempts++;
+    await page.waitForTimeout(700);
+  }
+  const accepted = await page.evaluate((offset) => window.tumbleworks.app.runtime.game.actions.length - offset, before);
+  return { attempts, accepted };
+}
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const context = await browser.newContext(devices['Pixel 7']);
 const page = await context.newPage();
@@ -39,17 +59,12 @@ for (const index of levels) {
       pixelRatio: app.stage.renderer.getPixelRatio(), size: [app.stage.canvas.width, app.stage.canvas.height] };
   });
   const client = await context.newCDPSession(page);
+  const moves = scene.kind === 'tube' ? await page.evaluate(() => window.tumbleworks.app.runtime.board.solution) : null;
   await client.send('Emulation.setCPUThrottlingRate', { rate: RATE });
-  const pour = setInterval(() => {
-    void page.evaluate(() => window.tumbleworks.app.debugTargets()).then((targets) => {
-      const crate = Object.entries(targets).find(([id]) => /^(supply|lane)\d+$/.test(id))?.[1];
-      return crate ? page.touchscreen.tap(crate.x, crate.y) : undefined;
-    }).catch(() => undefined);
-  }, 700);
   await client.send('Profiler.enable');
   await client.send('Profiler.setSamplingInterval', { interval: 200 });
   await client.send('Profiler.start');
-  const sample = await page.evaluate(async (seconds) => {
+  const [sample, workload] = await Promise.all([page.evaluate(async (seconds) => {
     const { app } = window.tumbleworks;
     const r = app.stage.renderer;
     const out = { ticks: [], draws: [], refresh: [], frames: [], calls: [], tris: [], rendersPerFrame: [] };
@@ -69,14 +84,14 @@ for (const index of levels) {
     });
     runtime.step = step; runtime.render = render; app['refresh'] = refresh; r.render = rr;
     return { ...out, programs: r.info.programs.length, textures: r.info.memory.textures, geometries: r.info.memory.geometries, state: app.debugState() };
-  }, SECONDS);
-  clearInterval(pour);
+  }, SECONDS), moves ? tubeTouches(page, moves, SECONDS) : busyTouches(page, SECONDS)]);
   const { profile } = await client.send('Profiler.stop');
   await client.send('Emulation.setCPUThrottlingRate', { rate: 1 });
+  await client.detach();
   // Self time by function.
   const self = new Map();
   const byId = new Map(profile.nodes.map((n) => [n.id, n]));
-  const dt = profile.timeDeltas; const total = (profile.endTime - profile.startTime) / 1000;
+  const total = (profile.endTime - profile.startTime) / 1000;
   const counts = new Map();
   for (const id of profile.samples) counts.set(id, (counts.get(id) ?? 0) + 1);
   const perSample = total / profile.samples.length;
@@ -88,7 +103,7 @@ for (const index of levels) {
   const top = [...self].sort((a, b) => b[1] - a[1]).slice(0, 25).map(([k, v]) => `${v.toFixed(0).padStart(6)}ms ${k}`);
   const p = (v, at) => +([...v].sort((a, b) => a - b)[Math.floor(v.length * at)] ?? 0).toFixed(2);
   const avg = (v) => +(v.reduce((a, b) => a + b, 0) / Math.max(1, v.length)).toFixed(2);
-  const result = { index, ...scene, programs: sample.programs, textures: sample.textures, geometries: sample.geometries,
+  const result = { index, workload, ...scene, programs: sample.programs, textures: sample.textures, geometries: sample.geometries,
     callsP50: p(sample.calls, 0.5), callsMax: Math.max(...sample.calls), trisP50: p(sample.tris, 0.5),
     tickP50: p(sample.ticks, 0.5), tickP95: p(sample.ticks, 0.95), ticksPerFrame: +(sample.ticks.length / sample.frames.length).toFixed(2),
     drawP50: p(sample.draws, 0.5), drawP95: p(sample.draws, 0.95), refreshP50: p(sample.refresh, 0.5), refreshAvg: avg(sample.refresh),
@@ -97,5 +112,5 @@ for (const index of levels) {
   console.log(JSON.stringify({ ...result, top: undefined }));
   console.log(top.join('\n'));
 }
-writeFileSync(`output/current/profile/render-profile-${process.env.LABEL ?? 'run'}.json`, JSON.stringify(results, null, 2));
+writeFileSync(`${output}/render-profile-${process.env.LABEL ?? 'run'}.json`, JSON.stringify(results, null, 2));
 await browser.close();

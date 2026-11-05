@@ -25,6 +25,7 @@ Preconditions:
 - **Picker and language.** Run `tw picker --run <id>`. Every level is listed, the legend has a pattern per colour, `Français` relabels Undo as `Annuler`, and a chip opens its level.
 - **Stored completion.** Run `tw win board-1 --run <id>`. `localStorage["tumbleworks.progress.v1"]` lists `board-1`, and after a reload its chip reads ✓.
 - **Replay.** Not scripted in `tw` yet: `tests/e2e/replay.spec.ts` copies a game by touch and replays it in Node.
+- **Finger scrolling.** [`tests/e2e/input-regressions.spec.ts`](../../../../tests/e2e/input-regressions.spec.ts) swipes the picker's actual scroll area with touch. `tw picker` checks chips and language; clicking a chip through a locator does not prove finger scrolling.
 
 ## Gotchas
 

@@ -33,6 +33,28 @@ jobs:
       - run: npm test
       - run: npm run build
 
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Allow the game containers to write their bind mount
+        run: sudo chown -R 1000:1000 "$GITHUB_WORKSPACE"
+      - name: Start the game
+        run: docker compose up -d --build dev
+      - name: Wait for the game to answer
+        run: timeout 180 sh -c 'until curl -fsS -o /dev/null http://localhost:5180/; do sleep 2; done'
+      - name: Check touch input and rendering guarantees
+        run: docker compose --profile e2e run --rm e2e npx playwright test tests/e2e/input-regressions.spec.ts tests/e2e/render-hygiene.spec.ts --project game --workers=2
+      - name: Show server diagnostics on failure
+        if: failure()
+        run: docker compose logs dev
+      - name: Stop this job's game server
+        if: always()
+        run: docker compose down
+
   hosting:
     runs-on: ubuntu-latest
     timeout-minutes: 20

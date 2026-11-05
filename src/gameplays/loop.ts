@@ -79,9 +79,12 @@ export class LoopRuntime implements GameRuntime {
   }
   hint(): readonly Feedback[] {
     if (this.status !== 'playing') return [];
+    if (this.machine.rules.pending > 0 || this.machine.rules.canDrain()) {
+      return [{ type: 'message', text: t('Wait for pouring and collecting. Hold ×5, then ask again.', 'Patientez pendant les transferts. Maintenez ×5, puis redemandez un indice.') }];
+    }
     const lane = hintLoop(this.machine.rules);
     if (lane === null) {
-      return [{ type: 'message', text: this.machine.rules.canDrain() ? t('Wait: the loop is still unloading into the trucks.', 'Patientez : les camions se remplissent encore.') : t('No verified pour from here. Try undoing a pour.', 'Aucun versement sûr trouvé. Essayez d’annuler un versement.') }];
+      return [{ type: 'message', text: t('No verified pour from here. Try undoing a pour.', 'Aucun versement sûr trouvé. Essayez d’annuler un versement.') }];
     }
     const partners = this.machine.rules.tapLanes(lane);
     if (partners.length === 2) return [{ type: 'message', target: `lane${lane}`, text: t(`Pour trucks ${partners[0]! + 1} and ${partners[1]! + 1} together.`, `Déchargez ensemble les camions ${partners[0]! + 1} et ${partners[1]! + 1}.`) }];
@@ -94,6 +97,7 @@ export class LoopRuntime implements GameRuntime {
     return true;
   }
   targets() {
+    const trucks = this.machine.readTrucks();
     return Object.fromEntries(this.machine.bays.flatMap((bay, lane) => {
       const truck = this.machine.rules.front(lane);
       if (!truck) return [];
@@ -101,10 +105,9 @@ export class LoopRuntime implements GameRuntime {
       const at = this.view.toScreen(bay.x, DECK_TOP + 0.4, this.machine.mouthZ(lane) - facing * (TRUCK.bedLength + TRUCK.cabLength) / 2);
       const color = truck.segments[0]?.color;
       const finalColor = this.board.lanes[lane]?.[truck.index]?.segments.at(-1)?.color;
-      const trucks = this.machine.readTrucks();
       const docked = trucks.find((candidate) => candidate.lane === lane && candidate.index === truck.index);
       const load = docked ? t(`. Load: ${this.describeLoad(this.machine.loadOf(docked.blocks, docked.capacity))}`, `. Chargement : ${this.describeLoad(this.machine.loadOf(docked.blocks, docked.capacity))}`) : '';
-      const next = this.queue(lane)[0];
+      const next = this.queue(lane, trucks)[0];
       const coming = next ? t(`. Next truck finishes with ${marbleName(next.finalColor)}: ${this.describeLoad(this.machine.loadOf(next.blocks, next.capacity))}`, `. Le camion suivant termine avec ${marbleName(next.finalColor)} : ${this.describeLoad(this.machine.loadOf(next.blocks, next.capacity))}`) : '';
       const restriction = truck.pourAfter ? t('. Latched: finish the truck shown on its latch first', '. Verrouillé : terminez d’abord le camion indiqué sur le verrou') : truck.coupledWith ? t('. Linked unload', '. Déchargement lié') : '';
       const unloading = truck.unloading.length ? (this.machine.rules.free === 0 ? t('. Unloading paused: loop full', '. Déchargement en pause : circuit plein') : t('. Unloading', '. Déchargement')) : '';
@@ -117,8 +120,8 @@ export class LoopRuntime implements GameRuntime {
     return [...shares, t(`${load.freePercent}% free`, `${load.freePercent} % libre`)].join(', ');
   }
   /** Every truck still in a lane's line, the next one first. */
-  private queue(lane: number) {
-    return this.machine.readTrucks().filter((truck) => truck.lane === lane && truck.queueSlot !== null).sort((a, b) => a.queueSlot! - b.queueSlot!);
+  private queue(lane: number, trucks: ReturnType<LoopMachine['readTrucks']> = this.machine.readTrucks()) {
+    return trucks.filter((truck) => truck.lane === lane && truck.queueSlot !== null).sort((a, b) => a.queueSlot! - b.queueSlot!);
   }
   get guideId() { return this.board.id === 'loop-1' ? 'loop-basics' : undefined; }
   guide() {

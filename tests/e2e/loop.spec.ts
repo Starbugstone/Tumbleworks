@@ -1,3 +1,4 @@
+import { PHONE, DESKTOP } from '../fixtures/viewports';
 import { expect, test } from '@playwright/test';
 import { CAMPAIGN } from '../../src/campaign';
 import { LOOP_BOARDS } from '../../src/loop/boards';
@@ -80,7 +81,7 @@ const openLevel = async (page: import('@playwright/test').Page, index: number) =
 test('at the player\'s phone size every number on every lorry on every level is readable and nothing clips', async ({ page }) => {
   test.setTimeout(300_000);
   await openGame(page);
-  await page.setViewportSize({ width: 375, height: 690 });
+  await page.setViewportSize(PHONE);
   for (const board of CAMPAIGN_LOOPS) {
     await openLevel(page, loopIndex(board.id));
     const seen = await page.evaluate(() => { const state = (window as unknown as GameWindow).tumbleworks.app.debugState() as unknown as { printedNumbers: { font: number; clipped: boolean; text: string; lane: number }[]; dockedCardHeight: number }; return { numbers: state.printedNumbers, height: state.dockedCardHeight, words: [...document.querySelectorAll('.lr')].map((el) => el.textContent ?? '').join('').replace(/[0-9%+\s]/g, '') }; });
@@ -102,7 +103,7 @@ test('every Loop Sort level keeps its lorry cards on screen and clear of the con
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await openGame(page);
-  for (const viewport of [{ width: 375, height: 690 }, { width: 1365, height: 900 }, { width: 844, height: 390 }]) {
+  for (const viewport of [PHONE, DESKTOP]) {
     await page.setViewportSize(viewport);
     for (const board of CAMPAIGN_LOOPS) {
       await openLevel(page, loopIndex(board.id));
@@ -183,7 +184,7 @@ test('a level with queued lorries shows what is coming and how full each lorry i
 test('the ivory card pours, a waiting card answers without pouring, and a card moves up when the lorry ahead leaves', async ({ page }) => {
   test.setTimeout(180_000);
   await openGame(page);
-  await page.setViewportSize({ width: 375, height: 690 });
+  await page.setViewportSize(PHONE);
   await openLevel(page, loopIndex(QUEUED_LEVEL));
   const state = () => page.evaluate(() => { const { occupancy, pending, lanes } = (window as unknown as GameWindow).tumbleworks.app.debugState() as Record<string, unknown>; return JSON.stringify({ occupancy, pending, lanes }); });
   const centre = (selector: string) => page.evaluate((query) => { const r = document.querySelector(query)!.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }, selector);
@@ -211,7 +212,7 @@ test('the ivory card pours, a waiting card answers without pouring, and a card m
 // loop-58 has a lane four deep, the first campaign level whose back lorries fold on the player's phone.
 test('a lorry folded behind a +n tile shows its numbers on one tap', async ({ page }) => {
   await openGame(page);
-  await page.setViewportSize({ width: 375, height: 690 });
+  await page.setViewportSize(PHONE);
   await openLevel(page, loopIndex('loop-58'));
   const tile = page.locator('.lr-fold:not([hidden])').first();
   await expect(tile).toBeVisible();
@@ -233,16 +234,16 @@ test('a lorry folded behind a +n tile shows its numbers on one tap', async ({ pa
   }
 });
 
-test('lorry cards release their resources between levels', async ({ page }) => {
+test('all three games release GPU resources between levels', async ({ page }) => {
   test.setTimeout(180_000);
   await openGame(page);
   const stats = () => page.evaluate(() => {
-    const { memory } = (window as unknown as GameWindow).tumbleworks.app.stage.renderer.info;
-    return { geometries: memory.geometries, textures: memory.textures };
+    const { memory, programs } = (window as unknown as GameWindow).tumbleworks.app.stage.renderer.info;
+    return { geometries: memory.geometries, textures: memory.textures, programs: programs?.length };
   });
   const rounds = [];
   for (let round = 0; round < 3; round++) {
-    for (const id of ['loop-43', 'loop-45', 'loop-39']) await openLevel(page, loopIndex(id));
+    for (const id of ['board-57', 'loop-45', 'tube-67', 'loop-39']) await openLevel(page, CAMPAIGN.findIndex((level) => level.id === id));
     rounds.push(await stats());
   }
   expect(rounds[1]).toEqual(rounds[0]);

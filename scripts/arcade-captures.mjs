@@ -4,7 +4,7 @@ const output = 'output/current/arcade';
 mkdirSync(output, { recursive: true });
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const errors = [], reports = [];
-for (const viewport of [{ width: 390, height: 700 }, { width: 320, height: 700 }, { width: 1365, height: 900 }]) {
+for (const viewport of [{ width: 375, height: 690 }, { width: 1365, height: 900 }]) {
   const page = await browser.newPage({ viewport, hasTouch: true, deviceScaleFactor: 1 });
   page.on('pageerror', e => errors.push(e.message));
   await page.goto(process.env.TUMBLEWORKS_URL ?? 'http://game-server:5180');
@@ -15,7 +15,7 @@ for (const viewport of [{ width: 390, height: 700 }, { width: 320, height: 700 }
     await page.locator(`.chip[data-level="${index}"]`).click();
     await page.evaluate(() => window.tumbleworks.app.advance(0));
     await page.screenshot({ timeout: 60000, path: `${output}/${viewport.width}-level-${index}.png` });
-    if (viewport.width === 390) {
+    if (viewport.width === 375) {
       await page.locator('#scene').evaluate(el => { el.style.filter = 'grayscale(1)'; });
       await page.screenshot({ timeout: 60000, path: `${output}/gray-${index}.png` });
       await page.locator('#scene').evaluate(el => { el.style.filter = ''; });

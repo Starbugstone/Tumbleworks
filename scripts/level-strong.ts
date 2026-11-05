@@ -3,7 +3,7 @@ import { LoopRules } from '../src/loop/rules';
 import { settleLoop } from '../src/loop/solver';
 import type { LoopBoardDef } from '../src/loop/types';
 import { initPhysics, Machine } from '../src/machine/machine';
-import { availableTubeMoves, TubeRules } from '../src/puzzles/rules';
+import { availableTubeMoves, completedTube, tubeContainer, tubeKey, TubeRules } from '../src/puzzles/rules';
 import type { TubeDef } from '../src/puzzles/types';
 import { MachineRules } from '../src/sim/rules';
 import { settle } from '../src/sim/solver';
@@ -204,10 +204,11 @@ export function strongTubeGraph(board: TubeDef) {
   const initial = runs(board.tubes);
   return rulesGraph(rules.snapshot(), {
     // Exact quotient by interchangeable tubes; duplicate actions retain their probability mass.
-    key: (state) => state.tubes.map((tube) => tube.join(',')).sort().join('|'),
+    key: (state) => tubeKey(board, state),
     describe(state) {
-      const full = state.tubes.filter((tube) => tube.length === board.capacity && tube.every((c) => c === tube[0])).length;
-      return { status: state.status, value: initial - runs(state.tubes) + 2 * full + 0.5 * state.tubes.filter((tube) => !tube.length).length };
+      const full = state.tubes.filter((_, index) => completedTube(board, state, index)).length;
+      const empty = state.tubes.filter((tube, index) => !tube.length && !state.spent[index] && (tubeContainer(board, index).role !== 'capped' || state.opened[index])).length;
+      return { status: state.status, value: initial - runs(state.tubes) + 2 * full + 0.5 * empty };
     },
     moves: (state) => availableTubeMoves(board, state),
     after(state, action) { rules.restore(state); rules.move(action.from, action.to); return rules.snapshot(); },

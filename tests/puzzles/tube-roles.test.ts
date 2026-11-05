@@ -41,7 +41,7 @@ describe('Tube Sort container commitments', () => {
 });
 
 import { TUBE_BOARDS } from '../../src/puzzles/levels';
-import { availableTubeMoves, cloneTubeState, moveTubeState, tubeContainer, completedTube } from '../../src/puzzles/rules';
+import { cloneTubeState, moveTubeState, tubeContainer, completedTube } from '../../src/puzzles/rules';
 import { replayLog } from '../../src/engine/replay';
 import { replayed } from '../replay-target';
 import { findRuleTrap, reachableTubeStates, withTubeRule, author } from '../../scripts/tube-author';
