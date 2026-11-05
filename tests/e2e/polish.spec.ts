@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { CAMPAIGN } from '../../src/campaign';
 import type { App } from '../../src/view/App';
+import { chooseLevel } from '../fixtures/picker';
 
 type GameWindow = Window & { tumbleworks: { app: App } };
 
@@ -44,8 +45,7 @@ test('lorry final-colour markers survive a pour and undo while the exposed colou
   await page.goto('/');
   await page.waitForFunction(() => Boolean((window as unknown as Partial<GameWindow>).tumbleworks?.app?.runtime));
   await page.evaluate(() => { (window as unknown as GameWindow).tumbleworks.app.manualClock = true; });
-  await page.locator('#levels-toggle').click();
-  await page.locator(`.chip[data-level="${CAMPAIGN.findIndex((level) => level.id === 'loop-1')}"]`).click();
+  await chooseLevel(page, CAMPAIGN.findIndex((level) => level.id === 'loop-1'));
   await page.evaluate(() => {
     const app = (window as unknown as GameWindow).tumbleworks.app;
     for (let i = 0; i < 2; i++) app.advance(1 / 60, false);

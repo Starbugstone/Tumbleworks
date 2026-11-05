@@ -14,7 +14,7 @@ export class MarbleCrowd {
   private readonly geometry: THREE.SphereGeometry;
 
   constructor(parent: THREE.Object3D, counts: ReadonlyMap<Color, number>, readonly radius: number) {
-    this.geometry = new THREE.SphereGeometry(radius, 22, 16);
+    this.geometry = new THREE.SphereGeometry(radius, 16, 12);
     for (const [color, count] of counts) {
       if (count === 0) continue;
       const mesh = new THREE.InstancedMesh(this.geometry, crowdMaterial(color), count);

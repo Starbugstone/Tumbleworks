@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import type { App } from '../../src/view/App';
 import { CAMPAIGN } from '../../src/campaign';
+import { chooseLevel } from '../fixtures/picker';
 
 type GameWindow = Window & { tumbleworks: { app: App } };
 const state = (page: Page) => page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.debugState());
@@ -19,8 +20,7 @@ async function drag(page: Page, from: string, to: string | null, cancel = false)
 test('touch dragging transfers a whole top group quickly and cancellation changes nothing', async ({ page }) => {
   await page.goto('/');
   await page.waitForFunction(() => Boolean((window as unknown as Partial<GameWindow>).tumbleworks?.app?.runtime));
-  await page.locator('#levels-toggle').click();
-  await page.locator(`.chip[data-level="${CAMPAIGN.findIndex((level) => level.id === 'tube-1')}"]`).click();
+  await chooseLevel(page, CAMPAIGN.findIndex((level) => level.id === 'tube-1'));
   await page.evaluate(() => { (window as unknown as GameWindow).tumbleworks.app.manualClock = true; });
   const before = await state(page);
   await drag(page, 'tube0', 'tube3', true);
@@ -44,8 +44,7 @@ test('touch dragging transfers a whole top group quickly and cancellation change
 test('dragging from the hinted tube plays the move and dismisses the hint, as a tap does', async ({ page }) => {
   await page.goto('/');
   await page.waitForFunction(() => Boolean((window as unknown as Partial<GameWindow>).tumbleworks?.app?.runtime));
-  await page.locator('#levels-toggle').click();
-  await page.locator(`.chip[data-level="${CAMPAIGN.findIndex((level) => level.id === 'tube-1')}"]`).click();
+  await chooseLevel(page, CAMPAIGN.findIndex((level) => level.id === 'tube-1'));
   await page.evaluate(() => {
     (window as unknown as GameWindow).tumbleworks.app.manualClock = true;
     // Software rendering can outlast the hint's own timeouts, which would hide the ring whatever the drag did.

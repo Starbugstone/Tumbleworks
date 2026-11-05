@@ -9,7 +9,12 @@ test('Funnel Sort accepts every crate before animation, keeps the overflow in th
   await page.waitForFunction(() => Boolean((window as unknown as Partial<GameWindow>).tumbleworks?.app?.runtime), undefined, { timeout: 60000 });
   await page.evaluate(() => { (window as unknown as GameWindow).tumbleworks.app.manualClock = true; });
   const state = () => page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.debugState());
-  expect(await state()).toMatchObject({ levelId: 'board-1' });
+  // The belt runs from the moment the page loads, and a slow boot runs fewer real frames before the clock stops.
+  // Crates poured together mix in the pile by design, so where the belt stands decides a few of these games:
+  // from 151 start ticks, red-red-green poured at once jams from 4. Restarting with the clock stopped starts
+  // every run from tick 0.
+  await page.getByRole('button', { name: 'Restart', exact: true }).click();
+  expect(await state()).toMatchObject({ levelId: 'board-1', tick: 0 });
   const tap = async (id: string) => {
     const at = await page.evaluate((key) => (window as unknown as GameWindow).tumbleworks.app.debugTargets()[key], id);
     if (!at) throw new Error(`No target ${id}`);

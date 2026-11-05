@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import type { App } from '../../src/view/App';
 import type { ColourGame } from '../fixtures/seven-colours';
+import { chooseLevel } from '../fixtures/picker';
 
 // TUMBLEWORKS_URL=http://127.0.0.1:5191 npx playwright test tests/e2e/colours.spec.ts
 // Fixtures are loaded by Vite only in this test, through the existing development app hook.
@@ -38,8 +39,7 @@ test('seven colours on real boards, cargo, tube rails and the picker at 375×690
   await page.evaluate(() => { (window as unknown as GameWindow).tumbleworks.app.manualClock = true; });
   // Use a non-onboarding level of the same kind so the ordinary HUD and controls remain real.
   for (const [kind, level] of [['funnel', 3], ['loop', 4], ['tube', 5]] as const) {
-    await page.locator('#levels-toggle').click();
-    await page.locator(`.chip[data-level="${level}"]`).click();
+    await chooseLevel(page, level);
     await page.evaluate(async (game: ColourGame) => {
       const path = '/tests/fixtures/seven-colours.ts';
       const { installColours } = await import(/* @vite-ignore */ path);
@@ -85,8 +85,7 @@ test('seven-colour boards fit the existing desktop layout', async ({ page }) => 
   await page.waitForFunction(() => Boolean((window as unknown as GameWindow).tumbleworks?.app?.runtime));
   await page.evaluate(() => { (window as unknown as GameWindow).tumbleworks.app.manualClock = true; });
   for (const [kind, level] of [['funnel', 3], ['loop', 4], ['tube', 5]] as const) {
-    await page.locator('#levels-toggle').click();
-    await page.locator(`.chip[data-level="${level}"]`).click();
+    await chooseLevel(page, level);
     await page.evaluate(async (game: ColourGame) => {
       const path = '/tests/fixtures/seven-colours.ts';
       const { installColours } = await import(/* @vite-ignore */ path);

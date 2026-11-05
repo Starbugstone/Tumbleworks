@@ -4,6 +4,7 @@ import { CAMPAIGN } from '../../src/campaign';
 import type { ReplayLog } from '../../src/engine/replay';
 import { initPhysics } from '../../src/machine/machine';
 import { replayed } from '../replay-target';
+import { chooseLevel } from '../fixtures/picker';
 
 const LEVEL = 'board-47';
 
@@ -11,8 +12,7 @@ test('a game played by touch and copied from the picker replays to the same phys
   test.setTimeout(180_000);
   await page.goto('/');
   await page.waitForFunction(() => Boolean((window as never as { tumbleworks?: unknown }).tumbleworks), undefined, { timeout: 60_000 });
-  await page.locator('#levels-toggle').click();
-  await page.locator(`.chip[data-level="${CAMPAIGN.findIndex((level) => level.id === LEVEL)}"]`).click();
+  await chooseLevel(page, CAMPAIGN.findIndex((level) => level.id === LEVEL));
 
   const target = () => page.evaluate(() => {
     const { app } = (window as never as { tumbleworks: { app: { debugTargets(): Record<string, { x: number; y: number }> } } }).tumbleworks;

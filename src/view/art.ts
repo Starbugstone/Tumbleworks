@@ -217,10 +217,17 @@ export function crowdMaterial(color: Color): THREE.MeshPhysicalMaterial {
   return new THREE.MeshPhysicalMaterial({ color: COLORS[color].hex, roughness: 0.2, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.08, envMapIntensity: 1.3 });
 }
 
-/** A printed pattern badge for containers: readable on every plastic colour and in grayscale. */
-export function decal(color: Color, size = 0.5): THREE.Mesh {
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(size, size),
-    new THREE.MeshBasicMaterial({ map: containerSymbolTexture(color), transparent: true, depthWrite: false, toneMapped: false }));
+/**
+ * A printed pattern badge for containers: readable on every plastic colour and in grayscale. Pass a map
+ * to share one material and texture per colour across a scene, instead of one of each per badge.
+ */
+export function decal(color: Color, size = 0.5, shared?: Map<Color, THREE.MeshBasicMaterial>): THREE.Mesh {
+  let material = shared?.get(color);
+  if (!material) {
+    material = new THREE.MeshBasicMaterial({ map: containerSymbolTexture(color), transparent: true, depthWrite: false, toneMapped: false });
+    shared?.set(color, material);
+  }
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(size, size), material);
   mesh.renderOrder = 2;
   return mesh;
 }

@@ -7,20 +7,19 @@ import { COLORS, decal } from './art';
 interface Dimensions { bedWidth: number; bedLength: number; bedHeight: number; cabLength: number }
 
 /** Cab faces local -z; the open tail faces the loop at +z. Cargo is added separately. */
-export function lorry(target: Color, dimensions: Dimensions, latchColor: Color | null = null): { body: THREE.Group; setWheelTravel: (distance: number) => void; setLatched: (latched: boolean) => void; setUnloading: (state: 'pouring' | 'waiting' | null, time: number) => void } {
+export function lorry(target: Color, dimensions: Dimensions, latchColor: Color | null = null, decals?: Map<Color, THREE.MeshBasicMaterial>): { body: THREE.Group; setWheelTravel: (distance: number) => void; setLatched: (latched: boolean) => void; setUnloading: (state: 'pouring' | 'waiting' | null, time: number) => void } {
   const { bedWidth: w, bedLength: length, bedHeight: h, cabLength: cab } = dimensions;
   const body = new THREE.Group();
-  const paint = new THREE.MeshPhysicalMaterial({ color: COLORS[target].hex, roughness: 0.28, clearcoat: 0.8 });
+  const paint = new THREE.MeshStandardMaterial({ color: COLORS[target].hex, roughness: 0.28 });
   const ivory = new THREE.MeshStandardMaterial({ color: 0xfff7e5, roughness: 0.4 });
   const rubber = new THREE.MeshStandardMaterial({ color: 0x20243a, roughness: 0.8 });
   const chrome = new THREE.MeshStandardMaterial({ color: 0xbccbdc, roughness: 0.3, metalness: 0.45 });
-  const window = new THREE.MeshPhysicalMaterial({ color: 0x19364e, roughness: 0.12, clearcoat: 1 });
+  const window = new THREE.MeshStandardMaterial({ color: 0x19364e, roughness: 0.12 });
   const lights = new THREE.MeshBasicMaterial({ color: 0xffefb0, toneMapped: false });
   const box = (width: number, height: number, depth: number, x: number, y: number, z: number, material: THREE.Material) => {
     const mesh = new THREE.Mesh(new RoundedBoxGeometry(width, height, depth, 2, Math.min(0.07, height / 3, depth / 3, width / 3)), material);
     mesh.position.set(x, y, z);
     mesh.castShadow = true;
-    mesh.receiveShadow = true;
     body.add(mesh);
     return mesh;
   };
@@ -57,11 +56,10 @@ export function lorry(target: Color, dimensions: Dimensions, latchColor: Color |
     if (!merged) throw new Error('Lorry geometry could not be merged');
     const mesh = new THREE.Mesh(merged, material);
     mesh.castShadow = true;
-    mesh.receiveShadow = true;
     body.add(mesh);
     for (const geometry of geometries) geometry.dispose();
   }
-  const badge = decal(target, w * 0.65);
+  const badge = decal(target, w * 0.65, decals);
   badge.rotation.x = -Math.PI / 2;
   badge.position.set(0, 0.855, cabZ + 0.06);
   badge.name = 'final-colour-marker';
@@ -136,7 +134,7 @@ export function lorry(target: Color, dimensions: Dimensions, latchColor: Color |
   shackle.position.z = -0.24;
   latch.add(shackle);
   if (latchColor) {
-    const mark = decal(latchColor, 0.43);
+    const mark = decal(latchColor, 0.43, decals);
     mark.rotation.x = -Math.PI / 2;
     mark.position.y = 0.075;
     latch.add(mark);

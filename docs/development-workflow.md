@@ -90,7 +90,8 @@ Replay any counterexample against the implementation before calling it a game bu
 
 **Frame cost:** `tests/e2e/performance.spec.ts` plays the busiest levels in a browser
 at a 4x CPU slowdown, in place of a mid-range phone, and fails if the game's own work
-gets slower. Run it alone, because other load skews it. A browser test can't measure
+gets slower. Other load skews it, so it is its own Playwright project that the full run starts only
+after every other test has finished; run it by itself with `--no-deps`, or Playwright runs the rest first. A browser test can't measure
 a phone, so feel on the player's phone remains a separate check, and frame intervals
 under SwiftShader mostly measure the software renderer. Profile before changing
 frame or tick code, and raise a ceiling only with the new baseline recorded in

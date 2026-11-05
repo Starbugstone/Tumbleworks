@@ -67,7 +67,7 @@ export class ArcadePop {
     this.stamps = Array.from({ length: 4 }, () => {
       const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.map, depthTest: false, depthWrite: false, toneMapped: false }));
       sprite.renderOrder = 10;
-      const ring = new THREE.Mesh(new THREE.RingGeometry(0.85, 1, 32), new THREE.MeshBasicMaterial({ color: ARCADE.gold, transparent: true, depthWrite: false, toneMapped: false, side: THREE.DoubleSide }));
+      const ring = new THREE.Mesh(new THREE.RingGeometry(0.85, 1, 32), new THREE.MeshBasicMaterial({ color: ARCADE.gold, transparent: true, depthWrite: false, toneMapped: false, side: THREE.DoubleSide, forceSinglePass: true }));
       ring.rotation.x = -Math.PI / 2;
       parent.add(sprite, ring); sprite.visible = ring.visible = false;
       return { sprite, ring, age: 1, y: 0 };

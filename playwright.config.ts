@@ -12,4 +12,9 @@ export default defineConfig({
     launchOptions: { args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] },
     trace: 'retain-on-failure',
   },
+  projects: [
+    { name: 'game', testIgnore: /performance\.spec\.ts/ },
+    // Frame timings beside other busy browsers measure the contention, so the budget runs alone, after the rest.
+    { name: 'performance', testMatch: /performance\.spec\.ts/, dependencies: ['game'] },
+  ],
 });

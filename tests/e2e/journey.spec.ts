@@ -4,6 +4,7 @@ import { availableTubeMoves, TubeRules } from '../../src/puzzles/rules';
 import type { App } from '../../src/view/App';
 import { CAMPAIGN } from '../../src/campaign';
 import { FUNNEL_WITNESSES, LOOP_JAMS, LOOP_WITNESSES } from '../witnesses';
+import { chooseLevel } from '../fixtures/picker';
 
 type GameWindow = Window & { tumbleworks: { app: App } };
 const state = (page: Page) => page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.debugState());
@@ -57,8 +58,7 @@ const levelIndex = (id: string): number => {
 };
 
 async function select(page: Page, index: number): Promise<void> {
-  await page.getByRole('button', { name: /Loop Sort|Funnel Sort|Tube Sort/ }).first().click();
-  await page.locator(`.chip[data-level="${index}"]`).click();
+  await chooseLevel(page, index);
   await settle(page);
   expect((await state(page)).levelIndex).toBe(index);
 }
@@ -85,8 +85,13 @@ async function solve(page: Page, index: number): Promise<void> {
   expect(await state(page)).toMatchObject({ status: 'won', busy: false });
 }
 
-/** Ninety levels take too long for one worker, so the campaign is played in slices that run in parallel. */
-const SLICES = 3;
+/**
+ * The campaign is played in slices that run in parallel. A slice has a fixed number of levels, not the
+ * campaign a fixed number of slices: three slices of forty levels took about eleven minutes each alone
+ * but outran their limit beside the rest of the suite, and the campaign keeps growing.
+ */
+const LEVELS_PER_SLICE = 15;
+const SLICES = Math.ceil(CAMPAIGN.length / LEVELS_PER_SLICE);
 const sliceBounds = (slice: number): [number, number] => {
   const size = Math.ceil(CAMPAIGN.length / SLICES);
   return [slice * size, Math.min(CAMPAIGN.length, (slice + 1) * size)];

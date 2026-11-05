@@ -26,7 +26,7 @@ Added 2 November 2026 with [the development workflow](development-workflow.md).
 
 **Engine differences.** The first replay test diverged on long runs: Chromium 156's `Math.cos(2.3)` is `-0.6662760212798241` and Node 24's is `-0.666276021279824`, and physics grew that last bit into a different game. Every failing log replayed exactly inside Chromium, which placed the cause. Rules now use `src/engine/exact-math.ts`, built only from operations that are exact in every engine, and lint rejects the `Math` functions that aren't. All thirty witnesses of each conveyor type still win with zero recoveries. Safari and physical phones haven't been checked yet: a log copied from a phone tests that with `scripts/replay.ts`.
 
-**Frame cost.** `tests/e2e/performance.spec.ts` plays the busiest levels with a real clock and a 4x CPU slowdown, in SwiftShader on one development machine, and holds the game's own work per tick and draw. It guards against our code getting slower and doesn't measure a phone. Frame intervals, 250 to 350 ms here, mostly measure the software renderer, so nothing is claimed about frame rate.
+**Frame cost.** `tests/e2e/performance.spec.ts` plays the busiest levels with a real clock and a 4x CPU slowdown, in SwiftShader on one development machine, and holds the game's own work per tick and draw. It guards against our code getting slower and doesn't measure a phone. Beside other browsers its timings measure the contention (frame intervals of 750 to 1,470 ms and double the draw time in one full run), so `playwright.config.ts` makes it a separate project that waits for every other test. Frame intervals, 250 to 350 ms here, mostly measure the software renderer, so nothing is claimed about frame rate.
 
 | Level | Tick p50 | Tick and draw p50 | Ceilings: tick, tick and draw |
 | --- | --- | --- | --- |
@@ -36,6 +36,61 @@ Added 2 November 2026 with [the development workflow](development-workflow.md).
 | `loop-30`, longest | 1.1–1.4 ms | 14.5–16.3 ms | 10 ms, 26 ms |
 
 At that slowdown a typical tick and draw on the busiest Funnel Sort boards takes more than one 16.7 ms frame. Much of the draw figure is software rendering, so this isn't evidence of a phone problem, but it's the first place to look if one appears.
+
+**Rendering cost.** Older phones ran hot, so the rendering pass of November 2026 measured where drawing time goes before changing anything. Four tools do it, all in SwiftShader on one development machine:
+
+- `scripts/render-profile.mjs` plays the busiest levels at 4x CPU slowdown and reports draw calls, triangles, scene makeup and a CPU profile.
+- `scripts/render-ablation.mjs` freezes a busy frame and times GPU-synced draws with one cost removed at a time.
+- `scripts/render-cpu.mjs` times the main thread's share of one frame on a tiny canvas, so the software rasteriser stays out of it.
+- `scripts/scene-census.mjs` groups a level's meshes by geometry and material.
+
+SwiftShader rasterises on the CPU, so its milliseconds aren't a phone's, but its ranking of costs is a fair guide.
+
+The frozen-frame ablation, before the pass, against the full picture (`board-57`, `loop-61`, `tube-74`):
+
+| Cost removed | Funnel Sort | Loop Sort | Tube Sort |
+| --- | --- | --- | --- |
+| Pixel ratio 1.5 → 1 | −39% | −43% | −46% |
+| Shadows | −23% | −21% | −17% |
+| …of which drawing the shadow map | −7% | −7% | −1% |
+| …a single-tap shadow lookup instead of five | −18% | −9% | −10% |
+| Clearcoat on toy parts, marbles kept | −8% | −7% | −18% |
+| Marble spheres at 14×10 | −12% | −14% | — |
+
+Run-to-run noise is about 7%. The pass changed only what draws the same picture: the same frames captured before and after with `scripts/frame-captures.mjs` match pixel for pixel on the toy, apart from the coarser crowd marbles, which differ by under one level in 255 on average and look the same at 3x zoom.
+
+- **Frame pacing.** Display frames under 12.5 ms apart are skipped (`src/engine/pacing.ts`): 120 Hz screens draw at 60 fps, 144 Hz at 72, 90 Hz at 45, and 60 Hz screens draw every frame.
+- **Resting boards aren't redrawn.** A runtime may report `still`; Tube Sort does when nothing moves, and the app then draws only after input, a resize or a change. The belts never rest, so conveyor levels still draw every frame.
+- **No shader lookups per frame.** Three draws a double-sided transparent material in two passes and rebuilds its shader parameters before each one. The tubes, chute and funnel walls now use two one-sided meshes (`src/engine/glass.ts`), back faces first. Flat glass and the pop rings use one pass.
+- **No compiles mid-level.** `Stage.draw` compiles every shader of a new scene, hidden effects included, before its first draw. Before this, the first completion of a level compiled the spark, ring and stamp shaders at the moment it should pay off. Production builds also skip three's shader-log readback, which waits for each compile.
+- **Fewer draws.** Each Funnel Sort crate is one mesh, not five. Every box's light pockets share two instanced meshes, one lit and one unlit. Crates, boxes and pattern badges share one material per colour. On `board-57` this took a frame from 189 draw calls to 117.
+- **Lighter marbles.** Crowd marbles are 16×12 spheres instead of 22×16, drawn twice a frame because they cast shadows; Tube Sort's larger marbles keep their finer mesh.
+- **No layout reads per frame.** `Stage.rect` caches the canvas position until a resize, and the HUD only writes values that changed.
+- **Quality steps down sooner.** The pixel ratio steps down when drawn frames average under 40 fps over 2.5 s; it used to wait for 30 fps.
+
+| Measure (frozen busy frame) | Before | After |
+| --- | --- | --- |
+| `board-57` draw calls, triangles | 189, 196k | 117, 129k |
+| `board-57` GPU-synced draw | 325–348 ms | 295 ms |
+| `loop-61` triangles, GPU-synced draw | 240k, 401–410 ms | 152k, 369 ms |
+| Main-thread render at 4x: Funnel, Loop, Tube | 10.0, 9.8, 6.6 ms | 7.0, 9.4, 5.7 ms |
+| HUD refresh at 4x: Funnel, Tube | 0.9, 0.9 ms | 0.1, 0.1 ms |
+| Shader programs first compiled after a level loads | 4 | 0 |
+
+`tests/e2e/render-hygiene.spec.ts` keeps the last three in place. It checks that every material has a compiled shader once a level is first drawn, that no material's shader is looked up on frame after frame, and that a resting Tube Sort board isn't redrawn. Each check failed with its fix removed. `tests/engine/pacing.test.ts` holds the frame rates above.
+
+The owner then accepted four changes to the look, priced by the first table:
+
+- **Pixel ratio 1.25**, stepping down to 1, instead of 1.5.
+- **Floors alone receive shadows**: the slab, decks, lanes and belt. Crates, boxes, lorries and tube parts still cast them.
+- **One shadow tap**: a single hardware-filtered lookup instead of three's five rotated ones (`src/engine/shadow-filter.ts`), so shadow edges are about one texel wide. The patch throws if a three upgrade changes the shader it replaces, and `tests/engine/shadow-filter.test.ts` holds it.
+- **Plain plastic**: toy parts and glass use standard materials. Only the marbles keep clearcoat.
+
+| Same frozen frame | Before the pass, ratio 1.5 | After both steps, ratio 1.25 |
+| --- | --- | --- |
+| `board-57` | 325–348 ms | 194 ms |
+| `loop-61` | 401–410 ms | 227 ms |
+| `tube-74` | 252 ms | 140 ms |
 
 ## Campaign and authoring
 

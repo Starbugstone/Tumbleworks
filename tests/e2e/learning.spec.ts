@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import type { App } from '../../src/view/App';
 import { TUBE_BOARDS } from '../../src/puzzles/levels';
+import { chooseLevel } from '../fixtures/picker';
 type GameWindow = Window & { tumbleworks: { app: App } };
 /** Uncaught page errors explain a missing target far better than the missing target does. */
 const pageErrors = new WeakMap<Page, string[]>();
@@ -11,7 +12,7 @@ const ready = async (page: Page) => {
     page.on('pageerror', (error) => errors.push(error.message));
   }
   await page.goto('/');
-  await page.waitForFunction(() => Boolean((window as unknown as Partial<GameWindow>).tumbleworks?.app?.runtime));
+  await page.waitForFunction(() => Boolean((window as unknown as Partial<GameWindow>).tumbleworks?.app?.runtime), undefined, { polling: 100 });
   await page.evaluate(() => { (window as unknown as GameWindow).tumbleworks.app.manualClock = true; });
 };
 const tap = async (page: Page, id: string) => {
@@ -23,8 +24,7 @@ const tap = async (page: Page, id: string) => {
   await page.touchscreen.tap(point.x, point.y);
 };
 const select = async (page: Page, index: number) => {
-  await page.locator('#levels-toggle').click();
-  await page.locator(`.chip[data-level="${index}"]`).click();
+  await chooseLevel(page, index);
 };
 const settle = async (page: Page) => page.evaluate(() => {
   const app = (window as unknown as GameWindow).tumbleworks.app;
@@ -71,6 +71,10 @@ test('French is detected, changing language preserves the live puzzle, and the c
 });
 
 test('the written instruction shows only during onboarding and stays readable behind the level pill', async ({ page }) => {
+  // The instruction hides six seconds after a level loads. A software-rendered boot under parallel workers
+  // can take longer than that before the test looks, so the page's clock stands still for this test.
+  await page.clock.install();
+  await page.clock.pauseAt(Date.now() + 1000);
   await ready(page);
   const instruction = page.locator('#instruction');
   // The first level's guide is unseen, so its instruction shows until the player acts.
@@ -93,7 +97,7 @@ test('the written instruction shows only during onboarding and stays readable be
   await page.locator('#guide-skip').click();
   await expect(instruction).toBeHidden();
   await page.reload();
-  await page.waitForFunction(() => Boolean((window as unknown as Partial<GameWindow>).tumbleworks?.app?.runtime));
+  await page.waitForFunction(() => Boolean((window as unknown as Partial<GameWindow>).tumbleworks?.app?.runtime), undefined, { polling: 100 });
   await expect(instruction).toBeHidden();
 });
 

@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { CAMPAIGN } from '../../src/campaign';
 import { TUBE_BOARDS } from '../../src/puzzles/levels';
 import type { App } from '../../src/view/App';
+import { chooseLevel } from '../fixtures/picker';
 
 type GameWindow = Window & { tumbleworks: { app: App } };
 const state = (page: Page) => page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.debugState());
@@ -39,7 +40,7 @@ test('the level picker groups levels into chapters with their completion counts'
   await expect(chapters.first()).toHaveText(`Levels 1–${Math.min(30, CAMPAIGN.length)} · 2/${Math.min(30, CAMPAIGN.length)}`);
   // A level in a later chapter is reachable by scrolling the list, and opens like any other.
   const last = CAMPAIGN.length - 1;
-  await page.locator(`.chip[data-level="${last}"]`).click();
+  await chooseLevel(page, last);
   await settle(page);
   expect((await state(page))['levelIndex']).toBe(last);
 });

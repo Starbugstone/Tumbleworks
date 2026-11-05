@@ -4,6 +4,7 @@ import { LOOP_BOARDS } from '../../src/loop/boards';
 import type { LoopBoardDef } from '../../src/loop/types';
 import { BOARDS } from '../../src/sim/boards';
 import type { BoardDef } from '../../src/sim/types';
+import { chooseLevel } from '../fixtures/picker';
 
 /**
  * Real clock and real rendering on the busiest levels, with a 4x CPU slowdown standing in for a mid-range
@@ -36,8 +37,7 @@ for (const level of LEVELS) {
     test.setTimeout(180_000);
     await page.goto('/');
     await page.waitForFunction(() => Boolean((window as never as { tumbleworks?: unknown }).tumbleworks), undefined, { timeout: 60_000 });
-    await page.locator('#levels-toggle').click();
-    await page.locator(`.chip[data-level="${level.index}"]`).click();
+    await chooseLevel(page, level.index);
     const client = await page.context().newCDPSession(page);
     await client.send('Emulation.setCPUThrottlingRate', { rate: RATE });
 

@@ -2,17 +2,26 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { woodTexture } from '../view/art';
 import { MarbleFactory } from './marbles';
+import { useOneTapShadows } from './shadow-filter';
 
 /** The renderer, lighting and toy materials survive every level transition. */
 export class Stage {
+  /** Device pixels per CSS pixel, from the sharpest down; a phone that can't keep up steps down one at a time. */
+  static readonly PIXEL_RATIOS = [1.25, 1] as const;
   readonly renderer: THREE.WebGLRenderer;
   readonly marbles = new MarbleFactory();
   private readonly environment: THREE.Texture;
   private readonly tableMaterial: THREE.MeshStandardMaterial;
+  private readonly compiled = new WeakSet<THREE.Scene>();
+  private quality = 0;
+  private bounds: DOMRect | null = null;
 
   constructor(readonly canvas: HTMLCanvasElement) {
+    useOneTapShadows();
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    // Reading back each new shader's log waits for the driver to finish compiling it; development keeps the check.
+    this.renderer.debug.checkShaderErrors = import.meta.env.DEV;
+    this.renderer.setPixelRatio(this.pixelRatio);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 0.95;
@@ -37,7 +46,6 @@ export class Stage {
     Object.assign(key.shadow.camera, { left: -13, right: 13, top: 13, bottom: -13, near: 4, far: 50 });
     key.shadow.bias = -0.0006;
     key.shadow.normalBias = 0.02;
-    key.shadow.radius = 4;
     scene.add(key, new THREE.HemisphereLight(0xffffff, backdrop === 'wood' ? 0x8a5a30 : 0x2b3473, backdrop === 'wood' ? 0.35 : 0.55));
     if (backdrop === 'wood') {
       const table = new THREE.Mesh(new THREE.PlaneGeometry(90, 90), this.tableMaterial);
@@ -55,14 +63,41 @@ export class Stage {
     return scene;
   }
 
+  get pixelRatio(): number { return Math.min(window.devicePixelRatio, Stage.PIXEL_RATIOS[this.quality] ?? 1); }
+
+  /** One step down the pixel ratios; false once there is nothing left to give. */
   lowerQuality(): boolean {
-    if (this.renderer.getPixelRatio() > 1) {
-      this.renderer.setPixelRatio(1);
-      this.renderer.setSize(this.canvas.clientWidth, this.canvas.clientHeight, false);
-      return true;
+    while (this.quality < Stage.PIXEL_RATIOS.length - 1) {
+      const before = this.pixelRatio;
+      this.quality++;
+      if (this.pixelRatio < before) {
+        this.renderer.setPixelRatio(this.pixelRatio);
+        this.renderer.setSize(this.canvas.clientWidth, this.canvas.clientHeight, false);
+        return true;
+      }
     }
     return this.marbles.useSolidGlass();
   }
+
+  /**
+   * Draws a scene, compiling every shader it holds the first time, hidden effects included, so the first
+   * completion burst of a level doesn't stall on a compile at the moment it should pay off.
+   */
+  draw(scene: THREE.Scene, camera: THREE.Camera): void {
+    if (!this.compiled.has(scene)) {
+      this.renderer.compile(scene, camera);
+      this.compiled.add(scene);
+    }
+    this.renderer.render(scene, camera);
+  }
+
+  /** Where the canvas sits on the page. It is fixed to the viewport, so only a resize moves it. */
+  get rect(): DOMRect {
+    this.bounds ??= this.canvas.getBoundingClientRect();
+    return this.bounds;
+  }
+
+  resized(): void { this.bounds = null; }
 
   disposeScene(scene: THREE.Scene): void {
     const geometries = new Set<THREE.BufferGeometry>();

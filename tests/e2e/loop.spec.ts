@@ -4,6 +4,7 @@ import { LOOP_BOARDS } from '../../src/loop/boards';
 import { placeLane, rosterLayout } from '../../src/loop/roster-layout';
 import { LOOP_JAMS, LOOP_WITNESSES } from '../witnesses';
 import type { App } from '../../src/view/App';
+import { chooseLevel } from '../fixtures/picker';
 type GameWindow = Window & { tumbleworks: { app: App } };
 
 test('Loop Sort explains a refused tap: a full loop, a pour in progress, or a one-color truck', async ({ page }) => {
@@ -12,8 +13,7 @@ test('Loop Sort explains a refused tap: a full loop, a pour in progress, or a on
   await page.goto('/');
   await page.waitForFunction(() => Boolean((window as unknown as Partial<GameWindow>).tumbleworks?.app?.runtime), undefined, { timeout: 60000 });
   await page.evaluate(() => { (window as unknown as GameWindow).tumbleworks.app.manualClock = true; });
-  await page.locator('#levels-toggle').click();
-  await page.locator(`.chip[data-level="${CAMPAIGN.findIndex((level) => level.id === 'loop-1')}"]`).click();
+  await chooseLevel(page, CAMPAIGN.findIndex((level) => level.id === 'loop-1'));
   const tap = async (id: string) => {
     const at = await page.evaluate((key) => (window as unknown as GameWindow).tumbleworks.app.debugTargets()[key], id);
     if (!at) throw new Error(`No target ${id}`);
@@ -33,8 +33,7 @@ test('Loop Sort explains a refused tap: a full loop, a pour in progress, or a on
   await tap('lane0');
   await expect(page.locator('#message')).toContainText('one color');
   // Traffic pressure remains on later boards. The authored losing pours leave a visible paused tailboard.
-  await page.locator('#levels-toggle').click();
-  await page.locator(`.chip[data-level="${CAMPAIGN.findIndex((level) => level.id === FULL_LOOP_LEVEL)}"]`).click();
+  await chooseLevel(page, CAMPAIGN.findIndex((level) => level.id === FULL_LOOP_LEVEL));
   for (const target of [...(LOOP_JAMS[FULL_LOOP_LEVEL] ?? '')].map((letter) => `lane${letter.charCodeAt(0) - 65}`)) {
     await tap(target);
     await page.evaluate(() => {
@@ -74,8 +73,7 @@ const openGame = async (page: import('@playwright/test').Page) => {
   await page.evaluate(() => { (window as unknown as GameWindow).tumbleworks.app.manualClock = true; });
 };
 const openLevel = async (page: import('@playwright/test').Page, index: number) => {
-  await page.locator('#levels-toggle').click();
-  await page.locator(`.chip[data-level="${index}"]`).click();
+  await chooseLevel(page, index);
   await page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.advance(1 / 60));
 };
 

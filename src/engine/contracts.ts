@@ -39,6 +39,11 @@ export interface GameRuntime {
   readonly game: Replayable;
   readonly status: GameStatus;
   readonly busy: boolean;
+  /**
+   * True when drawing again would show the same picture. The app then skips drawing until something
+   * moves or the player acts. Leave it out when the board never rests, as a running belt doesn't.
+   */
+  readonly still?: boolean;
   readonly canUndo: boolean;
   readonly counter: { label: string; value: string; full?: boolean };
   readonly preview: readonly Color[];

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Sparks } from '../engine/sparks';
+import { Glass } from '../engine/glass';
 import { COLORS, containerSymbolTexture } from './art';
 import type { Color } from '../sim/types';
 import { FIXED_SECONDS } from '../engine/physics';
@@ -20,7 +21,7 @@ export class TubeView extends BoardView {
   private readonly badges: THREE.Mesh[][] = [];
   private readonly badgeMaterials = new Map<Color, THREE.MeshBasicMaterial>();
   private readonly caps = new Map<number, { mesh: THREE.Group; y: number; progress: number; open: boolean }>();
-  private readonly cups = new Map<number, { parts: { mesh: THREE.Mesh; y: number }[]; progress: number; spent: boolean }>();
+  private readonly cups = new Map<number, { parts: { mesh: THREE.Object3D; y: number }[]; progress: number; spent: boolean }>();
   private readonly reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   private readonly pulses: number[] = [];
   private readonly sparks: Sparks;
@@ -43,13 +44,15 @@ export class TubeView extends BoardView {
     const depth = rows * 4.8 + 0.8;
     const centerZ = (rows - 1) * 2.4 - 4.8 + 0.3;
     const plinth = toyBox(8.2, 0.5, depth, 0x5566d9, 0.2);
+    plinth.receiveShadow = true;
     plinth.position.set(0, 0.3, centerZ);
     this.board.add(plinth);
     const deck = toyBox(7.7, 0.08, depth - 0.5, 0xe6e9ff, 0.16);
+    deck.receiveShadow = true;
     deck.position.set(0, 0.57, centerZ);
     this.board.add(deck);
-    const glass = new THREE.MeshPhysicalMaterial({ color: 0xe4f5ff, clearcoat: 0.7, transparent: true,
-      opacity: 0.2, roughness: 0.08, side: THREE.DoubleSide, depthWrite: false, envMapIntensity: 1.5 });
+    const glass = new Glass(new THREE.MeshStandardMaterial({ color: 0xe4f5ff, transparent: true,
+      opacity: 0.2, roughness: 0.08, depthWrite: false, envMapIntensity: 1.5 }));
     definition.tubes.forEach((_, index) => {
       const at = this.position(index, 0);
       const container = tubeContainer(definition, index);
@@ -58,7 +61,7 @@ export class TubeView extends BoardView {
       const backing = toyBox(1.28, height, 0.1, 0x596887, 0.05);
       backing.position.set(at.x, 0.7 + height / 2, at.z - 0.64);
       this.board.add(backing);
-      const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.67, 0.67, height, 32, 1, true), glass);
+      const tube = glass.mesh(new THREE.CylinderGeometry(0.67, 0.67, height, 32, 1, true));
       tube.position.set(at.x, 0.7 + height / 2, at.z);
       this.board.add(tube);
       const rim = new THREE.Mesh(new THREE.TorusGeometry(0.67, 0.07, 10, 32), toyMaterial(0xe7f4f2));
@@ -153,12 +156,12 @@ export class TubeView extends BoardView {
         if (color) badge.material = this.badgeMaterials.get(color)!;
       });
       const rim = this.rims[index];
-      if (rim?.material instanceof THREE.MeshPhysicalMaterial) {
+      if (rim?.material instanceof THREE.MeshStandardMaterial) {
         rim.material.color.setHex(tube.at(-1) ? COLORS[tube.at(-1)!].hex : 0xe7f4f2);
       }
       const complete = completedTube(this.definition, state, index);
       const light = this.lights[index];
-      if (light?.material instanceof THREE.MeshPhysicalMaterial) {
+      if (light?.material instanceof THREE.MeshStandardMaterial) {
         light.material.color.setHex(complete ? 0x30dfa5 : 0x938976);
         light.material.emissive.setHex(complete ? 0x16b36b : 0);
       }
@@ -173,7 +176,7 @@ export class TubeView extends BoardView {
     this.selected = index;
     this.selectors.forEach((mesh, i) => {
       mesh.scale.setScalar(i === index ? 1.12 : 1);
-      if (mesh.material instanceof THREE.MeshPhysicalMaterial) {
+      if (mesh.material instanceof THREE.MeshStandardMaterial) {
         mesh.material.color.setHex(i === index ? 0xf25f33 : 0x3b4069);
         mesh.material.emissive.setHex(i === index ? 0x6c2109 : 0);
       }
@@ -181,7 +184,7 @@ export class TubeView extends BoardView {
   }
 
   private pointOnPlane(point: ScreenPoint): THREE.Vector3 {
-    const rect = this.services.stage.canvas.getBoundingClientRect();
+    const rect = this.services.stage.rect;
     this.dragRay.setFromCamera(new THREE.Vector2((point.x - rect.left) / rect.width * 2 - 1, -(point.y - rect.top) / rect.height * 2 + 1), this.camera);
     return this.dragRay.ray.intersectPlane(this.dragPlane, new THREE.Vector3()) ?? this.dragOrigin.clone();
   }
@@ -236,9 +239,16 @@ export class TubeView extends BoardView {
       for (const { mesh, y } of cup.parts) {
         mesh.position.y = 0.7 + (y - 0.7) * fold;
         // The rim stays round as the walls concertina down to the base.
-        if (!this.rims.includes(mesh)) mesh.scale.y = fold;
+        if (!(mesh instanceof THREE.Mesh && this.rims.includes(mesh))) mesh.scale.y = fold;
       }
     }
+  }
+
+  /** Nothing on the board would move if it were drawn again. */
+  get still(): boolean {
+    return !this.busy && !this.sparks.active && this.pulses.every((pulse) => pulse === 0)
+      && [...this.caps.values()].every((cap) => cap.progress === (cap.open ? 1 : 0))
+      && [...this.cups.values()].every((cup) => cup.progress === (cup.spent ? 1 : 0));
   }
 
   override step(): void {

@@ -2,7 +2,9 @@ import { beltDeck } from './belt-deck';
 import { BeltSurface } from './belt-surface';
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { Sparks } from '../engine/sparks';
+import { Glass } from '../engine/glass';
 import { FIXED_SECONDS } from '../engine/physics';
 import { MarbleCrowd } from '../engine/crowd';
 import { frameBoard } from '../engine/framing';
@@ -23,8 +25,9 @@ const CHANNEL = ARCADE.track;
 
 const plastic = (color: number, roughness = 0.42): THREE.MeshStandardMaterial =>
   new THREE.MeshStandardMaterial({ color, roughness, metalness: 0, envMapIntensity: 0.7 });
-const shiny = (color: number): THREE.MeshPhysicalMaterial =>
-  new THREE.MeshPhysicalMaterial({ color, roughness: 0.3, clearcoat: 0.6, clearcoatRoughness: 0.2, envMapIntensity: 0.9 });
+/** Glossy toy plastic, without the clearcoat layer the marbles keep. */
+const shiny = (color: number): THREE.MeshStandardMaterial =>
+  new THREE.MeshStandardMaterial({ color, roughness: 0.3, metalness: 0, envMapIntensity: 0.9 });
 
 function stadium(track: Track, radius: number): THREE.Shape {
   const { straightHalf: s, centerZ: cz } = track;
@@ -58,10 +61,11 @@ function slab(shape: THREE.Shape, bottom: number, top: number, side: THREE.Mater
   mesh.receiveShadow = true;
   return mesh;
 }
-function rounded(width: number, height: number, depth: number, material: THREE.Material, radius = 0.1): THREE.Mesh {
+/** Only floors receive shadows: sampling them on every crate and box cost a tenth of a frame. */
+function rounded(width: number, height: number, depth: number, material: THREE.Material, radius = 0.1, floor = false): THREE.Mesh {
   const mesh = new THREE.Mesh(new RoundedBoxGeometry(width, height, depth, 3, Math.min(radius, width / 2, height / 2, depth / 2)), material);
   mesh.castShadow = true;
-  mesh.receiveShadow = true;
+  mesh.receiveShadow = floor;
   return mesh;
 }
 
@@ -79,7 +83,14 @@ export class MachineScene {
   private readonly links: { group: THREE.Group; from: number; to: number; pair: boolean }[] = [];
   private readonly shutters = new Map<number, { group: THREE.Group; lift: number }>();
   private readonly crates = new Map<number, THREE.Group>();
-  private readonly boxes = new Map<string, { group: THREE.Group; lights: THREE.Mesh[]; pulse: number }>();
+  private readonly boxes = new Map<string, { group: THREE.Group; pulse: number }>();
+  /** Every box's three pockets, lit and unlit, in two draws: one mesh per pocket cost a draw each. */
+  private pockets: { on: THREE.InstancedMesh; off: THREE.InstancedMesh } | null = null;
+  private readonly pocketMatrix = new THREE.Matrix4();
+  private readonly pocketOffsets = [0, 1, 2].map((slot) => new THREE.Matrix4().makeTranslation((slot - 1) * BOX.slotSpacing, BOX.height + 0.01, 0));
+  /** One plastic and one printed pattern per colour, shared by every crate and box of that colour. */
+  private readonly paints = new Map<Color, THREE.MeshStandardMaterial>();
+  private readonly decals = new Map<Color, THREE.MeshBasicMaterial>();
   private previousCrates: ReturnType<Machine['readCrates']> = [];
   private currentCrates: ReturnType<Machine['readCrates']> = [];
   private previousBoxes: ReturnType<Machine['readBoxes']> = [];
@@ -88,9 +99,11 @@ export class MachineScene {
   private readonly raycaster = new THREE.Raycaster();
   private readonly lightOff = plastic(0x2c3366, 0.6);
   private readonly lightOn = new THREE.MeshStandardMaterial({ color: 0xfff1b0, emissive: 0xffd45e, emissiveIntensity: 1.6 });
-  private readonly glass = new THREE.MeshPhysicalMaterial({ color: 0xd6ecff, transparent: true, opacity: 0.18, roughness: 0.08, metalness: 0, side: THREE.DoubleSide, depthWrite: false, envMapIntensity: 1.6 });
+  private readonly glass = new Glass(new THREE.MeshStandardMaterial({ color: 0xd6ecff, transparent: true, opacity: 0.18, roughness: 0.08, metalness: 0, depthWrite: false, envMapIntensity: 1.6 }));
   /** The chute is a pipe the eye should follow, so it is a little milkier than the dish. */
-  private readonly chuteGlass = new THREE.MeshPhysicalMaterial({ color: 0xcfe9ff, transparent: true, opacity: 0.36, roughness: 0.12, metalness: 0, side: THREE.DoubleSide, depthWrite: false, envMapIntensity: 1.8 });
+  private readonly chuteGlass = new Glass(new THREE.MeshStandardMaterial({ color: 0xcfe9ff, transparent: true, opacity: 0.36, roughness: 0.12, metalness: 0, depthWrite: false, envMapIntensity: 1.8 }));
+  /** Materials that outlive a level, shared by every level this scene draws. */
+  private readonly kept = new Set<THREE.Material>([this.glass.back, this.glass.front, this.glass.flat, this.chuteGlass.back, this.chuteGlass.front, this.chuteGlass.flat, this.lightOff, this.lightOn]);
   private readonly tempA = new THREE.Quaternion();
   private readonly tempB = new THREE.Quaternion();
   private readonly sparks: Sparks;
@@ -133,8 +146,7 @@ export class MachineScene {
     const bottom = new THREE.Vector3(land.x, RIDE_Y + land.y + MARBLE_RADIUS + chuteClearance, land.z);
     const axis = bottom.clone().sub(top);
     const length = axis.length();
-    const pipe = new THREE.Mesh(new THREE.CylinderGeometry(chuteRadius, chuteRadius, length, 24, 1, true), this.chuteGlass);
-    pipe.renderOrder = 1;
+    const pipe = this.chuteGlass.mesh(new THREE.CylinderGeometry(chuteRadius, chuteRadius, length, 24, 1, true), 1);
     pipe.position.copy(top).addScaledVector(axis, 0.5);
     pipe.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), axis.normalize());
     const lip = new THREE.Mesh(new THREE.TorusGeometry(chuteRadius + 0.02, 0.05, 10, 28), shiny(0xf25f33));
@@ -146,7 +158,7 @@ export class MachineScene {
 
   /** The slab under everything is cut to the level: just wide enough for its columns and docks. */
   private buildBase(halfWidth: number, backZ: number, frontZ: number): void {
-    const base = rounded(halfWidth * 2, 0.9, frontZ - backZ, shiny(PLATFORM), 0.3);
+    const base = rounded(halfWidth * 2, 0.9, frontZ - backZ, shiny(PLATFORM), 0.3, true);
     base.position.set(0, -0.45, (frontZ + backZ) / 2);
     this.level.add(base);
     this.yard = new ArcadeYard(this.scene, halfWidth, backZ, frontZ);
@@ -163,12 +175,12 @@ export class MachineScene {
       geometry.setAttribute('position', new THREE.Float32BufferAttribute(face.flatMap((p) => [p.x, p.y, p.z]), 3));
       geometry.setIndex([0, 1, 2, 0, 2, 3]);
       geometry.computeVertexNormals();
-      group.add(new THREE.Mesh(geometry, this.glass));
+      group.add(new THREE.Mesh(geometry, this.glass.flat));
     }
     const rimHeight = rimY - mouthY;
     const rimMaterial = shiny(0xffc857);
     for (const [x, z, w, d] of [[-half, midZ, 0.14, depth + 0.14], [half, midZ, 0.14, depth + 0.14], [0, mouth.back, half * 2 + 0.14, 0.14], [0, mouth.front, half * 2 + 0.14, 0.14]] as const) {
-      const wall = new THREE.Mesh(new THREE.BoxGeometry(w, 0.06, d), this.glass);
+      const wall = this.glass.mesh(new THREE.BoxGeometry(w, 0.06, d));
       wall.position.set(x, mouthY + rimHeight / 2, z);
       wall.scale.y = rimHeight / 0.06;
       group.add(wall);
@@ -183,41 +195,45 @@ export class MachineScene {
     this.level.add(group);
   }
 
+  private paint(color: Color): THREE.MeshStandardMaterial {
+    let material = this.paints.get(color);
+    if (!material) {
+      material = shiny(COLORS[color].hex);
+      this.paints.set(color, material);
+    }
+    return material;
+  }
+
   private crateGroup(color: Color): THREE.Group {
     const group = new THREE.Group();
-    const material = shiny(COLORS[color].hex);
     const { halfWidth: hw, halfDepth: hd, floorThickness: ft, wallHeight: wh, wallThickness: wt } = CRATE;
-    const floor = rounded(hw * 2, ft, hd * 2, material, 0.04);
-    floor.position.y = ft / 2;
-    group.add(floor);
-    for (const [x, z, w, d] of [[-hw + wt / 2, 0, wt, hd * 2], [hw - wt / 2, 0, wt, hd * 2], [0, -hd + wt / 2, hw * 2, wt], [0, hd - wt / 2, hw * 2, wt]] as const) {
-      const wall = rounded(w, wh, d, material, 0.03);
-      wall.position.set(x, ft + wh / 2, z);
-      group.add(wall);
-    }
-    const badge = decal(color, 0.42);
+    // The floor and four walls share one plastic, so they are one mesh: one draw a crate, not five.
+    const piece = (w: number, h: number, d: number, radius: number, x: number, y: number, z: number): THREE.BufferGeometry =>
+      new RoundedBoxGeometry(w, h, d, 3, Math.min(radius, w / 2, h / 2, d / 2)).translate(x, y, z);
+    const pieces = [piece(hw * 2, ft, hd * 2, 0.04, 0, ft / 2, 0),
+      ...([[-hw + wt / 2, 0, wt, hd * 2], [hw - wt / 2, 0, wt, hd * 2], [0, -hd + wt / 2, hw * 2, wt], [0, hd - wt / 2, hw * 2, wt]] as const)
+        .map(([x, z, w, d]) => piece(w, wh, d, 0.03, x, ft + wh / 2, z))];
+    const merged = mergeGeometries(pieces);
+    for (const geometry of pieces) geometry.dispose();
+    if (!merged) throw new Error('Crate geometry could not be merged');
+    const shell = new THREE.Mesh(merged, this.paint(color));
+    shell.castShadow = true;
+    group.add(shell);
+    const badge = decal(color, 0.42, this.decals);
     badge.position.set(0, ft + wh / 2, hd + 0.01);
     group.add(badge);
     return group;
   }
 
-  private boxGroup(color: Color): { group: THREE.Group; lights: THREE.Mesh[]; pulse: number } {
+  private boxGroup(color: Color): { group: THREE.Group; pulse: number } {
     const group = new THREE.Group();
-    const material = shiny(COLORS[color].hex);
-    const body = rounded(BOX.halfWidth * 2, BOX.height, BOX.halfDepth * 2, material, 0.08);
+    const body = rounded(BOX.halfWidth * 2, BOX.height, BOX.halfDepth * 2, this.paint(color), 0.08);
     body.position.y = BOX.height / 2;
     group.add(body);
-    const lights: THREE.Mesh[] = [];
-    for (let slot = 0; slot < 3; slot++) {
-      const pocket = new THREE.Mesh(new THREE.CylinderGeometry(MARBLE_RADIUS * 1.08, MARBLE_RADIUS * 1.08, 0.05, 20), this.lightOff);
-      pocket.position.set((slot - 1) * BOX.slotSpacing, BOX.height + 0.01, 0);
-      group.add(pocket);
-      lights.push(pocket);
-    }
-    const badge = decal(color, 0.34);
+    const badge = decal(color, 0.34, this.decals);
     badge.position.set(0, BOX.height / 2, BOX.halfDepth + 0.01);
     group.add(badge);
-    return { group, lights, pulse: 0 };
+    return { group, pulse: 0 };
   }
 
   /** Builds everything that belongs to one level. */
@@ -248,6 +264,16 @@ export class MachineScene {
       this.boxes.set(`${box.dock}:${box.index}`, visual);
       this.level.add(visual.group);
     }
+    const pocket = new THREE.CylinderGeometry(MARBLE_RADIUS * 1.08, MARBLE_RADIUS * 1.08, 0.05, 20);
+    const pockets = (material: THREE.Material): THREE.InstancedMesh => {
+      const mesh = new THREE.InstancedMesh(pocket, material, this.boxes.size * 3);
+      mesh.frustumCulled = false;
+      mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      mesh.count = 0;
+      this.level.add(mesh);
+      return mesh;
+    };
+    this.pockets = { on: pockets(this.lightOn), off: pockets(this.lightOff) };
     const columns = machine.sourceColumns;
     const targets = machine.rules.crateActions ? machine.readCrates() : machine.readCrates().filter((crate) => crate.accessible);
     for (const crate of targets) {
@@ -276,12 +302,12 @@ export class MachineScene {
       const panel = rounded(BOX.halfWidth * 2 + 0.14, 1.05, 0.12, shiny(0x273f48), 0.08);
       group.add(panel);
       const color = machine.board.docks[seal.after.dock]![seal.after.box]!;
-      const badge = decal(color, 0.62);
+      const badge = decal(color, 0.62, this.decals);
       badge.position.z = 0.08;
       group.add(badge);
       // The matching badge remains on the named prerequisite box as well as on the shutter.
       const prerequisite = this.boxes.get(`${seal.after.dock}:${seal.after.box}`);
-      const key = decal(color, 0.5);
+      const key = decal(color, 0.5, this.decals);
       key.rotation.x = -Math.PI / 2;
       key.position.set(0, BOX.height + 0.08, -BOX.halfDepth * 0.7);
       prerequisite?.group.add(key);
@@ -299,7 +325,7 @@ export class MachineScene {
     this.buildBase(baseHalf, FUNNEL.mouth.back - 0.5, queueEnd + 0.7);
     // A quiet lane under each dock groups its waiting boxes; a tint, not a dark slot.
     for (let dock = 0; dock < docks; dock++) {
-      const lane = rounded(BOX.halfWidth * 2 + 0.12, 0.04, queueEnd - BOX.z + 0.9, plastic(ARCADE.lane, 0.6), 0.02);
+      const lane = rounded(BOX.halfWidth * 2 + 0.12, 0.04, queueEnd - BOX.z + 0.9, plastic(ARCADE.lane, 0.6), 0.02, true);
       lane.position.set(dockX(dock, docks), 0.03, (queueEnd + BOX.z) / 2 - 0.15);
       this.level.add(lane);
     }
@@ -328,6 +354,9 @@ export class MachineScene {
     this.links.length = 0;
     this.shutters.clear();
     this.boxes.clear();
+    this.pockets = null;
+    this.paints.clear();
+    this.decals.clear();
     for (const target of this.hitTargets) {
       this.scene.remove(target);
       target.geometry.dispose();
@@ -338,7 +367,7 @@ export class MachineScene {
       if (!(object instanceof THREE.Mesh)) return;
       if (object instanceof THREE.InstancedMesh) object.dispose();
       object.geometry.dispose();
-      for (const material of Array.isArray(object.material) ? object.material : [object.material]) if (material !== this.glass && material !== this.chuteGlass && material !== this.lightOff && material !== this.lightOn) {
+      for (const material of Array.isArray(object.material) ? object.material : [object.material]) if (!this.kept.has(material)) {
         if ('map' in material && material.map instanceof THREE.Texture) material.map.dispose();
         material.dispose();
       }
@@ -351,10 +380,7 @@ export class MachineScene {
     this.clearLevel();
     this.sparks.dispose();
     this.pops.dispose();
-    this.glass.dispose();
-    this.chuteGlass.dispose();
-    this.lightOff.dispose();
-    this.lightOn.dispose();
+    for (const material of this.kept) material.dispose();
     this.stage.disposeScene(this.scene);
     this.machine = null;
   }
@@ -458,6 +484,8 @@ export class MachineScene {
       shutter.group.position.y = BOX.height + 0.45 + shutter.lift * 1.6;
       shutter.group.visible = shutter.lift < 1;
     }
+    const pockets = this.pockets;
+    if (pockets) pockets.on.count = pockets.off.count = 0;
     for (const [index, box] of this.currentBoxes.entries()) {
       const visual = this.boxes.get(`${box.dock}:${box.index}`);
       if (!visual) continue;
@@ -467,15 +495,21 @@ export class MachineScene {
       visual.group.visible = box.visible;
       visual.group.position.set(previous.x + (box.x - previous.x) * blend, previous.y + (box.y - previous.y) * blend, previous.z + (box.z - previous.z) * blend);
       visual.group.scale.set(scale * (1 + Math.sin(visual.pulse * Math.PI) * 0.055), scale, scale * (1 + Math.sin(visual.pulse * Math.PI) * 0.055));
-      visual.lights.forEach((light, slot) => { light.material = slot < box.fill ? this.lightOn : this.lightOff; });
+      if (!pockets || !box.visible) continue;
+      visual.group.updateMatrix();
+      this.pocketOffsets.forEach((offset, slot) => {
+        const mesh = slot < box.fill ? pockets.on : pockets.off;
+        mesh.setMatrixAt(mesh.count++, this.pocketMatrix.multiplyMatrices(visual.group.matrix, offset));
+      });
     }
+    if (pockets) pockets.on.instanceMatrix.needsUpdate = pockets.off.instanceMatrix.needsUpdate = true;
     this.belt?.setTravel(machine.beltDistance + alpha * RACEWAY.speed * FIXED_SECONDS);
-    this.stage.renderer.render(this.scene, this.camera);
+    this.stage.draw(this.scene, this.camera);
   }
 
   /** Which supply column a tap landed on, if any. Coordinates are CSS pixels within the canvas. */
   pick(x: number, y: number): number | null {
-    const rect = this.stage.renderer.domElement.getBoundingClientRect();
+    const rect = this.stage.rect;
     const ndc = new THREE.Vector2(((x - rect.left) / rect.width) * 2 - 1, -((y - rect.top) / rect.height) * 2 + 1);
     this.raycaster.setFromCamera(ndc, this.camera);
     const groups = [...this.crates.values()].filter((group) => group.visible && !this.machine?.rules.state.released.includes(Number(group.userData['crateId'])));
@@ -498,7 +532,7 @@ export class MachineScene {
 
   toScreen(x: number, y: number, z: number): { x: number; y: number } {
     const v = new THREE.Vector3(x, y, z).project(this.camera);
-    const rect = this.stage.renderer.domElement.getBoundingClientRect();
+    const rect = this.stage.rect;
     return { x: rect.left + ((v.x + 1) / 2) * rect.width, y: rect.top + ((1 - v.y) / 2) * rect.height };
   }
 

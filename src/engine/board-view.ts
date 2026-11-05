@@ -148,13 +148,13 @@ export abstract class BoardView {
 
   pick(x: number, y: number): string | null {
     this.scene.updateMatrixWorld(true);
-    const rect = this.services.stage.canvas.getBoundingClientRect();
+    const rect = this.services.stage.rect;
     this.raycaster.setFromCamera(new THREE.Vector2((x - rect.left) / rect.width * 2 - 1, -(y - rect.top) / rect.height * 2 + 1), this.camera);
     const target: unknown = this.raycaster.intersectObjects(this.hitObjects, false)[0]?.object.userData['target'];
     return typeof target === 'string' ? target : null;
   }
   targets(): Record<string, ScreenPoint> {
-    const rect = this.services.stage.canvas.getBoundingClientRect();
+    const rect = this.services.stage.rect;
     return Object.fromEntries([...this.anchors].map(([key, point]) => {
       const at = point.clone().project(this.camera);
       return [key, { x: rect.left + (at.x + 1) / 2 * rect.width, y: rect.top + (1 - at.y) / 2 * rect.height }];
@@ -174,7 +174,7 @@ export abstract class BoardView {
     frameBoard(this.camera, width, height, this.framing, new THREE.Vector3(0, this.elevation, 0.65));
   }
   render(): void {
-    this.services.stage.renderer.render(this.scene, this.camera);
+    this.services.stage.draw(this.scene, this.camera);
   }
   dispose(): void {
     this.cancelMotion();

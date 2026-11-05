@@ -2,6 +2,7 @@ import { sfx } from '../audio';
 import { CAMPAIGN, TRY_LEVEL } from '../campaign';
 import type { Feedback, GameRuntime, GameServices, ScreenPoint } from '../engine/contracts';
 import { FIXED_SECONDS, physics } from '../engine/physics';
+import { frameDue } from '../engine/pacing';
 import { replayLog, type ReplayLog } from '../engine/replay';
 import { Stage } from '../engine/stage';
 import { BoardPointer } from '../engine/pointer';
@@ -30,6 +31,8 @@ export class App {
   /** Held fast forward runs this many ticks per real tick: a lap of a full belt in a third or a fifth of the time. */
   static readonly FAST_SPEED = 3;
   static readonly FASTER_SPEED = 5;
+  /** Below about 40 fps, sustained over the sampling window, the stage steps down a pixel ratio. */
+  static readonly SLOW_FRAME_SECONDS = 1 / 40;
   readonly stage: Stage;
   readonly services: GameServices;
   runtime!: GameRuntime;
@@ -39,6 +42,8 @@ export class App {
   private lastFrame = performance.now();
   private slowTime = 0;
   private slowFrames = 0;
+  /** Set by anything that changes the picture outside the simulation: input, undo, a resize, a new level. */
+  private redraw = true;
   private ending: 'none' | 'won' | 'jammed' = 'none';
   private messageTimer = 0;
   private winTimer = 0;
@@ -98,8 +103,8 @@ export class App {
       mute.classList.toggle('muted', sfx.toggleMute());
       mute.setAttribute('aria-pressed', String(sfx.isMuted));
     });
-    window.addEventListener('resize', () => { this.pointer.cancel(); this.runtime?.resize(); this.refresh(); });
-    document.addEventListener('visibilitychange', () => { this.pointer.cancel(); this.setFast(false); this.lastFrame = performance.now(); this.accumulator = 0; });
+    window.addEventListener('resize', () => { this.pointer.cancel(); this.stage.resized(); this.redraw = true; this.runtime?.resize(); this.refresh(); });
+    document.addEventListener('visibilitychange', () => { this.pointer.cancel(); this.setFast(false); this.lastFrame = performance.now(); this.accumulator = 0; this.redraw = true; });
     window.addEventListener('blur', () => this.setFast(false));
     document.addEventListener('keydown', (event) => this.key(event));
     document.addEventListener('keyup', (event) => {
@@ -120,6 +125,7 @@ export class App {
       this.pointer.cancel();
       this.setMessage('');
       this.previewKey = '';
+      this.redraw = true;
       this.localize();
       if (!this.card.hidden) this.endingCard();
       this.refresh();
@@ -195,6 +201,8 @@ export class App {
     this.runtime?.dispose();
     this.boardIndex = index;
     this.runtime = level.create(this.services);
+    this.stage.resized();
+    this.redraw = true;
     this.guiding = Boolean(this.runtime.guideId && !guideSeen(this.runtime.guideId));
     selectLevel(level.id);
     this.accumulator = 0;
@@ -212,31 +220,39 @@ export class App {
     // The written instruction belongs to onboarding: every other level lives behind the level pill.
     element('instruction').hidden = !this.guiding;
     window.clearTimeout(this.instructionTimer);
-    this.instructionTimer = window.setTimeout(() => { element('instruction').hidden = true; }, 6000);
     this.showLevels(false);
     this.renderChips();
     this.runtime.resize();
     this.runtime.render(0, 0);
+    // The first draw compiles the level's shaders; reading time and the clock start once it is on screen.
+    this.lastFrame = performance.now();
+    this.instructionTimer = window.setTimeout(() => { element('instruction').hidden = true; }, 6000);
     this.refresh();
   }
 
   private readonly frame = (now: number): void => {
+    requestAnimationFrame(this.frame);
+    if (!frameDue(now, this.lastFrame)) return;
     const seconds = Math.min(Math.max((now - this.lastFrame) / 1000, 0), 0.25);
     this.lastFrame = now;
     if (!this.manualClock && !document.hidden) {
-      this.advance(seconds);
-      this.slowTime += seconds;
-      this.slowFrames++;
+      const drawn = this.advance(seconds);
+      // Only drawn frames say anything about the device: a still board skips drawing and costs nothing.
+      if (drawn) {
+        this.slowTime += seconds;
+        this.slowFrames++;
+      }
       if (this.slowTime >= 2.5) {
-        if (this.slowTime / this.slowFrames > 1 / 30) this.stage.lowerQuality();
+        if (this.slowTime / this.slowFrames > App.SLOW_FRAME_SECONDS && this.stage.lowerQuality()) this.redraw = true;
         this.slowTime = 0;
         this.slowFrames = 0;
       }
     }
-    requestAnimationFrame(this.frame);
   };
 
-  advance(seconds: number, draw = true): void {
+  /** Runs the ticks due and draws, unless the board was still before and after; true when it drew. */
+  advance(seconds: number, draw = true): boolean {
+    const wasStill = this.runtime.still === true;
     this.accumulator += Math.min(seconds * this.speed, 0.25);
     const limit = 8 * this.speed;
     let steps = 0;
@@ -246,12 +262,18 @@ export class App {
       steps++;
     }
     if (steps === limit) this.accumulator = 0;
-    if (draw) this.runtime.render(this.accumulator / FIXED_SECONDS, seconds);
+    const drawn = draw && (this.redraw || !wasStill || this.runtime.still !== true);
+    if (drawn) {
+      this.redraw = false;
+      this.runtime.render(this.accumulator / FIXED_SECONDS, seconds);
+    }
     this.checkEnding();
-    this.refresh();
+    if (drawn || !wasStill) this.refresh();
+    return drawn;
   }
 
   private activate(target: string, keepFocus = false): void {
+    this.redraw = true;
     this.dismissPrompts();
     if (keepFocus) {
       this.focusTarget = target;
@@ -273,6 +295,7 @@ export class App {
   private feedback(events: readonly Feedback[]): void {
     // Fast forward triples the event rate, so the small per-marble sounds rest and only the payoffs play.
     const quiet = this.speed > 1;
+    if (events.length) this.redraw = true;
     for (const event of events) {
       switch (event.type) {
         case 'tap': if (!quiet) sfx.tap(); break;
@@ -297,6 +320,7 @@ export class App {
     this.pointer.cancel();
     sfx.unlock();
     if (!this.runtime.undo()) return;
+    this.redraw = true;
     window.clearTimeout(this.winTimer);
     sfx.undo();
     this.ending = 'none';
@@ -348,8 +372,11 @@ export class App {
       this.previewKey = key;
       element('next-boxes').replaceChildren(...this.runtime.preview.map((color) => this.boxChip(color)));
     }
-    element('next').hidden = this.runtime.preview.length === 0;
-    element('next-label').textContent = this.runtime.previewLabel;
+    // Writing an unchanged value still dirties the page's layout, so only real changes are written.
+    const next = element('next');
+    if (next.hidden !== (this.runtime.preview.length === 0)) next.hidden = this.runtime.preview.length === 0;
+    const nextLabel = element('next-label');
+    if (nextLabel.textContent !== this.runtime.previewLabel) nextLabel.textContent = this.runtime.previewLabel;
     const targets = this.runtime.targets();
     const targetKey = Object.keys(targets).join(',');
     if (targetKey !== this.targetKey) {
@@ -371,7 +398,7 @@ export class App {
     if (focus) {
       this.ring.style.left = `${focus.x}px`;
       this.ring.style.top = `${focus.y}px`;
-    } else this.ring.hidden = true;
+    } else if (!this.ring.hidden) this.ring.hidden = true;
     this.refreshGuide(targets);
   }
 
@@ -387,7 +414,11 @@ export class App {
     const step = this.guiding ? this.runtime.guide?.() : undefined;
     const panel = element('guide');
     const pointer = element('guide-pointer');
-    if (!step) { panel.hidden = pointer.hidden = true; return; }
+    if (!step) {
+      if (!panel.hidden) panel.hidden = true;
+      if (!pointer.hidden) pointer.hidden = true;
+      return;
+    }
     if (step.done) { element('guide-text').textContent = step.text; this.finishGuide(); return; }
     panel.hidden = !element('levels').hidden || !this.card.hidden;
     const copy = element('guide-text');

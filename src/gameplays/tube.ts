@@ -115,6 +115,7 @@ export class TubeRuntime implements GameRuntime {
     return [{ type: 'move' }, ...(result.completedTube ? [{ type: 'match' as const }] : [])];
   }
 
+  get still(): boolean { return this.view.still; }
   step(): readonly Feedback[] {
     const busy = this.busy;
     this.view.step();

@@ -1,13 +1,13 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 
-export const toyMaterial = (color: number, roughness = 0.34): THREE.MeshPhysicalMaterial =>
-  new THREE.MeshPhysicalMaterial({ color, roughness, clearcoat: 0.55, clearcoatRoughness: 0.22 });
+/** Plain plastic: a clearcoat layer cost up to a fifth of a frame and only the marbles keep it. */
+export const toyMaterial = (color: number, roughness = 0.34): THREE.MeshStandardMaterial =>
+  new THREE.MeshStandardMaterial({ color, roughness });
 
 export function toyBox(width: number, height: number, depth: number, color: number, radius = 0.12): THREE.Mesh {
   const mesh = new THREE.Mesh(new RoundedBoxGeometry(width, height, depth, 3, radius), toyMaterial(color));
   mesh.castShadow = true;
-  mesh.receiveShadow = true;
   return mesh;
 }
 

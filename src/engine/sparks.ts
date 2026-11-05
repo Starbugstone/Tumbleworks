@@ -19,6 +19,8 @@ export class Sparks {
 
   constructor(parent: THREE.Object3D) {
     this.mesh.frustumCulled = false;
+    // Colours exist from the start, so the shader compiled with the level is the one every burst uses.
+    for (let index = 0; index < CAPACITY; index++) this.mesh.setColorAt(index, this.color.setHex(0xffffff));
     parent.add(this.mesh);
     this.clear();
   }
@@ -36,6 +38,8 @@ export class Sparks {
     if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
     this.draw();
   }
+
+  get active(): boolean { return this.mesh.visible; }
 
   step(seconds: number): void {
     if (!this.mesh.visible) return;
