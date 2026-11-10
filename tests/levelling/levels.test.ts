@@ -94,12 +94,12 @@ describe('Tube Sort stays small enough that a null hint is a proof', () => {
 });
 
 describe('a declared jam is truly dead', () => {
-  type Machineish = { status: string; snapshot(): { status: string }; restore(value: unknown): void };
+  type Machineish = { status: string; actions(): number[]; snapshot(): { status: string }; restore(value: unknown): void };
   /**
    * With the jam check off, nothing within reach of a declared jam can still win. States are keyed the way the authoring
    * search keys them (marbles of one colour are interchangeable), so twelve-crate boards finish in seconds.
    */
-  const explore = <R extends Machineish>(make: () => R, choices: number, act: (rules: R, choice: number) => boolean, proto: Record<'evaluateStatus', () => void>, won: (rules: R) => boolean, key: (rules: R) => string): { jams: number; live: number; dead: number } => {
+  const explore = <R extends Machineish>(make: () => R, act: (rules: R, choice: number) => boolean, proto: Record<'evaluateStatus', () => void>, won: (rules: R) => boolean, key: (rules: R) => string): { jams: number; live: number; dead: number } => {
     const rules = make();
     const seen = new Set<string>();
     const stack = [rules.snapshot()];
@@ -127,7 +127,7 @@ describe('a declared jam is truly dead', () => {
           if (inner.has(atKey)) continue;
           inner.add(atKey);
           if (won(probe)) { live += 1; break; }
-          for (let choice = 0; choice < choices; choice++) {
+          for (const choice of probe.actions()) {
             probe.restore(at);
             if (act(probe, choice)) frontier.push(probe.snapshot());
           }
@@ -136,7 +136,7 @@ describe('a declared jam is truly dead', () => {
         continue;
       }
       let moved = false;
-      for (let choice = 0; choice < choices; choice++) {
+      for (const choice of rules.actions()) {
         rules.restore(here);
         if (act(rules, choice)) { moved = true; stack.push(rules.snapshot()); }
       }
@@ -145,12 +145,12 @@ describe('a declared jam is truly dead', () => {
     return { jams, live, dead };
   };
   it.each(campaignFunnel)('$id', (board) => {
-    const result = explore(() => new MachineRules(board) as unknown as Machineish & MachineRules, board.supplies.length, (rules, choice) => { if (!rules.release(choice).ok) return false; settle(rules); return true; }, MachineRules.prototype as unknown as Record<'evaluateStatus', () => void>, (rules) => rules.state.marbles.every((marble) => marble.status === 'in-box'), (rules) => funnelStateKey(rules));
+    const result = explore(() => new MachineRules(board) as unknown as Machineish & MachineRules, (rules, choice) => { if (!rules.release(choice).ok) return false; settle(rules); return true; }, MachineRules.prototype as unknown as Record<'evaluateStatus', () => void>, (rules) => rules.state.marbles.every((marble) => marble.status === 'in-box'), (rules) => funnelStateKey(rules));
     expect(result.live).toBe(0);
     expect(result.dead).toBe(0);
   }, 60_000);
   it.each(campaignLoop)('$id', (board) => {
-    const result = explore(() => new LoopRules(board) as unknown as Machineish & LoopRules, board.lanes.length, (rules, choice) => { if (!rules.tap(choice).ok) return false; settleLoop(rules); return true; }, LoopRules.prototype as unknown as Record<'evaluateStatus', () => void>, (rules) => rules.state.lanes.every((queue) => queue.length === 0), (rules) => loopStateKey(rules));
+    const result = explore(() => new LoopRules(board) as unknown as Machineish & LoopRules, (rules, choice) => { if (!rules.tap(choice).ok) return false; settleLoop(rules); return true; }, LoopRules.prototype as unknown as Record<'evaluateStatus', () => void>, (rules) => rules.state.lanes.every((queue) => queue.length === 0), (rules) => loopStateKey(rules));
     expect(result.live).toBe(0);
   }, 60_000);
 });

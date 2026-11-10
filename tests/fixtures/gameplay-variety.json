@@ -1,0 +1,750 @@
+[
+  {
+    "recipe": {
+      "id": "board-210",
+      "title": "Choose a shelf",
+      "fr": "",
+      "note": "Workshop combination; not a campaign placement",
+      "colors": 3,
+      "columns": [
+        2,
+        2,
+        2
+      ],
+      "shorts": 2,
+      "smalls": 0,
+      "docks": 3,
+      "capacity": 14,
+      "seed": 1,
+      "win": [
+        0.02,
+        0.55
+      ],
+      "slack": 0,
+      "naiveJams": true,
+      "predecessors": {
+        "0": [],
+        "1": [
+          0,
+          2
+        ],
+        "2": [],
+        "3": [
+          2
+        ],
+        "4": [],
+        "5": [
+          4
+        ]
+      }
+    },
+    "seed": 23,
+    "board": {
+      "id": "board-210",
+      "title": "Choose a shelf",
+      "beltCapacity": 14,
+      "boxSize": 3,
+      "supplies": [
+        [
+          {
+            "color": "green",
+            "count": 6
+          },
+          {
+            "color": "red",
+            "count": 6
+          }
+        ],
+        [
+          {
+            "color": "blue",
+            "count": 9
+          },
+          {
+            "color": "red",
+            "count": 9
+          }
+        ],
+        [
+          {
+            "color": "blue",
+            "count": 9
+          },
+          {
+            "color": "red",
+            "count": 9
+          }
+        ]
+      ],
+      "docks": [
+        [
+          "red",
+          "red",
+          "green",
+          "green",
+          "red",
+          "blue"
+        ],
+        [
+          "red",
+          "blue",
+          "red",
+          "blue",
+          "red"
+        ],
+        [
+          "red",
+          "blue",
+          "blue",
+          "blue",
+          "red"
+        ]
+      ],
+      "predecessors": {
+        "0": [],
+        "1": [
+          0,
+          2
+        ],
+        "2": [],
+        "3": [
+          2
+        ],
+        "4": [],
+        "5": [
+          4
+        ]
+      }
+    },
+    "witness": "CDABEF",
+    "jam": "AC",
+    "causal": 0,
+    "hint": {
+      "supply": 2,
+      "crates": [
+        2
+      ],
+      "states": 6
+    },
+    "result": {
+      "complete": true,
+      "solvable": true,
+      "witness": "CDABEF",
+      "witnesses": [
+        "CDABEF"
+      ],
+      "jam": "AC",
+      "states": 10,
+      "lost": 4,
+      "orders": 11,
+      "winning": 1,
+      "random": 0.027777777777777776
+    },
+    "jams": [
+      {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 4.6
+      },
+      {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 4.6
+      }
+    ]
+  },
+  {
+    "recipe": {
+      "id": "board-211",
+      "title": "Prepare for the pair",
+      "fr": "",
+      "note": "Workshop combination; not a campaign placement",
+      "colors": 3,
+      "columns": [
+        2,
+        2,
+        2
+      ],
+      "shorts": 1,
+      "smalls": 1,
+      "docks": 3,
+      "capacity": 14,
+      "seed": 1,
+      "win": [
+        0.02,
+        0.55
+      ],
+      "slack": 0,
+      "naiveJams": true,
+      "pairs": [
+        [
+          0,
+          2
+        ]
+      ],
+      "seals": [
+        {
+          "dock": 0,
+          "after": {
+            "dock": 1,
+            "box": 0
+          }
+        }
+      ]
+    },
+    "seed": 14,
+    "board": {
+      "id": "board-211",
+      "title": "Prepare for the pair",
+      "beltCapacity": 16,
+      "boxSize": 3,
+      "supplies": [
+        [
+          {
+            "color": "red",
+            "count": 9
+          },
+          {
+            "color": "green",
+            "count": 9
+          }
+        ],
+        [
+          {
+            "color": "blue",
+            "count": 9
+          },
+          {
+            "color": "red",
+            "count": 6
+          }
+        ],
+        [
+          {
+            "color": "blue",
+            "count": 3
+          },
+          {
+            "color": "green",
+            "count": 9
+          }
+        ]
+      ],
+      "docks": [
+        [
+          "red",
+          "green",
+          "green",
+          "red",
+          "blue"
+        ],
+        [
+          "green",
+          "red",
+          "blue",
+          "red",
+          "green"
+        ],
+        [
+          "green",
+          "green",
+          "blue",
+          "red",
+          "blue"
+        ]
+      ],
+      "pairs": [
+        [
+          0,
+          2
+        ]
+      ],
+      "seals": [
+        {
+          "dock": 0,
+          "after": {
+            "dock": 1,
+            "box": 0
+          }
+        }
+      ]
+    },
+    "witness": "EFABD",
+    "jam": "A",
+    "causal": 0,
+    "hint": {
+      "supply": 4,
+      "crates": [
+        4
+      ],
+      "states": 4
+    },
+    "result": {
+      "complete": true,
+      "solvable": true,
+      "witness": "EFABD",
+      "witnesses": [
+        "EFABD",
+        "EFADB"
+      ],
+      "jam": "A",
+      "states": 6,
+      "lost": 0,
+      "orders": 4,
+      "winning": 2,
+      "random": 0.25
+    },
+    "jams": [
+      {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 2.85
+      },
+      {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 2.85
+      }
+    ]
+  },
+  {
+    "recipe": {
+      "id": "board-212",
+      "title": "Leave together",
+      "fr": "",
+      "note": "Workshop combination; not a campaign placement",
+      "colors": 3,
+      "columns": [
+        2,
+        2,
+        2
+      ],
+      "shorts": 0,
+      "smalls": 0,
+      "docks": 2,
+      "capacity": 14,
+      "seed": 1,
+      "win": [
+        0.02,
+        0.55
+      ],
+      "slack": 0,
+      "naiveJams": true,
+      "pallets": [
+        [
+          0,
+          1
+        ]
+      ]
+    },
+    "seed": 1,
+    "board": {
+      "id": "board-212",
+      "title": "Leave together",
+      "beltCapacity": 19,
+      "boxSize": 3,
+      "supplies": [
+        [
+          {
+            "color": "red",
+            "count": 9
+          },
+          {
+            "color": "blue",
+            "count": 9
+          }
+        ],
+        [
+          {
+            "color": "red",
+            "count": 9
+          },
+          {
+            "color": "red",
+            "count": 9
+          }
+        ],
+        [
+          {
+            "color": "green",
+            "count": 9
+          },
+          {
+            "color": "green",
+            "count": 9
+          }
+        ]
+      ],
+      "docks": [
+        [
+          "green",
+          "red",
+          "blue",
+          "green",
+          "red",
+          "green",
+          "red",
+          "blue",
+          "green"
+        ],
+        [
+          "blue",
+          "red",
+          "red",
+          "red",
+          "red",
+          "green",
+          "green",
+          "red",
+          "red"
+        ]
+      ],
+      "pallets": [
+        [
+          0,
+          1
+        ]
+      ]
+    },
+    "witness": "AACBBC",
+    "jam": "AAB",
+    "causal": 1,
+    "hint": {
+      "supply": 0,
+      "crates": [
+        0
+      ],
+      "states": 5
+    },
+    "result": {
+      "complete": true,
+      "solvable": true,
+      "witness": "AACBBC",
+      "witnesses": [
+        "AACBBC",
+        "AACBCB"
+      ],
+      "jam": "AAB",
+      "states": 15,
+      "lost": 5,
+      "orders": 30,
+      "winning": 9,
+      "random": 0.12962962962962962
+    },
+    "jams": [
+      {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 8.266666666666667
+      },
+      {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 8.533333333333333
+      }
+    ]
+  },
+  {
+    "recipe": {
+      "id": "loop-210",
+      "title": "Small truck, big unlock",
+      "fr": "",
+      "note": "Workshop combination; not a campaign placement",
+      "colors": 3,
+      "lanes": [
+        2,
+        1,
+        1
+      ],
+      "segments": 3,
+      "capacity": 40,
+      "ringMax": 20,
+      "seed": 1,
+      "win": [
+        0.02,
+        0.55
+      ],
+      "naiveJams": true,
+      "capacities": [
+        [
+          12,
+          24
+        ],
+        [
+          24
+        ],
+        [
+          24
+        ]
+      ],
+      "latch": [
+        "1:0",
+        "0:0"
+      ]
+    },
+    "seed": 30,
+    "board": {
+      "id": "loop-210",
+      "title": "Small truck, big unlock",
+      "loopCapacity": 24,
+      "truckCapacity": 24,
+      "lanes": [
+        [
+          {
+            "capacity": 12,
+            "segments": [
+              {
+                "color": "blue",
+                "count": 8
+              },
+              {
+                "color": "red",
+                "count": 2
+              }
+            ]
+          },
+          {
+            "segments": [
+              {
+                "color": "green",
+                "count": 12
+              },
+              {
+                "color": "blue",
+                "count": 12
+              }
+            ]
+          }
+        ],
+        [
+          {
+            "segments": [
+              {
+                "color": "red",
+                "count": 22
+              },
+              {
+                "color": "green",
+                "count": 2
+              }
+            ],
+            "pourAfter": "0:0"
+          }
+        ],
+        [
+          {
+            "segments": [
+              {
+                "color": "red",
+                "count": 10
+              },
+              {
+                "color": "blue",
+                "count": 4
+              },
+              {
+                "color": "red",
+                "count": 2
+              }
+            ]
+          }
+        ]
+      ],
+      "loop": [
+        {
+          "color": "green",
+          "count": 10
+        }
+      ]
+    },
+    "witness": "ACACB",
+    "jam": "CCA",
+    "hint": {
+      "lane": 0,
+      "states": 4
+    },
+    "result": {
+      "solvable": true,
+      "witness": "ACACB",
+      "witnesses": [
+        "ACACB",
+        "ACCBA"
+      ],
+      "jam": "ACAB",
+      "states": 9,
+      "lost": 1,
+      "orders": 11,
+      "winning": 4,
+      "random": 0.25
+    },
+    "jams": [
+      {
+        "status": "jammed",
+        "done": true,
+        "seconds": 8.566666666666666
+      },
+      {
+        "status": "jammed",
+        "done": true,
+        "seconds": 8.566666666666666
+      }
+    ]
+  },
+  {
+    "recipe": {
+      "id": "loop-211",
+      "title": "One tap, unequal loads",
+      "fr": "",
+      "note": "Workshop combination; not a campaign placement",
+      "colors": 3,
+      "lanes": [
+        2,
+        1,
+        1
+      ],
+      "segments": 3,
+      "capacity": 40,
+      "ringMax": 20,
+      "seed": 1,
+      "win": [
+        0.02,
+        0.55
+      ],
+      "naiveJams": true,
+      "capacities": [
+        [
+          12,
+          24
+        ],
+        [
+          24
+        ],
+        [
+          24
+        ]
+      ],
+      "coupling": [
+        "0:0",
+        "1:0"
+      ]
+    },
+    "seed": 10,
+    "board": {
+      "id": "loop-211",
+      "title": "One tap, unequal loads",
+      "loopCapacity": 20,
+      "truckCapacity": 24,
+      "lanes": [
+        [
+          {
+            "capacity": 12,
+            "segments": [
+              {
+                "color": "green",
+                "count": 2
+              },
+              {
+                "color": "red",
+                "count": 4
+              }
+            ]
+          },
+          {
+            "segments": [
+              {
+                "color": "red",
+                "count": 16
+              },
+              {
+                "color": "green",
+                "count": 8
+              }
+            ]
+          }
+        ],
+        [
+          {
+            "segments": [
+              {
+                "color": "red",
+                "count": 8
+              },
+              {
+                "color": "blue",
+                "count": 4
+              },
+              {
+                "color": "red",
+                "count": 6
+              }
+            ]
+          }
+        ],
+        [
+          {
+            "segments": [
+              {
+                "color": "green",
+                "count": 14
+              },
+              {
+                "color": "red",
+                "count": 2
+              },
+              {
+                "color": "blue",
+                "count": 6
+              }
+            ]
+          }
+        ]
+      ],
+      "loop": [
+        {
+          "color": "blue",
+          "count": 14
+        }
+      ],
+      "couplings": [
+        [
+          "0:0",
+          "1:0"
+        ]
+      ]
+    },
+    "witness": "AACBC",
+    "jam": "ABC",
+    "hint": {
+      "lane": 0,
+      "states": 4
+    },
+    "result": {
+      "solvable": true,
+      "witness": "AACBC",
+      "witnesses": [
+        "AACBC",
+        "AACCB",
+        "ABACC",
+        "ACCBA"
+      ],
+      "jam": "AAB",
+      "states": 12,
+      "lost": 0,
+      "orders": 11,
+      "winning": 6,
+      "random": 0.25
+    },
+    "jams": [
+      {
+        "status": "jammed",
+        "done": true,
+        "seconds": 10.9
+      },
+      {
+        "status": "jammed",
+        "done": true,
+        "seconds": 11.966666666666667
+      }
+    ]
+  }
+]

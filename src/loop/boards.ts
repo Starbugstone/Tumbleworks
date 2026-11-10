@@ -1,3 +1,4 @@
+import { LOOP_VARIETY_BOARDS } from './variety-boards';
 import type { Color, Packet } from '../sim/types';
 import type { LoopBoardDef, TruckDef } from './types';
 
@@ -312,7 +313,7 @@ export const LOOP_77: LoopBoardDef = board('loop-77', 'Nine on the move', 20,
   [[truck(seg('blue', 2), seg('green', 4), seg('yellow', 18)), truck(seg('orange', 4), seg('green', 2), seg('blue', 16)), truck(seg('red', 18), seg('green', 6))], [truck(seg('red', 2), seg('yellow', 18)), truck(seg('blue', 12), seg('red', 12)), truck(seg('green', 4), seg('orange', 20))], [truck(seg('yellow', 6), seg('red', 6), seg('blue', 10)), truck(seg('green', 20)), truck(seg('yellow', 6), seg('green', 12), seg('red', 6))]],
   ring(seg('red', 4), seg('blue', 8)));
 // END first stretch
-/** Rule lessons in the bank only; campaign placement is a separate decision. */
+/** Latch introduction at campaign round 43; the other fixtures remain in the bank. */
 export const LOOP_200: LoopBoardDef = board('loop-200', 'Open the latch', 28,
   [[{ ...truck(seg('green', 4), seg('blue', 4), seg('green', 10)), pourAfter: '1:0' }, truck(seg('red', 14), seg('blue', 10))],
     [truck(seg('green', 6), seg('blue', 10), seg('red', 6))], [truck(seg('green', 4), seg('red', 10))]], ring(seg('red', 18)));
@@ -324,4 +325,125 @@ export const LOOP_202: LoopBoardDef = { ...board('loop-202', 'Unload together', 
     [truck(seg('red', 8), seg('blue', 4), seg('red', 8))], [truck(seg('green', 8), seg('red', 8), seg('blue', 8))]], ring(seg('red', 8))),
   couplings: [['0:0', '1:0']] };
 
-export const LOOP_BOARDS: readonly LoopBoardDef[] = [LOOP_1, LOOP_2, LOOP_3, LOOP_4, LOOP_5, LOOP_6, LOOP_7, LOOP_8, LOOP_9, LOOP_10, LOOP_11, LOOP_12, LOOP_13, LOOP_14, LOOP_15, LOOP_16, LOOP_17, LOOP_18, LOOP_19, LOOP_20, LOOP_21, LOOP_22, LOOP_23, LOOP_24, LOOP_25, LOOP_26, LOOP_27, LOOP_28, LOOP_29, LOOP_30, LOOP_31, LOOP_32, LOOP_33, LOOP_34, LOOP_35, LOOP_36, LOOP_37, LOOP_38, LOOP_39, LOOP_40, LOOP_41, LOOP_42, LOOP_43, LOOP_44, LOOP_45, LOOP_46, LOOP_47, LOOP_48, LOOP_50, LOOP_51, LOOP_52, LOOP_53, LOOP_54, LOOP_55, LOOP_56, LOOP_57, LOOP_58, LOOP_59, LOOP_60, LOOP_61, LOOP_62, LOOP_63, LOOP_64, LOOP_65, LOOP_66, LOOP_67, LOOP_68, LOOP_69, LOOP_70, LOOP_71, LOOP_72, LOOP_73, LOOP_74, LOOP_75, LOOP_76, LOOP_77, LOOP_200, LOOP_201, LOOP_202];
+// BEGIN rounds 41-60
+/** Round 41: ordinary. */
+export const LOOP_78: LoopBoardDef = board('loop-78', 'Long way home', 22,
+  [[truck(seg('red', 2), seg('black', 2), seg('red', 20)), truck(seg('orange', 6), seg('black', 18))],
+    [truck(seg('yellow', 8), seg('green', 8)), truck(seg('red', 2), seg('black', 2), seg('orange', 18))],
+    [truck(seg('yellow', 6), seg('orange', 2), seg('yellow', 16)), truck(seg('green', 8), seg('black', 16))],
+    [truck(seg('yellow', 8), seg('orange', 6), seg('yellow', 10)), truck(seg('black', 10), seg('orange', 12))]],
+  ring(seg('orange', 4), seg('green', 8)));
+/** Round 42: relief. */
+export const LOOP_79: LoopBoardDef = board('loop-79', 'A clear lane', 20,
+  [[truck(seg('yellow', 4), seg('red', 4), seg('blue', 16)), truck(seg('blue', 6), seg('yellow', 18)), truck(seg('red', 14), seg('blue', 10))],
+    [truck(seg('blue', 8), seg('red', 2), seg('green', 14)), truck(seg('blue', 18), seg('red', 6)), truck(seg('blue', 6), seg('green', 2), seg('blue', 16))],
+    [truck(seg('yellow', 2), seg('blue', 8), seg('red', 10)), truck(seg('green', 10), seg('red', 8), seg('blue', 6)), truck(seg('green', 6), seg('blue', 2), seg('green', 16))]],
+  ring(seg('red', 4)));
+/** Round 44: relief. */
+export const LOOP_80: LoopBoardDef = board('loop-80', 'Between stops', 24,
+  [[truck(seg('green', 2), seg('black', 2), seg('red', 20)), truck(seg('red', 22), seg('blue', 2))],
+    [truck(seg('black', 2), seg('green', 22)), truck(seg('red', 4), seg('black', 20))],
+    [truck(seg('black', 2), seg('blue', 2), seg('black', 20)), truck(seg('black', 2), seg('blue', 18), seg('red', 2))]],
+  ring(seg('blue', 2)));
+/** Round 45: peak. */
+export const LOOP_81: LoopBoardDef = board('loop-81', 'Unlock the convoy', 20,
+  [[truck(seg('black', 2), seg('green', 22)), truck(seg('orange', 10), seg('black', 14))],
+    [truck(seg('black', 14), seg('green', 10)), truck(seg('black', 22))],
+    [{ ...truck(seg('black', 2), seg('green', 2), seg('red', 20)), pourAfter: '0:0' }, truck(seg('yellow', 6), seg('black', 2), seg('orange', 14))],
+    [truck(seg('red', 4), seg('green', 4), seg('black', 10)), truck(seg('black', 6), seg('yellow', 18))]],
+  ring(seg('green', 10)));
+/** Round 46: ordinary. */
+export const LOOP_82: LoopBoardDef = board('loop-82', 'Ring road', 32,
+  [[truck(seg('blue', 18), seg('red', 2), seg('yellow', 2)), truck(seg('blue', 6), seg('red', 10)), truck(seg('yellow', 4), seg('green', 12), seg('yellow', 6)), truck(seg('red', 10), seg('blue', 2), seg('orange', 12))],
+    [truck(seg('yellow', 18), seg('blue', 6)), truck(seg('yellow', 12), seg('green', 12)), truck(seg('yellow', 6), seg('blue', 4), seg('red', 14)), truck(seg('orange', 12), seg('blue', 12))]],
+  ring(seg('red', 12)));
+/** Round 47: relief. */
+export const LOOP_83: LoopBoardDef = board('loop-83', 'Passing place', 20,
+  [[truck(seg('red', 10), seg('green', 14)), truck(seg('red', 6), seg('orange', 18)), truck(seg('red', 2), seg('blue', 2), seg('red', 20))],
+    [truck(seg('blue', 2), seg('red', 2), seg('yellow', 20)), truck(seg('red', 4), seg('blue', 2), seg('red', 18))],
+    [truck(seg('green', 10), seg('red', 6)), truck(seg('yellow', 4), seg('red', 2), seg('blue', 18))]],
+  ring(seg('orange', 6), seg('red', 2)));
+/** Round 48: ordinary. */
+export const LOOP_84: LoopBoardDef = board('loop-84', 'Waiting for clearance', 24,
+  [[truck(seg('red', 6), seg('blue', 2), seg('green', 10)), truck(seg('red', 20))],
+    [{ ...truck(seg('red', 2), seg('blue', 2), seg('red', 18)), pourAfter: '2:0' }, truck(seg('green', 14), seg('blue', 10))],
+    [truck(seg('red', 2), seg('blue', 6), seg('green', 10))]],
+  ring(seg('green', 14), seg('blue', 4)));
+/** Round 49: ordinary. */
+export const LOOP_85: LoopBoardDef = board('loop-85', 'Full queues', 20,
+  [[truck(seg('black', 2), seg('yellow', 20)), truck(seg('green', 4), seg('red', 20))],
+    [truck(seg('black', 2), seg('yellow', 22)), truck(seg('red', 4), seg('green', 20))],
+    [truck(seg('black', 2), seg('yellow', 2), seg('black', 20)), truck(seg('orange', 8), seg('green', 16))],
+    [truck(seg('black', 2), seg('yellow', 4), seg('black', 18)), truck(seg('black', 2), seg('green', 4), seg('orange', 16))]],
+  ring(seg('green', 4)));
+/** Round 50: peak. */
+export const LOOP_86: LoopBoardDef = board('loop-86', 'Roundabout', 32,
+  [[truck(seg('yellow', 4), seg('green', 14), seg('red', 6)), truck(seg('yellow', 18), seg('green', 6)), truck(seg('red', 18), seg('yellow', 6))],
+    [truck(seg('green', 4), seg('yellow', 8), seg('green', 12)), truck(seg('red', 2), seg('blue', 22)), truck(seg('red', 18), seg('yellow', 6))],
+    [truck(seg('blue', 2), seg('red', 2), seg('orange', 20)), truck(seg('green', 16), seg('red', 8))],
+    [truck(seg('green', 12), seg('yellow', 6), seg('red', 6)), truck(seg('orange', 4), seg('red', 12), seg('green', 8))]],
+  ring());
+/** Round 51: ordinary. */
+export const LOOP_87: LoopBoardDef = board('loop-87', 'Through traffic', 20,
+  [[truck(seg('green', 2), seg('red', 22)), truck(seg('red', 2), seg('green', 22)), truck(seg('red', 4), seg('green', 20)), truck(seg('orange', 6), seg('red', 6), seg('yellow', 12))],
+    [truck(seg('green', 2), seg('red', 2), seg('orange', 18)), truck(seg('yellow', 12), seg('red', 12)), truck(seg('green', 4), seg('blue', 20))],
+    [truck(seg('green', 2), seg('red', 2), seg('green', 20)), truck(seg('blue', 4), seg('red', 20))]],
+  ring(seg('red', 2)));
+/** Round 52: relief. */
+export const LOOP_88: LoopBoardDef = board('loop-88', 'Clear stretch', 20,
+  [[truck(seg('blue', 2), seg('yellow', 20)), truck(seg('red', 6), seg('blue', 18))],
+    [truck(seg('blue', 2), seg('red', 4), seg('blue', 16)), truck(seg('blue', 2), seg('red', 18))],
+    [truck(seg('red', 10), seg('green', 10)), truck(seg('blue', 8), seg('yellow', 4), seg('red', 10))]],
+  ring(seg('green', 14)));
+/** Round 53: ordinary. */
+export const LOOP_89: LoopBoardDef = board('loop-89', 'Around again', 24,
+  [[{ ...truck(seg('red', 2), seg('green', 2), seg('blue', 20)), pourAfter: '2:0' }, truck(seg('blue', 16))],
+    [truck(seg('blue', 4), seg('red', 20)), truck(seg('blue', 4), seg('green', 20))],
+    [truck(seg('red', 2), seg('blue', 4), seg('red', 16))]],
+  ring(seg('red', 8), seg('green', 2)));
+/** Round 54: ordinary. */
+export const LOOP_90: LoopBoardDef = board('loop-90', 'Tail to tail', 20,
+  [[truck(seg('orange', 12), seg('yellow', 6), seg('green', 6)), truck(seg('yellow', 4), seg('green', 20)), truck(seg('red', 4), seg('yellow', 12), seg('blue', 8))],
+    [truck(seg('orange', 4), seg('yellow', 8), seg('orange', 12)), truck(seg('green', 4), seg('red', 20)), truck(seg('blue', 16), seg('yellow', 8))],
+    [truck(seg('orange', 20)), truck(seg('yellow', 4), seg('red', 20)), truck(seg('green', 18), seg('yellow', 6))]],
+  ring(seg('red', 4)));
+/** Round 55: peak. */
+export const LOOP_91: LoopBoardDef = board('loop-91', 'Tight junction', 20,
+  [[truck(seg('green', 4), seg('black', 12)), truck(seg('yellow', 6), seg('green', 18))],
+    [truck(seg('black', 2), seg('green', 22)), truck(seg('yellow', 4), seg('black', 6), seg('yellow', 12))],
+    [truck(seg('black', 6), seg('green', 4), seg('black', 14)), truck(seg('orange', 10), seg('red', 14))],
+    [truck(seg('black', 4), seg('yellow', 2), seg('black', 18)), truck(seg('black', 10), seg('orange', 14))]],
+  ring(seg('red', 10)));
+/** Round 56: ordinary. */
+export const LOOP_92: LoopBoardDef = board('loop-92', 'In good order', 22,
+  [[truck(seg('blue', 2), seg('green', 4), seg('red', 14)), truck(seg('red', 2), seg('green', 22)), truck(seg('orange', 2), seg('blue', 22)), truck(seg('orange', 2), seg('yellow', 12), seg('blue', 4))],
+    [truck(seg('green', 2), seg('red', 22)), truck(seg('orange', 4), seg('green', 20)), truck(seg('yellow', 8), seg('orange', 16)), truck(seg('blue', 20), seg('yellow', 4))]],
+  ring(seg('red', 10)));
+/** Round 57: relief. */
+export const LOOP_93: LoopBoardDef = board('loop-93', 'A little space', 22,
+  [[truck(seg('yellow', 2), seg('green', 2), seg('red', 18)), truck(seg('green', 8), seg('blue', 16)), truck(seg('orange', 14), seg('red', 10))],
+    [truck(seg('yellow', 2), seg('red', 2), seg('yellow', 20)), truck(seg('green', 4), seg('red', 14), seg('green', 4))],
+    [truck(seg('red', 4), seg('green', 4), seg('yellow', 14)), truck(seg('blue', 8), seg('green', 2), seg('orange', 10))]],
+  ring(seg('yellow', 10)));
+/** Round 58: ordinary. */
+export const LOOP_94: LoopBoardDef = board('loop-94', 'Last approach', 24,
+  [[truck(seg('blue', 2), seg('green', 2), seg('red', 14)), truck(seg('blue', 16))],
+    [{ ...truck(seg('blue', 6), seg('green', 18)), pourAfter: '2:0' }, truck(seg('blue', 8), seg('red', 2), seg('blue', 14))],
+    [truck(seg('green', 4), seg('blue', 2), seg('red', 14))]],
+  ring(seg('red', 18)));
+/** Round 59: lesson. */
+export const LOOP_95: LoopBoardDef = board('loop-95', 'Small bed, big job', 20,
+  [[{ ...truck(seg('red', 2), seg('green', 2), seg('red', 6)), capacity: 12 }, truck(seg('blue', 2), seg('red', 8))],
+    [truck(seg('red', 4), seg('blue', 20))],
+    [truck(seg('green', 2), seg('blue', 2), seg('green', 20))]],
+  ring(seg('red', 16)));
+/** Round 60: peak. */
+export const LOOP_96: LoopBoardDef = board('loop-96', 'Finish the convoy', 34,
+  [[truck(seg('black', 2), seg('yellow', 20)), truck(seg('black', 16), seg('blue', 8))],
+    [truck(seg('black', 2), seg('orange', 18)), truck(seg('blue', 8), seg('black', 16))],
+    [truck(seg('black', 2), seg('red', 10), seg('yellow', 6)), truck(seg('yellow', 4), seg('orange', 6), seg('red', 14))],
+    [truck(seg('black', 2), seg('blue', 8), seg('black', 8))]],
+  ring(seg('yellow', 18)));
+// END rounds 41-60
+
+export const LOOP_BOARDS: readonly LoopBoardDef[] = [LOOP_1, LOOP_2, LOOP_3, LOOP_4, LOOP_5, LOOP_6, LOOP_7, LOOP_8, LOOP_9, LOOP_10, LOOP_11, LOOP_12, LOOP_13, LOOP_14, LOOP_15, LOOP_16, LOOP_17, LOOP_18, LOOP_19, LOOP_20, LOOP_21, LOOP_22, LOOP_23, LOOP_24, LOOP_25, LOOP_26, LOOP_27, LOOP_28, LOOP_29, LOOP_30, LOOP_31, LOOP_32, LOOP_33, LOOP_34, LOOP_35, LOOP_36, LOOP_37, LOOP_38, LOOP_39, LOOP_40, LOOP_41, LOOP_42, LOOP_43, LOOP_44, LOOP_45, LOOP_46, LOOP_47, LOOP_48, LOOP_50, LOOP_51, LOOP_52, LOOP_53, LOOP_54, LOOP_55, LOOP_56, LOOP_57, LOOP_58, LOOP_59, LOOP_60, LOOP_61, LOOP_62, LOOP_63, LOOP_64, LOOP_65, LOOP_66, LOOP_67, LOOP_68, LOOP_69, LOOP_70, LOOP_71, LOOP_72, LOOP_73, LOOP_74, LOOP_75, LOOP_76, LOOP_77, LOOP_78, LOOP_79, LOOP_80, LOOP_81, LOOP_82, LOOP_83, LOOP_84, LOOP_85, LOOP_86, LOOP_87, LOOP_88, LOOP_89, LOOP_90, LOOP_91, LOOP_92, LOOP_93, LOOP_94, LOOP_95, LOOP_96, LOOP_200, LOOP_201, LOOP_202, ...LOOP_VARIETY_BOARDS];

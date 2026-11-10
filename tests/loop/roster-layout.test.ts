@@ -6,13 +6,15 @@ const linesOf = (board: (typeof LOOP_BOARDS)[number]): number[][] => board.lanes
 /** Levels that do not exist yet: later levels will have more lanes and longer queues. */
 const invented = (lanes: number, depth: number, stretches: number): number[][] => Array.from({ length: lanes }, () => Array.from({ length: depth }, () => stretches));
 const phone = { width: 375, height: 690 };
+/** The game reserves a chip slot on every card when any truck is latched or linked (LoopRoster.hasRuleChips). */
+const chips = (board: (typeof LOOP_BOARDS)[number]): boolean => Boolean(board.couplings?.length) || board.lanes.flat().some((truck) => Boolean(truck.pourAfter));
 
 describe('the lorry card layout', () => {
-  const shapes: [string, number[][]][] = [...LOOP_BOARDS.map((board): [string, number[][]] => [board.id, linesOf(board)]), ['6 lanes of 4', invented(6, 4, 4)], ['8 lanes of 5', invented(8, 5, 4)], ['8 lanes of 8', invented(8, 8, 5)]];
+  const shapes: [string, number[][], boolean][] = [...LOOP_BOARDS.map((board): [string, number[][], boolean] => [board.id, linesOf(board), chips(board)]), ['6 lanes of 4', invented(6, 4, 4), false], ['8 lanes of 5', invented(8, 5, 4), false], ['8 lanes of 8', invented(8, 8, 5), false]];
 
-  for (const [name, lines] of shapes) {
+  for (const [name, lines, ruleChips] of shapes) {
     it(`${name}: fits the player's phone with the toy, readable numbers and a real tap target`, () => {
-      const layout = rosterLayout(lines, phone.width, phone.height);
+      const layout = rosterLayout(lines, phone.width, phone.height, ruleChips);
       expect(layout.numberSize).toBeGreaterThanOrEqual(11);
       expect(layout.rowHeight).toBeGreaterThanOrEqual(40);
       expect(layout.toy.height).toBeGreaterThanOrEqual(ROSTER.toyFloor);
@@ -33,14 +35,14 @@ describe('the lorry card layout', () => {
 
   it('folds lorries on the player’s phone only in lanes four or more deep', () => {
     for (const board of LOOP_BOARDS) {
-      const layout = rosterLayout(linesOf(board), phone.width, phone.height);
+      const layout = rosterLayout(linesOf(board), phone.width, phone.height, chips(board));
       for (const line of linesOf(board)) if (line.length < 4) expect(placeLane(line, layout).foldedFrom, board.id).toBeNull();
     }
   });
 
   it('gives cards room for their numbers on every current level', () => {
     for (const board of LOOP_BOARDS) {
-      const layout = rosterLayout(linesOf(board), phone.width, phone.height);
+      const layout = rosterLayout(linesOf(board), phone.width, phone.height, chips(board));
       for (const line of linesOf(board)) {
         for (const card of placeLane(line, layout).cards) {
           const stretches = line[card.truck]!;
@@ -95,4 +97,14 @@ it('short card beds shrink without reducing the cab or the number and touch floo
   expect(short.width).toBeLessThan(full.width);
   expect(short.width).toBeGreaterThanOrEqual(cardNeed(3, ROSTER.cabNow));
   expect(layout.rowHeight).toBeGreaterThanOrEqual(40);
+});
+
+it('never latches a linked truck: the padlock and the coupling bar would meet on the tailboard', () => {
+  for (const board of LOOP_BOARDS) {
+    const linked = new Set((board.couplings ?? []).flat());
+    board.lanes.forEach((line, lane) => line.forEach((truck, index) => {
+      const id = truck.id ?? `${lane}:${index}`;
+      expect(Boolean(truck.pourAfter && linked.has(id)), `${board.id} ${id}`).toBe(false);
+    }));
+  }
 });

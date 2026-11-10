@@ -1,3 +1,4 @@
+import { FUNNEL_VARIETY_BOARDS } from './variety-boards';
 import type { BoardDef, Color, Packet } from './types';
 
 /** Funnel Sort: a tray is a 3×3 block of nine; each tray fills three boxes of three. */
@@ -313,7 +314,7 @@ export const BOARD_75: BoardDef = board('board-75', 'Two docks, ten trays', 18,
   [trays('red', 'blue', 'yellow', 'blue'), trays('red', 'blue', 'green'), trays('green', 'green', 'red')],
   docks(2, 'red', 'green', 'red', 'green', 'red', 'yellow', 'blue', 'blue', 'green', 'blue', 'blue', 'green', 'blue', 'red', 'blue', 'green', 'green', 'green', 'red', 'yellow', 'blue', 'yellow', 'green', 'red', 'red', 'red', 'blue', 'green', 'red', 'blue'));
 // END first stretch
-/** Rule lesson for round 41; bank only. */
+/** Paired release lesson for campaign round 41. */
 export const BOARD_200: BoardDef = {
   id: 'board-200', title: 'One shared handle', beltCapacity: 14, boxSize: 3,
   supplies: [[tray('blue', 6), tray('red', 9)], [tray('red', 3), tray('red', 9)], [tray('blue', 9), tray('green', 9)]],
@@ -321,9 +322,9 @@ export const BOARD_200: BoardDef = {
   pairs: [[0, 2]],
 };
 
-/** Rule lesson for round 57; bank only. */
+/** Forked shelves lesson for campaign round 57. */
 export const BOARD_201: BoardDef = {
-  id: 'board-201', title: 'Two supports', beltCapacity: 14, boxSize: 3,
+  id: 'board-201', title: 'Two straps', beltCapacity: 14, boxSize: 3,
   supplies: [[tray('green', 9), tray('red', 9)], [tray('green', 9), tray('blue', 9)], [tray('green', 9), tray('red', 9)]],
   docks: [["blue", "red", "green", "red", "blue", "green"], ["blue", "green", "green", "red", "green", "red"], ["red", "green", "red", "green", "green", "green"]],
   predecessors: {"0": [], "1": [0, 2], "2": [], "3": [2], "4": [], "5": [4]},
@@ -337,4 +338,1589 @@ export const BOARD_202: BoardDef = {
   seals: [{"dock": 0, "after": {"dock": 1, "box": 0}}],
 };
 
-export const BOARDS: readonly BoardDef[] = [BOARD_1, BOARD_2, BOARD_3, BOARD_4, BOARD_5, BOARD_6, BOARD_7, BOARD_8, BOARD_9, BOARD_10, BOARD_11, BOARD_12, BOARD_13, BOARD_14, BOARD_15, BOARD_16, BOARD_17, BOARD_18, BOARD_19, BOARD_20, BOARD_21, BOARD_22, BOARD_23, BOARD_24, BOARD_25, BOARD_26, BOARD_27, BOARD_28, BOARD_29, BOARD_30, BOARD_31, BOARD_32, BOARD_33, BOARD_34, BOARD_35, BOARD_36, BOARD_37, BOARD_38, BOARD_39, BOARD_40, BOARD_41, BOARD_42, BOARD_43, BOARD_44, BOARD_46, BOARD_47, BOARD_48, BOARD_49, BOARD_50, BOARD_51, BOARD_52, BOARD_53, BOARD_54, BOARD_55, BOARD_56, BOARD_57, BOARD_58, BOARD_59, BOARD_60, BOARD_61, BOARD_62, BOARD_63, BOARD_64, BOARD_65, BOARD_66, BOARD_67, BOARD_68, BOARD_69, BOARD_70, BOARD_71, BOARD_72, BOARD_73, BOARD_74, BOARD_75, BOARD_200, BOARD_201, BOARD_202];
+// BEGIN rounds 41-60
+/** Pull together. */
+export const BOARD_76: BoardDef = {
+  "id": "board-76",
+  "title": "Pull together",
+  "beltCapacity": 14,
+  "boxSize": 3,
+  "supplies": [
+    [
+      {
+        "color": "red",
+        "count": 9
+      },
+      {
+        "color": "red",
+        "count": 9
+      },
+      {
+        "color": "green",
+        "count": 9
+      }
+    ],
+    [
+      {
+        "color": "red",
+        "count": 9
+      },
+      {
+        "color": "blue",
+        "count": 9
+      }
+    ],
+    [
+      {
+        "color": "yellow",
+        "count": 9
+      },
+      {
+        "color": "yellow",
+        "count": 9
+      }
+    ]
+  ],
+  "docks": [
+    [
+      "red",
+      "yellow",
+      "red",
+      "yellow",
+      "green",
+      "yellow",
+      "red"
+    ],
+    [
+      "yellow",
+      "red",
+      "red",
+      "red",
+      "red",
+      "red",
+      "green"
+    ],
+    [
+      "blue",
+      "yellow",
+      "yellow",
+      "green",
+      "blue",
+      "red",
+      "blue"
+    ]
+  ],
+  "pairs": [
+    [
+      0,
+      3
+    ]
+  ]
+};
+
+/** Two docks to share. */
+export const BOARD_77: BoardDef = {
+  "id": "board-77",
+  "title": "Two docks to share",
+  "beltCapacity": 14,
+  "boxSize": 3,
+  "supplies": [
+    [
+      {
+        "color": "red",
+        "count": 9
+      },
+      {
+        "color": "red",
+        "count": 9
+      }
+    ],
+    [
+      {
+        "color": "red",
+        "count": 9
+      },
+      {
+        "color": "blue",
+        "count": 6
+      }
+    ],
+    [
+      {
+        "color": "green",
+        "count": 3
+      },
+      {
+        "color": "red",
+        "count": 9
+      }
+    ]
+  ],
+  "docks": [
+    [
+      "blue",
+      "red",
+      "red",
+      "red",
+      "red",
+      "red",
+      "red",
+      "red"
+    ],
+    [
+      "green",
+      "red",
+      "red",
+      "red",
+      "blue",
+      "red",
+      "red"
+    ]
+  ],
+  "pairs": [
+    [
+      0,
+      2
+    ]
+  ]
+};
+
+/** Three branches. */
+export const BOARD_78: BoardDef = {
+  "id": "board-78",
+  "title": "Three branches",
+  "beltCapacity": 20,
+  "boxSize": 3,
+  "supplies": [
+    [
+      {
+        "color": "red",
+        "count": 9
+      },
+      {
+        "color": "blue",
+        "count": 9
+      },
+      {
+        "color": "green",
+        "count": 9
+      }
+    ],
+    [
+      {
+        "color": "yellow",
+        "count": 9
+      },
+      {
+        "color": "blue",
+        "count": 9
+      }
+    ],
+    [
+      {
+        "color": "red",
+        "count": 9
+      },
+      {
+        "color": "blue",
+        "count": 9
+      }
+    ]
+  ],
+  "docks": [
+    [
+      "blue",
+      "blue",
+      "blue",
+      "blue",
+      "blue",
+      "blue",
+      "red"
+    ],
+    [
+      "green",
+      "blue",
+      "blue",
+      "blue",
+      "yellow",
+      "red",
+      "green"
+    ],
+    [
+      "green",
+      "yellow",
+      "red",
+      "yellow",
+      "red",
+      "red",
+      "red"
+    ]
+  ],
+  "predecessors": {
+    "0": [],
+    "1": [
+      0,
+      3
+    ],
+    "2": [
+      1
+    ],
+    "3": [],
+    "4": [
+      3
+    ],
+    "5": [],
+    "6": [
+      5
+    ]
+  }
+};
+
+/** Passing places. */
+export const BOARD_79: BoardDef = {
+  "id": "board-79",
+  "title": "Passing places",
+  "beltCapacity": 14,
+  "boxSize": 3,
+  "supplies": [
+    [
+      {
+        "color": "orange",
+        "count": 9
+      },
+      {
+        "color": "blue",
+        "count": 9
+      },
+      {
+        "color": "blue",
+        "count": 9
+      }
+    ],
+    [
+      {
+        "color": "blue",
+        "count": 9
+      },
+      {
+        "color": "yellow",
+        "count": 9
+      },
+      {
+        "color": "red",
+        "count": 9
+      }
+    ],
+    [
+      {
+        "color": "red",
+        "count": 9
+      },
+      {
+        "color": "green",
+        "count": 9
+      }
+    ]
+  ],
+  "docks": [
+    [
+      "orange",
+      "red",
+      "red",
+      "blue",
+      "blue",
+      "yellow",
+      "blue",
+      "orange"
+    ],
+    [
+      "green",
+      "blue",
+      "blue",
+      "blue",
+      "red",
+      "yellow",
+      "blue",
+      "green"
+    ],
+    [
+      "red",
+      "blue",
+      "blue",
+      "orange",
+      "red",
+      "green",
+      "red",
+      "yellow"
+    ]
+  ]
+};
+
+/** Tall stacks, tight turns. */
+export const BOARD_80: BoardDef = {
+  "id": "board-80",
+  "title": "Tall stacks, tight turns",
+  "beltCapacity": 14,
+  "boxSize": 3,
+  "supplies": [
+    [
+      {
+        "color": "blue",
+        "count": 9
+      },
+      {
+        "color": "yellow",
+        "count": 9
+      },
+      {
+        "color": "yellow",
+        "count": 9
+      },
+      {
+        "color": "yellow",
+        "count": 9
+      }
+    ],
+    [
+      {
+        "color": "red",
+        "count": 9
+      },
+      {
+        "color": "orange",
+        "count": 9
+      },
+      {
+        "color": "blue",
+        "count": 9
+      },
+      {
+        "color": "yellow",
+        "count": 9
+      }
+    ],
+    [
+      {
+        "color": "green",
+        "count": 9
+      },
+      {
+        "color": "red",
+        "count": 9
+      }
+    ]
+  ],
+  "docks": [
+    [
+      "orange",
+      "red",
+      "yellow",
+      "yellow",
+      "red",
+      "yellow",
+      "yellow",
+      "orange",
+      "red",
+      "yellow"
+    ],
+    [
+      "yellow",
+      "green",
+      "blue",
+      "yellow",
+      "yellow",
+      "red",
+      "red",
+      "yellow",
+      "blue",
+      "blue"
+    ],
+    [
+      "red",
+      "blue",
+      "yellow",
+      "blue",
+      "green",
+      "blue",
+      "orange",
+      "yellow",
+      "green",
+      "yellow"
+    ]
+  ]
+};
+
+/** Four ways forward. */
+export const BOARD_81: BoardDef = {
+  "id": "board-81",
+  "title": "Four ways forward",
+  "beltCapacity": 14,
+  "boxSize": 3,
+  "supplies": [
+    [
+      {
+        "color": "orange",
+        "count": 9
+      },
+      {
+        "color": "red",
+        "count": 9
+      }
+    ],
+    [
+      {
+        "color": "yellow",
+        "count": 9
+      },
+      {
+        "color": "yellow",
+        "count": 9
+      }
+    ],
+    [
+      {
+        "color": "blue",
+        "count": 9
+      },
+      {
+        "color": "blue",
+        "count": 9
+      }
+    ],
+    [
+      {
+        "color": "green",
+        "count": 9
+      },
+      {
+        "color": "red",
+        "count": 9
+      }
+    ]
+  ],
+  "docks": [
+    [
+      "blue",
+      "green",
+      "green",
+      "orange",
+      "red",
+      "blue",
+      "blue",
+      "yellow"
+    ],
+    [
+      "yellow",
+      "red",
+      "red",
+      "red",
+      "blue",
+      "red",
+      "blue",
+      "yellow"
+    ],
+    [
+      "green",
+      "red",
+      "yellow",
+      "yellow",
+      "orange",
+      "blue",
+      "orange",
+      "yellow"
+    ]
+  ]
+};
+
+/** Every crate counts. */
+export const BOARD_82: BoardDef = {
+  "id": "board-82",
+  "title": "Every crate counts",
+  "beltCapacity": 16,
+  "boxSize": 3,
+  "supplies": [
+    [
+      {
+        "color": "black",
+        "count": 9
+      },
+      {
+        "color": "blue",
+        "count": 9
+      },
+      {
+        "color": "green",
+        "count": 9
+      }
+    ],
+    [
+      {
+        "color": "black",
+        "count": 9
+      },
+      {
+        "color": "blue",
+        "count": 9
+      },
+      {
+        "color": "orange",
+        "count": 9
+      }
+    ],
+    [
+      {
+        "color": "black",
+        "count": 3
+      },
+      {
+        "color": "black",
+        "count": 9
+      }
+    ],
+    [
+      {
+        "color": "red",
+        "count": 6
+      },
+      {
+        "color": "orange",
+        "count": 6
+      }
+    ]
+  ],
+  "docks": [
+    [
+      "black",
+      "black",
+      "orange",
+      "green",
+      "black",
+      "black",
+      "blue",
+      "blue",
+      "black"
+    ],
+    [
+      "orange",
+      "blue",
+      "black",
+      "red",
+      "black",
+      "blue",
+      "blue",
+      "black",
+      "green"
+    ],
+    [
+      "orange",
+      "red",
+      "orange",
+      "green",
+      "blue",
+      "black",
+      "orange",
+      "black"
+    ]
+  ]
+};
+
+/** Twelve to place. */
+export const BOARD_83: BoardDef = {
+  "id": "board-83",
+  "title": "Twelve to place",
+  "beltCapacity": 16,
+  "boxSize": 3,
+  "supplies": [
+    [
+      {
+        "color": "orange",
+        "count": 9
+      },
+      {
+        "color": "red",
+        "count": 9
+      },
+      {
+        "color": "orange",
+        "count": 9
+      }
+    ],
+    [
+      {
+        "color": "orange",
+        "count": 9
+      },
+      {
+        "color": "yellow",
+        "count": 9
+      },
+      {
+        "color": "green",
+        "count": 9
+      }
+    ],
+    [
+      {
+        "color": "red",
+        "count": 9
+      },
+      {
+        "color": "yellow",
+        "count": 9
+      },
+      {
+        "color": "orange",
+        "count": 9
+      }
+    ],
+    [
+      {
+        "color": "blue",
+        "count": 9
+      },
+      {
+        "color": "yellow",
+        "count": 9
+      },
+      {
+        "color": "orange",
+        "count": 9
+      }
+    ]
+  ],
+  "docks": [
+    [
+      "yellow",
+      "orange",
+      "yellow",
+      "yellow",
+      "red",
+      "green",
+      "orange",
+      "orange",
+      "red",
+      "orange",
+      "yellow",
+      "orange"
+    ],
+    [
+      "red",
+      "red",
+      "orange",
+      "blue",
+      "red",
+      "orange",
+      "orange",
+      "green",
+      "orange",
+      "blue",
+      "yellow",
+      "orange"
+    ],
+    [
+      "green",
+      "orange",
+      "orange",
+      "orange",
+      "yellow",
+      "yellow",
+      "orange",
+      "yellow",
+      "orange",
+      "blue",
+      "yellow",
+      "red"
+    ]
+  ]
+};
+
+/** The narrow route. */
+export const BOARD_84: BoardDef = {
+  "id": "board-84",
+  "title": "The narrow route",
+  "beltCapacity": 15,
+  "boxSize": 3,
+  "supplies": [
+    [
+      {
+        "color": "yellow",
+        "count": 9
+      },
+      {
+        "color": "green",
+        "count": 9
+      },
+      {
+        "color": "blue",
+        "count": 9
+      },
+      {
+        "color": "red",
+        "count": 9
+      }
+    ],
+    [
+      {
+        "color": "red",
+        "count": 9
+      },
+      {
+        "color": "blue",
+        "count": 9
+      },
+      {
+        "color": "blue",
+        "count": 9
+      }
+    ],
+    [
+      {
+        "color": "yellow",
+        "count": 9
+      },
+      {
+        "color": "red",
+        "count": 9
+      },
+      {
+        "color": "blue",
+        "count": 9
+      }
+    ]
+  ],
+  "docks": [
+    [
+      "red",
+      "blue",
+      "red",
+      "blue",
+      "red",
+      "red",
+      "blue",
+      "yellow",
+      "yellow",
+      "blue",
+      "blue",
+      "red",
+      "blue",
+      "red",
+      "green"
+    ],
+    [
+      "blue",
+      "yellow",
+      "red",
+      "green",
+      "green",
+      "blue",
+      "blue",
+      "yellow",
+      "yellow",
+      "red",
+      "blue",
+      "yellow",
+      "blue",
+      "red",
+      "blue"
+    ]
+  ]
+};
+
+/** Leave a little room. */
+export const BOARD_85: BoardDef = {
+  "id": "board-85",
+  "title": "Leave a little room",
+  "beltCapacity": 14,
+  "boxSize": 3,
+  "supplies": [
+    [
+      {
+        "color": "orange",
+        "count": 9
+      },
+      {
+        "color": "red",
+        "count": 9
+      },
+      {
+        "color": "green",
+        "count": 9
+      }
+    ],
+    [
+      {
+        "color": "red",
+        "count": 9
+      },
+      {
+        "color": "orange",
+        "count": 9
+      },
+      {
+        "color": "yellow",
+        "count": 9
+      }
+    ],
+    [
+      {
+        "color": "green",
+        "count": 9
+      },
+      {
+        "color": "blue",
+        "count": 9
+      }
+    ]
+  ],
+  "docks": [
+    [
+      "orange",
+      "red",
+      "green",
+      "red",
+      "orange",
+      "red",
+      "green",
+      "orange"
+    ],
+    [
+      "red",
+      "green",
+      "orange",
+      "blue",
+      "yellow",
+      "red",
+      "green",
+      "green"
+    ],
+    [
+      "blue",
+      "green",
+      "orange",
+      "yellow",
+      "blue",
+      "yellow",
+      "red",
+      "orange"
+    ]
+  ]
+};
+
+/** Three sizes in turn. */
+export const BOARD_86: BoardDef = {
+  "id": "board-86",
+  "title": "Three sizes in turn",
+  "beltCapacity": 14,
+  "boxSize": 3,
+  "supplies": [
+    [
+      {
+        "color": "yellow",
+        "count": 6
+      },
+      {
+        "color": "blue",
+        "count": 9
+      },
+      {
+        "color": "green",
+        "count": 9
+      }
+    ],
+    [
+      {
+        "color": "yellow",
+        "count": 9
+      },
+      {
+        "color": "yellow",
+        "count": 9
+      },
+      {
+        "color": "blue",
+        "count": 9
+      }
+    ],
+    [
+      {
+        "color": "red",
+        "count": 6
+      },
+      {
+        "color": "red",
+        "count": 9
+      }
+    ],
+    [
+      {
+        "color": "red",
+        "count": 3
+      },
+      {
+        "color": "green",
+        "count": 3
+      }
+    ]
+  ],
+  "docks": [
+    [
+      "red",
+      "blue",
+      "blue",
+      "blue",
+      "yellow",
+      "yellow",
+      "yellow",
+      "green"
+    ],
+    [
+      "green",
+      "blue",
+      "yellow",
+      "green",
+      "red",
+      "yellow",
+      "blue",
+      "red"
+    ],
+    [
+      "yellow",
+      "red",
+      "yellow",
+      "green",
+      "red",
+      "blue",
+      "yellow",
+      "red"
+    ]
+  ]
+};
+
+/** Short crates, long queues. */
+export const BOARD_87: BoardDef = {
+  "id": "board-87",
+  "title": "Short crates, long queues",
+  "beltCapacity": 17,
+  "boxSize": 3,
+  "supplies": [
+    [
+      {
+        "color": "blue",
+        "count": 6
+      },
+      {
+        "color": "yellow",
+        "count": 9
+      },
+      {
+        "color": "orange",
+        "count": 9
+      }
+    ],
+    [
+      {
+        "color": "blue",
+        "count": 9
+      },
+      {
+        "color": "green",
+        "count": 6
+      }
+    ],
+    [
+      {
+        "color": "green",
+        "count": 6
+      },
+      {
+        "color": "red",
+        "count": 9
+      },
+      {
+        "color": "yellow",
+        "count": 9
+      }
+    ],
+    [
+      {
+        "color": "red",
+        "count": 9
+      },
+      {
+        "color": "yellow",
+        "count": 6
+      }
+    ]
+  ],
+  "docks": [
+    [
+      "yellow",
+      "orange",
+      "yellow",
+      "red",
+      "green",
+      "yellow",
+      "red",
+      "blue",
+      "red"
+    ],
+    [
+      "red",
+      "orange",
+      "yellow",
+      "blue",
+      "blue",
+      "green",
+      "blue",
+      "red",
+      "green"
+    ],
+    [
+      "yellow",
+      "yellow",
+      "green",
+      "orange",
+      "yellow",
+      "red",
+      "blue",
+      "yellow"
+    ]
+  ]
+};
+
+/** Deep reserves. */
+export const BOARD_88: BoardDef = {
+  "id": "board-88",
+  "title": "Deep reserves",
+  "beltCapacity": 17,
+  "boxSize": 3,
+  "supplies": [
+    [
+      {
+        "color": "yellow",
+        "count": 9
+      },
+      {
+        "color": "red",
+        "count": 9
+      },
+      {
+        "color": "blue",
+        "count": 9
+      },
+      {
+        "color": "green",
+        "count": 9
+      }
+    ],
+    [
+      {
+        "color": "green",
+        "count": 9
+      },
+      {
+        "color": "orange",
+        "count": 9
+      },
+      {
+        "color": "blue",
+        "count": 9
+      },
+      {
+        "color": "red",
+        "count": 9
+      }
+    ],
+    [
+      {
+        "color": "blue",
+        "count": 9
+      },
+      {
+        "color": "blue",
+        "count": 9
+      }
+    ]
+  ],
+  "docks": [
+    [
+      "red",
+      "yellow",
+      "green",
+      "green",
+      "blue",
+      "red",
+      "red",
+      "yellow",
+      "blue",
+      "blue"
+    ],
+    [
+      "blue",
+      "green",
+      "blue",
+      "blue",
+      "red",
+      "orange",
+      "orange",
+      "orange",
+      "yellow",
+      "blue"
+    ],
+    [
+      "red",
+      "green",
+      "blue",
+      "blue",
+      "blue",
+      "blue",
+      "green",
+      "red",
+      "blue",
+      "green"
+    ]
+  ]
+};
+
+/** Around the wide crossing. */
+export const BOARD_89: BoardDef = {
+  "id": "board-89",
+  "title": "Around the wide crossing",
+  "beltCapacity": 30,
+  "boxSize": 3,
+  "supplies": [
+    [
+      {
+        "color": "red",
+        "count": 9
+      },
+      {
+        "color": "green",
+        "count": 9
+      },
+      {
+        "color": "yellow",
+        "count": 9
+      }
+    ],
+    [
+      {
+        "color": "red",
+        "count": 9
+      },
+      {
+        "color": "yellow",
+        "count": 9
+      },
+      {
+        "color": "green",
+        "count": 9
+      }
+    ],
+    [
+      {
+        "color": "red",
+        "count": 9
+      },
+      {
+        "color": "blue",
+        "count": 9
+      },
+      {
+        "color": "orange",
+        "count": 9
+      }
+    ]
+  ],
+  "docks": [
+    [
+      "green",
+      "blue",
+      "yellow",
+      "yellow",
+      "red",
+      "red",
+      "blue",
+      "red",
+      "green",
+      "red",
+      "red",
+      "yellow",
+      "green",
+      "blue"
+    ],
+    [
+      "yellow",
+      "red",
+      "red",
+      "red",
+      "yellow",
+      "orange",
+      "red",
+      "orange",
+      "green",
+      "green",
+      "orange",
+      "yellow",
+      "green"
+    ]
+  ],
+  "trackShape": "wide-eight"
+};
+
+/** Black between the stacks. */
+export const BOARD_90: BoardDef = {
+  "id": "board-90",
+  "title": "Black between the stacks",
+  "beltCapacity": 16,
+  "boxSize": 3,
+  "supplies": [
+    [
+      {
+        "color": "black",
+        "count": 9
+      },
+      {
+        "color": "black",
+        "count": 9
+      },
+      {
+        "color": "yellow",
+        "count": 9
+      }
+    ],
+    [
+      {
+        "color": "red",
+        "count": 9
+      },
+      {
+        "color": "black",
+        "count": 9
+      },
+      {
+        "color": "green",
+        "count": 9
+      }
+    ],
+    [
+      {
+        "color": "black",
+        "count": 9
+      },
+      {
+        "color": "green",
+        "count": 9
+      }
+    ]
+  ],
+  "docks": [
+    [
+      "black",
+      "green",
+      "green",
+      "black",
+      "yellow",
+      "black",
+      "black",
+      "black"
+    ],
+    [
+      "green",
+      "black",
+      "yellow",
+      "yellow",
+      "black",
+      "black",
+      "red",
+      "red"
+    ],
+    [
+      "black",
+      "black",
+      "green",
+      "green",
+      "green",
+      "red",
+      "black",
+      "black"
+    ]
+  ]
+};
+
+/** A calmer crossing. */
+export const BOARD_91: BoardDef = {
+  "id": "board-91",
+  "title": "A calmer crossing",
+  "beltCapacity": 26,
+  "boxSize": 3,
+  "supplies": [
+    [
+      {
+        "color": "red",
+        "count": 9
+      },
+      {
+        "color": "blue",
+        "count": 9
+      },
+      {
+        "color": "blue",
+        "count": 9
+      }
+    ],
+    [
+      {
+        "color": "red",
+        "count": 9
+      },
+      {
+        "color": "blue",
+        "count": 9
+      },
+      {
+        "color": "green",
+        "count": 9
+      }
+    ],
+    [
+      {
+        "color": "yellow",
+        "count": 9
+      },
+      {
+        "color": "red",
+        "count": 9
+      },
+      {
+        "color": "yellow",
+        "count": 9
+      }
+    ]
+  ],
+  "docks": [
+    [
+      "blue",
+      "red",
+      "yellow",
+      "blue",
+      "blue",
+      "yellow",
+      "blue",
+      "red",
+      "red"
+    ],
+    [
+      "green",
+      "yellow",
+      "yellow",
+      "red",
+      "red",
+      "red",
+      "blue",
+      "green",
+      "blue"
+    ],
+    [
+      "red",
+      "blue",
+      "blue",
+      "green",
+      "yellow",
+      "yellow",
+      "red",
+      "red",
+      "blue"
+    ]
+  ],
+  "trackShape": "eight"
+};
+
+/** Two busy docks. */
+export const BOARD_92: BoardDef = {
+  "id": "board-92",
+  "title": "Two busy docks",
+  "beltCapacity": 16,
+  "boxSize": 3,
+  "supplies": [
+    [
+      {
+        "color": "red",
+        "count": 9
+      },
+      {
+        "color": "yellow",
+        "count": 9
+      },
+      {
+        "color": "blue",
+        "count": 9
+      },
+      {
+        "color": "yellow",
+        "count": 9
+      }
+    ],
+    [
+      {
+        "color": "blue",
+        "count": 9
+      },
+      {
+        "color": "green",
+        "count": 9
+      },
+      {
+        "color": "red",
+        "count": 9
+      }
+    ],
+    [
+      {
+        "color": "blue",
+        "count": 9
+      },
+      {
+        "color": "red",
+        "count": 9
+      },
+      {
+        "color": "green",
+        "count": 9
+      }
+    ]
+  ],
+  "docks": [
+    [
+      "blue",
+      "red",
+      "yellow",
+      "red",
+      "red",
+      "green",
+      "blue",
+      "red",
+      "yellow",
+      "blue",
+      "blue",
+      "blue",
+      "green",
+      "red",
+      "blue"
+    ],
+    [
+      "red",
+      "red",
+      "yellow",
+      "blue",
+      "green",
+      "yellow",
+      "green",
+      "yellow",
+      "green",
+      "red",
+      "blue",
+      "blue",
+      "green",
+      "red",
+      "yellow"
+    ]
+  ]
+};
+
+/** Taking the long stacks. */
+export const BOARD_93: BoardDef = {
+  "id": "board-93",
+  "title": "Taking the long stacks",
+  "beltCapacity": 14,
+  "boxSize": 3,
+  "supplies": [
+    [
+      {
+        "color": "red",
+        "count": 9
+      },
+      {
+        "color": "green",
+        "count": 9
+      },
+      {
+        "color": "yellow",
+        "count": 9
+      },
+      {
+        "color": "green",
+        "count": 9
+      }
+    ],
+    [
+      {
+        "color": "blue",
+        "count": 9
+      },
+      {
+        "color": "yellow",
+        "count": 9
+      },
+      {
+        "color": "orange",
+        "count": 9
+      },
+      {
+        "color": "red",
+        "count": 9
+      }
+    ],
+    [
+      {
+        "color": "red",
+        "count": 9
+      },
+      {
+        "color": "green",
+        "count": 9
+      }
+    ]
+  ],
+  "docks": [
+    [
+      "green",
+      "red",
+      "red",
+      "yellow",
+      "red",
+      "green",
+      "green",
+      "yellow",
+      "blue",
+      "green"
+    ],
+    [
+      "blue",
+      "red",
+      "green",
+      "red",
+      "yellow",
+      "orange",
+      "red",
+      "green",
+      "green",
+      "yellow"
+    ],
+    [
+      "yellow",
+      "red",
+      "green",
+      "blue",
+      "orange",
+      "yellow",
+      "red",
+      "green",
+      "red",
+      "orange"
+    ]
+  ]
+};
+// END rounds 41-60
+
+export const BOARDS: readonly BoardDef[] = [BOARD_1, BOARD_2, BOARD_3, BOARD_4, BOARD_5, BOARD_6, BOARD_7, BOARD_8, BOARD_9, BOARD_10, BOARD_11, BOARD_12, BOARD_13, BOARD_14, BOARD_15, BOARD_16, BOARD_17, BOARD_18, BOARD_19, BOARD_20, BOARD_21, BOARD_22, BOARD_23, BOARD_24, BOARD_25, BOARD_26, BOARD_27, BOARD_28, BOARD_29, BOARD_30, BOARD_31, BOARD_32, BOARD_33, BOARD_34, BOARD_35, BOARD_36, BOARD_37, BOARD_38, BOARD_39, BOARD_40, BOARD_41, BOARD_42, BOARD_43, BOARD_44, BOARD_46, BOARD_47, BOARD_48, BOARD_49, BOARD_50, BOARD_51, BOARD_52, BOARD_53, BOARD_54, BOARD_55, BOARD_56, BOARD_57, BOARD_58, BOARD_59, BOARD_60, BOARD_61, BOARD_62, BOARD_63, BOARD_64, BOARD_65, BOARD_66, BOARD_67, BOARD_68, BOARD_69, BOARD_70, BOARD_71, BOARD_72, BOARD_73, BOARD_74, BOARD_75, BOARD_76, BOARD_77, BOARD_78, BOARD_79, BOARD_80, BOARD_81, BOARD_82, BOARD_83, BOARD_84, BOARD_85, BOARD_86, BOARD_87, BOARD_88, BOARD_89, BOARD_90, BOARD_91, BOARD_92, BOARD_93, BOARD_200, BOARD_201, BOARD_202, ...FUNNEL_VARIETY_BOARDS];

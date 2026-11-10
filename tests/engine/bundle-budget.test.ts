@@ -15,6 +15,7 @@ function site(files: Record<string, number>, page = '<script src="/assets/index.
   made.push(root);
   mkdirSync(join(root, 'assets'));
   writeFileSync(join(root, 'index.html'), page);
+  writeFileSync(join(root, 'assets/static-proof.worker-fixture.js'), 'self.onmessage=()=>{};');
   for (const [name, size] of Object.entries(files)) writeFileSync(join(root, 'assets', name), randomBytes(size));
   return root;
 }
@@ -36,6 +37,31 @@ describe('the first-download budget', () => {
   });
   it('counts any WASM file', () => {
     expect(check(site({ 'index.js': 60_000, 'physics.wasm': 60_000 })).status).toBe(1);
+  });
+  it('counts compressed sound bytes even when loaded after the first gesture', () => {
+    expect(check(site({ 'index.js': 80_000, 'win.mp3': 30_000 })).status).toBe(1);
+    expect(check(site({ 'index.js': 60_000, 'win.mp3': 30_000 })).status).toBe(0);
+  });
+  it('caps the sound bank independently so it cannot quietly grow inside spare bundle space', () => {
+    const run = check(site({ 'index.js': 10_000, 'sound.mp3': 45_001 }));
+    expect(run.status).toBe(1);
+    expect(run.stderr).toContain('Audio over budget');
+  });
+  it('counts the worker and rejects uncounted worker dependencies', () => {
+    const large = site({ 'index.js': 60_000 });
+    writeFileSync(join(large, 'assets/static-proof.worker-fixture.js'), randomBytes(60_000));
+    expect(check(large).status).toBe(1);
+    const dependency = site({ 'index.js': 10 });
+    writeFileSync(join(dependency, 'assets/static-proof.worker-fixture.js'), 'import "./uncounted.js";');
+    expect(check(dependency).stderr).toContain('self-contained');
+    for (const code of ['import dependency from "./uncounted.js";', 'import * as dependency from "./uncounted.js";', 'export { dependency } from "./uncounted.js";']) {
+      const external = site({ 'index.js': 10 });
+      writeFileSync(join(external, 'assets/static-proof.worker-fixture.js'), code);
+      expect(check(external).stderr).toContain('self-contained');
+    }
+    const missing = site({ 'index.js': 10 });
+    rmSync(join(missing, 'assets/static-proof.worker-fixture.js'));
+    expect(check(missing).stderr).toContain('exactly one');
   });
   it('refuses a page it cannot read a script from, rather than passing it', () => {
     expect(check(site({ 'index.js': 10 }, '<p>nothing linked</p>')).status).not.toBe(0);

@@ -1,0 +1,4 @@
+import{vi}from'vitest';import*as plans from'../../src/world/village-plans';import{captureHarbourPiles105}from'./harbour-pile105';
+/** Explicit legacy negative: restores the removed physical post AND cap, never
+ * creates an accepted selected scene or changes a current constructor globally. */
+export function restoredHarbourDuplicate116(flat=false){const scene=plans.villageScenePlan(0),legacy={...scene,plan:{...scene.plan,staticSupports:undefined,stations:scene.plan.stations.map(({bearingSeats,...s})=>{void bearingSeats;return s;}),connectors:scene.plan.connectors.map(({bearingSeats,omitAutomaticFrames,fixedEnds,...l})=>{void bearingSeats;void omitAutomaticFrames;void fixedEnds;return l.from===5?{...l,terrainFrameFeet:flat?[4]:[4,12]}:l;})}},original=plans.villageScenePlan,spy=vi.spyOn(plans,'villageScenePlan').mockImplementation(ch=>ch===0?legacy:original(ch));try{return captureHarbourPiles105();}finally{spy.mockRestore();}}

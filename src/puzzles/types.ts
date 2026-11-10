@@ -17,6 +17,8 @@ export interface TubeDef {
   readonly id: string;
   readonly title: string;
   readonly capacity: number;
+  /** Whole-colour counts and final home sizes; omitted colours use capacity. */
+  readonly colorCapacities?: Readonly<Partial<Record<Color, number>>>;
   /** Bottom marble first. */
   readonly tubes: readonly (readonly Color[])[];
   readonly solution: readonly TubeMove[];

@@ -43,16 +43,29 @@ export class LoopRuntime implements GameRuntime {
     if (!/^lane\d+$/.test(target) || this.status !== 'playing') return [];
     const result = this.machine.tap(Number(target.slice(4)));
     if (result.ok) return [{ type: 'move' }];
-    if (result.reason === 'latched') {
-      const prerequisite = this.machine.rules.front(Number(target.slice(4)))?.pourAfter;
+    const latched = (prerequisite: string | null | undefined): Feedback[] => {
       const reference = prerequisite ? this.machine.truckReference(prerequisite) : null;
       return [{ type: 'blocked', target: reference ? `lane${reference.lane}` : target, text: reference
         ? t(`Finish the marked truck in lane ${reference.lane + 1} first.`, `Terminez d’abord le camion indiqué dans la file ${reference.lane + 1}.`)
         : t('Finish the truck shown on the latch first.', 'Terminez d’abord le camion indiqué sur le verrou.') }];
+    };
+    const busy = (): Feedback[] => [{ type: 'blocked', target, text: this.machine.rules.free <= 0 ? t('The loop is full: a truck has to take some before more can pour.', 'Le circuit est plein : un camion doit prendre des billes pour libérer de la place.') : t('Still pouring.', 'Déchargement en cours.') }];
+    if (result.reason === 'latched') return latched(this.machine.rules.front(Number(target.slice(4)))?.pourAfter);
+    if (result.reason === 'coupled') {
+      // The rules report the pair in lane order; say what is actually holding the linked truck, whichever one was tapped.
+      const partnerId = this.machine.rules.front(Number(target.slice(4)))?.coupledWith;
+      const reference = partnerId ? this.machine.truckReference(partnerId) : null;
+      const partner = reference ? this.machine.rules.front(reference.lane) : null;
+      if (reference && partner?.id !== partnerId) return [{ type: 'blocked', target: `lane${reference.lane}`, text: t(`The linked truck in lane ${reference.lane + 1} is not at the loop yet.`, `Le camion relié de la file ${reference.lane + 1} n’est pas encore au circuit.`) }];
+      if (reference && partner) {
+        if (partner.unloading.length) return busy();
+        if (partner.pourAfter) return latched(partner.pourAfter);
+        if (partner.segments.length < 2) return [{ type: 'blocked', target: `lane${reference.lane}`, text: t(`Fill the linked truck in lane ${reference.lane + 1} first.`, `Remplissez d’abord le camion relié de la file ${reference.lane + 1}.`) }];
+      }
+      return [{ type: 'blocked', target, text: t('Both linked trucks must be ready to pour.', 'Les deux camions reliés doivent pouvoir décharger.') }];
     }
-    if (result.reason === 'coupled') return [{ type: 'blocked', target, text: t('Both linked trucks must be ready to pour.', 'Les deux camions reliés doivent pouvoir décharger.') }];
     if (result.reason === 'single') return [{ type: 'blocked', target, text: t('That truck is one color: it only needs to fill up.', 'Ce camion n’a qu’une couleur : il lui reste à se remplir.') }];
-    if (result.reason === 'busy') return [{ type: 'blocked', target, text: this.machine.rules.free <= 0 ? t('The loop is full: a truck has to take some before more can pour.', 'Le circuit est plein : un camion doit prendre des billes pour libérer de la place.') : t('Still pouring.', 'Déchargement en cours.') }];
+    if (result.reason === 'busy') return busy();
     return [{ type: 'blocked', target, text: t('No truck is ready here.', 'Aucun camion n’est prêt ici.') }];
   }
   step(): readonly Feedback[] {

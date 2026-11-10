@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { CAMPAIGN } from '../../src/campaign';
 import { TUBE_BOARDS } from '../../src/puzzles/levels';
 import type { App } from '../../src/view/App';
-import { chooseLevel } from '../fixtures/picker';
+import { chooseLevel, enterGame } from '../fixtures/picker';
 
 type GameWindow = Window & { tumbleworks: { app: App } };
 const state = (page: Page) => page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.debugState());
@@ -12,6 +12,7 @@ async function open(page: Page, progress: { completed: string[]; current: string
   await page.goto('/');
   await page.waitForFunction(() => Boolean((window as unknown as Partial<GameWindow>).tumbleworks?.app?.runtime), undefined, { timeout: 60000 });
   await page.evaluate(() => { (window as unknown as GameWindow).tumbleworks.app.manualClock = true; });
+  await enterGame(page);
 }
 
 async function settle(page: Page): Promise<void> {
@@ -45,11 +46,10 @@ test('the level picker groups levels into chapters with their completion counts'
   expect((await state(page))['levelIndex']).toBe(last);
 });
 
-test('Next skips levels the player has already completed', async ({ page }) => {
+test('the next map stop resumes its first unfinished game', async ({ page }) => {
   const start = CAMPAIGN.findIndex((level) => level.kind === 'tube');
   const level = CAMPAIGN[start]!;
-  // The two levels after it are done, so Next goes to the third.
-  await open(page, { completed: [CAMPAIGN[start + 1]!.id, CAMPAIGN[start + 2]!.id], current: level.id });
+  await open(page, { completed: [CAMPAIGN[0]!.id, CAMPAIGN[1]!.id, CAMPAIGN[start + 1]!.id, CAMPAIGN[start + 2]!.id], current: level.id });
   expect((await state(page))['levelIndex']).toBe(start);
   for (const move of TUBE_BOARDS.find((board) => board.id === level.id)!.solution) {
     await tap(page, `tube${move.from}`);
@@ -57,8 +57,8 @@ test('Next skips levels the player has already completed', async ({ page }) => {
   }
   expect((await state(page))['status']).toBe('won');
   await page.evaluate(() => { const app = (window as unknown as GameWindow).tumbleworks.app; for (let tick = 0; tick < 60; tick++) app.advance(1 / 60); });
-  await expect(page.locator('#card-body')).toContainText(CAMPAIGN[start + 3]!.name);
-  await page.locator('#card-action').click();
+  await expect(page.locator('body')).toHaveAttribute('data-screen', 'map');
+  await page.locator('.map-stop[data-round="1"]').click();
   await settle(page);
   expect((await state(page))['levelIndex']).toBe(start + 3);
 });

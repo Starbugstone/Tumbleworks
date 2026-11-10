@@ -1,0 +1,4 @@
+interface:
+  display_name: "Tumbleworks Village Authoring"
+  short_description: "Build distinct villages with continuous marble motion"
+  default_prompt: "Use $tumbleworks-village-authoring to create or finish a distinct village with continuous motion, clear geometry and a calm phone camera."

@@ -35,8 +35,9 @@ export const cardNeed = (stretches: number, cab: number): number =>
   cab + ROSTER.chrome + stretches * ROSTER.stretchLeast + Math.max(0, stretches - 1) * ROSTER.stretchGap;
 
 /** `lines` is one list per lane, front lorry first, of how many stretches each lorry prints, free room included. */
-export function rosterLayout(lines: readonly (readonly number[])[], width: number, height: number, hasLatches = false): RosterLayout {
-  const ruleWidth = hasLatches ? 26 : 0;
+/** `hasRuleChips`: some card carries a latch or link chip, so every card keeps one chip slot at its right. */
+export function rosterLayout(lines: readonly (readonly number[])[], width: number, height: number, hasRuleChips = false): RosterLayout {
+  const ruleWidth = hasRuleChips ? 26 : 0;
   const compact = height < 600 && width > 600;
   const bottom = compact ? ROSTER.compactBottom : ROSTER.bottom;
   const usable = height - ROSTER.top - bottom;

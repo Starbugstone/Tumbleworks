@@ -23,7 +23,7 @@ RewriteRule ^ https://tumbleworks.starbugstone.com%{REQUEST_URI} [R=301,L,NE]
     Header set Cache-Control "no-cache"
   </FilesMatch>
   # Vite puts a content hash in these names, so a given name never changes.
-  <FilesMatch "-[A-Za-z0-9_-]{8}\.(js|css|woff2?)$">
+  <FilesMatch "-[A-Za-z0-9_-]{8}\.(js|css|woff2?|mp3)$">
     Header set Cache-Control "public, max-age=31536000, immutable"
   </FilesMatch>
 </IfModule>

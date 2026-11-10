@@ -7,13 +7,16 @@ export type GameStatus = 'playing' | 'won' | 'jammed';
 export type Difficulty = 'Getting started' | 'Finding a rhythm' | 'Thinking ahead' | 'Full spectrum';
 export interface ScreenPoint { x: number; y: number; label?: string }
 export interface GuideStep { readonly text: string; readonly target?: string; readonly done?: boolean }
-export interface Feedback {
-  readonly type: 'tap' | 'move' | 'match' | 'blocked' | 'impact' | 'deliver' | 'message';
+interface FeedbackDetails {
   readonly text?: string;
   readonly strength?: number;
   readonly slot?: number;
   readonly target?: string;
 }
+export type Feedback = FeedbackDetails & (
+  { readonly type: 'tap' | 'move' | 'match' | 'blocked' | 'impact' | 'deliver' | 'message' }
+  | { readonly type: 'landing'; readonly arrival: number }
+);
 export interface GameServices { readonly stage: Stage; readonly physics: PhysicsService }
 export interface GameLevel {
   readonly id: string;

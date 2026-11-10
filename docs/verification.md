@@ -1,8 +1,137 @@
 # Verification
 
-## Current scope — alpha 0.0.1 review, 5 November 2026
+## Current Blender world and Atelier integration — 7 November 2026
 
-The registered campaign is **40 rounds, 120 levels**, interleaved Funnel Sort,
+The current 3D world passed 100 focused unit checks, 25 distinct UI journeys and
+four isolated realtime World measurements. After installing all seven actual
+gameplay cue crops, all six Atelier project cases also passed, including exact
+gate boundaries, direct links, old saves, a real project win and immediate reward
+installation, plus French grayscale cards at phone and desktop sizes. The
+[World ledger](world-verification.md) separates original harness failures and
+corrected attempts; [the measurement report](performance/world-measurements.md)
+retains ten raw scopes, real-clock activity and natural-quality checks.
+
+The first-download ceiling is now explicitly 2.125 MB, with its failed 2 MB
+attempt and rationale recorded in [the 3D baseline](performance/world-3d-baseline.json).
+The final combined tree passed **2,081 tests across 67 files**, typecheck, lint
+and a **2.106 / 2.125 MB** build. Render hygiene passed **6/6**, the unchanged
+gameplay performance gate **6/6**, and realtime World measurements **4/4** with
+ten retained raw scopes. The applied skill driver passed all six bounded current
+live journeys. All 297 product/harness hashes stayed unchanged, with no timing
+overrides or relaxed gameplay ceilings. Commands, reports, baseline hashes and
+host evidence are indexed by [the final integration report](performance/world-3d-integrated.json).
+Earlier native-video and gameplay passes below retain their historical scope.
+No physical-phone performance claim follows from these browser measurements.
+
+## Historical map and Workshop integration — 6 November 2026
+
+The integrated tree passed **1,970 unit tests across 48 files**, **10 unique World
+browser cases** and **30 unique existing UI regression cases**, with harness
+corrections and overlapping reruns recorded in the
+[World evidence ledger](world-verification.md). Typecheck, lint and the current
+fresh post-guide-CSS production build passed: **1.970 MB / 2.000 MB** first
+download, with the ceiling unchanged. These results supersede the pre-map build/unit totals for the current
+integration; the campaign evidence and calibration history below retain their
+original scope.
+
+A separate real-touch regression reproduced the tutorial hand leaking onto a
+fresh map and Workshop before the generic non-game `#guide-pointer` CSS selector
+was corrected. The same case passed afterward (31.3 seconds), covering Back,
+Play restoring the guide and Skip; typecheck passed again. The focused Workshop
+`board-212` win/reload rerun also passed (2.6 minutes), as did the verification
+doctor. Rules and campaign source are unchanged. The ledger distinguishes the
+pre-guide `final-source.json` snapshot from `post-review-source.json`.
+
+Post-review render hygiene passed six cases (2.3 minutes), and phone/desktop
+card bounds passed for all 60 registered Loop Sort levels (6.1 minutes). The
+number-readability case first failed its unchanged 300-second timeout; 2,630
+successful assertions across all 60 IDs do not reclassify that result. The retry
+passed in 1.9 minutes under lower entry load with identical source and limit.
+Full-page grayscale captures were inspected. The final isolated gameplay gate
+passed **six of six in 3.8 minutes**, with unchanged ceilings, no environment
+overrides, all activity/quality guards, and unchanged source hashes. The
+[integrated gameplay report](performance/gameplay-variety-integrated.json) records
+this new run; the historical contended pre-map gate below remains unchanged.
+All four World measurement cases also passed (33.4 seconds in the retained
+JSON-reporter run), with ten raw scopes, unchanged quality and source hashes,
+zero idle/gameplay work, and 72 additional presented video frames. See the
+[World measurement report](performance/world-measurements.md) for workloads,
+uneven frame intervals and limits. The scoped checks above are complete; these
+browser results do not establish physical-phone performance.
+
+## Current scope — rounds 41–60, 6 November 2026
+
+The registered campaign is **60 rounds, 180 levels**, with twenty new levels per
+game. The original 120 IDs, their order and their definitions are preserved.
+`PLAY_ORDER` in [src/campaign.ts](../src/campaign.ts) remains the order authority;
+the full target is 120 rounds and 360 levels. The new stretch introduces paired
+crates, receiving latches, capped spares, forked shelves and short trucks at the
+scheduled lesson rounds. [Levelling](levelling.md#rounds-41-to-60) records their
+placements and the unchanged acceptance gates.
+
+The pre-map shared working tree passed typecheck, lint, **1,878 tests across 39
+files**, and the production build: **1.954 MB / 2.000 MB** for the first download.
+All sixty added levels completed through real browser touch input and persisted
+their completion after reload. The completed-forty-round save also continued
+into the expansion: five browser cases passed in 7.9 minutes. The tracked
+[expansion fixture](../tests/fixtures/campaign-41-60.json) retains definitions'
+hashes, generation recipes, seeds, placement decisions and rule/machine evidence.
+Every generated definition was regenerated from that metadata to its exact hash.
+
+Focused checks cover paired-crate and forked-shelf touch/undo, short-truck
+touch/undo, capped-spare controls, and representative new boards at 375×690 and
+1280×800, including grayscale captures. Evidence is under
+`output/current/campaign-41-60/`; the full added-level captures are
+`output/current/campaign-level121.png` through `campaign-level180.png`.
+These results precede the separate map and Workshop runtime changes and do not
+certify those changes or physical-phone performance.
+Crate patterns remain distinguishable in grayscale; the tiny waiting-box preview
+patterns remain difficult to identify in the Funnel Sort screenshots.
+
+## Expansion rendering baseline — 6 November 2026
+
+The expansion changes two automatically selected busiest levels: `board-89` has
+the longest Funnel Sort belt (a wide eight, capacity 30), and `loop-86` has the
+longest Loop Sort roster (ten trucks, capacity 32). `board-57` remains the most
+marbles case and `loop-61` the fullest-loop case. The maintained harness checks
+normal speed for all four and ×5 for the most-marbles and longest-roster cases.
+
+The [recorded expansion baseline](performance/campaign-41-60-baseline.json)
+contains three samples for each newly selected ID/speed, the full accepted-touch
+workload, quality, tick/draw/advance/frame measurements, and hashes of the source
+and harness before map or Workshop runtime changes. All nine calibration samples
+passed the activity, fixed-canvas, runtime and asset checks. They ran serially
+without other Tumbleworks browsers, tests, builds or authoring jobs; unrelated
+user processes were preserved. Timing overrides were used only for calibration.
+
+| New case | Tick + draw p50, median (range), ms | Limits: tick / tick + draw, ms |
+| --- | --- | --- |
+| `board-89` ×1 | 17.1 (16.8–17.5) | 10 / 21 |
+| `loop-86` ×1 | 18.3 (14.1–19.6) | 10 / 22 |
+| `loop-86` ×5 | 18.7 (12.6–18.8) | 10 / 23 |
+
+The same recorded margin formula as the alpha baseline sets each new combined
+limit; the existing alpha limits were not changed. These measurements use
+375×690, pixel ratio 1, 4× CPU slowdown and SwiftShader. Per-operation medians
+are a regression proxy; complete advance and frame timings remain in the JSON.
+They do not establish physical-phone frame rate or feel.
+
+The subsequent normal six-case gate **did not pass**: two cases passed and four
+failed in 8.6 minutes. `loop-61` ×1 drew 15 active frames and `board-57` ×5 drew
+20, below the requirement of more than 20. `loop-86` measured 22.7 ms at ×1 and
+33.1 ms at ×5 against its fixed 22/23 ms combined limits. At that time the host
+load average was about 35–37 on eight exposed CPUs, with unrelated Docker browser
+jobs consuming several CPU cores; one sample had a roughly 25-second frame gap.
+This is a contended run, not a passing release gate. All source hashes remained
+unchanged, the failure traces and reports were retained, and no limits or activity
+guards were relaxed. The subsequent [integrated run](performance/gameplay-variety-integrated.json)
+passed all six cases with the same limits and no overrides; it is recorded
+separately above. The nine calibration samples did not replace that required
+validation run.
+
+## Historical alpha 0.0.1 review — 5 November 2026
+
+At this checkpoint the campaign was **40 rounds, 120 levels**, interleaved Funnel Sort,
 Loop Sort and Tube Sort. The 120-round/360-level campaign is the target, not the
 current release. `PLAY_ORDER` in [src/campaign.ts](../src/campaign.ts) is the
 order authority. The [tracked expansion decision](levelling-decision-2026-11-03.md)
@@ -182,7 +311,10 @@ The owner then accepted four changes to the look, priced by the first table:
 
 [The registry test](../tests/engine/registry.test.ts) follows the current `PLAY_ORDER` length and order, preserves save IDs and checks that Full spectrum matches orange in board content. IDs carry no round number. In the registered campaign, orange first appears in Funnel Sort round 7 (`board-43`), Loop Sort round 7 (`loop-44`) and Tube Sort round 10 (`tube-44`). `tube-6`, `board-8` and `loop-8` were the introductions in the older banks.
 
-The current Funnel Sort eights are `board-46` and `board-74`; its final three are `board-73` oval, `board-74` eight and `board-75` oval. No Loop Sort eight is registered, though the bank includes eights. Both conveyor games including eights and ending with two of them remains a requirement for the full 120-round target, not a claim about this partial release.
+The current Funnel Sort eights are `board-46`, `board-74`, `board-89` (wide eight)
+and `board-91`. No Loop Sort eight is registered, though the bank includes eights.
+Both conveyor games including eights and ending with two of them remains a
+requirement for the full 120-round target, not a claim about this partial release.
 
 The following recipe commands cover the original banks; the maintained expansion scoring and assembly gates are in [levelling.md](levelling.md). The author scripts provide the rule-level solvability proof for their generated boards. Seeded recipe tables define the candidates and acceptance rules; rejected seeds advance until a candidate passes or the attempt budget is exhausted. Funnel Sort boards 1–2, Loop Sort levels 1–5 and Tube Sort level 1 stay hand-authored, with their guides intact.
 

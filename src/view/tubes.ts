@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { Sparks } from '../engine/sparks';
 import { Glass } from '../engine/glass';
 import { COLORS, containerSymbolTexture } from './art';
@@ -9,6 +10,8 @@ import type { GameServices, ScreenPoint } from '../engine/contracts';
 import type { Point3 } from '../engine/physics';
 import { label, toyBox, toyMaterial } from '../engine/toy';
 import { completedTube, tubeContainer } from '../puzzles/rules';
+import { homePlaques } from '../puzzles/home-plaques';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import type { TubeDef, TubeMoveResult, TubeState } from '../puzzles/types';
 
 const RADIUS = 0.49;
@@ -21,9 +24,11 @@ export class TubeView extends BoardView {
   private readonly badges: THREE.Mesh[][] = [];
   private readonly badgeMaterials = new Map<Color, THREE.MeshBasicMaterial>();
   private readonly caps = new Map<number, { mesh: THREE.Group; y: number; progress: number; open: boolean }>();
-  private readonly cups = new Map<number, { parts: { mesh: THREE.Object3D; y: number }[]; progress: number; spent: boolean }>();
+  private readonly cups = new Map<number, { parts: { mesh: THREE.Object3D; y: number }[]; lid: THREE.Mesh; height: number; progress: number; spent: boolean }>();
   private readonly reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   private readonly pulses: number[] = [];
+  /** Home plaques name the colour a taller or shorter home is for; each pulses when that colour fills the wrong tube. */
+  private readonly plaques: { group: THREE.Group; color: Color; pulse: number }[] = [];
   private readonly sparks: Sparks;
   private selected = -1;
   private identities: string[][] = [];
@@ -53,24 +58,32 @@ export class TubeView extends BoardView {
     this.board.add(deck);
     const glass = new Glass(new THREE.MeshStandardMaterial({ color: 0xe4f5ff, transparent: true,
       opacity: 0.2, roughness: 0.08, depthWrite: false, envMapIntensity: 1.5 }));
+    const plaques = homePlaques(definition);
+    const plaqueSize = (index: number): number => plaques[index]?.length ?? 0;
+    const plaqueMaterials = definition.tubes.some((_, index) => plaqueSize(index) > 0) ? { frame: toyMaterial(0xfff7e5), plate: toyMaterial(0x3b4069) } : null;
     definition.tubes.forEach((_, index) => {
       const at = this.position(index, 0);
       const container = tubeContainer(definition, index);
       const height = container.capacity * STEP + 0.2;
+      const isCup = container.role === 'cup';
+      const railX = at.x + (isCup ? 1.17 : 0.94);
       // A slate backing separates white cargo from the pale deck and from unfilled slots.
-      const backing = toyBox(1.28, height, 0.1, 0x596887, 0.05);
+      const backing = toyBox(isCup ? 1.72 : 1.28, height, 0.1, 0x596887, 0.05);
       backing.position.set(at.x, 0.7 + height / 2, at.z - 0.64);
       this.board.add(backing);
-      const tube = glass.mesh(new THREE.CylinderGeometry(0.67, 0.67, height, 32, 1, true));
+      const tubeGeometry = isCup
+        ? new THREE.LatheGeometry(Array.from({ length: 9 }, (_, i) => new THREE.Vector2(i % 2 ? 0.74 : 0.9, (i / 8 - 0.5) * height)), 32)
+        : new THREE.CylinderGeometry(0.67, 0.67, height, 32, 1, true);
+      const tube = glass.mesh(tubeGeometry);
       tube.position.set(at.x, 0.7 + height / 2, at.z);
       this.board.add(tube);
-      const rim = new THREE.Mesh(new THREE.TorusGeometry(0.67, 0.07, 10, 32), toyMaterial(0xe7f4f2));
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(isCup ? 0.9 : 0.67, 0.07, 10, 32), toyMaterial(0xe7f4f2));
       rim.rotation.x = Math.PI / 2;
       rim.position.set(at.x, 0.7 + height, at.z);
       this.board.add(rim);
       this.rims.push(rim);
       this.pulses.push(0);
-      const base = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.92, 0.25, 32), toyMaterial(0x3b4069));
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(isCup ? 1.01 : 0.85, isCup ? 1.09 : 0.92, 0.25, 32), toyMaterial(0x3b4069));
       base.position.set(at.x, 0.64, at.z);
       this.selectors.push(base);
       this.board.add(base);
@@ -82,18 +95,49 @@ export class TubeView extends BoardView {
       number.position.set(at.x, 0.64, at.z + 1.35);
       this.board.add(number);
       const rail = toyBox(0.46, height, 0.1, 0x3b4069, 0.04);
-      rail.position.set(at.x + 0.94, 0.7 + height / 2, at.z);
+      rail.position.set(railX, 0.7 + height / 2, at.z);
       this.board.add(rail);
       const badges = Array.from({ length: container.capacity }, (_, slot) => {
         const badge = new THREE.Mesh(new THREE.PlaneGeometry(0.44, 0.44), this.badgeMaterials.get('red')!);
-        badge.position.set(at.x + 0.94, this.position(index, slot).y, at.z + 0.16);
+        badge.position.set(railX, this.position(index, slot).y, at.z + 0.16);
         badge.rotation.x = -Math.atan2(1.35, 0.65);
         this.board.add(badge);
         return badge;
       });
       this.badges.push(badges);
-      if (container.role === 'cup') {
-        this.cups.set(index, { parts: [backing, tube, rail, rim].map((mesh) => ({ mesh, y: mesh.position.y })), progress: 0, spent: false });
+      // A home sized for one colour carries that colour's pattern above its rail, so four reds in a short tube are not mistaken for done.
+      if (plaqueMaterials) plaques[index]?.forEach((color, stack) => {
+        const group = new THREE.Group();
+        const frame = new THREE.Mesh(new RoundedBoxGeometry(0.74, 0.74, 0.08, 3, 0.08), plaqueMaterials.frame);
+        frame.position.z = -0.03;
+        const plate = new THREE.Mesh(new RoundedBoxGeometry(0.62, 0.62, 0.12, 3, 0.06), plaqueMaterials.plate);
+        const mark = new THREE.Mesh(new THREE.PlaneGeometry(0.54, 0.54), this.badgeMaterials.get(color)!);
+        // The mark lies on the plate's face and the whole plaque leans toward the camera; a tilted mark alone sank into the plate.
+        mark.position.z = 0.07;
+        group.add(frame, plate, mark);
+        group.rotation.x = -Math.atan2(1.35, 0.65);
+        group.position.set(railX, 0.7 + height + 0.45 + stack * 0.7, at.z);
+        this.board.add(group);
+        this.plaques.push({ group, color, pulse: 0 });
+      });
+      if (isCup) {
+        const ribParts = [0.25, 0.5, 0.75].map((fraction) => {
+          const geometry = new THREE.TorusGeometry(0.9, 0.045, 6, 32);
+          geometry.rotateX(Math.PI / 2);
+          geometry.translate(0, (fraction - 0.5) * height, 0);
+          return geometry;
+        });
+        const ribGeometry = mergeGeometries(ribParts);
+        ribParts.forEach((geometry) => geometry.dispose());
+        if (!ribGeometry) throw new Error('Cup rib geometries do not match');
+        const ribs = new THREE.Mesh(ribGeometry, toyMaterial(0xe1d9bd));
+        ribs.position.copy(tube.position);
+        this.board.add(ribs);
+        const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.88, 0.88, 0.08, 32), toyMaterial(0xe1d9bd));
+        lid.position.set(at.x, 0.7 + height, at.z);
+        lid.visible = false;
+        this.board.add(lid);
+        this.cups.set(index, { parts: [backing, tube, rail, rim, ribs].map((mesh) => ({ mesh, y: mesh.position.y })), lid, height, progress: 0, spent: false });
       }
       if (container.role === 'capped') {
         const color = container.opensOn;
@@ -113,7 +157,7 @@ export class TubeView extends BoardView {
     this.framing = definition.tubes.flatMap((_, index) => {
       const at = this.position(index, 0);
       const points: Point3[] = [];
-      for (const x of [at.x - 0.95, at.x + 1.2]) for (const y of [0.5, 0.7 + tubeContainer(definition, index).capacity * STEP + (tubeContainer(definition, index).role === 'capped' ? 1.2 : 0.8)]) {
+      for (const x of [at.x - (tubeContainer(definition, index).role === 'cup' ? 1.12 : 0.95), at.x + (tubeContainer(definition, index).role === 'cup' ? 1.45 : 1.2)]) for (const y of [0.5, 0.7 + tubeContainer(definition, index).capacity * STEP + (tubeContainer(definition, index).role === 'capped' ? 1.2 : 0.8) + (plaqueSize(index) ? 0.85 + (plaqueSize(index) - 1) * 0.7 : 0)]) {
         for (const z of [at.z - 0.95, at.z + 1.75]) points.push({ x, y, z });
       }
       return points;
@@ -131,6 +175,7 @@ export class TubeView extends BoardView {
     this.cancelMotion();
     this.sparks.clear();
     this.pulses.fill(0);
+    for (const plaque of this.plaques) { plaque.pulse = 0; plaque.group.scale.setScalar(1); }
     this.identities = state.tubes.map((tube) => tube.map(() => String(this.nextIdentity++)));
     for (const [index, cap] of this.caps) { cap.progress = state.opened[index] ? 1 : 0; }
     for (const [index, cup] of this.cups) { cup.progress = state.spent[index] ? 1 : 0; }
@@ -146,7 +191,7 @@ export class TubeView extends BoardView {
     })), animate);
     state.tubes.forEach((tube, index) => {
       const at = this.position(index, 1.5);
-      const hit = new THREE.Mesh(new THREE.BoxGeometry(1.9, tubeContainer(this.definition, index).capacity * STEP + 1.2, 1.9), new THREE.MeshBasicMaterial({ visible: false }));
+      const hit = new THREE.Mesh(new THREE.BoxGeometry(tubeContainer(this.definition, index).role === 'cup' ? 2.3 : 1.9, tubeContainer(this.definition, index).capacity * STEP + 1.2, 1.9), new THREE.MeshBasicMaterial({ visible: false }));
       hit.position.set(at.x, 0.7 + tubeContainer(this.definition, index).capacity * STEP / 2, at.z);
       this.actors.add(hit);
       this.hit(hit, `tube${index}`, { ...at, y: 0.7 + tubeContainer(this.definition, index).capacity * STEP / 2 });
@@ -166,7 +211,10 @@ export class TubeView extends BoardView {
         light.material.emissive.setHex(complete ? 0x16b36b : 0);
       }
     });
-    for (const [index, cap] of this.caps) cap.open = Boolean(state.opened[index]);
+    for (const [index, cap] of this.caps) {
+      if (animate && state.opened[index] && !cap.open) this.sparks.burst(cap.mesh.position, 0xffefb8, 8);
+      cap.open = Boolean(state.opened[index]);
+    }
     for (const [index, cup] of this.cups) cup.spent = Boolean(state.spent[index]);
     this.commitmentPose(0);
     this.select(this.selected);
@@ -226,16 +274,20 @@ export class TubeView extends BoardView {
 
   private commitmentPose(delta: number): void {
     for (const cap of this.caps.values()) {
-      cap.progress = cap.open ? Math.min(1, cap.progress + delta * 3) : 0;
+      cap.progress = cap.open ? Math.min(1, cap.progress + delta * 3.5) : 0;
       if (this.reducedMotion && cap.open) cap.progress = 1;
-      cap.mesh.position.y = cap.y + cap.progress * 1.4;
-      cap.mesh.rotation.z = cap.progress * -0.6;
+      const lift = 1 - (1 - cap.progress) ** 3;
+      cap.mesh.position.y = cap.y + lift * 1.4;
+      cap.mesh.rotation.z = cap.progress * -0.85;
+      cap.mesh.scale.setScalar(1 - cap.progress * 0.7);
       cap.mesh.visible = cap.progress < 1;
     }
     for (const cup of this.cups.values()) {
-      cup.progress = cup.spent ? Math.min(1, cup.progress + delta * 4) : 0;
+      cup.progress = cup.spent ? Math.min(1, cup.progress + delta * 3.5) : 0;
       if (this.reducedMotion && cup.spent) cup.progress = 1;
-      const fold = 1 - cup.progress * 0.94;
+      const fold = 0.06 + 0.94 * (1 - cup.progress) ** 3;
+      cup.lid.position.y = 0.7 + cup.height * fold;
+      cup.lid.visible = cup.progress > 0.4;
       for (const { mesh, y } of cup.parts) {
         mesh.position.y = 0.7 + (y - 0.7) * fold;
         // The rim stays round as the walls concertina down to the base.
@@ -246,7 +298,7 @@ export class TubeView extends BoardView {
 
   /** Nothing on the board would move if it were drawn again. */
   get still(): boolean {
-    return !this.busy && !this.sparks.active && this.pulses.every((pulse) => pulse === 0)
+    return !this.busy && !this.sparks.active && this.pulses.every((pulse) => pulse === 0) && this.plaques.every((plaque) => plaque.pulse === 0)
       && [...this.caps.values()].every((cap) => cap.progress === (cap.open ? 1 : 0))
       && [...this.cups.values()].every((cup) => cup.progress === (cup.spent ? 1 : 0));
   }
@@ -260,6 +312,10 @@ export class TubeView extends BoardView {
       this.pulses[index] = pulse;
       rim.scale.setScalar(1 + Math.sin(pulse * Math.PI) * 0.14 + (this.selected === index ? 0.06 : 0));
     });
+    for (const plaque of this.plaques) {
+      plaque.pulse = Math.max(0, plaque.pulse - FIXED_SECONDS / 0.45);
+      plaque.group.scale.setScalar(1 + Math.sin(plaque.pulse * Math.PI) * 0.3);
+    }
   }
 
   override dispose(): void {
@@ -277,7 +333,13 @@ export class TubeView extends BoardView {
     const origins = starts?.slice(-result.count);
     moved.forEach((id, offset) => { const at = origins?.[offset]; if (at) this.placeMarble(id, at); });
     this.layout(state, true);
-    this.pulses[result.to] = 1;
+    this.pulses[result.to] = this.reducedMotion ? 0 : 1;
+    // Full of one colour that belongs in another home: point at that home, without a sound or a word, since the move was legal.
+    const tube = state.tubes[result.to]!;
+    const container = tubeContainer(this.definition, result.to);
+    if (!result.completedTube && !this.reducedMotion && tube.length === container.capacity && tube.every((color) => color === tube[0])) {
+      for (const plaque of this.plaques) if (plaque.color === tube[0]) plaque.pulse = 1;
+    }
     if (result.completedTube) {
       const at = this.position(result.to, tubeContainer(this.definition, result.to).capacity - 1);
       this.sparks.burst({ ...at, y: at.y + 0.5 }, COLORS[result.color].hex, 18);

@@ -1,4 +1,5 @@
 import { COLOR_CODE } from './types';
+import { palletMate, validateDockPallets } from './dock-pallets';
 import type { BoardDef, Color, Marble, SimStatus, SupplyPacket } from './types';
 
 export type MarbleStatus = 'in-supply' | 'pouring' | 'on-belt' | 'dropping' | 'in-box';
@@ -65,6 +66,7 @@ export class MachineRules {
       if (totals.get(color) !== wanted.get(color)) throw new Error(`Board ${board.id}: ${color} supply does not match its boxes`);
     }
     this.validateVariants(crateId);
+    if (board.pallets) validateDockPallets(board.docks, board.pallets);
     this.current = { supplies, pending: [], released: [], sealsOpen: (board.seals ?? []).map(() => false), marbles, dockNext: board.docks.map(() => 0), status: 'playing' };
     this.evaluateStatus([]);
   }
@@ -167,7 +169,7 @@ export class MachineRules {
   /** The colour a dock wants right now, or null. */
   dockColor(dock: number): Color | null {
     const box = this.dockBox(dock);
-    return box === null || !this.dockOpen(dock) ? null : this.board.docks[dock]?.[box] ?? null;
+    return box === null || !this.dockOpen(dock) || (this.board.pallets?.length && this.reserved(dock, box) >= this.board.boxSize) ? null : this.board.docks[dock]?.[box] ?? null;
   }
   /** Marbles reserved for or resting in a box. */
   reserved(dock: number, box: number): number {
@@ -226,8 +228,13 @@ export class MachineRules {
     this.current.marbles[marbleId] = { ...marble, status: 'dropping', dock, box, slot };
     const events: RulesEvent[] = [];
     if (slot + 1 === this.board.boxSize) {
-      // The dock asks for its next box straight away, so a matching marble never has to lap again.
-      this.current.dockNext[dock] = box + 1;
+      const mate = palletMate(this.board.pallets, dock);
+      if (mate === null) this.current.dockNext[dock] = box + 1;
+      else if (this.reserved(mate, box) === this.board.boxSize) {
+        // Both queues unlock in this reservation, before status or animation can observe half a pallet.
+        this.current.dockNext[dock] = box + 1;
+        this.current.dockNext[mate] = box + 1;
+      }
       events.push({ type: 'boxFull', dock, box });
       for (const [index, seal] of (this.board.seals ?? []).entries()) {
         if (seal.after.dock === dock && seal.after.box === box) this.current.sealsOpen[index] = true;

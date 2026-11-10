@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { TUBE_BOARDS } from '../../src/puzzles/levels';
-import { availableTubeMoves, solveTube, TubeRules, validateTubeDef } from '../../src/puzzles/rules';
+import { availableTubeMoves, solveTube, TubeRules, validateTubeDef, tubeContainer } from '../../src/puzzles/rules';
 import type { TubeDef, TubeState } from '../../src/puzzles/types';
 
 function tubeLevel(index = 0): TubeDef {
@@ -17,7 +17,7 @@ describe('tube sorting', () => {
     for (const { from, to } of board.solution) {
       expect(rules.move(from, to).ok).toBe(true);
       expect(rules.state.tubes.flat().sort()).toEqual(colors);
-      expect(rules.state.tubes.every((tube) => tube.length <= board.capacity)).toBe(true);
+      expect(rules.state.tubes.every((tube, index) => tube.length <= tubeContainer(board, index).capacity)).toBe(true);
     }
     expect(rules.status).toBe('won');
     expect(rules.state.moves).toBe(board.solution.length);

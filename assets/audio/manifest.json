@@ -1,0 +1,123 @@
+[
+  {
+    "cue": "tap",
+    "source": "sources/kenney-interface/select_008.ogg",
+    "creator": "Kenney",
+    "page": "https://kenney.nl/assets/interface-sounds",
+    "licence": "CC0-1.0",
+    "sourceSha256": "f703b6b1c62dae1c246a46d5c2442802588f68be2df4d17e0d65cf7e0dbfc826",
+    "stereo": false,
+    "encodedSha256": "acde6b867d0811dd12cd4fd0e39c28af6397f8e69a30d77cf79b97fe4021d0e5",
+    "encodedBytes": 1611
+  },
+  {
+    "cue": "release",
+    "source": "sources/kenney-interface/drop_002.ogg",
+    "creator": "Kenney",
+    "page": "https://kenney.nl/assets/interface-sounds",
+    "licence": "CC0-1.0",
+    "sourceSha256": "4ac4d1cef7e936965cbf795852ca2020300b9e2ba7daa59f2bf4f1f7bf416218",
+    "stereo": true,
+    "encodedSha256": "e5033c3fa3e1ff4107f4edc248c3be986e117548fccb553d5d3322b4cd6b3ebf",
+    "encodedBytes": 3178
+  },
+  {
+    "cue": "impact-wood",
+    "source": "sources/kenney-impact/impactWood_light_000.ogg",
+    "creator": "Kenney",
+    "page": "https://kenney.nl/assets/impact-sounds",
+    "licence": "CC0-1.0",
+    "sourceSha256": "eb45e35b4bed784d3f120de4afec4b0d6ac09d9e143cce8cfcb7d739e1b1f3c3",
+    "stereo": true,
+    "encodedSha256": "f4c4295edda0f019da3e4fc53e8399584f519f03a214ba8ebc30823bdd5db262",
+    "encodedBytes": 4119
+  },
+  {
+    "cue": "impact-glass",
+    "source": "sources/kenney-impact/impactGlass_light_000.ogg",
+    "creator": "Kenney",
+    "page": "https://kenney.nl/assets/impact-sounds",
+    "licence": "CC0-1.0",
+    "sourceSha256": "d750cf88097d0c3e69920e6e14496e1444e1a9da01aa4cca8f5ec8cb44c57b4f",
+    "stereo": true,
+    "encodedSha256": "74aff40d3de77b34716209c6d65134d7de3d58a7929ff8748d4c01436898d0e1",
+    "encodedBytes": 3492
+  },
+  {
+    "cue": "landing-light",
+    "source": "sources/kenney-interface/glass_002.ogg",
+    "creator": "Kenney",
+    "page": "https://kenney.nl/assets/interface-sounds",
+    "licence": "CC0-1.0",
+    "sourceSha256": "08e972c73e53c91d6d310e107e80db60edce78ae47225889a028e628a6f3da49",
+    "stereo": false,
+    "encodedSha256": "1348ce8136e9c663cea328f4081b332858d01820a2f285a24053c77cd8d33cb4",
+    "encodedBytes": 2238
+  },
+  {
+    "cue": "landing-final",
+    "source": "sources/kenney-interface/bong_001.ogg",
+    "creator": "Kenney",
+    "page": "https://kenney.nl/assets/interface-sounds",
+    "licence": "CC0-1.0",
+    "sourceSha256": "d21d0f0b782445db579d11e2506b24cd1ac9d664ee33aeaf807761aa7b6fd710",
+    "stereo": false,
+    "encodedSha256": "0c6231f27b65e8b23e69891f2fcd9f5c16294c9a455f7db77762fa1d9a47b92f",
+    "encodedBytes": 2238
+  },
+  {
+    "cue": "complete",
+    "source": "sources/kenney-interface/confirmation_003.ogg",
+    "creator": "Kenney",
+    "page": "https://kenney.nl/assets/interface-sounds",
+    "licence": "CC0-1.0",
+    "sourceSha256": "3091bf0be0497f825769ee0733ca7bdc3bcd59bd6c6e8f2ba8f93d580ff38022",
+    "stereo": false,
+    "encodedSha256": "9313510ff48d7bcabd0b579dec7942e2ba8038b401b2549193c5656163b3296a",
+    "encodedBytes": 4746
+  },
+  {
+    "cue": "blocked",
+    "source": "sources/kenney-impact/impactSoft_medium_000.ogg",
+    "creator": "Kenney",
+    "page": "https://kenney.nl/assets/impact-sounds",
+    "licence": "CC0-1.0",
+    "sourceSha256": "7d3ba0bb5e60a11b5d3e558c141303dcf494256675fbf753c0d252d2cf0481e3",
+    "stereo": true,
+    "encodedSha256": "4e2e5decea59c2d524e9ad36dd4a45d96eccef375e2a846f851c7fb50b8a859e",
+    "encodedBytes": 2238
+  },
+  {
+    "cue": "undo",
+    "source": "sources/kenney-interface/maximize_003.ogg",
+    "creator": "Kenney",
+    "page": "https://kenney.nl/assets/interface-sounds",
+    "licence": "CC0-1.0",
+    "sourceSha256": "df16f25d45189f5d44d6a482ab20d5067350ca8525a9affa1f8ce599e31a20a5",
+    "stereo": false,
+    "encodedSha256": "1f935245004ebc181c171fd8aab920de5f06ee0c6ff8009e132c6239eeef9f4f",
+    "encodedBytes": 3492
+  },
+  {
+    "cue": "jam",
+    "source": "sources/kenney-interface/minimize_003.ogg",
+    "creator": "Kenney",
+    "page": "https://kenney.nl/assets/interface-sounds",
+    "licence": "CC0-1.0",
+    "sourceSha256": "400e1041499de85ec8b5529a35ff36787288175c4696cf2018ecff24a3a3fd29",
+    "stereo": false,
+    "encodedSha256": "c524858e28c083454ca94cdc70233abc58f943f052422a4a1b9523c590b545ef",
+    "encodedBytes": 3492
+  },
+  {
+    "cue": "win",
+    "source": "sources/kenney-interface/confirmation_004.ogg",
+    "creator": "Kenney",
+    "page": "https://kenney.nl/assets/interface-sounds",
+    "licence": "CC0-1.0",
+    "sourceSha256": "568967a3d9f8a8f6af54ea01729c4882284308f2a27d78c07ffd7ee0d6951661",
+    "stereo": false,
+    "encodedSha256": "44bed452c77e338ca4384f9e843e3d94fc191b9895bbadbca078aa72f63d2fb2",
+    "encodedBytes": 6626
+  }
+]

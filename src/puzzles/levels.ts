@@ -1,3 +1,4 @@
+import { TUBE_VARIETY_BOARDS } from './variety-boards';
 import type { TubeDef } from './types';
 
 export const TUBE_BOARDS: readonly TubeDef[] = [
@@ -1266,7 +1267,377 @@ export const TUBE_BOARDS: readonly TubeDef[] = [
     ],
   },
 // END first stretch
-  /** Rule lesson in the bank only; see docs/levelling.md. */
+// BEGIN rounds 41-60
+  /** 6 colours, 4 high; plan the next group before using the free room. */
+  {
+    kind: 'tube', id: 'tube-75', title: 'A longer look', capacity: 4,
+    tubes: [
+      ['red', 'green', 'blue', 'green'],
+      ['orange', 'black', 'orange', 'orange'],
+      ['blue', 'red', 'blue', 'yellow'],
+      ['green', 'yellow', 'black', 'black'],
+      ['yellow', 'green', 'black', 'orange'],
+      ['yellow', 'blue', 'red', 'red'],
+      [],
+    ],
+    solution: [
+      { from: 1, to: 6 }, { from: 4, to: 6 }, { from: 1, to: 4 }, { from: 1, to: 6 },
+      { from: 3, to: 1 }, { from: 2, to: 3 }, { from: 4, to: 1 }, { from: 0, to: 4 },
+      { from: 0, to: 2 }, { from: 0, to: 4 }, { from: 5, to: 0 }, { from: 2, to: 5 },
+      { from: 2, to: 0 }, { from: 5, to: 2 }, { from: 3, to: 5 }, { from: 4, to: 3 },
+      { from: 4, to: 5 },
+    ],
+  },
+  /** 5 colours, 5 high; plan the next group before using the free room. */
+  {
+    kind: 'tube', id: 'tube-76', title: 'High stakes', capacity: 5,
+    tubes: [
+      ['green', 'red', 'orange', 'red', 'yellow'],
+      ['orange', 'yellow', 'green', 'green', 'yellow'],
+      ['red', 'red', 'orange', 'green', 'red'],
+      ['yellow', 'orange', 'black', 'black', 'orange'],
+      ['green', 'black', 'yellow', 'black', 'black'],
+      [],
+    ],
+    solution: [
+      { from: 4, to: 5 }, { from: 0, to: 4 }, { from: 1, to: 4 }, { from: 2, to: 0 },
+      { from: 2, to: 1 }, { from: 3, to: 2 }, { from: 3, to: 5 }, { from: 3, to: 2 },
+      { from: 4, to: 3 }, { from: 4, to: 5 }, { from: 1, to: 4 }, { from: 1, to: 3 },
+      { from: 2, to: 1 }, { from: 0, to: 2 }, { from: 0, to: 1 }, { from: 0, to: 2 },
+      { from: 0, to: 4 },
+    ],
+  },
+  /** 4 colours, 4 high; plan the next group before using the free room. */
+  {
+    kind: 'tube', id: 'tube-77', title: 'Find the opening', capacity: 4,
+    tubes: [
+      ['yellow', 'yellow', 'blue'],
+      ['green', 'blue', 'yellow', 'blue'],
+      ['yellow', 'red', 'red'],
+      ['green', 'red'],
+      ['blue', 'green', 'green', 'red'],
+    ],
+    solution: [
+      { from: 1, to: 0 }, { from: 2, to: 3 }, { from: 1, to: 2 }, { from: 0, to: 1 },
+      { from: 0, to: 2 }, { from: 3, to: 0 }, { from: 4, to: 0 }, { from: 4, to: 3 },
+      { from: 1, to: 4 }, { from: 1, to: 3 },
+    ],
+  },
+  /** 6 colours, 4 high; plan the next group before using the free room. */
+  {
+    kind: 'tube', id: 'tube-78', title: 'Room to breathe', capacity: 4,
+    tubes: [
+      ['black', 'green', 'black', 'black'],
+      ['blue', 'red', 'red', 'orange'],
+      ['black', 'orange', 'blue', 'yellow'],
+      ['green', 'blue', 'blue', 'orange'],
+      ['green', 'yellow', 'yellow', 'orange'],
+      ['yellow', 'red', 'green', 'red'],
+      [],
+    ],
+    solution: [
+      { from: 1, to: 6 }, { from: 3, to: 6 }, { from: 4, to: 6 }, { from: 2, to: 4 },
+      { from: 2, to: 3 }, { from: 2, to: 6 }, { from: 0, to: 2 }, { from: 5, to: 1 },
+      { from: 0, to: 5 }, { from: 0, to: 2 }, { from: 1, to: 0 }, { from: 3, to: 1 },
+      { from: 5, to: 3 }, { from: 5, to: 0 }, { from: 4, to: 5 }, { from: 3, to: 4 },
+    ],
+  },
+  /** 4 colours, 4 high; plan the next group before using the free room. */
+  {
+    kind: 'tube', id: 'tube-79', title: 'Keep a colour free', capacity: 4,
+    tubes: [
+      ['blue', 'yellow', 'red', 'blue'],
+      ['yellow', 'blue', 'red', 'green'],
+      ['green', 'blue', 'yellow', 'yellow'],
+      ['green', 'green', 'red', 'red'],
+      [],
+    ],
+    solution: [
+      { from: 3, to: 4 }, { from: 1, to: 3 }, { from: 1, to: 4 }, { from: 0, to: 1 },
+      { from: 0, to: 4 }, { from: 2, to: 0 }, { from: 1, to: 2 }, { from: 0, to: 1 },
+      { from: 2, to: 0 }, { from: 2, to: 3 },
+    ],
+  },
+  /** 3 colours, 4 high; complete red to open the capped spare. */
+  {
+    kind: 'tube', id: 'tube-80', title: 'Earn the spare', capacity: 4,
+    containers: [
+      { role: 'ordinary', capacity: 4 },
+      { role: 'ordinary', capacity: 4 },
+      { role: 'ordinary', capacity: 4 },
+      { role: 'ordinary', capacity: 4 },
+      { role: 'capped', capacity: 4, opensOn: 'red' },
+    ],
+    tubes: [
+      ['red', 'blue', 'green', 'blue'],
+      ['green', 'blue', 'red', 'green'],
+      ['blue', 'red', 'green', 'red'],
+      [],
+      [],
+    ],
+    solution: [
+      { from: 1, to: 3 }, { from: 2, to: 1 }, { from: 2, to: 3 }, { from: 1, to: 2 },
+      { from: 0, to: 1 }, { from: 0, to: 3 }, { from: 0, to: 1 }, { from: 2, to: 0 },
+      { from: 1, to: 2 }, { from: 1, to: 3 },
+    ],
+  },
+  /** 5 colours, 4 high; plan the next group before using the free room. */
+  {
+    kind: 'tube', id: 'tube-81', title: 'Order in the layers', capacity: 4,
+    tubes: [
+      ['yellow', 'yellow', 'green'],
+      ['orange', 'blue'],
+      ['blue', 'red', 'blue'],
+      ['red', 'green', 'orange', 'green'],
+      ['green', 'red', 'orange', 'blue'],
+      ['yellow', 'yellow', 'orange', 'red'],
+    ],
+    solution: [
+      { from: 2, to: 1 }, { from: 3, to: 0 }, { from: 4, to: 1 }, { from: 4, to: 3 },
+      { from: 2, to: 4 }, { from: 1, to: 2 }, { from: 3, to: 1 }, { from: 0, to: 3 },
+      { from: 5, to: 4 }, { from: 5, to: 1 }, { from: 0, to: 5 }, { from: 3, to: 0 },
+      { from: 4, to: 3 }, { from: 0, to: 4 },
+    ],
+  },
+  /** 5 colours, 4 high; plan the next group before using the free room. */
+  {
+    kind: 'tube', id: 'tube-82', title: 'A quiet shuffle', capacity: 4,
+    tubes: [
+      ['blue', 'green', 'red', 'red'],
+      ['orange', 'green', 'blue'],
+      ['blue', 'green', 'red', 'yellow'],
+      ['yellow', 'orange'],
+      ['yellow', 'blue', 'yellow'],
+      ['orange', 'green', 'orange', 'red'],
+    ],
+    solution: [
+      { from: 2, to: 4 }, { from: 5, to: 2 }, { from: 3, to: 5 }, { from: 4, to: 3 },
+      { from: 4, to: 1 }, { from: 3, to: 4 }, { from: 0, to: 3 }, { from: 2, to: 3 },
+      { from: 0, to: 2 }, { from: 1, to: 0 }, { from: 2, to: 1 }, { from: 0, to: 2 },
+      { from: 1, to: 0 }, { from: 5, to: 1 }, { from: 5, to: 0 }, { from: 1, to: 5 },
+    ],
+  },
+  /** 3 colours, 5 high; complete red to open the capped spare. */
+  {
+    kind: 'tube', id: 'tube-83', title: 'A taller lock', capacity: 5,
+    containers: [
+      { role: 'ordinary', capacity: 5 },
+      { role: 'ordinary', capacity: 5 },
+      { role: 'ordinary', capacity: 5 },
+      { role: 'ordinary', capacity: 5 },
+      { role: 'capped', capacity: 5, opensOn: 'red' },
+    ],
+    tubes: [
+      ['green', 'red', 'blue', 'red', 'green'],
+      ['blue', 'blue', 'blue', 'green', 'green'],
+      ['blue', 'green', 'red', 'red', 'red'],
+      [],
+      [],
+    ],
+    solution: [
+      { from: 2, to: 3 }, { from: 0, to: 2 }, { from: 0, to: 3 }, { from: 1, to: 2 },
+      { from: 0, to: 1 }, { from: 0, to: 3 }, { from: 2, to: 0 }, { from: 1, to: 2 },
+    ],
+  },
+  /** 5 colours, 5 high; plan the next group before using the free room. */
+  {
+    kind: 'tube', id: 'tube-84', title: 'Crossed colours', capacity: 5,
+    tubes: [
+      ['red', 'black', 'red', 'green', 'orange'],
+      ['green', 'green', 'yellow', 'black', 'yellow'],
+      ['orange', 'yellow', 'green', 'red', 'green'],
+      ['orange', 'yellow', 'orange', 'yellow', 'black'],
+      ['red', 'red', 'black', 'orange', 'black'],
+      [],
+    ],
+    solution: [
+      { from: 3, to: 5 }, { from: 1, to: 3 }, { from: 1, to: 5 }, { from: 3, to: 1 },
+      { from: 0, to: 3 }, { from: 2, to: 0 }, { from: 4, to: 5 }, { from: 4, to: 3 },
+      { from: 4, to: 5 }, { from: 2, to: 4 }, { from: 0, to: 2 }, { from: 0, to: 4 },
+      { from: 0, to: 5 }, { from: 0, to: 4 }, { from: 1, to: 0 }, { from: 2, to: 1 },
+      { from: 2, to: 0 }, { from: 3, to: 2 }, { from: 3, to: 0 }, { from: 2, to: 3 },
+    ],
+  },
+  /** 5 colours, 5 high; plan the next group before using the free room. */
+  {
+    kind: 'tube', id: 'tube-85', title: 'One narrow path', capacity: 5,
+    tubes: [
+      ['black', 'black', 'red', 'yellow', 'green'],
+      ['green', 'red', 'green', 'orange', 'orange'],
+      ['red', 'yellow', 'orange', 'orange', 'green'],
+      ['yellow', 'yellow', 'orange', 'red', 'yellow'],
+      ['green', 'black', 'red', 'black', 'black'],
+      [],
+    ],
+    solution: [
+      { from: 1, to: 5 }, { from: 0, to: 1 }, { from: 2, to: 1 }, { from: 2, to: 5 },
+      { from: 0, to: 2 }, { from: 3, to: 2 }, { from: 0, to: 3 }, { from: 4, to: 0 },
+      { from: 3, to: 4 }, { from: 3, to: 5 }, { from: 2, to: 3 }, { from: 4, to: 2 },
+      { from: 4, to: 0 }, { from: 1, to: 4 }, { from: 1, to: 2 }, { from: 1, to: 4 },
+    ],
+  },
+  /** 4 colours, 6 high; plan the next group before using the free room. */
+  {
+    kind: 'tube', id: 'tube-86', title: 'The next opening', capacity: 6,
+    tubes: [
+      ['yellow', 'blue', 'yellow', 'red', 'yellow', 'yellow'],
+      ['green', 'green', 'blue', 'red', 'blue', 'blue'],
+      ['yellow', 'yellow', 'green', 'green', 'blue', 'green'],
+      ['red', 'red', 'red', 'green', 'blue', 'red'],
+      [],
+    ],
+    solution: [
+      { from: 1, to: 4 }, { from: 3, to: 1 }, { from: 3, to: 4 }, { from: 2, to: 3 },
+      { from: 2, to: 4 }, { from: 3, to: 2 }, { from: 1, to: 3 }, { from: 1, to: 4 },
+      { from: 2, to: 1 }, { from: 0, to: 2 }, { from: 0, to: 3 }, { from: 0, to: 2 },
+      { from: 0, to: 4 }, { from: 0, to: 2 },
+    ],
+  },
+  /** 4 colours, 5 high; plan the next group before using the free room. */
+  {
+    kind: 'tube', id: 'tube-87', title: 'Take your time', capacity: 5,
+    tubes: [
+      ['green', 'green', 'yellow', 'blue', 'yellow'],
+      ['red', 'red', 'yellow', 'green', 'blue'],
+      ['yellow', 'green', 'blue', 'red', 'blue'],
+      ['green', 'red', 'blue', 'yellow', 'red'],
+      [],
+    ],
+    solution: [
+      { from: 1, to: 4 }, { from: 2, to: 4 }, { from: 3, to: 2 }, { from: 0, to: 3 },
+      { from: 0, to: 4 }, { from: 3, to: 0 }, { from: 3, to: 4 }, { from: 2, to: 3 },
+      { from: 2, to: 4 }, { from: 2, to: 1 }, { from: 0, to: 2 }, { from: 1, to: 0 },
+      { from: 1, to: 2 }, { from: 3, to: 1 }, { from: 0, to: 3 },
+    ],
+  },
+  /** 3 colours, 4 high; complete red to open the capped spare. */
+  {
+    kind: 'tube', id: 'tube-88', title: 'The shared reserve', capacity: 4,
+    containers: [
+      { role: 'ordinary', capacity: 4 },
+      { role: 'ordinary', capacity: 4 },
+      { role: 'ordinary', capacity: 4 },
+      { role: 'ordinary', capacity: 4 },
+      { role: 'capped', capacity: 4, opensOn: 'red' },
+    ],
+    tubes: [
+      ['green', 'blue', 'green', 'blue'],
+      ['red', 'blue', 'red', 'green'],
+      ['green', 'blue', 'red', 'red'],
+      [],
+      [],
+    ],
+    solution: [
+      { from: 2, to: 3 }, { from: 0, to: 2 }, { from: 1, to: 0 }, { from: 1, to: 3 },
+      { from: 1, to: 2 }, { from: 1, to: 3 }, { from: 2, to: 1 }, { from: 0, to: 2 },
+      { from: 0, to: 1 }, { from: 0, to: 2 },
+    ],
+  },
+  /** 5 colours, 4 high; plan the next group before using the free room. */
+  {
+    kind: 'tube', id: 'tube-89', title: 'Deep decisions', capacity: 4,
+    tubes: [
+      ['green', 'red', 'orange'],
+      ['green', 'yellow', 'orange', 'orange'],
+      ['yellow', 'blue'],
+      ['yellow', 'orange'],
+      ['green', 'blue', 'red', 'blue'],
+      ['yellow', 'blue', 'red'],
+      ['green', 'red'],
+    ],
+    solution: [
+      { from: 0, to: 3 }, { from: 0, to: 5 }, { from: 4, to: 2 }, { from: 4, to: 6 },
+      { from: 4, to: 2 }, { from: 0, to: 4 }, { from: 1, to: 0 }, { from: 3, to: 0 },
+      { from: 1, to: 3 }, { from: 1, to: 4 }, { from: 2, to: 1 }, { from: 2, to: 3 },
+      { from: 5, to: 2 }, { from: 5, to: 1 }, { from: 3, to: 5 }, { from: 6, to: 2 },
+      { from: 4, to: 6 },
+    ],
+  },
+  /** 5 colours, 6 high; plan the next group before using the free room. */
+  {
+    kind: 'tube', id: 'tube-90', title: 'Make every space count', capacity: 6,
+    tubes: [
+      ['green', 'orange', 'green', 'orange', 'blue', 'orange'],
+      ['yellow', 'yellow', 'yellow', 'green', 'yellow', 'green'],
+      ['red', 'blue', 'green', 'red', 'blue', 'orange'],
+      ['blue', 'blue', 'yellow', 'orange', 'yellow', 'orange'],
+      ['red', 'red', 'red', 'blue', 'green', 'red'],
+      [],
+    ],
+    solution: [
+      { from: 0, to: 5 }, { from: 2, to: 5 }, { from: 0, to: 2 }, { from: 0, to: 5 },
+      { from: 1, to: 0 }, { from: 3, to: 5 }, { from: 1, to: 3 }, { from: 0, to: 1 },
+      { from: 0, to: 5 }, { from: 1, to: 0 }, { from: 3, to: 1 }, { from: 3, to: 5 },
+      { from: 3, to: 1 }, { from: 2, to: 3 }, { from: 4, to: 2 }, { from: 4, to: 0 },
+      { from: 4, to: 3 }, { from: 2, to: 4 }, { from: 2, to: 0 }, { from: 2, to: 3 },
+      { from: 2, to: 4 },
+    ],
+  },
+  /** 4 colours, 4 high; complete red to open the capped spare. */
+  {
+    kind: 'tube', id: 'tube-91', title: 'Four behind the cap', capacity: 4,
+    containers: [
+      { role: 'ordinary', capacity: 4 },
+      { role: 'ordinary', capacity: 4 },
+      { role: 'ordinary', capacity: 4 },
+      { role: 'ordinary', capacity: 4 },
+      { role: 'ordinary', capacity: 4 },
+      { role: 'capped', capacity: 4, opensOn: 'red' },
+    ],
+    tubes: [
+      ['yellow', 'red', 'green', 'green'],
+      ['green', 'red', 'blue', 'yellow'],
+      ['red', 'blue', 'yellow', 'blue'],
+      ['blue', 'yellow', 'green', 'red'],
+      [],
+      [],
+    ],
+    solution: [
+      { from: 0, to: 4 }, { from: 3, to: 0 }, { from: 3, to: 4 }, { from: 1, to: 3 },
+      { from: 2, to: 1 }, { from: 2, to: 3 }, { from: 1, to: 2 }, { from: 0, to: 1 },
+      { from: 3, to: 0 }, { from: 2, to: 3 }, { from: 1, to: 2 }, { from: 1, to: 4 },
+    ],
+  },
+  /** 6 colours, 4 high; plan the next group before using the free room. */
+  {
+    kind: 'tube', id: 'tube-92', title: 'An open moment', capacity: 4,
+    tubes: [
+      ['blue', 'red', 'orange', 'blue'],
+      ['red', 'blue', 'yellow', 'orange'],
+      ['green', 'green', 'yellow', 'yellow'],
+      ['red', 'black', 'orange', 'green'],
+      ['orange', 'green', 'blue', 'yellow'],
+      ['black', 'black', 'black', 'red'],
+      [],
+    ],
+    solution: [
+      { from: 2, to: 6 }, { from: 3, to: 2 }, { from: 1, to: 3 }, { from: 1, to: 6 },
+      { from: 0, to: 1 }, { from: 4, to: 6 }, { from: 4, to: 1 }, { from: 4, to: 2 },
+      { from: 0, to: 4 }, { from: 3, to: 4 }, { from: 5, to: 0 }, { from: 3, to: 5 },
+      { from: 0, to: 3 }, { from: 1, to: 0 }, { from: 1, to: 3 },
+    ],
+  },
+  /** 5 colours, 5 high; plan the next group before using the free room. */
+  {
+    kind: 'tube', id: 'tube-93', title: 'Beyond the sixty', capacity: 5,
+    tubes: [
+      ['orange', 'green', 'blue', 'yellow', 'red'],
+      ['green', 'blue', 'yellow', 'green', 'blue'],
+      ['green', 'red', 'yellow', 'blue', 'yellow'],
+      ['blue', 'orange', 'red', 'green', 'yellow'],
+      ['red', 'orange', 'orange', 'orange', 'red'],
+      [],
+    ],
+    solution: [
+      { from: 2, to: 5 }, { from: 1, to: 2 }, { from: 3, to: 5 }, { from: 1, to: 3 },
+      { from: 1, to: 5 }, { from: 2, to: 1 }, { from: 2, to: 5 }, { from: 0, to: 2 },
+      { from: 0, to: 5 }, { from: 0, to: 1 }, { from: 3, to: 0 }, { from: 3, to: 2 },
+      { from: 4, to: 2 }, { from: 3, to: 4 }, { from: 1, to: 3 }, { from: 0, to: 1 },
+      { from: 4, to: 0 }, { from: 2, to: 4 }, { from: 1, to: 2 },
+    ],
+  },
+// END rounds 41-60
+  /** Capped-spare lesson at campaign round 45. */
   {
     kind: 'tube', id: 'tube-200', title: 'The capped spare', capacity: 4,
     containers: [
@@ -1310,4 +1681,5 @@ export const TUBE_BOARDS: readonly TubeDef[] = [
       { from: 0, to: 2 },
     ],
   },
+  ...TUBE_VARIETY_BOARDS,
 ];

@@ -2,9 +2,25 @@ import { t } from '../i18n';
 import type { Feedback, GameRuntime, GameServices } from '../engine/contracts';
 import { Machine } from '../machine/machine';
 import { hintConveyor } from '../sim/solver';
+import { columnTap } from '../sim/shelf-marks';
+import type { MachineRules } from '../sim/rules';
 import type { BoardDef } from '../sim/types';
 import { marbleName } from '../view/art';
 import { MachineScene } from '../view/scene';
+
+/** The jam card's explanation; a covered dock names the box it waits for. */
+export function funnelJamReason(rules: MachineRules): string {
+  const wanted = rules.board.docks.map((_, dock) => rules.dockColor(dock)).filter((color) => color !== null);
+  const names = [...new Set(wanted)].map((color) => marbleName(color).toLowerCase());
+  // A covered dock wants nothing yet; say what it waits for, or the full belt looks unfair.
+  const covered = (rules.board.seals ?? []).find((seal) => !rules.dockOpen(seal.dock));
+  if (covered) {
+    const key = marbleName(rules.board.docks[covered.after.dock]![covered.after.box]!).toLowerCase();
+    return t(`The belt is full: open docks only want ${names.join(' or ') || 'nothing more'}, and the covered dock waits for the ${key} box. Undo a pour to keep a route open.`,
+      `Le tapis est plein : les quais ouverts ne prennent que ${names.join(' ou ') || 'plus rien'}, et le quai couvert attend la boîte ${key}. Annulez un versement pour libérer le passage.`);
+  }
+  return t(`The belt is full and the docks only want ${names.join(' or ') || 'nothing more'}. Undo a pour to keep a route open.`, `Le tapis est plein et les quais ne prennent que ${names.join(' ou ') || 'plus rien'}. Annulez un versement pour libérer le passage.`);
+}
 
 /** Funnel Sort: tip crates into the funnel; the belt never stops; fill every dock's boxes in order. */
 export class ConveyorRuntime implements GameRuntime {
@@ -23,16 +39,17 @@ export class ConveyorRuntime implements GameRuntime {
   get counter() { return { label: t('Belt', 'Tapis'), value: `${this.machine.rules.occupancy}/${this.board.beltCapacity}${this.machine.rules.funnelCount ? ` +${this.machine.rules.funnelCount}` : ''}`, full: this.machine.rules.free <= 0 }; }
   readonly preview = [];
   readonly previewLabel = '';
-  get jamReason() {
-    const wanted = this.board.docks.map((_, dock) => this.machine.rules.dockColor(dock)).filter((color) => color !== null);
-    const names = [...new Set(wanted)].map((color) => marbleName(color).toLowerCase());
-    return t(`The belt is full and the docks only want ${names.join(' or ') || 'nothing more'}. Undo a pour to keep a route open.`, `Le tapis est plein et les quais ne prennent que ${names.join(' ou ') || 'plus rien'}. Annulez un versement pour libérer le passage.`);
-  }
+  get jamReason() { return funnelJamReason(this.machine.rules); }
 
   activate(target: string): readonly Feedback[] {
     if (!/^supply\d+$/.test(target) || this.status !== 'playing') return [];
-    const result = this.machine.tap(Number(target.slice(6)));
-    return result.ok ? [{ type: 'move' }] : [{ type: 'blocked' }];
+    const tapped = Number(target.slice(6));
+    const action = columnTap(this.machine.rules, tapped);
+    const result = this.machine.tap(action);
+    if (result.ok) return [{ type: 'move' }];
+    // A padlocked shelf crate answers with its own shake and strap flash; words stay out of the way.
+    this.view.refuse(tapped);
+    return [{ type: 'blocked' }];
   }
   step(): readonly Feedback[] {
     const feedback: Feedback[] = [];
@@ -41,10 +58,8 @@ export class ConveyorRuntime implements GameRuntime {
     for (const event of events) {
       switch (event.type) {
         case 'impact': feedback.push({ type: 'impact', strength: event.strength }); break;
-        case 'kick': feedback.push({ type: 'deliver', slot: event.dock }); break;
         case 'captured':
-          if (event.fill >= this.board.boxSize) feedback.push({ type: 'match' });
-          else feedback.push({ type: 'tap' });
+          feedback.push({ type: 'landing', arrival: event.fill });
           break;
         default: break;
       }
@@ -52,7 +67,7 @@ export class ConveyorRuntime implements GameRuntime {
     this.view.afterTick();
     return feedback;
   }
-  render(alpha: number): void { this.view.render(alpha); }
+  render(alpha: number, seconds: number): void { this.view.render(alpha, seconds); }
   resize(): void { this.view.resize(); }
   pick(x: number, y: number): string | null {
     const supply = this.view.pick(x, y);
@@ -75,7 +90,8 @@ export class ConveyorRuntime implements GameRuntime {
   }
   targets() {
     const actions = this.machine.rules.crateActions
-      ? this.machine.readCrates().filter((crate) => crate.visible && !this.machine.rules.state.released.includes(crate.id)).map((crate) => crate.action)
+      // Paired boards name only front crates: a back crate's tap pours the front one, so its label would name the wrong crate.
+      ? this.machine.readCrates().filter((crate) => crate.visible && !this.machine.rules.state.released.includes(crate.id) && columnTap(this.machine.rules, crate.id) === crate.id).map((crate) => crate.action)
       : this.machine.rules.actions();
     return Object.fromEntries(actions.flatMap((action) => {
       const at = this.machine.frontCrate(action);

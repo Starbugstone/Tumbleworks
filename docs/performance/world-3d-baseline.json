@@ -1,0 +1,132 @@
+{
+  "recordedAt": "2026-11-07T08:35:41.288Z",
+  "purpose": "Explicitly authorized first-download ceiling increase for the Blender-authored world; not a claim that the previous ceiling passed.",
+  "approval": {
+    "decision": "Claude Opus 5.5 high-effort agreement, relayed and authorized by root",
+    "firstDownloadBytes": 2125000,
+    "worldGeometryGzipBytes": 120000,
+    "optionalProjectPreviewBytes": 100000,
+    "audioBytes": 45000,
+    "frameCeilings": "unchanged"
+  },
+  "firstDownloadBaseline": {
+    "unit": "decimal MB, reported rounded to three decimals",
+    "pre3D": {
+      "reportedMB": 1.97,
+      "ceilingBytes": 2000000,
+      "result": "passed",
+      "evidence": "output/current/world-3d/pre-3d-measurements.md"
+    },
+    "first3D": {
+      "reportedMB": 2.092,
+      "ceilingBytes": 2000000,
+      "result": "failed previous ceiling",
+      "evidence": "Root-reported integrated build result; no build rerun during shared-source freeze"
+    },
+    "newCeilingBytes": 2125000,
+    "geometryAccounting": "Runtime JSON is imported with ?raw into linked JavaScript and already counted in first-download gzip. Independent geometry guard sums gzip level 9 of the two source files without adding it again to total.",
+    "previewsAccounting": "All PNG files recursively under public/models/projects count as actual optional transfer bytes; not included a second time in first-download."
+  },
+  "toolchain": {
+    "blender": "5.2.0 LTS",
+    "geometryFormat": "Losslessly packed runtime JSON; authored normals retained; no GLTFLoader, new dependency or texture requirement"
+  },
+  "runtimeGeometry": [
+    {
+      "path": "assets/world-3d/terrain-runtime.json",
+      "rawBytes": 45947,
+      "sha256": "e7ce2451f76ab89729de92c2cef42581c0d9fc889a0c688d220a757c11bf85bb",
+      "gzipLevel9Bytes": 21963,
+      "meshCount": 2,
+      "modelCount": 2,
+      "vertices": 1906,
+      "triangles": 2430,
+      "normalsRetained": true
+    },
+    {
+      "path": "assets/world-3d/kit-runtime.json",
+      "rawBytes": 366404,
+      "sha256": "83ea9e855bd2536365a8b10e7760cc69cb3aa097754084b5808b6fb038790bcd",
+      "gzipLevel9Bytes": 96614,
+      "meshCount": 19,
+      "modelCount": 15,
+      "vertices": 20985,
+      "triangles": 10290,
+      "normalsRetained": true
+    }
+  ],
+  "runtimeGeometryGzipTotalBytes": 118577,
+  "authoringSources": [
+    {
+      "path": "assets/world-3d/terrain.blend",
+      "rawBytes": 131475,
+      "sha256": "f6ebf7ea14924934d6e72263a6749b90ddc4bd9376a9d40d74066f07b90da1a7"
+    },
+    {
+      "path": "assets/world-3d/village-kit.blend",
+      "rawBytes": 181413,
+      "sha256": "1734d1210def22695939be6313b1c7dd19c174f5049556f1f14f0d29cb51f97b"
+    },
+    {
+      "path": "assets/world-3d/projects.blend",
+      "rawBytes": 178602,
+      "sha256": "bd31338bd5b8f533aa7b1bd05a50424e04f9c1c94daad472939aad4f5f0cb038"
+    },
+    {
+      "path": "scripts/author-world-terrain.py",
+      "rawBytes": 10907,
+      "sha256": "674d5a8adfc9a4dfdb255fea475f317424bce66da7031e6c9609b279c047516f"
+    },
+    {
+      "path": "scripts/author-world-kit.py",
+      "rawBytes": 42498,
+      "sha256": "c544ef2d2b87b13af51577baeef38c8e3f49307c1de46ada0964cb15465bdf1d"
+    },
+    {
+      "path": "scripts/pack-world-models.py",
+      "rawBytes": 3316,
+      "sha256": "404d160c82d48d3172044a513e275a7e0d00f2823609c123a05f1ec0dda56fec"
+    }
+  ],
+  "optionalProjectPreviews": {
+    "files": [
+      {
+        "path": "public/models/projects/bells.png",
+        "rawBytes": 6709,
+        "sha256": "8c19c4d4d3e58a9b72ddf9c0fffb497de772559487e069baf2cdc3bb5f091a44"
+      },
+      {
+        "path": "public/models/projects/cistern.png",
+        "rawBytes": 5009,
+        "sha256": "aec1a8c30815334845e1bd242b56d0b6cb54803168ad06e7a8eb527a1107e6e6"
+      },
+      {
+        "path": "public/models/projects/gantry.png",
+        "rawBytes": 5427,
+        "sha256": "ec9d6ed9993061c95e64a0e098a2ab4bc600f5aeac4783f6b403d7ca6d538151"
+      },
+      {
+        "path": "public/models/projects/gate.png",
+        "rawBytes": 6390,
+        "sha256": "3f7dc33650bc0d5563ae1bc14ded4699f1eb31be1e64ebc4e332b8c65ee86a5a"
+      },
+      {
+        "path": "public/models/projects/terrace.png",
+        "rawBytes": 4774,
+        "sha256": "164e373b9bb1a2158204a0cb4c6a8835351410a540f3ad4845eb6cf3bad6965f"
+      },
+      {
+        "path": "public/models/projects/waterwheel.png",
+        "rawBytes": 5827,
+        "sha256": "ad6fb248bcdc1cbfd103d6bc94999712a5191a2b8854f91d7e4996da4675563d"
+      },
+      {
+        "path": "public/models/projects/windmill.png",
+        "rawBytes": 4252,
+        "sha256": "f6693bbd83867d48f852d2aa2c33ce743f4baa9a1a903ad5650626fed764302c"
+      }
+    ],
+    "totalBytes": 38388
+  },
+  "verificationLimits": "Asset byte/hash/count measurements only. No browser, performance or build run by this change; no physical-phone performance claim."
+}

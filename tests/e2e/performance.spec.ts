@@ -36,11 +36,14 @@ const CASES = [
 const SECONDS = 20;
 // A new busiest board needs its own recorded baseline, not a ceiling inherited from another level.
 // Read limits from the recorded evidence so changing a ceiling also changes its baseline artifact.
-const recordedBaseline = JSON.parse(readFileSync('docs/performance/alpha-0.0.1-baseline.json', 'utf8')) as {
-  cases: { level: string; speed: number; limitsMs: { tick: number; tickAndDraw: number } }[];
-};
+const recordedCases = ['docs/performance/alpha-0.0.1-baseline.json', 'docs/performance/campaign-41-60-baseline.json'].flatMap(path => {
+  const baseline = JSON.parse(readFileSync(path, 'utf8')) as {
+    cases: { level: string; speed: number; limitsMs: { tick: number; tickAndDraw: number } }[];
+  };
+  return baseline.cases;
+});
 const BUDGETS: Record<string, { tick: number; tickAndDraw: number }> = Object.fromEntries(
-  recordedBaseline.cases.map((entry) => [`${entry.level}:${entry.speed}`, entry.limitsMs]),
+  recordedCases.map((entry) => [`${entry.level}:${entry.speed}`, entry.limitsMs]),
 );
 const RATE = Number(process.env.TUMBLEWORKS_CPU_SLOWDOWN ?? 4);
 

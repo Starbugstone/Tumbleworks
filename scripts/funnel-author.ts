@@ -91,7 +91,7 @@ export function generate(recipe: FunnelRecipe, seed: number): BoardDef | null {
   if (docks.some((queue) => !queue.length)) return null;
   const board: BoardDef = { id: recipe.id, title: recipe.title, beltCapacity: recipe.capacity, boxSize: 3, supplies, docks };
   return { ...board, ...(recipe.shape ? { trackShape: recipe.shape } : {}),
-    ...(recipe.pairs ? { pairs: recipe.pairs } : {}), ...(recipe.predecessors ? { predecessors: recipe.predecessors } : {}), ...(recipe.seals ? { seals: recipe.seals } : {}) };
+    ...(recipe.pallets ? { pallets: recipe.pallets } : {}), ...(recipe.pairs ? { pairs: recipe.pairs } : {}), ...(recipe.predecessors ? { predecessors: recipe.predecessors } : {}), ...(recipe.seals ? { seals: recipe.seals } : {}) };
 }
 
 function clone(rules: MachineRules): MachineRules {
@@ -180,7 +180,7 @@ export function solvableCapacities(board: BoardDef, floor = floorFor(board.track
   return result;
 }
 export function tighten(board: BoardDef, floor = floorFor(board.trackShape)): BoardDef {
-  if (board.pairs?.length || board.predecessors || board.seals?.length) {
+  if (board.pairs?.length || board.predecessors || board.seals?.length || board.pallets?.length) {
     const capacities = solvableCapacities(board, floor);
     return { ...board, beltCapacity: capacities[0] ?? board.beltCapacity };
   }
@@ -258,7 +258,7 @@ export async function author(recipe: FunnelRecipe, attempts = 400): Promise<Funn
   for (let seed = recipe.seed; seed < recipe.seed + attempts; seed++) {
     const loose = generate(recipe, seed);
     if (!loose) continue;
-    const variant = loose.pairs?.length || loose.predecessors || loose.seals?.length;
+    const variant = loose.pairs?.length || loose.predecessors || loose.seals?.length || loose.pallets?.length;
     if (!variant && !search(loose).solvable) continue;
     let capacities: number[] | null;
     try { capacities = variant ? solvableCapacities(loose) : null; }
@@ -270,7 +270,7 @@ export async function author(recipe: FunnelRecipe, attempts = 400): Promise<Funn
     const board = { ...loose, beltCapacity: capacity };
     const result = search(board);
     if (!result.solvable || !result.witness || !result.jam) continue;
-    if ((board.pairs?.length || board.predecessors || board.seals?.length) && funnelFeatureTrap(board) === null) continue;
+    if ((board.pairs?.length || board.predecessors || board.seals?.length || board.pallets?.length) && funnelFeatureTrap(board) === null) continue;
     const lostShare = result.lost / result.states;
     const winShare = result.winning / result.orders;
     if (winShare < recipe.win[0] || winShare > recipe.win[1]) continue;
@@ -298,7 +298,7 @@ export function emitBoard(report: FunnelReport): string {
 /** Reproducible rule lessons; kept outside the campaign and its ordinary authoring batch. */
 export const FUNNEL_RULE_RECIPES: readonly FunnelRecipe[] = [
   { id: 'board-200', title: 'One shared handle', fr: 'Une poignée pour deux', note: 'Round 41: a six and a three share one release.', colors: 3, columns: [2,2,2], shorts: 1, smalls: 1, docks: 3, capacity: 14, seed: 10920, win: [0,1], slack: 0, naiveJams: true, pairs: [[0,2]] },
-  { id: 'board-201', title: 'Two supports', fr: 'Deux appuis', note: 'Round 57: the central shelf needs both accepted releases.', colors: 3, columns: [2,2,2], shorts: 0, docks: 3, capacity: 14, seed: 226, win: [0,1], slack: 0, naiveJams: true, predecessors: {0:[],1:[0,2],2:[],3:[2],4:[],5:[4]} },
+  { id: 'board-201', title: 'Two straps', fr: 'Deux sangles', note: 'Round 57: the padlocked shelf needs both strapped crates tipped first.', colors: 3, columns: [2,2,2], shorts: 0, docks: 3, capacity: 14, seed: 226, win: [0,1], slack: 0, naiveJams: true, predecessors: {0:[],1:[0,2],2:[],3:[2],4:[],5:[4]} },
   { id: 'board-202', title: 'Open the shutter', fr: 'Le volet se lève', note: 'Round 73: fill the blue box to open the green dock.', colors: 3, columns: [2,2,2], shorts: 0, docks: 3, capacity: 14, seed: 7, win: [0,1], slack: 0, naiveJams: true, seals: [{dock:0,after:{dock:1,box:0}}] },
 ];
 

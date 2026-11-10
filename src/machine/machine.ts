@@ -1,4 +1,5 @@
 import { cos, hypot, sin } from '../engine/exact-math';
+import { palletMate } from '../sim/dock-pallets';
 import RAPIER from '@dimforge/rapier3d-compat';
 import { FALLING_GROUPS, PARKED_GROUPS, PLACED_GROUPS, physics, type PhysicsService } from '../engine/physics';
 import { fingerprintOf, type Replayable, type ReplayAction } from '../engine/replay';
@@ -16,7 +17,7 @@ export type MachineEvent =
   | { readonly type: 'pour'; readonly supply: number; readonly color: Color }
   | { readonly type: 'enter'; readonly marbleId: number }
   | { readonly type: 'kick'; readonly marbleId: number; readonly dock: number }
-  | { readonly type: 'captured'; readonly marbleId: number; readonly dock: number; readonly fill: number }
+  | { readonly type: 'captured'; readonly marbleId: number; readonly dock: number; readonly box: number; readonly fill: number }
   | { readonly type: 'boxFull'; readonly dock: number; readonly box: number }
   | { readonly type: 'boxGone'; readonly dock: number; readonly box: number }
   | { readonly type: 'won' }
@@ -24,6 +25,8 @@ export type MachineEvent =
   | { readonly type: 'recovered'; readonly marbleId: number; readonly how: 'nudge' | 'teleport' | 'bounce'; readonly why: string };
 
 export interface Pose { x: number; y: number; z: number; qx: number; qy: number; qz: number; qw: number }
+/** Read-only presentation data, written into the caller's reusable buffer. */
+export interface MarbleDelivery { dock: number; box: number; slot: number; fraction: number; landed: boolean }
 
 type CratePhase = 'waiting' | 'opening' | 'gone';
 interface CrateControl {
@@ -266,7 +269,7 @@ export class Machine implements Replayable {
   private boxTarget(box: BoxControl): { x: number; y: number; z: number; scale: number } {
     const x = dockX(box.dock, this.board.docks.length);
     if (box.state === 'docked') return { x, y: 0, z: BOX.z, scale: 1 };
-    if (box.state === 'leaving') return { x, y: -1.6, z: BOX.z - 0.2, scale: 0.7 };
+    if (box.state === 'leaving') return { x, y: -BOX.leaveDrop, z: BOX.z - 0.2, scale: 0.7 };
     const ahead = this.control.boxes.filter((other) => other.dock === box.dock && other.index < box.index && other.state === 'queued').length;
     return { x, y: 0, z: BOX.queueZ + ahead * BOX.queueSpacing, scale: BOX.queueScale };
   }
@@ -300,12 +303,18 @@ export class Machine implements Replayable {
     if (handle === undefined) throw new Error(`No marble ${id}`);
     return this.world.getRigidBody(handle);
   }
-  readMarble(id: number, into: Pose): void {
+  readMarble(id: number, into: Pose, delivery?: MarbleDelivery): void {
     const body = this.marbleBody(id);
     const t = body.translation();
     const q = body.rotation();
     into.x = t.x; into.y = t.y; into.z = t.z;
     into.qx = q.x; into.qy = q.y; into.qz = q.z; into.qw = q.w;
+    if (delivery) {
+      const marble = this.control.marbles[id]!;
+      delivery.dock = marble.dock; delivery.box = marble.box; delivery.slot = marble.slot;
+      delivery.landed = marble.phase === 'boxed';
+      delivery.fraction = delivery.landed ? 1 : marble.phase === 'flying' ? Math.min(marble.time / FLIGHT.seconds, 1) : 0;
+    }
   }
   readCrates(): { id: number; action: number; accessible: boolean; key: number; supply: number; color: Color; x: number; y: number; z: number; open: number; visible: boolean }[] {
     return this.control.crates.map((crate) => ({
@@ -313,11 +322,12 @@ export class Machine implements Replayable {
       open: crate.phase === 'opening' ? Math.min(crate.time / CRATE.openSeconds, 1) : 0, visible: crate.phase !== 'gone',
     }));
   }
-  readBoxes(): { dock: number; index: number; color: Color; x: number; y: number; z: number; scale: number; fill: number; visible: boolean; docked: boolean }[] {
+  readBoxes(): { dock: number; index: number; color: Color; x: number; y: number; z: number; scale: number; fill: number; visible: boolean; docked: boolean; departure: number | null }[] {
     return this.control.boxes.map((box) => {
       const ahead = box.state === 'queued' ? this.control.boxes.filter((other) => other.dock === box.dock && other.index < box.index && other.state === 'queued').length : 0;
       return { dock: box.dock, index: box.index, color: box.color, x: box.x, y: box.y, z: box.z, scale: box.scale,
-        fill: this.rules.boxFill(box.dock, box.index), visible: box.state !== 'gone' && ahead < BOX.queueVisible, docked: box.state === 'docked' };
+        fill: this.rules.boxFill(box.dock, box.index), visible: box.state !== 'gone' && ahead < BOX.queueVisible, docked: box.state === 'docked',
+        departure: box.state === 'leaving' ? box.time / box.duration : null };
     });
   }
   /** The world point a marble must pass to join a box: for hint arrows and tests. */
@@ -432,7 +442,10 @@ export class Machine implements Replayable {
       const wanted = this.rules.dockBox(dock);
       const docked = this.control.boxes.find((box) => box.dock === dock && box.state === 'docked');
       if (docked && docked.index !== wanted && this.rules.boxFill(dock, docked.index) >= this.board.boxSize) {
-        this.startMotion(docked, 'leaving', BOX.leaveSeconds);
+        const mate = palletMate(this.board.pallets, dock);
+        if (mate === null || this.rules.boxFill(mate, docked.index) >= this.board.boxSize) {
+          this.startMotion(docked, 'leaving', BOX.leaveSeconds);
+        }
       }
       if (wanted !== null) {
         const next = this.control.boxes.find((box) => box.dock === dock && box.index === wanted);
@@ -676,7 +689,7 @@ export class Machine implements Replayable {
     marble.phase = 'boxed';
     marble.hop = FLIGHT.hopSeconds;
     for (const event of this.rules.captured(marble.id)) if (event.type === 'won') this.reportEnding();
-    this.events.push({ type: 'captured', marbleId: marble.id, dock: marble.dock, fill: this.rules.boxFill(marble.dock, marble.box) });
+    this.events.push({ type: 'captured', marbleId: marble.id, dock: marble.dock, box: marble.box, fill: this.rules.boxFill(marble.dock, marble.box) });
   }
 
   private placeInBox(marble: MarbleControl): void {

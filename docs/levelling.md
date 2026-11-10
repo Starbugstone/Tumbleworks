@@ -59,7 +59,7 @@ All games share one table of S. No band builds in a ranking of the games.
 | 111-118 | 76-92 | 60-74 | 99 | 30 | 50% |
 | 119-120 | 80-94 | 64-76 | 100 | 30 | 50% |
 
-The registered campaign has 40 rounds, 120 levels. The target is 120 rounds, 360 levels: rounds 1-40 continue the accepted
+The registered campaign has 60 rounds, 180 levels. The target is 120 rounds, 360 levels: rounds 1-40 continue the accepted
 opening's feel and rounds 41-120 climb to the ending (see the tracked [3 November decision](levelling-decision-2026-11-03.md)). Bands
 from round 41 are provisional until the strong planner's H is calibrated. From round 13 a lesson is held to the +20 rise like
 any other level, G stops at 30, and Funnel Sort's ceiling binds spam as well as cheese.
@@ -193,6 +193,62 @@ Lanes four deep first appear here (`loop-58`, `loop-59`, `loop-66`, `loop-76`): 
 behind a `+n` tile, which a tap opens. `tests/loop/roster-layout.test.ts` allows folds only in lanes four or more deep, and
 `tests/e2e/loop.spec.ts` opens the tile on `loop-58` at 375x690.
 
+## Rounds 41 to 60
+
+This expansion adds twenty rounds, sixty playable levels, after the existing 120.
+The first forty rounds keep their order, IDs and definitions. The additions use
+unused authored candidates and new puzzles, including the previously unregistered
+rule lessons. Older released bank levels are not reintroduced as new content,
+so an old completed save still has sixty additions to play.
+
+| Round | Game | Introduction |
+| --- | --- | --- |
+| 41 | Funnel Sort | Paired release (`board-200`) |
+| 43 | Loop Sort | Receiving latch (`loop-200`) |
+| 45 | Tube Sort | Capped spare (`tube-200`) |
+| 57 | Funnel Sort | Forked shelves (`board-201`) |
+| 59 | Loop Sort | Short trucks (`loop-95`) |
+
+Each introduction has practice two rounds later when that round is in this
+release, and the earlier rules return in changed contexts. Short-truck practice
+at round 61 belongs to the next expansion. The older short fixture `loop-201`
+remains in the bank: its S44.06 breaks the five-round progression limit at 59.
+The replacement lesson scores S63.36 without changing the gate.
+
+The existing S bands, step sizes, variety rules, machine witnesses, losing
+orders and hint budgets apply unchanged. H remains a measured reference, not a
+human-calibrated difficulty gate. Source seeds and causal traps are retained in
+[the expansion fixtures](../tests/fixtures/campaign-41-60.json); score rows and
+rapid-action replays remain in their usual tables. Forked-shelf practice has an
+authored rapid replay: its first two accepted actions are twelve ticks apart.
+That existence check does not change the seeded bot win-rate measurements.
+
+The acceptance checks preserve the first forty rounds and exercise a completed
+old save continuing into level 121. Browser evidence, machine runs, download
+budget and performance results are recorded in [verification](verification.md).
+
+## Proposed later combinations
+
+The approved variety boards may enter the main campaign after their difficulty,
+causal traps, real-machine witnesses, hint and undo checks pass. These are
+teaching-order proposals, not registered slots or accepted score rows. The
+current campaign remains sixty rounds; adding these placements also requires
+complete interleaved rounds and the same progression gates.
+
+| Proposed round | Board | Teaching role |
+| --- | --- | --- |
+| 63 | `board-210` | Forked shelves with mixed six/nine crates, after shelves at 57 |
+| 65 | `loop-210` | Short trucks with receiving latches, after short trucks at 59 |
+| 67 | `tube-210` | Closing-cup/capped-spare exchange, after the planned cup lesson at 61 |
+| 77 | `board-211` | Paired release with a sealed dock, after the planned seal lesson at 73 |
+| 79 | `loop-211` | Unequal capacities with coupled unloads, after the planned coupling lesson at 75 |
+| 81 | `tube-211` | First mixed-height-home lesson; simple practice must follow |
+| 83 | `board-212` | First shared-pallet lesson; simple practice must follow |
+
+Workshop access can expose proven bank boards before that campaign stretch is
+assembled. Workshop completion must not unlock unrelated campaign rounds. The
+first 120 IDs and the calibrated rounds 41–60 remain unchanged by this proposal.
+
 ## Retirements, confirmed at n=200
 
 Nothing has been retired on this branch. With the committed players at 200 games each, every Funnel Sort retirement still fails
@@ -288,8 +344,9 @@ substitute for rescoring changed rules or scoring semantics.
 ## Tube Sort commitments (bank lessons)
 
 The capped spare is planned for round 45; the closing cup for round 61.
-They are bank boards only, available in development at `/?try=tube-200` and
-`/?try=tube-201`. Neither is placed in `PLAY_ORDER`.
+`tube-200` now teaches the capped spare at campaign round 45, with practice at
+47 and 55 and changed contexts at 50 and 58. The closing cup `tube-201` remains
+in the bank, available in development at `/?try=tube-201`.
 
 - **Capped spare:** an empty full-size tube with a cap bearing another colour's
   container pattern. It can neither give nor receive until that colour first
@@ -351,8 +408,10 @@ The checked commitment model and its limits are described in
 
 The expansion decision adds **latched trucks at round 43**, **short trucks at 59**
 and **coupled unload at 75**. The implementation fixtures are `loop-200`,
-`loop-201` and `loop-202`. They are bank boards, not campaign placements. Open
-`/?try=loop-200`, `/?try=loop-201` or `/?try=loop-202` to play them.
+`loop-201` and `loop-202`. `loop-200` now teaches latches at campaign round 43.
+Round 59 uses the newly authored `loop-95`: the older `loop-201` is too easy to
+meet the five-round progression gate there. `loop-201` and `loop-202` remain
+bank boards, available at `/?try=loop-201` and `/?try=loop-202`.
 
 The card latch includes its prerequisite lane number, so two cabs with the same
 pattern are unambiguous. Refusal feedback names and points to that lane. The toy
@@ -433,9 +492,10 @@ visible for its intended duration even when frame capture is slow.
 
 ## Funnel Sort rule lessons in the bank
 
-`board-200`, `board-201` and `board-202` are bank lessons for rounds 41, 57 and
-73. They are outside `PLAY_ORDER`; open them with `/?try=board-200` (or the
-other ID). The campaign and existing saved IDs are unchanged.
+`board-200` and `board-201` now teach paired release and forked shelves at
+campaign rounds 41 and 57, with practice two rounds after each lesson.
+`board-202` remains a bank lesson for round 73, playable at `/?try=board-202`.
+Existing saved IDs are unchanged.
 
 - **Paired release:** `pairs` lists disjoint pairs of stable crate IDs. The
   shared handle belongs to the crates. Either endpoint releases both only when
@@ -447,7 +507,7 @@ other ID). The campaign and existing saved IDs are unchanged.
   dependency graph. Crate IDs are zero-based in original supply/packet order,
   independent of marble count. All predecessors must have accepted releases;
   opening animation never delays access. A crate has at most three distinct predecessors; shelves expose at most four crates.
-  The lesson joins two chains, with overlap and short support brackets.
+  The lesson joins two chains. Each locked crate shows a padlock strapped to the crates still in its way; see the Funnel Sort row in AGENTS.md.
 - **Sealed dock:** `seals` names a dock and an `after: {dock, box}` prerequisite
   at another dock. At most two acyclic seals are allowed. A sealed dock cannot
   reserve. Its shutter carries the prerequisite box's colour and container
@@ -489,8 +549,9 @@ language switching and grayscale containers. The three 15-second recordings
 are in `output/current/videos/funnel-{paired-release,forked-shelves,sealed-dock}.mp4`.
 They show real physics on the game's clock; they are short excerpts, not full
 witness recordings. The saved fast physics replays also reproduce exactly with
-`scripts/replay.ts`. The bank remains outside `PLAY_ORDER`; joint campaign
-placement and human calibration have not been performed.
+`scripts/replay.ts`. Those original bank checks preceded campaign placement. Rounds 41–60 now
+place the paired-release and shelf lessons against the joint campaign curve;
+human calibration remains separate from the automated checks.
 
 The build remains under the first-download budget (1.906 MB gzipped of 2 MB).
 Performance validation is unresolved on this host: the 4× CPU browser budget

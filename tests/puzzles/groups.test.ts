@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { TUBE_BOARDS } from '../../src/puzzles/levels';
-import { solveTube, TubeRules } from '../../src/puzzles/rules';
+import { solveTube, tubeContainer, TubeRules } from '../../src/puzzles/rules';
 import type { TubeDef } from '../../src/puzzles/types';
 
 const grouped: TubeDef = {
@@ -82,7 +82,7 @@ describe('grouped tube transfers', () => {
       expect(result.ok).toBe(true);
       if (result.ok) expect(result.count).toBeGreaterThanOrEqual(1);
       expect(rules.state.tubes.flat().sort()).toEqual(colors);
-      expect(rules.state.tubes.every((tube) => tube.length <= board.capacity)).toBe(true);
+      expect(rules.state.tubes.every((tube, index) => tube.length <= tubeContainer(board, index).capacity)).toBe(true);
     }
     expect(rules.status).toBe('won');
   });

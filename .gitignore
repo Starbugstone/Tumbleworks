@@ -5,3 +5,6 @@ output
 .DS_Store
 .env
 .cache
+.vitest
+__pycache__/
+*.blend1

@@ -1,0 +1,114 @@
+{
+  "purpose": "Actual gameplay mechanic insets, kept visually separate from Blender reward previews. Captured via development bank routes for presentation; not gate or win evidence.",
+  "source": "output/current/verify/insets-20261107T103159/probe/insets",
+  "wholePageCaptureWidth": 984,
+  "projects": [
+    {
+      "id": "board-210",
+      "runtimeFile": "public/models/projects/cues/board-210.png",
+      "bytes": 4906,
+      "width": 128,
+      "height": 104,
+      "sha256": "7592af8d14db3915be8b1268f0c74ee165b854721efc54583bb2882a1cdc1646",
+      "capture": "output/current/verify/insets-20261107T103159/probe/board-210/01-cue.png",
+      "cropRect": [
+        133,
+        210,
+        480,
+        392
+      ]
+    },
+    {
+      "id": "board-211",
+      "runtimeFile": "public/models/projects/cues/board-211.png",
+      "bytes": 4962,
+      "width": 128,
+      "height": 104,
+      "sha256": "b70331a221503af3c266cceb3b551bf19aab5c09fe9f53ccf97a8ea22b8af7fa",
+      "capture": "output/current/verify/insets-20261107T103159/probe/board-211/01-cue.png",
+      "cropRect": [
+        133,
+        210,
+        480,
+        392
+      ]
+    },
+    {
+      "id": "board-212",
+      "runtimeFile": "public/models/projects/cues/board-212.png",
+      "bytes": 2767,
+      "width": 128,
+      "height": 54,
+      "sha256": "49d268405b16ad6f7fa89ea9f2fcc09262123bfc51bbb51dafba127d8b06b0b8",
+      "capture": "output/current/verify/insets-20261107T103159/probe/board-212/01-cue.png",
+      "cropRect": [
+        281,
+        1019,
+        456,
+        192
+      ]
+    },
+    {
+      "id": "loop-210",
+      "runtimeFile": "public/models/projects/cues/loop-210.png",
+      "bytes": 4624,
+      "width": 128,
+      "height": 102,
+      "sha256": "16688de0c0fc2157472f8c883a743543a2246b20d32ea2cc066c6358b3af0c6c",
+      "capture": "output/current/verify/insets-20261107T103159/probe/loop-210/01-cue.png",
+      "cropRect": [
+        193,
+        527,
+        526,
+        420
+      ]
+    },
+    {
+      "id": "loop-211",
+      "runtimeFile": "public/models/projects/cues/loop-211.png",
+      "bytes": 4454,
+      "width": 128,
+      "height": 98,
+      "sha256": "f264d940093f366db7a874cd785ca821b526ae6a7aabc6a814aa1bc6cf26d16c",
+      "capture": "output/current/verify/insets-20261107T103159/probe/loop-211/01-cue.png",
+      "cropRect": [
+        193,
+        298,
+        526,
+        404
+      ]
+    },
+    {
+      "id": "tube-210",
+      "runtimeFile": "public/models/projects/cues/tube-210.png",
+      "bytes": 6680,
+      "width": 128,
+      "height": 208,
+      "sha256": "7de668d49e83cf9cf21bde62003cf7b08bca5b965ffcddb7b236f2196083fb17",
+      "capture": "output/current/verify/insets-20261107T103159/probe/tube-210/01-cue.png",
+      "cropRect": [
+        333,
+        614,
+        508,
+        824
+      ]
+    },
+    {
+      "id": "tube-211",
+      "runtimeFile": "public/models/projects/cues/tube-211.png",
+      "bytes": 5515,
+      "width": 128,
+      "height": 164,
+      "sha256": "bb0b4d6e2b67b26b23f272cb65ee5dbfc0225ea2556de86720d825b025f064cd",
+      "capture": "output/current/verify/insets-20261107T103159/probe/tube-211/01-cue.png",
+      "cropRect": [
+        52,
+        230,
+        470,
+        600
+      ]
+    }
+  ],
+  "totalBytes": 33908,
+  "board211Choice": "Paired handle; seal alternative remains in source evidence."
+}

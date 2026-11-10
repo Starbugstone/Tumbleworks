@@ -1,0 +1,2 @@
+import{mkdirSync,writeFileSync}from'node:fs';
+export function recordSourceMount(name:string,data:unknown){const label=process.env['S77_LABEL'];if(!label)return;if(!/^[a-zA-Z0-9_-]+$/.test(label))throw new Error('Unique S77_LABEL required');const folder=`output/current/village-layouts/parallel44/gardens/source-mount78/runs/${label}`;mkdirSync(folder,{recursive:true});writeFileSync(`${folder}/${name}.json`,JSON.stringify(data,null,2),{flag:'wx'});}

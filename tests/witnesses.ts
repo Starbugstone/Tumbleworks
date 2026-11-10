@@ -1,5 +1,7 @@
+import { VARIETY_FUNNEL_WITNESSES, VARIETY_FUNNEL_JAMS, VARIETY_LOOP_WITNESSES, VARIETY_LOOP_JAMS, VARIETY_FAST_WITNESSES } from './variety-witnesses';
 /** Authored tap orders, shared by the rule, machine and browser specs. Letters encode columns, crate IDs on source variants, or truck lanes. */
 export const FUNNEL_WITNESSES: Record<string, string> = {
+  ...VARIETY_FUNNEL_WITNESSES,
   'board-202': 'ACCABB',
   'board-201': 'EFCDAB',
   'board-200': 'ABEFD',
@@ -11,8 +13,28 @@ export const FUNNEL_WITNESSES: Record<string, string> = {
   // BEGIN first stretch funnel witnesses
   'board-31': 'AABB', 'board-32': 'AABBC', 'board-33': 'ABBACC', 'board-34': 'AACCBB', 'board-35': 'AABBC', 'board-36': 'AABBCC', 'board-37': 'AABCCB', 'board-38': 'AAACCBB', 'board-39': 'AABBCBCA', 'board-40': 'AACCBB', 'board-41': 'AABCCB', 'board-42': 'AAABBCC', 'board-43': 'ACCBBA', 'board-44': 'BBBCAAAC', 'board-46': 'AAABBBCC', 'board-47': 'AAABBBCCC', 'board-48': 'AABCACBB', 'board-49': 'AACBBBACDD', 'board-50': 'AAABCCDDD', 'board-51': 'BBCCAA', 'board-52': 'AABCACBBC', 'board-53': 'CCAAABBB', 'board-54': 'AACBBBCA', 'board-55': 'ABBBCCCAA', 'board-56': 'AACCBBBAC', 'board-57': 'AAABDBBCCCDD', 'board-58': 'AACCABCBB', 'board-59': 'AAAABCBBCC', 'board-60': 'BBBCACCAA', 'board-61': 'BBBCAAAC', 'board-62': 'AABDABBDCDCC', 'board-63': 'AACBCBDD', 'board-64': 'ABBBCCCAA', 'board-65': 'AAADDBCCD', 'board-66': 'AAABDCDBBC', 'board-67': 'AAABCABBCB', 'board-68': 'CCAAABBB', 'board-69': 'ACBBCACABDDD', 'board-70': 'AAABBCBCDD', 'board-71': 'AABBCCABC', 'board-72': 'AABBCCCBAA', 'board-73': 'AABBCCACDD', 'board-74': 'BBCCACAAB', 'board-75': 'AAACABCBBC',
   // END first stretch funnel witnesses
+  'board-79': 'ACABBCBA',
+  'board-76': 'FABCGE',
+  'board-80': 'ABABACABBC',
+  'board-81': 'CDAABBCD',
+  'board-77': 'EADBF',
+  'board-82': 'ACDDAABBBC',
+  'board-83': 'AADBBBACCCDD',
+  'board-84': 'BBCCBAAAAC',
+  'board-85': 'ABCBCBAA',
+  'board-86': 'AAACBDBBCD',
+  'board-87': 'AAACCCBBDD',
+  'board-88': 'ACBAAABBBC',
+  'board-89': 'AAACCCBBB',
+  'board-90': 'ACCAABBB',
+  'board-91': 'AABBBCCCA',
+  'board-92': 'AACCCAABBB',
+  'board-78': 'ADBCEFG',
+  'board-93': 'AAAABCBBBC',
+
 };
 export const FUNNEL_JAMS: Record<string, string> = {
+  ...VARIETY_FUNNEL_JAMS,
   'board-202': 'AAB',
   'board-201': 'AC',
   'board-200': 'ABDE',
@@ -24,10 +46,30 @@ export const FUNNEL_JAMS: Record<string, string> = {
   // BEGIN first stretch funnel jams
   'board-33': 'AAB', 'board-34': 'AABB', 'board-35': 'AB', 'board-36': 'ABB', 'board-37': 'AABBC', 'board-38': 'AAABC', 'board-39': 'AAAB', 'board-40': 'AABB', 'board-41': 'AABBC', 'board-42': 'AAABCC', 'board-43': 'AAB', 'board-44': 'AA', 'board-46': 'AAABBC', 'board-47': 'AAABBCC', 'board-48': 'AAA', 'board-49': 'AAA', 'board-50': 'AAABCDD', 'board-51': 'AAB', 'board-52': 'AAAB', 'board-53': 'AA', 'board-54': 'AAABBC', 'board-55': 'AAAB', 'board-56': 'AAA', 'board-57': 'AAABB', 'board-58': 'AAAB', 'board-59': 'AAAABB', 'board-60': 'AAA', 'board-61': 'AA', 'board-62': 'AAAB', 'board-63': 'AAB', 'board-64': 'AAA', 'board-65': 'AAABC', 'board-66': 'AAABB', 'board-67': 'AAAA', 'board-68': 'AA', 'board-69': 'AA', 'board-70': 'AAABBB', 'board-71': 'AAAB', 'board-72': 'AAAA', 'board-73': 'AAAB', 'board-74': 'AAABBB', 'board-75': 'AAAA',
   // END first stretch funnel jams
+  'board-79': 'AA',
+  'board-76': 'A',
+  'board-80': 'AA',
+  'board-81': 'AA',
+  'board-77': 'A',
+  'board-82': 'AAA',
+  'board-83': 'AAA',
+  'board-84': 'AA',
+  'board-85': 'AAABBB',
+  'board-86': 'AAAB',
+  'board-87': 'AAAB',
+  'board-88': 'AAAABB',
+  'board-89': 'AAABBB',
+  'board-90': 'AAA',
+  'board-91': 'AAABB',
+  'board-92': 'AAAAB',
+  'board-78': 'ADBEF',
+  'board-93': 'AAAABB',
+
 };
 /** Funnel Sort's easy opening boards have no real trap. */
 export const FUNNEL_NO_JAM: readonly string[] = ['board-31', 'board-32'];
 export const LOOP_WITNESSES: Record<string, string> = {
+  ...VARIETY_LOOP_WITNESSES,
   'loop-200': 'BBAACA',   'loop-201': 'AAABCC',   'loop-202': 'AABCC',
   'loop-1': 'AB', 'loop-2': 'ABC', 'loop-3': 'AABC', 'loop-4': 'ABDABC', 'loop-5': 'AACBBDACD', 'loop-6': 'AABBCDCBD',
   'loop-7': 'ABBACCABDDCD', 'loop-8': 'BDAABCBDD', 'loop-9': 'AABAABCDDEBDE', 'loop-10': 'CDDBCBCB', 'loop-11': 'AABBCDDADBC', 'loop-12': 'ABBABABA',
@@ -38,9 +80,30 @@ export const LOOP_WITNESSES: Record<string, string> = {
   // BEGIN first stretch loop witnesses
   'loop-32': 'ABAC', 'loop-33': 'ABBCA', 'loop-34': 'ABCAB', 'loop-35': 'ABACB', 'loop-36': 'ABCCAB', 'loop-37': 'ABCCAB', 'loop-38': 'ABCBAC', 'loop-39': 'AABACCBCB', 'loop-40': 'AABBABBCC', 'loop-41': 'ABACBC', 'loop-42': 'AABBCCABC', 'loop-43': 'ABCABC', 'loop-44': 'ABBCCAAB', 'loop-45': 'ABBACCBCDD', 'loop-46': 'AABBCABCC', 'loop-47': 'ABCBAC', 'loop-48': 'AABBBBACCCDD', 'loop-50': 'AABCCCBBDDAD', 'loop-51': 'AABCBCDCD', 'loop-52': 'ABBABBCCDDA', 'loop-53': 'AABBCCABCDD', 'loop-54': 'ABBBBCCACA', 'loop-55': 'ABBABAAB', 'loop-56': 'AAABCAABCBC', 'loop-57': 'AABBBAACCCDD', 'loop-58': 'AABABCCAACBB', 'loop-59': 'ABBABABBABAB', 'loop-60': 'ABABCBBAC', 'loop-61': 'AABBABBCC', 'loop-62': 'AACAABCBBC', 'loop-63': 'ABBABCBCACAAC', 'loop-64': 'AACCCDABBBCD', 'loop-65': 'AABCCBCBC', 'loop-66': 'ABBBABABCCACAC', 'loop-67': 'ABCDDACBDCD', 'loop-68': 'AABABDBCC', 'loop-69': 'AABCBBCCAC', 'loop-70': 'ABCDBAABADBCBCD', 'loop-71': 'CAACABBABABC', 'loop-72': 'ABBCCCABBAAB', 'loop-73': 'AABBCAABCAC', 'loop-74': 'ABBBBACCACC', 'loop-75': 'AACCDDBBABC', 'loop-76': 'BBABABABAAB', 'loop-77': 'BCCAABBCAAAC',
   // END first stretch loop witnesses
+  'loop-78': 'AABCCCBBDDAD',
+  'loop-79': 'AABACACBCBCBBCC',
+  'loop-80': 'AABCCBCAC',
+  'loop-81': 'ACCDBDACCD',
+  'loop-82': 'BAABAAABAABB',
+  'loop-83': 'ABCAAABCBBC',
+  'loop-84': 'ACCABBB',
+  'loop-85': 'ABCDDACBDCD',
+  'loop-86': 'AABBBCBACDADDCD',
+  'loop-87': 'AABABCAABBCC',
+  'loop-88': 'BCABCBCA',
+  'loop-89': 'CCAABB',
+  'loop-90': 'ABBCACABAAB',
+  'loop-91': 'ABBBCADDCDC',
+  'loop-92': 'AAAAABBBAB',
+  'loop-93': 'AABBBCCACABC',
+  'loop-94': 'ACCABBB',
+  'loop-95': 'AAABCC',
+  'loop-96': 'BCCACACBDD',
+
 };
 /** The first two Loop levels teach exchange without losing tap orders; traffic pressure starts later. */
 export const LOOP_JAMS: Record<string, string> = {
+  ...VARIETY_LOOP_JAMS,
   'loop-200': 'BCB',   'loop-201': 'AABC',   'loop-202': 'ACC',
   'loop-3': 'AB', 'loop-4': 'AA', 'loop-5': 'AAB', 'loop-6': 'AABBCC', 'loop-7': 'AA', 'loop-8': 'BB',
   'loop-9': 'AABAAC', 'loop-10': 'B', 'loop-11': 'AABBCBDDA', 'loop-12': 'AABB', 'loop-13': 'AABCABC', 'loop-14': 'ABBCCCCD',
@@ -50,12 +113,33 @@ export const LOOP_JAMS: Record<string, string> = {
   // BEGIN first stretch loop jams
   'loop-32': 'ABC', 'loop-33': 'ACAB', 'loop-34': 'ABAC', 'loop-35': 'AAB', 'loop-36': 'AAB', 'loop-37': 'ABCA', 'loop-38': 'ABCC', 'loop-39': 'AABABC', 'loop-40': 'AAABB', 'loop-41': 'ABAB', 'loop-42': 'AABCCA', 'loop-43': 'ABB', 'loop-44': 'ABBB', 'loop-45': 'ABBABC', 'loop-46': 'AAABB', 'loop-47': 'ABBAC', 'loop-48': 'AABBA', 'loop-50': 'AABCCCBABDD', 'loop-51': 'AABCBD', 'loop-52': 'AABB', 'loop-53': 'AABBAC', 'loop-54': 'AABBBABCC', 'loop-55': 'AAB', 'loop-56': 'AAABB', 'loop-57': 'AABBBAACDDC', 'loop-58': 'AABBABBC', 'loop-59': 'AABB', 'loop-60': 'AA', 'loop-61': 'AABC', 'loop-62': 'AABAABBC', 'loop-63': 'AABBCC', 'loop-64': 'AAB', 'loop-65': 'AABBC', 'loop-66': 'AABBBCC', 'loop-67': 'ABCCCDDAB', 'loop-68': 'AABABC', 'loop-69': 'AABB', 'loop-70': 'ABCC', 'loop-71': 'A', 'loop-72': 'AABBCC', 'loop-73': 'AABBBAA', 'loop-74': 'ABBBBAAC', 'loop-75': 'AAB', 'loop-76': 'AABB', 'loop-77': 'AAB',
   // END first stretch loop jams
+  'loop-78': 'AABCCCBABDD',
+  'loop-79': 'AABABCA',
+  'loop-80': 'AABBAC',
+  'loop-81': 'AAB',
+  'loop-82': 'AA',
+  'loop-83': 'ABB',
+  'loop-84': 'AACC',
+  'loop-85': 'ABCCCDDAB',
+  'loop-86': 'AABBBCBCDDA',
+  'loop-87': 'AABACAACB',
+  'loop-88': 'ABBC',
+  'loop-89': 'BBCC',
+  'loop-90': 'AAB',
+  'loop-91': 'ABBBCACDD',
+  'loop-92': 'AAAAAABB',
+  'loop-93': 'AABBBB',
+  'loop-94': 'AACC',
+  'loop-95': 'AABC',
+  'loop-96': 'AABCC',
+
 };
 /**
  * One recorded multi-tap win per conveyor board from round 4, from a seeded burst player: the tick and supply or lane of each tap.
  * It proves a fast line exists. scripts/level-emit.ts writes them; replay them with replayOnto.
  */
 export const FAST_WITNESSES: Record<string, { readonly steps: number; readonly taps: readonly (readonly [number, number])[] }> = {
+  ...VARIETY_FAST_WITNESSES,
   'board-200': { steps: 834, taps: [[1,0],[13,1],[195,4],[205,5],[487,3]] },
   'board-201': { steps: 885, taps: [[1,4],[13,5],[59,2],[61,3],[463,0],[469,1]] },
   'board-202': { steps: 826, taps: [[1,0],[13,2],[178,2],[181,1],[463,1],[469,0]] },
@@ -157,4 +241,42 @@ export const FAST_WITNESSES: Record<string, { readonly steps: number; readonly t
   'board-75': { steps: 1940, taps: [[1,0],[13,0],[170,2],[181,0],[422,2],[433,0],[707,1],[709,1],[1089,1],[1093,2]] },
   'loop-77': { steps: 4071, taps: [[221,2],[281,2],[431,1],[741,1],[1081,0],[1093,0],[1105,1],[1221,2],[1631,0],[1921,0],[1933,2],[2201,0]] },
   // END first stretch fast witnesses
+  'board-79': {"steps":1764,"taps":[[1,0],[13,2],[178,1],[181,0],[439,1],[445,2],[755,1],[757,0]]},
+  'board-76': {"steps":1400,"taps":[[1,5],[13,0],[243,6],[253,4],[479,1],[481,2]]},
+  'board-80': {"steps":2054,"taps":[[1,1],[13,0],[178,0],[181,2],[227,1],[229,0],[275,0],[277,2],[397,1],[409,1]]},
+  'board-81': {"steps":1682,"taps":[[1,3],[13,3],[219,2],[229,1],[275,0],[277,2],[323,1],[325,0]]},
+  'board-77': {"steps":710,"taps":[[1,4],[13,0],[284,3],[289,1],[495,5]]},
+  'board-82': {"steps":1858,"taps":[[1,3],[13,3],[59,1],[61,1],[237,1],[241,2],[359,2],[361,0],[465,0],[469,0]]},
+  'board-83': {"steps":2276,"taps":[[1,1],[13,1],[59,2],[61,0],[642,1],[649,2],[815,2],[817,3],[1301,0],[1309,0],[1626,3],[1633,3]]},
+  'board-84': {"steps":1845,"taps":[[1,1],[13,1],[162,2],[169,2],[406,1],[409,0],[697,0],[709,0],[1211,0],[1213,2]]},
+  'board-85': {"steps":1221,"taps":[[1,1],[13,1],[162,2],[169,2],[455,0],[457,1],[723,0],[733,0]]},
+  'board-86': {"steps":1926,"taps":[[1,0],[13,0],[170,2],[181,0],[227,3],[229,3],[667,1],[673,1],[777,1],[781,2]]},
+  'board-87': {"steps":1865,"taps":[[1,0],[13,2],[59,0],[61,0],[107,2],[109,2],[845,3],[853,1],[1114,3],[1117,1]]},
+  'board-88': {"steps":1790,"taps":[[1,2],[13,1],[170,0],[181,0],[512,1],[517,1],[740,0],[745,0],[1114,2],[1117,1]]},
+  'board-89': {"steps":2660,"taps":[[1,0],[13,0],[59,2],[61,0],[453,2],[457,2],[795,1],[805,1],[1283,1]]},
+  'board-90': {"steps":1337,"taps":[[1,0],[13,2],[25,2],[260,0],[265,0],[277,1],[658,1],[661,1]]},
+  'board-91': {"steps":1609,"taps":[[1,1],[13,1],[163,2],[169,0],[383,1],[385,0],[830,2],[841,2],[1050,0]]},
+  'board-92': {"steps":2322,"taps":[[1,0],[13,1],[170,1],[181,0],[561,0],[565,1],[945,0],[949,2],[1264,2],[1273,2]]},
+  'board-78': {"steps":2797,"taps":[[1,0],[13,3],[171,1],[1001,2],[1711,4],[1921,5],[2091,6]]},
+  'board-93': {"steps":1513,"taps":[[1,0],[13,0],[59,0],[61,1],[479,2],[481,2],[731,1],[733,1],[959,1],[961,0]]},
+  'loop-78': {"steps":1693,"taps":[[1,0],[13,2],[104,2],[109,0],[263,1],[265,3],[511,2],[848,1],[853,1],[898,3],[1126,0],[1287,3]]},
+  'loop-79': {"steps":4891,"taps":[[1,1],[13,0],[25,2],[351,0],[621,2],[901,0],[1261,0],[1273,1],[1761,2],[2201,1],[2381,2],[4351,1],[4401,1],[4611,2],[4691,2]]},
+  'loop-80': {"steps":2805,"taps":[[1,0],[13,1],[58,0],[61,2],[106,2],[238,1],[285,2],[333,2],[502,0]]},
+  'loop-81': {"steps":2253,"taps":[[1,0],[13,3],[271,2],[331,3],[571,1],[1111,0],[1117,3],[1129,2],[1661,2],[2041,2]]},
+  'loop-82': {"steps":4225,"taps":[[1,1],[151,0],[2001,0],[2321,1],[2671,0],[2861,0],[2941,0],[3251,1],[3561,0],[3565,1],[3891,0],[3961,1]]},
+  'loop-83': {"steps":1699,"taps":[[1,2],[13,1],[159,0],[169,1],[976,0],[1206,2],[1257,0],[1261,2],[1306,0],[1434,1],[1485,1]]},
+  'loop-84': {"steps":1792,"taps":[[1,0],[13,2],[111,2],[521,1],[571,0],[631,1],[981,1]]},
+  'loop-85': {"steps":1291,"taps":[[1,2],[13,0],[25,3],[101,3],[381,2],[431,3],[651,1],[661,3],[941,0],[949,1],[961,2]]},
+  'loop-86': {"steps":3369,"taps":[[1,0],[51,1],[281,1],[361,3],[711,1],[761,2],[1031,0],[1151,1],[1661,0],[2141,3],[2149,0],[2621,2],[2671,3],[2961,3],[2965,2]]},
+  'loop-87': {"steps":2164,"taps":[[1,0],[281,0],[331,1],[591,2],[641,0],[841,1],[891,0],[1181,1],[1291,0],[1621,2],[1633,1],[1951,2]]},
+  'loop-88': {"steps":2231,"taps":[[1,1],[13,2],[521,1],[601,2],[1101,0],[1461,1],[1465,2],[2001,0]]},
+  'loop-89': {"steps":1043,"taps":[[31,2],[81,2],[321,1],[481,0],[791,0],[793,1]]},
+  'loop-90': {"steps":4591,"taps":[[1,1],[13,0],[151,2],[391,1],[831,2],[1011,0],[2981,1],[3031,0],[3261,0],[3561,0],[3721,1]]},
+  'loop-91': {"steps":1663,"taps":[[1,0],[13,1],[58,3],[61,2],[320,3],[325,1],[494,1],[505,0],[779,2],[964,3],[1401,2]]},
+  'loop-92': {"steps":3274,"taps":[[1,0],[13,1],[25,0],[271,0],[511,0],[731,1],[951,1],[961,0],[1301,0],[1309,1]]},
+  'loop-93': {"steps":3223,"taps":[[141,1],[145,2],[351,1],[651,2],[941,0],[1151,0],[1153,2],[1165,1],[1491,0],[1831,1],[2181,2],[2721,0]]},
+  'loop-94': {"steps":1386,"taps":[[1,0],[13,2],[281,2],[451,1],[541,0],[841,1],[991,1]]},
+  'loop-95': {"steps":367,"taps":[[1,0],[13,1],[25,0],[102,2],[109,0],[165,2]]},
+  'loop-96': {"steps":980,"taps":[[1,2],[13,1],[58,2],[61,3],[138,0],[145,3],[357,2],[424,2],[620,0],[691,1]]},
+
 };

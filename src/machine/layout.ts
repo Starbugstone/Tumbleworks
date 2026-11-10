@@ -162,6 +162,7 @@ export const BOX = {
   queueVisible: 4,
   moveSeconds: 0.26,
   leaveSeconds: 0.3,
+  leaveDrop: 1.6,
 } as const;
 
 /** The scripted hop from the belt into a box. */

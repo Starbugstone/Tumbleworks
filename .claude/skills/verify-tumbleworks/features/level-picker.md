@@ -1,13 +1,16 @@
 # Level picker and progress
 
-The level pill opens the picker: the campaign's chips grouped into chapters with completion counts, the level's title and difficulty, the pattern legend, the language switch and a button that copies the current game for a bug report. Completion is stored on the device and Next level skips completed levels.
+The level pill opens the picker: the campaign's chips grouped into chapters with completion counts, the level's title and difficulty, the pattern legend, the language switch and a button that copies the current game for a bug report. Completion is stored by stable ID. Next level resumes an unfinished puzzle within the accepted stop; finishing that stop returns to the village map.
 
 ## Sub-features
 
 - `picker-open` the pill opens and closes the picker.
 - `picker-choose` a chip opens its level.
 - `progress-store` a win marks the chip ✓ and survives a reload.
-- `next-level` the win card's Next level goes to the next unfinished level.
+- `next-level` the win card's Next level continues within the accepted three-game stop. It cannot cross into the next stop; that needs a map tap.
+- `return-map` Valley map (`#map-open`) in the picker returns to the village.
+- `map-peek` returning from the village to the current unfinished campaign puzzle retains its accepted moves and Undo in memory. Reloading the page still restarts that unfinished puzzle.
+- `play-frontier` the map's Play next level button resumes the campaign frontier, including when viewing an earlier location; the picker remains free-browse access.
 - `language` English and French switch without restarting the puzzle; the game names stay as brands.
 - `replay-copy` "Copy this game for a bug report" copies a replay log that `scripts/replay.ts` plays back.
 
@@ -29,6 +32,7 @@ Preconditions:
 
 ## Gotchas
 
-- Each journey starts from empty storage, so Next level after a single win goes to the following level; with earlier wins stored it skips them.
+- Each journey starts from empty storage. If a picker visit opens a later puzzle within a stop, Next level can return to that stop's earlier unfinished puzzle. Never assume the next numeric campaign index or cross-stop progression.
+- Language switching can close the picker. Check `#levels` visibility before another toggle; paused UI clocks must let the picker animation finish. Final corrected regression evidence is linked in [`../integration.md`](../integration.md).
 - French is chosen automatically when the browser prefers it; the journeys run with an English browser.
-- The level pill's accessible name is the level's title, not "Levels"; use `#levels-toggle`.
+- The level pill's accessible name includes the current number, campaign count and game name (for example `1 / 180 · Funnel Sort`); the authored title is separate. Use `#levels-toggle`.

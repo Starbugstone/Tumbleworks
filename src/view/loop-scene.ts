@@ -75,7 +75,7 @@ export class LoopScene {
   private machine: LoopMachine | null = null;
   private crowd: MarbleCrowd | null = null;
   private readonly level = new THREE.Group();
-  private readonly couplingBars: { pair: readonly [string, string]; mesh: THREE.Mesh }[] = [];
+  private readonly couplingBars: { pair: readonly [string, string]; mesh: THREE.Group }[] = [];
   private belt: BeltSurface | null = null;
   private readonly dummy = new THREE.Object3D();
   private readonly trucks = new Map<string, TruckVisual>();
@@ -200,7 +200,12 @@ export class LoopScene {
       this.level.add(visual.group);
     }
     for (const pair of machine.board.couplings ?? []) {
-      const mesh = rounded(1, 0.13, 0.18, plastic(0xffe5ac));
+      // Dark edges show on the ivory beds and the light stripe stays continuous across the dark lane gap, in grayscale too.
+      const mesh = new THREE.Group();
+      const body = rounded(1, 0.16, 0.24, materials.rubber, 0.04);
+      const stripe = new THREE.Mesh(new THREE.BoxGeometry(1, 0.03, 0.07), materials.ivory);
+      stripe.position.y = 0.095;
+      mesh.add(body, stripe);
       mesh.name = 'coupling-bar';
       this.level.add(mesh);
       this.couplingBars.push({ pair, mesh });

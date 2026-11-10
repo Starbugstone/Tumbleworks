@@ -1,12 +1,13 @@
 import { expect, test } from '@playwright/test';
 import { CAMPAIGN } from '../../src/campaign';
 import type { App } from '../../src/view/App';
-import { chooseLevel } from '../fixtures/picker';
+import { chooseLevel, enterGame } from '../fixtures/picker';
 
 type GameWindow = Window & { tumbleworks: { app: App } };
 
 test('Funnel Sort controls follow exposed trays, disappear when empty and return on undo', async ({ page }) => {
   await page.goto('/');
+  await enterGame(page);
   await page.waitForFunction(() => Boolean((window as unknown as Partial<GameWindow>).tumbleworks?.app?.runtime));
   await page.evaluate(() => { (window as unknown as GameWindow).tumbleworks.app.manualClock = true; });
   const controls = page.locator('#board-controls');
@@ -28,6 +29,7 @@ test('retired matching levels fall back safely without losing sorting progress o
     }));
   });
   await page.goto('/');
+  await enterGame(page);
   await page.waitForFunction(() => Boolean((window as unknown as Partial<GameWindow>).tumbleworks?.app?.runtime));
   expect(await page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.debugState())).toMatchObject({ levelId: 'board-1' });
   await expect(page.getByRole('button', { name: 'Sound', exact: true })).toHaveClass(/muted/);
@@ -43,6 +45,7 @@ test('lorry final-colour markers survive a pour and undo while the exposed colou
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/');
+  await enterGame(page);
   await page.waitForFunction(() => Boolean((window as unknown as Partial<GameWindow>).tumbleworks?.app?.runtime));
   await page.evaluate(() => { (window as unknown as GameWindow).tumbleworks.app.manualClock = true; });
   await chooseLevel(page, CAMPAIGN.findIndex((level) => level.id === 'loop-1'));
@@ -73,6 +76,7 @@ test('lorry final-colour markers survive a pour and undo while the exposed colou
 
 test('fast forward runs the machine three times faster only while held, and never after the level ends', async ({ page }) => {
   await page.goto('/');
+  await enterGame(page);
   await page.waitForFunction(() => Boolean((window as unknown as Partial<GameWindow>).tumbleworks?.app?.runtime));
   await page.evaluate(() => { (window as unknown as GameWindow).tumbleworks.app.manualClock = true; });
   const fast = page.getByRole('button', { name: 'Fast forward ×3 (hold)', exact: true });
@@ -143,6 +147,7 @@ test('fast forward runs the machine three times faster only while held, and neve
 
 test('a second finger can pour while the first holds fast forward', async ({ page }) => {
   await page.goto('/');
+  await enterGame(page);
   await page.waitForFunction(() => Boolean((window as unknown as Partial<GameWindow>).tumbleworks?.app?.runtime));
   await page.evaluate(() => { (window as unknown as GameWindow).tumbleworks.app.manualClock = true; });
   const fast = page.getByRole('button', { name: 'Fast forward ×3 (hold)', exact: true });

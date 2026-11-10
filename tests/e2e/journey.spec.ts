@@ -5,7 +5,7 @@ import { availableTubeMoves, TubeRules } from '../../src/puzzles/rules';
 import type { App } from '../../src/view/App';
 import { CAMPAIGN } from '../../src/campaign';
 import { FUNNEL_WITNESSES, LOOP_JAMS, LOOP_WITNESSES } from '../witnesses';
-import { chooseLevel } from '../fixtures/picker';
+import { chooseLevel, enterGame } from '../fixtures/picker';
 
 type GameWindow = Window & { tumbleworks: { app: App } };
 const state = (page: Page) => page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.debugState());
@@ -13,6 +13,7 @@ const state = (page: Page) => page.evaluate(() => (window as unknown as GameWind
 async function ready(page: Page): Promise<void> {
   await page.waitForFunction(() => Boolean((window as unknown as Partial<GameWindow>).tumbleworks?.app?.runtime), undefined, { timeout: 60000 });
   await page.evaluate(() => { (window as unknown as GameWindow).tumbleworks.app.manualClock = true; });
+  await enterGame(page);
 }
 
 /** Real game ticks with rendering only at the end; this is functional verification, not an FPS benchmark. */
@@ -98,6 +99,38 @@ const sliceBounds = (slice: number): [number, number] => {
   return [slice * size, Math.min(CAMPAIGN.length, (slice + 1) * size)];
 };
 
+test('a completed forty-round save continues into the new campaign', async ({ page }) => {
+  const completed = CAMPAIGN.slice(0, 120).map(level => level.id);
+  // A player may also retain completion from the original thirty-round release.
+  for (const prefix of ['board', 'loop', 'tube']) {
+    for (let id = 1; id <= 30; id++) completed.push(`${prefix}-${id}`);
+  }
+  await page.addInitScript(({ completed, current }) => {
+    if (!localStorage.getItem('tumbleworks.progress.v1')) {
+      localStorage.setItem('tumbleworks.progress.v1', JSON.stringify({ completed, current, muted: true }));
+    }
+  }, { completed: [...new Set(completed)], current: 'tube-74' });
+  await page.goto('/');
+  await ready(page);
+  // The map starts at the next unfinished round; entering resumes its first unfinished puzzle.
+  expect((await state(page)).levelIndex).toBe(120);
+  await select(page, 119);
+  expect((await state(page)).levelIndex).toBe(119);
+  await solve(page, 119);
+  await expect(page.locator('body')).toHaveAttribute('data-screen', 'map');
+  await page.getByRole('button', { name: 'Next location', exact: true }).click();
+  await page.locator('.map-stop[data-round="40"]').click();
+  expect((await state(page)).levelIndex).toBe(120);
+  await page.reload();
+  await ready(page);
+  expect((await state(page)).levelIndex).toBe(120);
+  await page.locator('#levels-toggle').click();
+  const chips = await page.locator('.chip').allTextContents();
+  expect(chips).toHaveLength(180);
+  expect(chips.slice(0, 120)).toEqual(Array(120).fill('✓'));
+  expect(chips.slice(120).filter(text => text === '✓')).toHaveLength(0);
+});
+
 test.describe('the whole campaign completes through real touch input', () => {
   test.describe.configure({ mode: 'parallel' });
   for (let slice = 0; slice < SLICES; slice++) {
@@ -119,15 +152,16 @@ test.describe('the whole campaign completes through real touch input', () => {
         await page.screenshot({ path: `output/current/campaign-level${index + 1}.png` });
         await solve(page, index);
         await expect(page.locator(`.chip[data-level="${index}"]`)).toHaveText('✓');
-        await expect(page.locator('#card')).toBeVisible();
-        if (index < CAMPAIGN.length - 1) await page.getByRole('button', { name: 'Next level', exact: true }).click();
+        if ((index + 1) % 3 === 0) {
+          await expect.poll(async () => (await state(page)).screen).not.toBe('game');
+          if ((await state(page)).screen === 'film') await page.locator('#film-skip').click();
+          if (index + 1 < last) await select(page, index + 1);
+        } else {
+          await expect(page.locator('#card')).toBeVisible();
+          if (index + 1 < last) await page.getByRole('button', { name: 'Next level', exact: true }).click();
+        }
       }
-      if (last === CAMPAIGN.length && first === 0) await expect(page.locator('#card-title')).toHaveText('Workshop complete!');
-      if (last === CAMPAIGN.length && first > 0) {
-        // Only this slice's levels are finished in this browser, so Next wraps round to the first unfinished level.
-        await page.getByRole('button', { name: 'Next level', exact: true }).click();
-        await expect.poll(async () => (await state(page)).levelIndex).toBe(0);
-      }
+      if (last === CAMPAIGN.length) await expect(page.locator('body')).toHaveAttribute('data-screen', 'map');
       await page.reload();
       await ready(page);
       await page.locator('#levels-toggle').click();
@@ -223,7 +257,7 @@ test('desktop and reference-phone boards keep targets and controls inside the vi
   expect(errors).toEqual([]);
 });
 
-test('storage write failure still records completion and allows the next level in the session', async ({ page }) => {
+test('storage write failure still records completion and keeps round boundaries in the session', async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(Storage.prototype, 'setItem', { value() { throw new DOMException('Quota exceeded', 'QuotaExceededError'); } });
   });
@@ -233,8 +267,9 @@ test('storage write failure still records completion and allows the next level i
   await select(page, tube);
   await solve(page, tube);
   await expect(page.locator(`.chip[data-level="${tube}"]`)).toHaveText('✓');
+  // The earlier two games are unfinished, so completing this Tube Sort resumes the first missing game of its own stop.
   await page.getByRole('button', { name: 'Next level', exact: true }).click();
-  expect((await state(page)).levelId).toBe(CAMPAIGN[tube + 1]?.id);
+  expect((await state(page)).levelId).toBe(CAMPAIGN[tube - 2]?.id);
   await expect(page.locator(`.chip[data-level="${tube}"]`)).toHaveText('✓');
 });
 

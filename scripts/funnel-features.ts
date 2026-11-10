@@ -5,6 +5,7 @@ import { search } from './funnel-author';
 
 /** Remove only the restriction; retain stable crate actions and all cargo/receiver order. */
 export function withoutFunnelFeature(board: BoardDef): BoardDef {
+  if (board.pallets?.length) return { ...board, pallets: [] };
   if (board.seals?.length) return { ...board, seals: [] };
   let id = 0;
   const columns = Object.fromEntries(board.supplies.flatMap((queue) => queue.map((_, index) => {
@@ -16,7 +17,7 @@ export function withoutFunnelFeature(board: BoardDef): BoardDef {
 
 /** An attractive opening has no winning continuation here but wins with the restriction removed. */
 export function funnelFeatureTrap(board: BoardDef): number | null {
-  if (!board.pairs?.length && !board.predecessors && !board.seals?.length) return null;
+  if (!board.pairs?.length && !board.predecessors && !board.seals?.length && !board.pallets?.length) return null;
   for (const action of new MachineRules(board).actions()) {
     const rules = new MachineRules(board);
     rules.release(action); settle(rules);

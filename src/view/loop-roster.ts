@@ -56,11 +56,17 @@ const STYLE = `
 .lr-latch::before { content:''; position:absolute; width:10px; height:8px; border:2px solid #20363b; border-bottom:0; border-radius:7px 7px 0 0; left:3px; top:-9px; box-sizing:border-box; }
 .lr-latch b { position:absolute; right:-4px; top:-11px; min-width:12px; height:12px; line-height:12px; font-size:11px; text-align:center; border-radius:50%; color:#20363b; background:#fff7e5; }
 .lr-latch img { width:16px; height:16px; }
+.lr-link { position:absolute; right:5px; bottom:4px; height:16px; padding:0 3px; box-sizing:border-box; border-radius:3px; background:#20243a; color:#fff7e5; display:flex; align-items:center; gap:2px; }
+.lr-link svg { width:10px; height:10px; }
+.lr-link b { font-size:11px; font-weight:600; line-height:16px; }
 @media (prefers-reduced-motion: reduce) { .lr-card, .lr-fill, .lr-number, .lr-fold { transition: none; } }
 `;
 
+/** Two interlocking links, ivory on the dark chip: readable by shape in grayscale. */
+const CHAIN = '<svg viewBox="0 0 12 12" fill="none" stroke="#fff7e5" stroke-width="1.6" aria-hidden="true"><rect x="0.8" y="3.5" width="6.5" height="5" rx="2.5"/><rect x="4.7" y="3.5" width="6.5" height="5" rx="2.5"/></svg>';
+
 interface Stretch { readonly color: Color | null; readonly units: number }
-interface Lorry { readonly capacity: number; readonly latchColor: Color | null; readonly latchLane: number | null; readonly truck: number; readonly finalColor: Color; readonly stretches: readonly Stretch[]; readonly state: 'pouring' | 'waiting' | null }
+interface Lorry { readonly capacity: number; readonly latchColor: Color | null; readonly latchLane: number | null; readonly linkLane: number | null; readonly truck: number; readonly finalColor: Color; readonly stretches: readonly Stretch[]; readonly state: 'pouring' | 'waiting' | null }
 interface CardView { readonly element: HTMLElement; readonly cab: HTMLElement; readonly rail: HTMLElement; readonly numbers: HTMLElement; signature: string; truckKey: string }
 export interface RosterPick { readonly lane: number; readonly kind: 'now' | 'waiting' | 'more' }
 const CHEVRONS = 'data:image/svg+xml,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12"><path fill="none" stroke="${INK}" stroke-width="2" d="M2 2l4 4-4 4M6.5 2l4 4-4 4"/></svg>`);
@@ -87,7 +93,7 @@ export class LoopRoster {
     document.body.insertBefore(this.element, document.getElementById('hud'));
     // The level's own shape sets the sizes, so they hold still for the whole level.
     this.levelLines = machine.board.lanes.map((line) => line.map((truck) => truck.segments.length + (truck.segments.reduce((sum, s) => sum + s.count, 0) < (truck.capacity ?? machine.board.truckCapacity) ? 1 : 0)));
-    this.layoutNow = rosterLayout(this.levelLines, window.innerWidth, window.innerHeight, this.hasLatches);
+    this.layoutNow = rosterLayout(this.levelLines, window.innerWidth, window.innerHeight, this.hasRuleChips);
     machine.board.lanes.forEach((_, lane) => {
       const tag = document.createElement('span');
       tag.className = 'lr-tag'; tag.textContent = String(lane + 1);
@@ -100,11 +106,11 @@ export class LoopRoster {
     });
   }
 
-  private get hasLatches(): boolean { return this.machine.board.lanes.flat().some((truck) => Boolean(truck.pourAfter)); }
+  private get hasRuleChips(): boolean { return Boolean(this.machine.board.couplings?.length) || this.machine.board.lanes.flat().some((truck) => Boolean(truck.pourAfter)); }
 
   /** Sizes everything for the viewport and answers with the rectangle the toy may fill. */
   layout(width: number, height: number): Rect {
-    this.layoutNow = rosterLayout(this.levelLines, width, height, this.hasLatches);
+    this.layoutNow = rosterLayout(this.levelLines, width, height, this.hasRuleChips);
     this.key = '';
     this.closePeek();
     this.sync();
@@ -131,7 +137,8 @@ export class LoopRoster {
         const stretches: Stretch[] = [...truck.blocks].reverse().filter((block) => block.units > 0).map((block) => ({ color: block.color, units: block.units }));
         const load = stretches.reduce((sum, stretch) => sum + stretch.units, 0);
         if (load < capacity) stretches.push({ color: null, units: capacity - load });
-        return { capacity, latchColor: truck.latchColor, latchLane: truck.latchLane, truck: truck.index, finalColor: truck.finalColor, stretches, state: truck === docked ? truck.unloading : null };
+        const linkLane = truck.coupledWith ? this.machine.truckReference(truck.coupledWith)?.lane ?? null : null;
+        return { capacity, latchColor: truck.latchColor, latchLane: truck.latchLane, linkLane, truck: truck.index, finalColor: truck.finalColor, stretches, state: truck === docked ? truck.unloading : null };
       });
     });
   }
@@ -250,6 +257,12 @@ export class LoopRoster {
       if (!latch) { latch = document.createElement('span'); latch.className = 'lr-latch'; view.element.append(latch); }
       latch.innerHTML = `<img alt="" src="${pattern(lorry.latchColor, INK)}"><b>${lorry.latchLane! + 1}</b>`;
     } else latch?.remove();
+    // A linked truck's chip names its partner's lane, bottom right: a pouring truck's top right holds its chevrons.
+    let link = view.element.querySelector<HTMLElement>('.lr-link');
+    if (lorry.linkLane !== null) {
+      if (!link) { link = document.createElement('span'); link.className = 'lr-link'; view.element.append(link); }
+      link.innerHTML = `${CHAIN}<b>${lorry.linkLane + 1}</b>`;
+    } else link?.remove();
     let state = view.element.querySelector<HTMLImageElement>('.lr-state');
     if (lorry.state) {
       if (!state) { state = document.createElement('img'); state.className = 'lr-state'; state.alt = ''; view.element.append(state); }

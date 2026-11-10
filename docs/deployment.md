@@ -20,11 +20,18 @@ Every job in `ci.yml` gates deployment.
 
 | Job | Checks |
 | --- | --- |
-| `game` | `npm ci`, typecheck, lint, unit tests including the physics and scripted witnesses, build with its first-download budget |
+| `game` | `npm ci`, typecheck, lint, shipping unit tests including puzzle physics/scripted witnesses and cinematic films, build with its first-download budget |
 | `browser` | Sixteen real-touch and rendering checks, using the Compose game server and pinned Playwright image with two workers |
 | `hosting` | The controller's own tests, then `tests/o2switch/site-test.sh` |
 
-`site-test.sh` builds the commit with the real controller and the settings below, and serves the release with Apache. It checks the cache headers, the 404 and 403 rules, the HTTPS redirect and certificate renewal, then runs `tests/e2e/smoke.spec.ts` in Chromium: the page boots, the board draws, a real tap reaches the game and all registered campaign levels are listed (currently 120), derived from `CAMPAIGN` rather than an old fixed count.
+`site-test.sh` builds the commit with the real controller and the settings below, and serves the release with Apache. It checks the cache headers, the 404 and 403 rules, the HTTPS redirect and certificate renewal, then runs `tests/e2e/smoke.spec.ts` in Chromium: the page boots, the board draws, a real tap reaches the game and all registered campaign levels are listed (currently 180), derived from `CAMPAIGN` rather than an old fixed count.
+
+Village films use `VillageCinematic`. `npm test` runs their timeline, native
+geometry, visibility and camera checks plus the shipping world/Workshop tests.
+The superseded force/torque and native mechanical-certificate experiments remain
+available through `npm run test:research`; they are not deployment gates. Some
+research tests require archived local receipts and retain unresolved model exits.
+This separation does not remove or replace any puzzle-physics tests.
 
 The full Playwright suite and standalone performance test are not currently in the gate. The earlier 21-minute run and loaded instruction-toast failure are historical ninety-level observations, not the duration or result of the 120-level release. Run the full suite on the reviewed release revision, then run performance alone with `--no-deps`, and record actual results in [verification.md](verification.md). Browser measurements do not establish physical-phone performance.
 

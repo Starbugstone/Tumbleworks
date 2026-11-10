@@ -1,0 +1,16 @@
+// Mill111 selected axle implementation. Actual trusted land, finite foot interiors; no journal-as-foundation inference.
+import {Mesh,Vector3} from 'three';
+import {nativeTerrainOwnership} from './village-terrain';
+import {certifyFootPartition} from '../world/rocker-foot';
+import type {NativePart,V} from '../world/axle-types';
+export function axleFeet(land:Mesh,parts:readonly NativePart[]){const ownership=nativeTerrainOwnership(land);land.updateWorldMatrix(true,false);const p=land.geometry.getAttribute('position'),v=new Vector3(),faces=ownership.land.map(i=>[0,1,2].map(j=>v.fromBufferAttribute(p,3*i+j).applyMatrix4(land.matrixWorld).toArray()as unknown as V));const reports=[];for(const id of['trestle-a','trestle-b','caliper-post','guide-rod']){const foot=parts.find(p=>p.id===id);if(!foot)throw new Error('Missing named actual anchor '+id);const p=foot.geometry.getAttribute('position'),points:V[]=[];for(let i=foot.first;i<foot.first+foot.count;i++)points.push(v.fromBufferAttribute(p,i).applyMatrix4(foot.toWorld).toArray()as unknown as V);const y=Math.min(...points.map(p=>p[1])),bottom=points.filter(p=>p[1]===y),x0=Math.min(...bottom.map(p=>p[0])),x1=Math.max(...bottom.map(p=>p[0])),z0=Math.min(...bottom.map(p=>p[2])),z1=Math.max(...bottom.map(p=>p[2]));if(!(x1>x0&&z1>z0))throw new Error('No finite actual packed foot');const flat=faces.filter(f=>f.every(p=>p[1]===y));reports.push({part:id,at:[(x0+x1)/2,y,(z0+z1)/2]as V,partition:certifyFootPartition(flat,x0,x1,z0,z1),model:'ideal-unrated-bilateral-six-component-zero-work' as const});}return reports;}
+
+/** Constructor-only source of FOUR finite home-plane contacts; never a point-height fallback. */
+export class AxleLand {
+ readonly faces:readonly(readonly V[])[];readonly constructionMatrix:readonly number[];
+ readonly feet=new Map<string,{readonly id:string;readonly x0:number;readonly x1:number;readonly z0:number;readonly z1:number;readonly y:number;readonly area:string;readonly work:number}>();
+ constructor(readonly actual:Mesh){const proof=nativeTerrainOwnership(actual);actual.updateWorldMatrix(true,false);this.constructionMatrix=actual.matrixWorld.toArray();const p=actual.geometry.getAttribute('position'),v=new Vector3();this.faces=proof.land.map(i=>[0,1,2].map(j=>v.fromBufferAttribute(p,3*i+j).applyMatrix4(actual.matrixWorld).toArray()as unknown as V));}
+ foot(id:string,x0:number,x1:number,z0:number,z1:number){if(!['trestle-a','trestle-b','caliper-post','guide-rod'].includes(id)||this.feet.has(id))throw new Error('Axle foot owner must be unique/named');nativeTerrainOwnership(this.actual);const relevant=this.faces.filter(f=>Math.max(...f.map(p=>p[0]))>x0&&Math.min(...f.map(p=>p[0]))<x1&&Math.max(...f.map(p=>p[2]))>z0&&Math.min(...f.map(p=>p[2]))<z1),planes=[...new Set(relevant.filter(f=>f.every(p=>p[1]===f[0]![1])).map(f=>f[0]![1]))],accepted=[];for(const y of planes){const triangles=relevant.filter(f=>f.every(p=>p[1]===y));try{const report=certifyFootPartition(triangles,x0,x1,z0,z1);accepted.push({id,x0,x1,z0,z1,y,area:report.exactArea,work:report.work});}catch(error){if(!(error instanceof Error)||!error.message.includes('has a gap'))throw error;}}
+  if(accepted.length!==1)throw new Error('Axle complete finite foot has no unique actual flat land plane: '+id);const result=accepted[0]!;this.feet.set(id,result);return result;
+ }
+}

@@ -34,15 +34,19 @@ export function validateTubeDef(board: TubeDef): void {
     throw new Error('Each tube needs a container definition');
   }
   const counts = colorCounts(board.tubes.flat());
-  let homes = 0;
+  if (board.colorCapacities !== undefined && (!isRecord(board.colorCapacities) ||
+    Object.entries(board.colorCapacities).some(([color, count]) => !isColor(color) || !isIndex(count) || count === 0 || !counts[color]))) {
+    throw new Error('Invalid per-colour home capacity');
+  }
+  const homes = new Map<number, number>();
   board.tubes.forEach((tube, index) => {
     if (board.containers && !isRecord(board.containers[index])) throw new Error('Invalid tube container');
     const container = tubeContainer(board, index);
     if (!container || !isIndex(container.capacity) || container.capacity === 0 || tube.length > container.capacity) throw new Error('Invalid container capacity');
     switch (container.role) {
       case 'ordinary': case 'capped':
-        if (container.capacity !== board.capacity) throw new Error('Ordinary homes use the full colour capacity');
-        homes += 1;
+        if (!board.colorCapacities && container.capacity !== board.capacity) throw new Error('Ordinary homes use the full colour capacity');
+        homes.set(container.capacity, (homes.get(container.capacity) ?? 0) + 1);
         if (container.role === 'capped' && (tube.length || !isColor(container.opensOn) || !counts[container.opensOn])) throw new Error('A capped spare must be empty and reference a present colour');
         break;
       case 'cup':
@@ -52,11 +56,17 @@ export function validateTubeDef(board: TubeDef): void {
     }
   });
   const ordinaryColors = COLORS.filter((color) => counts[color]);
-  if (ordinaryColors.some((color) => counts[color] !== board.capacity) || homes < ordinaryColors.length) {
-    throw new Error('Each tube color needs exactly one full home of marbles');
+  const needed = new Map<number, number>();
+  for (const color of ordinaryColors) {
+    const capacity = tubeColorCapacity(board, color);
+    if (counts[color] !== capacity) throw new Error('Each tube color needs exactly one full home of marbles');
+    needed.set(capacity, (needed.get(capacity) ?? 0) + 1);
+  }
+  if ([...needed].some(([capacity, count]) => (homes.get(capacity) ?? 0) < count)) {
+    throw new Error('Each colour needs a distinct home of its required capacity');
   }
   for (const container of board.containers ?? []) {
-    if (container.role === 'capped' && !board.tubes.some((_, i) => tubeContainer(board, i).role === 'ordinary')) {
+    if (container.role === 'capped' && !board.tubes.some((_, i) => { const home = tubeContainer(board, i); return home.role === 'ordinary' && home.capacity === tubeColorCapacity(board, container.opensOn); })) {
       throw new Error('A cap prerequisite needs an accessible completion home');
     }
   }
@@ -108,9 +118,15 @@ export function availableTubeMoves(board: TubeDef, state: TubeState): TubeMove[]
   return result;
 }
 
+export function tubeColorCapacity(board: TubeDef, color: Color): number {
+  return board.colorCapacities?.[color] ?? board.capacity;
+}
+
 export function completedTube(board: TubeDef, state: TubeState, index: number): boolean {
   const container = tubeContainer(board, index);
-  return container.role !== 'cup' && tubeIsComplete(state.tubes[index]!, container.capacity);
+  const tube = state.tubes[index]!;
+  return container.role !== 'cup' && tube[0] !== undefined && container.capacity === tubeColorCapacity(board, tube[0])
+    && tubeIsComplete(tube, container.capacity);
 }
 
 function tubeStatus(board: TubeDef, state: TubeState): PuzzleStatus {

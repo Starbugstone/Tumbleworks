@@ -1,0 +1,2510 @@
+[
+  {
+    "round": 41,
+    "slot": "lesson",
+    "id": "board-200",
+    "note": "One shared handle.",
+    "source": {
+      "kind": "bank",
+      "id": "board-200"
+    },
+    "trap": null,
+    "fastSource": null,
+    "verified": {
+      "exhaustive": true,
+      "timings": [
+        {
+          "status": "won",
+          "clean": true,
+          "seconds": 18.1
+        },
+        {
+          "status": "won",
+          "clean": true,
+          "seconds": 24.383333333333333
+        }
+      ],
+      "jam": {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 8.95
+      },
+      "fastWins": true,
+      "recoveries": {
+        "nudges": 0,
+        "teleports": 0,
+        "bounces": 0
+      }
+    },
+    "game": "funnel",
+    "hash": "74eaa7be2618d8c5"
+  },
+  {
+    "round": 42,
+    "slot": "ordinary",
+    "id": "board-79",
+    "note": "Passing places.",
+    "source": {
+      "generator": "scripts/funnel-author.ts:generate",
+      "recipe": {
+        "colors": 5,
+        "columns": [
+          3,
+          3,
+          2
+        ],
+        "docks": 3,
+        "shorts": 0,
+        "capacity": 40,
+        "slack": 0,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false
+      },
+      "seed": 101,
+      "beltCapacity": 14
+    },
+    "trap": null,
+    "fastSource": null,
+    "verified": {
+      "exhaustive": true,
+      "timings": [
+        {
+          "status": "won",
+          "clean": true,
+          "seconds": 33.86666666666667
+        },
+        {
+          "status": "won",
+          "clean": true,
+          "seconds": 41.6
+        }
+      ],
+      "jam": {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 4.75
+      },
+      "fastWins": true,
+      "recoveries": {
+        "nudges": 0,
+        "teleports": 0,
+        "bounces": 0
+      }
+    },
+    "game": "funnel",
+    "hash": "7ebcada6a32cdc0c"
+  },
+  {
+    "round": 43,
+    "slot": "ordinary",
+    "id": "board-76",
+    "note": "Pull together.",
+    "source": {
+      "generator": "scripts/funnel-author.ts:generate",
+      "recipe": {
+        "colors": 4,
+        "columns": [
+          3,
+          2,
+          2
+        ],
+        "docks": 3,
+        "shorts": 0,
+        "capacity": 40,
+        "slack": 0,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false,
+        "pairs": [
+          [
+            0,
+            3
+          ]
+        ]
+      },
+      "seed": 1,
+      "beltCapacity": 14
+    },
+    "trap": 0,
+    "fastSource": null,
+    "verified": {
+      "exhaustive": true,
+      "timings": [
+        {
+          "status": "won",
+          "clean": true,
+          "seconds": 24.416666666666668
+        },
+        {
+          "status": "won",
+          "clean": true,
+          "seconds": 31.866666666666667
+        }
+      ],
+      "jam": {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 2.9833333333333334
+      },
+      "fastWins": true,
+      "recoveries": {
+        "nudges": 0,
+        "teleports": 0,
+        "bounces": 0
+      }
+    },
+    "game": "funnel",
+    "hash": "b10f96ed2724535d"
+  },
+  {
+    "round": 44,
+    "slot": "peak",
+    "id": "board-80",
+    "note": "Tall stacks, tight turns.",
+    "source": {
+      "generator": "scripts/funnel-author.ts:generate",
+      "recipe": {
+        "colors": 5,
+        "columns": [
+          4,
+          4,
+          2
+        ],
+        "docks": 3,
+        "shorts": 0,
+        "capacity": 40,
+        "slack": 0,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false
+      },
+      "seed": 5,
+      "beltCapacity": 14
+    },
+    "trap": null,
+    "fastSource": null,
+    "verified": {
+      "exhaustive": true,
+      "timings": [
+        {
+          "status": "won",
+          "clean": true,
+          "seconds": 53.11666666666667
+        },
+        {
+          "status": "won",
+          "clean": true,
+          "seconds": 59.766666666666666
+        }
+      ],
+      "jam": {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 6.233333333333333
+      },
+      "fastWins": true,
+      "recoveries": {
+        "nudges": 0,
+        "teleports": 0,
+        "bounces": 0
+      }
+    },
+    "game": "funnel",
+    "hash": "b2ba0682d137213a"
+  },
+  {
+    "round": 45,
+    "slot": "ordinary",
+    "id": "board-81",
+    "note": "Four ways forward.",
+    "source": {
+      "generator": "scripts/funnel-author.ts:generate",
+      "recipe": {
+        "colors": 5,
+        "columns": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "docks": 3,
+        "shorts": 0,
+        "capacity": 40,
+        "slack": 0,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false
+      },
+      "seed": 1001,
+      "beltCapacity": 14
+    },
+    "trap": null,
+    "fastSource": null,
+    "verified": {
+      "exhaustive": true,
+      "timings": [
+        {
+          "status": "won",
+          "clean": true,
+          "seconds": 34.13333333333333
+        },
+        {
+          "status": "won",
+          "clean": true,
+          "seconds": 43.21666666666667
+        }
+      ],
+      "jam": {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 4.466666666666667
+      },
+      "fastWins": true,
+      "recoveries": {
+        "nudges": 0,
+        "teleports": 0,
+        "bounces": 0
+      }
+    },
+    "game": "funnel",
+    "hash": "77179dce677e08ec"
+  },
+  {
+    "round": 46,
+    "slot": "relief",
+    "id": "board-77",
+    "note": "Two docks to share.",
+    "source": {
+      "generator": "scripts/funnel-author.ts:generate",
+      "recipe": {
+        "colors": 3,
+        "columns": [
+          2,
+          2,
+          2
+        ],
+        "docks": 2,
+        "shorts": 1,
+        "capacity": 40,
+        "slack": 0,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false,
+        "smalls": 1,
+        "pairs": [
+          [
+            0,
+            2
+          ]
+        ]
+      },
+      "seed": 61,
+      "beltCapacity": 14
+    },
+    "trap": 0,
+    "fastSource": null,
+    "verified": {
+      "exhaustive": true,
+      "timings": [
+        {
+          "status": "won",
+          "clean": true,
+          "seconds": 11.433333333333334
+        },
+        {
+          "status": "won",
+          "clean": true,
+          "seconds": 17.4
+        }
+      ],
+      "jam": {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 2.566666666666667
+      },
+      "fastWins": true,
+      "recoveries": {
+        "nudges": 0,
+        "teleports": 0,
+        "bounces": 0
+      }
+    },
+    "game": "funnel",
+    "hash": "b551f5e323f2b6cb"
+  },
+  {
+    "round": 47,
+    "slot": "ordinary",
+    "id": "board-82",
+    "note": "Every crate counts.",
+    "source": {
+      "generator": "scripts/funnel-author.ts:generate",
+      "recipe": {
+        "colors": 5,
+        "columns": [
+          3,
+          3,
+          2,
+          2
+        ],
+        "docks": 3,
+        "shorts": 2,
+        "capacity": 40,
+        "slack": 0,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false,
+        "smalls": 1,
+        "palette": [
+          "black",
+          "red",
+          "blue",
+          "green",
+          "orange"
+        ]
+      },
+      "seed": 4,
+      "beltCapacity": 16
+    },
+    "trap": null,
+    "fastSource": null,
+    "verified": {
+      "exhaustive": true,
+      "timings": [
+        {
+          "status": "won",
+          "clean": true,
+          "seconds": 33.13333333333333
+        },
+        {
+          "status": "won",
+          "clean": true,
+          "seconds": 44.8
+        }
+      ],
+      "jam": {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 8
+      },
+      "fastWins": true,
+      "recoveries": {
+        "nudges": 0,
+        "teleports": 0,
+        "bounces": 0
+      }
+    },
+    "game": "funnel",
+    "hash": "fc4a44c252302b67"
+  },
+  {
+    "round": 48,
+    "slot": "ordinary",
+    "id": "board-83",
+    "note": "Twelve to place.",
+    "source": {
+      "generator": "scripts/funnel-author.ts:generate",
+      "recipe": {
+        "colors": 5,
+        "columns": [
+          3,
+          3,
+          3,
+          3
+        ],
+        "docks": 3,
+        "shorts": 0,
+        "capacity": 40,
+        "slack": 0,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false
+      },
+      "seed": 13,
+      "beltCapacity": 16
+    },
+    "trap": null,
+    "fastSource": null,
+    "verified": {
+      "exhaustive": true,
+      "timings": [
+        {
+          "status": "won",
+          "clean": true,
+          "seconds": 59.43333333333333
+        },
+        {
+          "status": "won",
+          "clean": true,
+          "seconds": 74.48333333333333
+        }
+      ],
+      "jam": {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 9.766666666666667
+      },
+      "fastWins": true,
+      "recoveries": {
+        "nudges": 0,
+        "teleports": 0,
+        "bounces": 0
+      }
+    },
+    "game": "funnel",
+    "hash": "5bcef3f331985581"
+  },
+  {
+    "round": 49,
+    "slot": "peak",
+    "id": "board-84",
+    "note": "The narrow route.",
+    "source": {
+      "generator": "scripts/funnel-author.ts:generate",
+      "recipe": {
+        "colors": 4,
+        "columns": [
+          4,
+          3,
+          3
+        ],
+        "docks": 2,
+        "shorts": 0,
+        "capacity": 40,
+        "slack": 0,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false
+      },
+      "seed": 11,
+      "beltCapacity": 15
+    },
+    "trap": null,
+    "fastSource": null,
+    "verified": {
+      "exhaustive": true,
+      "timings": [
+        {
+          "status": "won",
+          "clean": true,
+          "seconds": 34.55
+        },
+        {
+          "status": "won",
+          "clean": true,
+          "seconds": 48.11666666666667
+        }
+      ],
+      "jam": {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 4.883333333333334
+      },
+      "fastWins": true,
+      "recoveries": {
+        "nudges": 0,
+        "teleports": 0,
+        "bounces": 0
+      }
+    },
+    "game": "funnel",
+    "hash": "41fb364a6cef89a4"
+  },
+  {
+    "round": 50,
+    "slot": "ordinary",
+    "id": "board-85",
+    "note": "Leave a little room.",
+    "source": {
+      "generator": "scripts/funnel-author.ts:generate",
+      "recipe": {
+        "colors": 5,
+        "columns": [
+          3,
+          3,
+          2
+        ],
+        "docks": 3,
+        "shorts": 0,
+        "capacity": 40,
+        "slack": 0,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false
+      },
+      "seed": 103,
+      "beltCapacity": 14
+    },
+    "trap": null,
+    "fastSource": null,
+    "verified": {
+      "exhaustive": true,
+      "timings": [
+        {
+          "status": "won",
+          "clean": true,
+          "seconds": 29.933333333333334
+        },
+        {
+          "status": "won",
+          "clean": true,
+          "seconds": 39.45
+        }
+      ],
+      "jam": {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 13.416666666666666
+      },
+      "fastWins": true,
+      "recoveries": {
+        "nudges": 0,
+        "teleports": 0,
+        "bounces": 0
+      }
+    },
+    "game": "funnel",
+    "hash": "db8cc7c5057dcfeb"
+  },
+  {
+    "round": 51,
+    "slot": "relief",
+    "id": "board-86",
+    "note": "Three sizes in turn.",
+    "source": {
+      "generator": "scripts/funnel-author.ts:generate",
+      "recipe": {
+        "colors": 4,
+        "columns": [
+          3,
+          3,
+          2,
+          2
+        ],
+        "docks": 3,
+        "shorts": 2,
+        "capacity": 40,
+        "slack": 0,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false,
+        "smalls": 2
+      },
+      "seed": 6,
+      "beltCapacity": 14
+    },
+    "trap": null,
+    "fastSource": null,
+    "verified": {
+      "exhaustive": true,
+      "timings": [
+        {
+          "status": "won",
+          "clean": true,
+          "seconds": 38.1
+        },
+        {
+          "status": "won",
+          "clean": true,
+          "seconds": 48.333333333333336
+        }
+      ],
+      "jam": {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 15.45
+      },
+      "fastWins": true,
+      "recoveries": {
+        "nudges": 0,
+        "teleports": 0,
+        "bounces": 0
+      }
+    },
+    "game": "funnel",
+    "hash": "4b10a4e3a88fe9a9"
+  },
+  {
+    "round": 52,
+    "slot": "ordinary",
+    "id": "board-87",
+    "note": "Short crates, long queues.",
+    "source": {
+      "generator": "scripts/funnel-author.ts:generate",
+      "recipe": {
+        "colors": 5,
+        "columns": [
+          3,
+          2,
+          3,
+          2
+        ],
+        "docks": 3,
+        "shorts": 4,
+        "capacity": 40,
+        "slack": 0,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false
+      },
+      "seed": 1013,
+      "beltCapacity": 17
+    },
+    "trap": null,
+    "fastSource": null,
+    "verified": {
+      "exhaustive": true,
+      "timings": [
+        {
+          "status": "won",
+          "clean": true,
+          "seconds": 45.15
+        },
+        {
+          "status": "won",
+          "clean": true,
+          "seconds": 55.31666666666667
+        }
+      ],
+      "jam": {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 12.466666666666667
+      },
+      "fastWins": true,
+      "recoveries": {
+        "nudges": 0,
+        "teleports": 0,
+        "bounces": 0
+      }
+    },
+    "game": "funnel",
+    "hash": "24be17cb0f754a95"
+  },
+  {
+    "round": 53,
+    "slot": "ordinary",
+    "id": "board-88",
+    "note": "Deep reserves.",
+    "source": {
+      "generator": "scripts/funnel-author.ts:generate",
+      "recipe": {
+        "colors": 5,
+        "columns": [
+          4,
+          4,
+          2
+        ],
+        "docks": 3,
+        "shorts": 0,
+        "capacity": 40,
+        "slack": 0,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false
+      },
+      "seed": 3,
+      "beltCapacity": 17
+    },
+    "trap": null,
+    "fastSource": null,
+    "verified": {
+      "exhaustive": true,
+      "timings": [
+        {
+          "status": "won",
+          "clean": true,
+          "seconds": 43.38333333333333
+        },
+        {
+          "status": "won",
+          "clean": true,
+          "seconds": 53.28333333333333
+        }
+      ],
+      "jam": {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 23.866666666666667
+      },
+      "fastWins": true,
+      "recoveries": {
+        "nudges": 0,
+        "teleports": 0,
+        "bounces": 0
+      }
+    },
+    "game": "funnel",
+    "hash": "eca4cbcff5ea056b"
+  },
+  {
+    "round": 54,
+    "slot": "peak",
+    "id": "board-89",
+    "note": "Around the wide crossing.",
+    "source": {
+      "generator": "scripts/funnel-author.ts:generate",
+      "recipe": {
+        "colors": 5,
+        "columns": [
+          3,
+          3,
+          3
+        ],
+        "docks": 2,
+        "shorts": 0,
+        "capacity": 40,
+        "slack": 0,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false,
+        "shape": "wide-eight"
+      },
+      "seed": 1,
+      "beltCapacity": 30
+    },
+    "trap": null,
+    "fastSource": null,
+    "verified": {
+      "exhaustive": true,
+      "timings": [
+        {
+          "status": "won",
+          "clean": true,
+          "seconds": 44.6
+        },
+        {
+          "status": "won",
+          "clean": true,
+          "seconds": 67.38333333333334
+        }
+      ],
+      "jam": {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 18.95
+      },
+      "fastWins": true,
+      "recoveries": {
+        "nudges": 0,
+        "teleports": 0,
+        "bounces": 0
+      }
+    },
+    "game": "funnel",
+    "hash": "2ca5c5a95e42be8b"
+  },
+  {
+    "round": 55,
+    "slot": "ordinary",
+    "id": "board-90",
+    "note": "Black between the stacks.",
+    "source": {
+      "generator": "scripts/funnel-author.ts:generate",
+      "recipe": {
+        "colors": 4,
+        "columns": [
+          3,
+          3,
+          2
+        ],
+        "docks": 3,
+        "shorts": 0,
+        "capacity": 40,
+        "slack": 0,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false,
+        "palette": [
+          "black",
+          "red",
+          "green",
+          "yellow"
+        ]
+      },
+      "seed": 8,
+      "beltCapacity": 16
+    },
+    "trap": null,
+    "fastSource": null,
+    "verified": {
+      "exhaustive": true,
+      "timings": [
+        {
+          "status": "won",
+          "clean": true,
+          "seconds": 28.25
+        },
+        {
+          "status": "won",
+          "clean": true,
+          "seconds": 36.11666666666667
+        }
+      ],
+      "jam": {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 6.783333333333333
+      },
+      "fastWins": true,
+      "recoveries": {
+        "nudges": 0,
+        "teleports": 0,
+        "bounces": 0
+      }
+    },
+    "game": "funnel",
+    "hash": "bd9d189c52c3da40"
+  },
+  {
+    "round": 56,
+    "slot": "relief",
+    "id": "board-91",
+    "note": "A calmer crossing.",
+    "source": {
+      "generator": "scripts/funnel-author.ts:generate",
+      "recipe": {
+        "colors": 4,
+        "columns": [
+          3,
+          3,
+          3
+        ],
+        "docks": 3,
+        "shorts": 0,
+        "capacity": 40,
+        "slack": 0,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false,
+        "shape": "eight"
+      },
+      "seed": 11,
+      "beltCapacity": 26
+    },
+    "trap": null,
+    "fastSource": null,
+    "verified": {
+      "exhaustive": true,
+      "timings": [
+        {
+          "status": "won",
+          "clean": true,
+          "seconds": 45.25
+        },
+        {
+          "status": "won",
+          "clean": true,
+          "seconds": 56.36666666666667
+        }
+      ],
+      "jam": {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 12.216666666666667
+      },
+      "fastWins": true,
+      "recoveries": {
+        "nudges": 0,
+        "teleports": 0,
+        "bounces": 0
+      }
+    },
+    "game": "funnel",
+    "hash": "0577576dbdfc87e7"
+  },
+  {
+    "round": 57,
+    "slot": "lesson",
+    "id": "board-201",
+    "note": "Two supports.",
+    "source": {
+      "kind": "bank",
+      "id": "board-201"
+    },
+    "trap": null,
+    "fastSource": null,
+    "verified": {
+      "exhaustive": true,
+      "timings": [
+        {
+          "status": "won",
+          "clean": true,
+          "seconds": 22.333333333333332
+        },
+        {
+          "status": "won",
+          "clean": true,
+          "seconds": 27.5
+        }
+      ],
+      "jam": {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 4.6
+      },
+      "fastWins": true,
+      "recoveries": {
+        "nudges": 0,
+        "teleports": 0,
+        "bounces": 0
+      }
+    },
+    "game": "funnel",
+    "hash": "ebbb118d666fa815"
+  },
+  {
+    "round": 58,
+    "slot": "ordinary",
+    "id": "board-92",
+    "note": "Two busy docks.",
+    "source": {
+      "generator": "scripts/funnel-author.ts:generate",
+      "recipe": {
+        "colors": 4,
+        "columns": [
+          4,
+          3,
+          3
+        ],
+        "docks": 2,
+        "shorts": 0,
+        "capacity": 40,
+        "slack": 0,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false
+      },
+      "seed": 14,
+      "beltCapacity": 16
+    },
+    "trap": null,
+    "fastSource": null,
+    "verified": {
+      "exhaustive": true,
+      "timings": [
+        {
+          "status": "won",
+          "clean": true,
+          "seconds": 41.68333333333333
+        },
+        {
+          "status": "won",
+          "clean": true,
+          "seconds": 52.11666666666667
+        }
+      ],
+      "jam": {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 12.2
+      },
+      "fastWins": true,
+      "recoveries": {
+        "nudges": 0,
+        "teleports": 0,
+        "bounces": 0
+      }
+    },
+    "game": "funnel",
+    "hash": "0e735e267fc5a086"
+  },
+  {
+    "round": 59,
+    "slot": "peak",
+    "id": "board-78",
+    "note": "Three branches.",
+    "source": {
+      "generator": "scripts/funnel-author.ts:generate",
+      "recipe": {
+        "colors": 4,
+        "columns": [
+          3,
+          2,
+          2
+        ],
+        "docks": 3,
+        "shorts": 0,
+        "capacity": 40,
+        "slack": 0,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false,
+        "predecessors": {
+          "0": [],
+          "1": [
+            0,
+            3
+          ],
+          "2": [
+            1
+          ],
+          "3": [],
+          "4": [
+            3
+          ],
+          "5": [],
+          "6": [
+            5
+          ]
+        }
+      },
+      "seed": 19,
+      "beltCapacity": 20
+    },
+    "trap": 5,
+    "fastSource": {
+      "order": "ADBCEFG",
+      "burstAt": 1,
+      "gap": 12
+    },
+    "verified": {
+      "exhaustive": true,
+      "timings": [
+        {
+          "status": "won",
+          "clean": true,
+          "seconds": 39.56666666666667
+        },
+        {
+          "status": "won",
+          "clean": true,
+          "seconds": 50.81666666666667
+        }
+      ],
+      "jam": {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 33.75
+      },
+      "fastWins": true,
+      "recoveries": {
+        "nudges": 0,
+        "teleports": 0,
+        "bounces": 0
+      }
+    },
+    "game": "funnel",
+    "hash": "f81cf67f422d781f"
+  },
+  {
+    "round": 60,
+    "slot": "relief",
+    "id": "board-93",
+    "note": "Taking the long stacks.",
+    "source": {
+      "generator": "scripts/funnel-author.ts:generate",
+      "recipe": {
+        "colors": 5,
+        "columns": [
+          4,
+          4,
+          2
+        ],
+        "docks": 3,
+        "shorts": 0,
+        "capacity": 40,
+        "slack": 0,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false
+      },
+      "seed": 1,
+      "beltCapacity": 14
+    },
+    "trap": null,
+    "fastSource": null,
+    "verified": {
+      "exhaustive": true,
+      "timings": [
+        {
+          "status": "won",
+          "clean": true,
+          "seconds": 36.88333333333333
+        },
+        {
+          "status": "won",
+          "clean": true,
+          "seconds": 44.75
+        }
+      ],
+      "jam": {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 19.516666666666666
+      },
+      "fastWins": true,
+      "recoveries": {
+        "nudges": 0,
+        "teleports": 0,
+        "bounces": 0
+      }
+    },
+    "game": "funnel",
+    "hash": "565e57f40f9d591b"
+  },
+  {
+    "round": 41,
+    "slot": "ordinary",
+    "id": "loop-78",
+    "expectedHash": "17eaa60b036dc8d6",
+    "source": {
+      "generator": "scripts/loop-author.ts:generate",
+      "recipe": {
+        "colors": 5,
+        "lanes": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "segments": 3,
+        "capacity": 56,
+        "ringMax": 12,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false,
+        "palette": [
+          "black",
+          "red",
+          "green",
+          "yellow",
+          "orange"
+        ]
+      },
+      "seed": 13,
+      "loopCapacity": 22
+    },
+    "signature": "c5 [2,2,2,2] seg3 ring1-12 oval",
+    "game": "loop",
+    "hash": "17eaa60b036dc8d6",
+    "trap": null
+  },
+  {
+    "round": 42,
+    "slot": "relief",
+    "id": "loop-79",
+    "expectedHash": "4c61491b59556a69",
+    "source": {
+      "generator": "scripts/loop-author.ts:generate",
+      "recipe": {
+        "colors": 4,
+        "lanes": [
+          3,
+          3,
+          3
+        ],
+        "segments": 3,
+        "capacity": 56,
+        "ringMax": 12,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false
+      },
+      "seed": 3,
+      "loopCapacity": 20
+    },
+    "signature": "c4 [3,3,3] seg3 ring1-12 oval",
+    "game": "loop",
+    "hash": "4c61491b59556a69",
+    "trap": null
+  },
+  {
+    "round": 43,
+    "slot": "lesson",
+    "id": "loop-200",
+    "expectedHash": "7a05920a7ee1d202",
+    "source": {
+      "kind": "bank",
+      "id": "loop-200"
+    },
+    "signature": "c3 [2,1,1] seg3 ring13-24 oval rules[[[[\"0:0\",24,\"1:0\"],[\"0:1\",24,null]],[[\"1:0\",24,null]],[[\"2:0\",24,null]]],[]]",
+    "trap": "BCB",
+    "game": "loop",
+    "hash": "7a05920a7ee1d202"
+  },
+  {
+    "round": 44,
+    "slot": "relief",
+    "id": "loop-80",
+    "expectedHash": "1b12251ee03356bf",
+    "source": {
+      "generator": "scripts/loop-author.ts:generate",
+      "recipe": {
+        "colors": 4,
+        "lanes": [
+          2,
+          2,
+          2
+        ],
+        "segments": 3,
+        "capacity": 56,
+        "ringMax": 12,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false,
+        "palette": [
+          "black",
+          "red",
+          "blue",
+          "green"
+        ]
+      },
+      "seed": 201,
+      "loopCapacity": 24
+    },
+    "signature": "c4 [2,2,2] seg3 ring1-12 oval",
+    "game": "loop",
+    "hash": "1b12251ee03356bf",
+    "trap": null
+  },
+  {
+    "round": 45,
+    "slot": "peak",
+    "id": "loop-81",
+    "expectedHash": "3ca169ce1cd4aa98",
+    "trap": "DDBDA",
+    "source": {
+      "generator": "scripts/loop-author.ts:generate",
+      "recipe": {
+        "colors": 5,
+        "lanes": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "segments": 3,
+        "capacity": 56,
+        "ringMax": 12,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false,
+        "palette": [
+          "black",
+          "red",
+          "green",
+          "yellow",
+          "orange"
+        ]
+      },
+      "seed": 49,
+      "loopCapacity": 20,
+      "latch": [
+        "2:0",
+        "0:0"
+      ]
+    },
+    "signature": "c5 [2,2,2,2] seg3 ring1-12 oval rules[[[[\"0:0\",24,null],[\"0:1\",24,null]],[[\"1:0\",24,null],[\"1:1\",24,null]],[[\"2:0\",24,\"0:0\"],[\"2:1\",24,null]],[[\"3:0\",24,null],[\"3:1\",24,null]]],[]]",
+    "game": "loop",
+    "hash": "3ca169ce1cd4aa98"
+  },
+  {
+    "round": 46,
+    "slot": "ordinary",
+    "id": "loop-82",
+    "expectedHash": "cbf062a04ef63ae8",
+    "source": {
+      "generator": "scripts/loop-author.ts:generate",
+      "recipe": {
+        "colors": 5,
+        "lanes": [
+          4,
+          4
+        ],
+        "segments": 3,
+        "capacity": 56,
+        "ringMax": 12,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false
+      },
+      "seed": 116,
+      "loopCapacity": 32
+    },
+    "signature": "c5 [4,4] seg3 ring1-12 oval",
+    "game": "loop",
+    "hash": "cbf062a04ef63ae8",
+    "trap": null
+  },
+  {
+    "round": 47,
+    "slot": "relief",
+    "id": "loop-83",
+    "expectedHash": "add2b630be6b3012",
+    "source": {
+      "generator": "scripts/loop-author.ts:generate",
+      "recipe": {
+        "colors": 5,
+        "lanes": [
+          3,
+          2,
+          2
+        ],
+        "segments": 3,
+        "capacity": 56,
+        "ringMax": 12,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false
+      },
+      "seed": 77,
+      "loopCapacity": 20
+    },
+    "signature": "c5 [3,2,2] seg3 ring1-12 oval",
+    "game": "loop",
+    "hash": "add2b630be6b3012",
+    "trap": null
+  },
+  {
+    "round": 48,
+    "slot": "ordinary",
+    "id": "loop-84",
+    "expectedHash": "edfc252c4f5dc7d7",
+    "trap": "CAAC",
+    "source": {
+      "generator": "scripts/loop-author.ts:generate",
+      "recipe": {
+        "colors": 3,
+        "lanes": [
+          2,
+          2,
+          1
+        ],
+        "segments": 3,
+        "capacity": 40,
+        "ringMax": 20,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false
+      },
+      "seed": 387,
+      "loopCapacity": 24,
+      "latch": [
+        "1:0",
+        "2:0"
+      ]
+    },
+    "signature": "c3 [2,2,1] seg3 ring13-24 oval rules[[[[\"0:0\",24,null],[\"0:1\",24,null]],[[\"1:0\",24,\"2:0\"],[\"1:1\",24,null]],[[\"2:0\",24,null]]],[]]",
+    "game": "loop",
+    "hash": "edfc252c4f5dc7d7"
+  },
+  {
+    "round": 49,
+    "slot": "ordinary",
+    "id": "loop-85",
+    "expectedHash": "caaf65c0412b4140",
+    "source": {
+      "generator": "scripts/loop-author.ts:generate",
+      "recipe": {
+        "colors": 5,
+        "lanes": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "segments": 3,
+        "capacity": 56,
+        "ringMax": 12,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false,
+        "palette": [
+          "black",
+          "red",
+          "green",
+          "yellow",
+          "orange"
+        ]
+      },
+      "seed": 34,
+      "loopCapacity": 20
+    },
+    "signature": "c5 [2,2,2,2] seg3 ring1-12 oval",
+    "game": "loop",
+    "hash": "caaf65c0412b4140",
+    "trap": null
+  },
+  {
+    "round": 50,
+    "slot": "peak",
+    "id": "loop-86",
+    "expectedHash": "c5a362b2ec959aa6",
+    "source": {
+      "generator": "scripts/loop-author.ts:generate",
+      "recipe": {
+        "colors": 5,
+        "lanes": [
+          3,
+          3,
+          2,
+          2
+        ],
+        "segments": 3,
+        "capacity": 56,
+        "ringMax": 0,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false
+      },
+      "seed": 1,
+      "loopCapacity": 32
+    },
+    "signature": "c5 [3,3,2,2] seg3 ring0 oval",
+    "game": "loop",
+    "hash": "c5a362b2ec959aa6",
+    "trap": null
+  },
+  {
+    "round": 51,
+    "slot": "ordinary",
+    "id": "loop-87",
+    "expectedHash": "fe50350a67604b2c",
+    "source": {
+      "generator": "scripts/loop-author.ts:generate",
+      "recipe": {
+        "colors": 5,
+        "lanes": [
+          4,
+          3,
+          2
+        ],
+        "segments": 3,
+        "capacity": 56,
+        "ringMax": 12,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false
+      },
+      "seed": 47,
+      "loopCapacity": 20
+    },
+    "signature": "c5 [4,3,2] seg3 ring1-12 oval",
+    "game": "loop",
+    "hash": "fe50350a67604b2c",
+    "trap": null
+  },
+  {
+    "round": 52,
+    "slot": "relief",
+    "id": "loop-88",
+    "expectedHash": "805384f0c7cbb912",
+    "source": {
+      "generator": "scripts/loop-author.ts:generate",
+      "recipe": {
+        "colors": 4,
+        "lanes": [
+          2,
+          2,
+          2
+        ],
+        "segments": 3,
+        "capacity": 56,
+        "ringMax": 24,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false
+      },
+      "seed": 34,
+      "loopCapacity": 20
+    },
+    "signature": "c4 [2,2,2] seg3 ring13-24 oval",
+    "game": "loop",
+    "hash": "805384f0c7cbb912",
+    "trap": null
+  },
+  {
+    "round": 53,
+    "slot": "ordinary",
+    "id": "loop-89",
+    "expectedHash": "d0ae7d10d66e3059",
+    "trap": "CBCB",
+    "source": {
+      "generator": "scripts/loop-author.ts:generate",
+      "recipe": {
+        "colors": 3,
+        "lanes": [
+          2,
+          2,
+          1
+        ],
+        "segments": 3,
+        "capacity": 40,
+        "ringMax": 20,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false
+      },
+      "seed": 34,
+      "loopCapacity": 24,
+      "latch": [
+        "0:0",
+        "2:0"
+      ]
+    },
+    "signature": "c3 [2,2,1] seg3 ring1-12 oval rules[[[[\"0:0\",24,\"2:0\"],[\"0:1\",24,null]],[[\"1:0\",24,null],[\"1:1\",24,null]],[[\"2:0\",24,null]]],[]]",
+    "game": "loop",
+    "hash": "d0ae7d10d66e3059"
+  },
+  {
+    "round": 54,
+    "slot": "ordinary",
+    "id": "loop-90",
+    "expectedHash": "6a5ea0bea17bf0a6",
+    "source": {
+      "generator": "scripts/loop-author.ts:generate",
+      "recipe": {
+        "colors": 5,
+        "lanes": [
+          3,
+          3,
+          3
+        ],
+        "segments": 3,
+        "capacity": 56,
+        "ringMax": 12,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false
+      },
+      "seed": 119,
+      "loopCapacity": 20
+    },
+    "signature": "c5 [3,3,3] seg3 ring1-12 oval",
+    "game": "loop",
+    "hash": "6a5ea0bea17bf0a6",
+    "trap": null
+  },
+  {
+    "round": 55,
+    "slot": "peak",
+    "id": "loop-91",
+    "expectedHash": "0ce7dd59a0247b6a",
+    "source": {
+      "generator": "scripts/loop-author.ts:generate",
+      "recipe": {
+        "colors": 5,
+        "lanes": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "segments": 3,
+        "capacity": 56,
+        "ringMax": 12,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false,
+        "palette": [
+          "black",
+          "red",
+          "green",
+          "yellow",
+          "orange"
+        ]
+      },
+      "seed": 47,
+      "loopCapacity": 20
+    },
+    "signature": "c5 [2,2,2,2] seg3 ring1-12 oval",
+    "game": "loop",
+    "hash": "0ce7dd59a0247b6a",
+    "trap": null
+  },
+  {
+    "round": 56,
+    "slot": "ordinary",
+    "id": "loop-92",
+    "expectedHash": "0bf90eea91807241",
+    "source": {
+      "generator": "scripts/loop-author.ts:generate",
+      "recipe": {
+        "colors": 5,
+        "lanes": [
+          4,
+          4
+        ],
+        "segments": 3,
+        "capacity": 56,
+        "ringMax": 12,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false
+      },
+      "seed": 232,
+      "loopCapacity": 22
+    },
+    "signature": "c5 [4,4] seg3 ring1-12 oval",
+    "game": "loop",
+    "hash": "0bf90eea91807241",
+    "trap": null
+  },
+  {
+    "round": 57,
+    "slot": "relief",
+    "id": "loop-93",
+    "expectedHash": "cbc62aec068f6d65",
+    "source": {
+      "generator": "scripts/loop-author.ts:generate",
+      "recipe": {
+        "colors": 5,
+        "lanes": [
+          3,
+          2,
+          2
+        ],
+        "segments": 3,
+        "capacity": 56,
+        "ringMax": 12,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false
+      },
+      "seed": 104,
+      "loopCapacity": 22
+    },
+    "signature": "c5 [3,2,2] seg3 ring1-12 oval",
+    "game": "loop",
+    "hash": "cbc62aec068f6d65",
+    "trap": null
+  },
+  {
+    "round": 58,
+    "slot": "ordinary",
+    "id": "loop-94",
+    "expectedHash": "b8c00d6010a3b4c5",
+    "trap": "CAAC",
+    "source": {
+      "generator": "scripts/loop-author.ts:generate",
+      "recipe": {
+        "colors": 3,
+        "lanes": [
+          2,
+          2,
+          1
+        ],
+        "segments": 3,
+        "capacity": 40,
+        "ringMax": 20,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false
+      },
+      "seed": 347,
+      "loopCapacity": 24,
+      "latch": [
+        "1:0",
+        "2:0"
+      ]
+    },
+    "signature": "c3 [2,2,1] seg3 ring13-24 oval rules[[[[\"0:0\",24,null],[\"0:1\",24,null]],[[\"1:0\",24,\"2:0\"],[\"1:1\",24,null]],[[\"2:0\",24,null]]],[]]",
+    "game": "loop",
+    "hash": "b8c00d6010a3b4c5"
+  },
+  {
+    "round": 59,
+    "slot": "lesson",
+    "id": "loop-95",
+    "expectedHash": "5e26978bebc270f8",
+    "trap": "AACB",
+    "source": {
+      "base": "loop-201",
+      "change": "Move two red units from the short truck’s deepest segment to lane 2’s truck’s exposed red segment; conserve all colour totals."
+    },
+    "signature": "c3 [2,1,1] seg3 ring13-24 oval rules[[[[\"0:0\",12,null],[\"0:1\",24,null]],[[\"1:0\",24,null]],[[\"2:0\",24,null]]],[]]",
+    "game": "loop",
+    "hash": "5e26978bebc270f8"
+  },
+  {
+    "round": 60,
+    "slot": "peak",
+    "id": "loop-96",
+    "expectedHash": "9ddb59b010024517",
+    "source": {
+      "generator": "scripts/loop-author.ts:generate",
+      "recipe": {
+        "colors": 5,
+        "lanes": [
+          2,
+          2,
+          2,
+          1
+        ],
+        "segments": 3,
+        "capacity": 56,
+        "ringMax": 24,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false,
+        "palette": [
+          "black",
+          "red",
+          "blue",
+          "yellow",
+          "orange"
+        ]
+      },
+      "seed": 5,
+      "loopCapacity": 34
+    },
+    "signature": "c5 [2,2,2,1] seg3 ring13-24 oval",
+    "game": "loop",
+    "hash": "9ddb59b010024517",
+    "trap": null
+  },
+  {
+    "round": 41,
+    "slot": "ordinary",
+    "id": "tube-75",
+    "source": {
+      "generator": "scripts/tube-author.ts:generate",
+      "recipe": {
+        "palette": [
+          "red",
+          "blue",
+          "green",
+          "yellow",
+          "orange",
+          "black"
+        ],
+        "capacity": 4,
+        "empties": 1,
+        "spread": 6
+      },
+      "seed": 396
+    },
+    "game": "tube",
+    "hash": "4d0bf1addd5bf8df"
+  },
+  {
+    "round": 42,
+    "slot": "peak",
+    "id": "tube-76",
+    "source": {
+      "generator": "scripts/tube-author.ts:generate",
+      "recipe": {
+        "palette": [
+          "black",
+          "red",
+          "green",
+          "yellow",
+          "orange"
+        ],
+        "capacity": 5,
+        "empties": 1,
+        "spread": 5
+      },
+      "seed": 46
+    },
+    "game": "tube",
+    "hash": "f08353548f3b5d96"
+  },
+  {
+    "round": 43,
+    "slot": "ordinary",
+    "id": "tube-77",
+    "source": {
+      "generator": "scripts/tube-author.ts:generate",
+      "recipe": {
+        "palette": [
+          "red",
+          "blue",
+          "green",
+          "yellow"
+        ],
+        "capacity": 4,
+        "empties": 0,
+        "spread": 5
+      },
+      "seed": 173
+    },
+    "game": "tube",
+    "hash": "304a50caeaecc9a2"
+  },
+  {
+    "round": 44,
+    "slot": "relief",
+    "id": "tube-78",
+    "source": {
+      "generator": "scripts/tube-author.ts:generate",
+      "recipe": {
+        "palette": [
+          "red",
+          "blue",
+          "green",
+          "yellow",
+          "orange",
+          "black"
+        ],
+        "capacity": 4,
+        "empties": 1,
+        "spread": 6
+      },
+      "seed": 163
+    },
+    "game": "tube",
+    "hash": "806ff10c0613eabe"
+  },
+  {
+    "round": 45,
+    "slot": "lesson",
+    "id": "tube-200",
+    "source": {
+      "kind": "bank",
+      "id": "tube-200"
+    },
+    "trap": {
+      "prefix": [],
+      "move": {
+        "from": 2,
+        "to": 3
+      },
+      "rescue": [
+        {
+          "from": 0,
+          "to": 3
+        },
+        {
+          "from": 0,
+          "to": 4
+        },
+        {
+          "from": 0,
+          "to": 2
+        },
+        {
+          "from": 1,
+          "to": 4
+        },
+        {
+          "from": 1,
+          "to": 3
+        }
+      ]
+    },
+    "game": "tube",
+    "hash": "5a04f19eeb530814"
+  },
+  {
+    "round": 46,
+    "slot": "ordinary",
+    "id": "tube-79",
+    "source": {
+      "generator": "scripts/tube-author.ts:generate",
+      "recipe": {
+        "palette": [
+          "red",
+          "blue",
+          "green",
+          "yellow"
+        ],
+        "capacity": 4,
+        "empties": 1,
+        "spread": 4
+      },
+      "seed": 54
+    },
+    "game": "tube",
+    "hash": "eca349a03e134474"
+  },
+  {
+    "round": 47,
+    "slot": "peak",
+    "id": "tube-80",
+    "source": {
+      "generator": "scripts/tube-author.ts:generate",
+      "recipe": {
+        "palette": [
+          "red",
+          "blue",
+          "green"
+        ],
+        "capacity": 4,
+        "empties": 2,
+        "spread": 3,
+        "rule": {
+          "role": "capped",
+          "color": "red"
+        }
+      },
+      "seed": 15
+    },
+    "trap": {
+      "prefix": [
+        {
+          "from": 2,
+          "to": 3
+        },
+        {
+          "from": 1,
+          "to": 2
+        }
+      ],
+      "move": {
+        "from": 1,
+        "to": 3
+      },
+      "rescue": [
+        {
+          "from": 0,
+          "to": 1
+        },
+        {
+          "from": 0,
+          "to": 4
+        },
+        {
+          "from": 0,
+          "to": 1
+        },
+        {
+          "from": 0,
+          "to": 3
+        },
+        {
+          "from": 2,
+          "to": 4
+        },
+        {
+          "from": 2,
+          "to": 3
+        },
+        {
+          "from": 1,
+          "to": 2
+        },
+        {
+          "from": 1,
+          "to": 4
+        }
+      ]
+    },
+    "game": "tube",
+    "hash": "df72d6d00ad3c061"
+  },
+  {
+    "round": 48,
+    "slot": "ordinary",
+    "id": "tube-81",
+    "source": {
+      "generator": "scripts/tube-author.ts:generate",
+      "recipe": {
+        "palette": [
+          "red",
+          "blue",
+          "green",
+          "yellow",
+          "orange"
+        ],
+        "capacity": 4,
+        "empties": 0,
+        "spread": 6
+      },
+      "seed": 91
+    },
+    "game": "tube",
+    "hash": "372bd3ae62e092c5"
+  },
+  {
+    "round": 49,
+    "slot": "relief",
+    "id": "tube-82",
+    "source": {
+      "generator": "scripts/tube-author.ts:generate",
+      "recipe": {
+        "palette": [
+          "red",
+          "blue",
+          "green",
+          "yellow",
+          "orange"
+        ],
+        "capacity": 4,
+        "empties": 0,
+        "spread": 6
+      },
+      "seed": 84
+    },
+    "game": "tube",
+    "hash": "552337e29296110f"
+  },
+  {
+    "round": 50,
+    "slot": "ordinary",
+    "id": "tube-83",
+    "source": {
+      "generator": "scripts/tube-author.ts:generate",
+      "recipe": {
+        "palette": [
+          "red",
+          "blue",
+          "green"
+        ],
+        "capacity": 5,
+        "empties": 2,
+        "spread": 3,
+        "rule": {
+          "role": "capped",
+          "color": "red"
+        }
+      },
+      "seed": 24
+    },
+    "trap": {
+      "prefix": [],
+      "move": {
+        "from": 1,
+        "to": 3
+      },
+      "rescue": [
+        {
+          "from": 0,
+          "to": 3
+        },
+        {
+          "from": 0,
+          "to": 4
+        },
+        {
+          "from": 0,
+          "to": 1
+        },
+        {
+          "from": 0,
+          "to": 4
+        },
+        {
+          "from": 0,
+          "to": 3
+        },
+        {
+          "from": 2,
+          "to": 4
+        },
+        {
+          "from": 2,
+          "to": 3
+        },
+        {
+          "from": 1,
+          "to": 2
+        }
+      ]
+    },
+    "game": "tube",
+    "hash": "8f3a8849920ce371"
+  },
+  {
+    "round": 51,
+    "slot": "ordinary",
+    "id": "tube-84",
+    "source": {
+      "generator": "scripts/tube-author.ts:generate",
+      "recipe": {
+        "palette": [
+          "black",
+          "red",
+          "green",
+          "yellow",
+          "orange"
+        ],
+        "capacity": 5,
+        "empties": 1,
+        "spread": 5
+      },
+      "seed": 151
+    },
+    "game": "tube",
+    "hash": "927738fe42247beb"
+  },
+  {
+    "round": 52,
+    "slot": "peak",
+    "id": "tube-85",
+    "source": {
+      "generator": "scripts/tube-author.ts:generate",
+      "recipe": {
+        "palette": [
+          "black",
+          "red",
+          "green",
+          "yellow",
+          "orange"
+        ],
+        "capacity": 5,
+        "empties": 1,
+        "spread": 5
+      },
+      "seed": 31
+    },
+    "game": "tube",
+    "hash": "d4ee8a3799e28207"
+  },
+  {
+    "round": 53,
+    "slot": "ordinary",
+    "id": "tube-86",
+    "source": {
+      "generator": "scripts/tube-author.ts:generate",
+      "recipe": {
+        "palette": [
+          "red",
+          "blue",
+          "green",
+          "yellow"
+        ],
+        "capacity": 6,
+        "empties": 1,
+        "spread": 4
+      },
+      "seed": 79
+    },
+    "game": "tube",
+    "hash": "350a3a969b24719c"
+  },
+  {
+    "round": 54,
+    "slot": "relief",
+    "id": "tube-87",
+    "source": {
+      "generator": "scripts/tube-author.ts:generate",
+      "recipe": {
+        "palette": [
+          "red",
+          "blue",
+          "green",
+          "yellow"
+        ],
+        "capacity": 5,
+        "empties": 1,
+        "spread": 4
+      },
+      "seed": 7
+    },
+    "game": "tube",
+    "hash": "53394bf2229b2c2e"
+  },
+  {
+    "round": 55,
+    "slot": "ordinary",
+    "id": "tube-88",
+    "source": {
+      "generator": "scripts/tube-author.ts:generate",
+      "recipe": {
+        "palette": [
+          "red",
+          "blue",
+          "green"
+        ],
+        "capacity": 4,
+        "empties": 2,
+        "spread": 3,
+        "rule": {
+          "role": "capped",
+          "color": "red"
+        }
+      },
+      "seed": 2
+    },
+    "trap": {
+      "prefix": [
+        {
+          "from": 2,
+          "to": 3
+        },
+        {
+          "from": 0,
+          "to": 2
+        },
+        {
+          "from": 1,
+          "to": 0
+        },
+        {
+          "from": 1,
+          "to": 3
+        }
+      ],
+      "move": {
+        "from": 2,
+        "to": 1
+      },
+      "rescue": [
+        {
+          "from": 0,
+          "to": 2
+        },
+        {
+          "from": 0,
+          "to": 4
+        },
+        {
+          "from": 0,
+          "to": 2
+        },
+        {
+          "from": 1,
+          "to": 4
+        },
+        {
+          "from": 1,
+          "to": 3
+        }
+      ]
+    },
+    "game": "tube",
+    "hash": "fc213710f8b0bdc7"
+  },
+  {
+    "round": 56,
+    "slot": "ordinary",
+    "id": "tube-89",
+    "source": {
+      "generator": "scripts/tube-author.ts:generate",
+      "recipe": {
+        "palette": [
+          "red",
+          "blue",
+          "green",
+          "yellow",
+          "orange"
+        ],
+        "capacity": 4,
+        "empties": 0,
+        "spread": 7
+      },
+      "seed": 1235
+    },
+    "game": "tube",
+    "hash": "6403e963b0b17e33"
+  },
+  {
+    "round": 57,
+    "slot": "peak",
+    "id": "tube-90",
+    "source": {
+      "generator": "scripts/tube-author.ts:generate",
+      "recipe": {
+        "palette": [
+          "red",
+          "blue",
+          "green",
+          "yellow",
+          "orange"
+        ],
+        "capacity": 6,
+        "empties": 1,
+        "spread": 5
+      },
+      "seed": 567
+    },
+    "game": "tube",
+    "hash": "8b02994e7b0c1b63"
+  },
+  {
+    "round": 58,
+    "slot": "ordinary",
+    "id": "tube-91",
+    "source": {
+      "generator": "scripts/tube-author.ts:generate",
+      "recipe": {
+        "palette": [
+          "red",
+          "blue",
+          "green",
+          "yellow"
+        ],
+        "capacity": 4,
+        "empties": 2,
+        "spread": 4,
+        "rule": {
+          "role": "capped",
+          "color": "red"
+        }
+      },
+      "seed": 12
+    },
+    "trap": {
+      "prefix": [
+        {
+          "from": 1,
+          "to": 4
+        },
+        {
+          "from": 2,
+          "to": 1
+        }
+      ],
+      "move": {
+        "from": 2,
+        "to": 4
+      },
+      "rescue": [
+        {
+          "from": 1,
+          "to": 2
+        },
+        {
+          "from": 3,
+          "to": 1
+        },
+        {
+          "from": 0,
+          "to": 5
+        },
+        {
+          "from": 0,
+          "to": 1
+        },
+        {
+          "from": 0,
+          "to": 4
+        },
+        {
+          "from": 3,
+          "to": 5
+        },
+        {
+          "from": 3,
+          "to": 4
+        },
+        {
+          "from": 2,
+          "to": 3
+        },
+        {
+          "from": 1,
+          "to": 2
+        },
+        {
+          "from": 1,
+          "to": 5
+        }
+      ]
+    },
+    "game": "tube",
+    "hash": "03c263acddcef60f"
+  },
+  {
+    "round": 59,
+    "slot": "relief",
+    "id": "tube-92",
+    "source": {
+      "generator": "scripts/tube-author.ts:generate",
+      "recipe": {
+        "palette": [
+          "red",
+          "blue",
+          "green",
+          "yellow",
+          "orange",
+          "black"
+        ],
+        "capacity": 4,
+        "empties": 1,
+        "spread": 6
+      },
+      "seed": 266
+    },
+    "game": "tube",
+    "hash": "94929240dd62466c"
+  },
+  {
+    "round": 60,
+    "slot": "ordinary",
+    "id": "tube-93",
+    "source": {
+      "generator": "scripts/tube-author.ts:generate",
+      "recipe": {
+        "palette": [
+          "red",
+          "blue",
+          "green",
+          "yellow",
+          "orange"
+        ],
+        "capacity": 5,
+        "empties": 1,
+        "spread": 5
+      },
+      "seed": 205
+    },
+    "game": "tube",
+    "hash": "990bfefdd0d2bc9d"
+  }
+]

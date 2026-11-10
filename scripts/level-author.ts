@@ -201,9 +201,9 @@ const logged = (id: string): Log[] => {
 
 async function funnelCandidate(target: FunnelTarget, seed: number): Promise<number> {
   const recipe: FunnelRecipe = { id: target.id, title: target.title, fr: target.fr, note: target.note, colors: target.colors, columns: target.columns, shorts: target.shorts ?? 0, ...(target.smalls ? { smalls: target.smalls } : {}), ...(target.palette ? { palette: target.palette } : {}), docks: target.docks, capacity: 40, seed, win: [0, 1], slack: 0, naiveJams: false, ...(target.shape ? { shape: target.shape } : {}) };
-  const loose = generateFunnel({ ...recipe, pairs: target.pairs, predecessors: target.predecessors, seals: target.seals }, seed);
+  const loose = generateFunnel({ ...recipe, pairs: target.pairs, predecessors: target.predecessors, seals: target.seals, pallets: target.pallets }, seed);
   if (!loose) { log(target.id, { seed, outcome: 'ungenerated' }); return 0; }
-  const variant = Boolean(loose.pairs?.length || loose.predecessors || loose.seals?.length);
+  const variant = Boolean(loose.pairs?.length || loose.predecessors || loose.seals?.length || loose.pallets?.length);
   if (!variant) {
     const probe = searchFunnel(loose, 60_000);
     if (!probe.complete) { log(target.id, { seed, outcome: 'search budget' }); return 0; }
@@ -219,7 +219,7 @@ async function funnelCandidate(target: FunnelTarget, seed: number): Promise<numb
   const ceiling = winCeiling(target.round);
   let accepted = 0;
   const seen = new Set<number>();
-  const slacks = target.pairs || target.predecessors || target.seals ? Array.from({ length: 41 - tight }, (_, i) => i) : target.slack;
+  const slacks = target.pairs || target.predecessors || target.seals || target.pallets ? Array.from({ length: 41 - tight }, (_, i) => i) : target.slack;
   for (const slack of slacks) {
     const capacity = Math.max(MIN_CAPACITY[target.shape ?? 'oval'], tight + slack);
     if (seen.has(capacity) || (!target.shape && capacity > OVAL_CAPACITY_MAX)) continue;
@@ -229,7 +229,7 @@ async function funnelCandidate(target: FunnelTarget, seed: number): Promise<numb
     const found = searchFunnel(board, 60_000);
     if (!found.complete) { say('search budget'); continue; }
     if (!found.solvable) { say('unsolvable'); continue; }
-    if ((board.pairs?.length || board.predecessors || board.seals?.length) && funnelFeatureTrap(board) === null) { say('no causal trap'); continue; }
+    if ((board.pairs?.length || board.predecessors || board.seals?.length || board.pallets?.length) && funnelFeatureTrap(board) === null) { say('no causal trap'); continue; }
     if (target.round >= 4 && !found.jam) { say('no losing order'); continue; }
     if (target.round >= 7 && !naiveOrders(board).some((order) => playOrder(board, order) === 'jammed')) { say('no naive jam'); continue; }
     const settled = settledFunnel(board);

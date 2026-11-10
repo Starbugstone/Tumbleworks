@@ -12,9 +12,10 @@ if [ ! -f "$JAR" ]; then
   curl -fsSL -o "$JAR.tmp" "https://github.com/tlaplus/tlaplus/releases/download/$VERSION/tla2tools.jar"
   mv "$JAR.tmp" "$JAR"
 fi
-tlc() { # directory config
+tlc() { # directory config; each TLA+ directory holds exactly one MC*.tla entry module
+  local mc; mc=$(cd "$1" && ls MC*.tla | head -1); mc=${mc%.tla}
   docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -v "$PWD":/work -w "/work/$1" eclipse-temurin:21-jre \
-    java -XX:+UseParallelGC -cp "/work/$JAR" tlc2.TLC -workers auto -metadir /tmp/states -config "$2.cfg" MCBeltSlots 2>&1
+    java -XX:+UseParallelGC -cp "/work/$JAR" tlc2.TLC -workers auto -metadir /tmp/states -config "$2.cfg" "$mc" 2>&1
 }
 failed=0
 for directory in docs/models/*/; do

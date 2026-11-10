@@ -1,0 +1,93 @@
+{
+ "experiments": {
+  "scale250_normals": {
+   "bytes": 609666,
+   "gzip": 106462,
+   "vertices": 20424
+  },
+  "scale100_normals": {
+   "bytes": 580007,
+   "gzip": 102221,
+   "vertices": 20340
+  },
+  "scale250_flat_on_load": {
+   "bytes": 199259,
+   "gzip": 47879,
+   "vertices": 5998
+  },
+  "scale100_flat_on_load": {
+   "bytes": 190059,
+   "gzip": 44280,
+   "vertices": 5936
+  }
+ },
+ "triangles": 10266,
+ "templates": {
+  "house-a": {
+   "triangles": 962
+  },
+  "house-b": {
+   "triangles": 910
+  },
+  "tree-a": {
+   "triangles": 128
+  },
+  "mill": {
+   "triangles": 816,
+   "mill-rotor": 636,
+   "mill-rotor-retired": true
+  },
+  "clock": {
+   "triangles": 1048,
+   "clock-hand": 52
+  },
+  "greenhouse": {
+   "triangles": 866
+  },
+  "bridge": {
+   "triangles": 880
+  },
+  "boat": {
+   "triangles": 464
+  },
+  "glassworks": {
+   "triangles": 976
+  },
+  "mechanism-wheel": {
+   "triangles": 904,
+   "rotor": 636
+  },
+  "mechanism-spiral": {
+   "triangles": 792,
+   "retired": true
+  },
+  "mechanism-seesaw": {
+   "triangles": 224,
+   "lever": 144
+  },
+  "mechanism-channel": {
+   "triangles": 76
+  },
+  "mechanism-funnel": {
+   "triangles": 420
+  },
+  "mechanism-gear": {
+   "triangles": 356
+  },
+  "warehouse": {
+   "triangles": 840
+  },
+  "willow": {
+   "triangles": 396
+  },
+  "runtime-retired": [
+   "mechanism-spiral",
+   "mill-rotor"
+  ]
+ },
+ "json_bytes": 611720,
+ "json_gzip_bytes": 107581,
+ "vertices": 20424,
+ "glb_bytes": 808224,
+ "glb_gzip_bytes": 129207
+}

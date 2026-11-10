@@ -1,0 +1,12 @@
+import{expect}from'vitest';import type{BufferGeometry}from'three';import type{VillageTerrain}from'../../src/world/village-terrain';import type{FlatLandRun}from'../../src/view/village-flat-land';
+const bits=new DataView(new ArrayBuffer(4));function fixed(n:number){bits.setFloat32(0,n);const b=bits.getUint32(0),e=b>>>23&255,m=(b&0x7fffff)+(e?0x800000:0);return (BigInt(m)<<BigInt(e?e-1:0))*(b>>>31?-1n:1n);}
+// Exact dyadic area proof; no geometric epsilon or approximate vertex weld.
+export function proveHarbourFlat(before:BufferGeometry,after:BufferGeometry,terrain:VillageTerrain){const p=before.getAttribute('position'),q=after.getAttribute('position'),runs=after.userData.flatLandRuns as readonly FlatLandRun[]|undefined,replace=new Map<number,{run:FlatLandRun;indices:number[]}>(),drop=new Set<number>();let removed=0;
+ for(const run of runs??[]){expect(run.sourceStarts.length).toBe(run.lastColumn-run.firstColumn+1);expect(run.sourceStarts.length).toBeGreaterThan(1);const [a,b,c,d]=run.sourceCorners;replace.set(run.sourceStarts[0]!,{run,indices:[a!,d!,b!,a!,c!,d!]});let area=0n,lastRight:number|undefined;
+ for(const[start,i]of run.sourceStarts.map((s,i)=>[s,i]as const)){const cell=run.row*terrain.columns+run.firstColumn+i;expect(terrain.cells[cell]).toBe('land');expect(terrain.paint[cell]).toBe(0);const ids=[0,1,2,3,4,5].map(j=>start+j),xs=ids.map(j=>p.getX(j)),zs=ids.map(j=>p.getZ(j)),left=Math.min(...xs),right=Math.max(...xs),lo=Math.min(...zs),hi=Math.max(...zs);if(lastRight!==undefined)expect(left).toBe(lastRight);lastRight=right;area+=(fixed(right)-fixed(left))*(fixed(hi)-fixed(lo));
+ for(const j of ids){expect(p.getY(j)).toBe(p.getY(a!));for(const name of['normal','color'])for(let k=0;k<3;k++)expect(before.getAttribute(name).getComponent(j,k)===before.getAttribute(name).getComponent(a!,k)).toBe(true);}if(i)drop.add(start);
+ }
+ expect(area).toBe((fixed(p.getX(b!))-fixed(p.getX(a!)))*(fixed(p.getZ(c!))-fixed(p.getZ(a!))));removed+=6*(run.sourceStarts.length-1);
+ }
+ let output=0;for(let i=0;i<p.count;){if(drop.has(i)){i+=6;continue;}const replacement=replace.get(i),ids=replacement?.indices??[i];if(replacement)expect(output).toBe(replacement.run.outputStart);for(const j of ids){for(const name of['position','normal','color'])for(let k=0;k<3;k++)expect(Object.is(after.getAttribute(name).getComponent(output,k),before.getAttribute(name).getComponent(j,k))).toBe(true);output++;}i+=replacement?6:1;}
+ expect(q.count).toBe(output);expect(p.count-q.count).toBe(removed);return{runs:runs?.length??0,savedTriangles:removed/3};}

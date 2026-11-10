@@ -1,0 +1,680 @@
+{
+  "recordedAt": "2026-11-07T10:53:06.704271+00:00",
+  "status": "passed",
+  "sourceReference": "output/current/world-3d/final-source-before.json",
+  "sourceAudit": "output/current/world-3d/combined-final-20261107T104422Z/source-audit.json",
+  "sourceFileCount": 297,
+  "sourceUnchanged": true,
+  "checks": {
+    "units": {
+      "exit": 0,
+      "commandFile": "output/current/world-3d/combined-final-20261107T104422Z/units.command",
+      "log": "output/current/world-3d/combined-final-20261107T104422Z/units.log"
+    },
+    "typecheck": {
+      "exit": 0,
+      "commandFile": "output/current/world-3d/combined-final-20261107T104422Z/typecheck.command",
+      "log": "output/current/world-3d/combined-final-20261107T104422Z/typecheck.log"
+    },
+    "lint": {
+      "exit": 0,
+      "commandFile": "output/current/world-3d/combined-final-20261107T104422Z/lint.command",
+      "log": "output/current/world-3d/combined-final-20261107T104422Z/lint.log"
+    },
+    "build": {
+      "exit": 0,
+      "commandFile": "output/current/world-3d/combined-final-20261107T104422Z/build.command",
+      "log": "output/current/world-3d/combined-final-20261107T104422Z/build.log"
+    },
+    "hygiene": {
+      "exit": 0,
+      "commandFile": "output/current/world-3d/combined-final-20261107T104422Z/hygiene.command",
+      "log": "output/current/world-3d/combined-final-20261107T104422Z/hygiene.log"
+    },
+    "gameplay": {
+      "exit": 0,
+      "commandFile": "output/current/world-3d/combined-final-20261107T104422Z/gameplay.command",
+      "log": "output/current/world-3d/combined-final-20261107T104422Z/gameplay.log"
+    },
+    "world": {
+      "exit": 0,
+      "commandFile": "output/current/world-3d/combined-final-20261107T104422Z/world.command",
+      "log": "output/current/world-3d/combined-final-20261107T104422Z/world.log"
+    },
+    "world-export": {
+      "exit": 0,
+      "commandFile": "output/current/world-3d/combined-final-20261107T104422Z/world-export.command",
+      "log": "output/current/world-3d/combined-final-20261107T104422Z/world-export.log"
+    }
+  },
+  "unit": {
+    "files": 67,
+    "passed": 2081,
+    "failed": 0,
+    "skipped": 0,
+    "durationSeconds": 193.39,
+    "report": "output/current/world-3d/combined-final-20261107T104422Z/units.json"
+  },
+  "browserStats": {
+    "hygiene": {
+      "startTime": "2026-11-07T10:47:40.789Z",
+      "duration": 30476.296,
+      "expected": 6,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "gameplay": {
+      "startTime": "2026-11-07T10:48:14.831Z",
+      "duration": 192142.854,
+      "expected": 6,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "world": {
+      "startTime": "2026-11-07T10:51:28.469Z",
+      "duration": 36664.776,
+      "expected": 4,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    }
+  },
+  "gameplayCases": [
+    {
+      "level": "board-57",
+      "cpu": 4,
+      "speed": 1,
+      "limits": {
+        "tick": 12,
+        "tickAndDraw": 40
+      },
+      "workload": {
+        "attempts": 12,
+        "accepted": 12,
+        "lanes": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "peakLoad": 71
+      },
+      "window": {
+        "elapsedMs": 20238.899999976158,
+        "actions": [
+          {
+            "step": 24,
+            "type": "tap",
+            "at": 0
+          },
+          {
+            "step": 76,
+            "type": "tap",
+            "at": 1
+          },
+          {
+            "step": 128,
+            "type": "tap",
+            "at": 2
+          },
+          {
+            "step": 168,
+            "type": "tap",
+            "at": 3
+          },
+          {
+            "step": 202,
+            "type": "tap",
+            "at": 0
+          },
+          {
+            "step": 266,
+            "type": "tap",
+            "at": 1
+          },
+          {
+            "step": 326,
+            "type": "tap",
+            "at": 2
+          },
+          {
+            "step": 369,
+            "type": "tap",
+            "at": 3
+          },
+          {
+            "step": 410,
+            "type": "tap",
+            "at": 0
+          },
+          {
+            "step": 466,
+            "type": "tap",
+            "at": 1
+          },
+          {
+            "step": 528,
+            "type": "tap",
+            "at": 2
+          },
+          {
+            "step": 570,
+            "type": "tap",
+            "at": 3
+          }
+        ],
+        "busyFrames": 129,
+        "peakLoad": 72
+      },
+      "qualityStart": {
+        "ratio": 1,
+        "width": 375,
+        "height": 690
+      },
+      "qualityEnd": {
+        "ratio": 1,
+        "width": 375,
+        "height": 690
+      },
+      "advanceP50": 38.5,
+      "advanceP95": 66.2,
+      "ticksPerFrameP50": 8,
+      "ticksPerFrameP95": 8,
+      "tickP50": 3.9,
+      "tickP95": 7.7,
+      "drawP50": 8.3,
+      "drawP95": 16.1,
+      "frames": 131,
+      "frameP50": 150,
+      "frameP95": 300,
+      "ticks": 892,
+      "onBelt": 14,
+      "funnel": 49
+    },
+    {
+      "level": "board-89",
+      "cpu": 4,
+      "speed": 1,
+      "limits": {
+        "tick": 10,
+        "tickAndDraw": 21
+      },
+      "workload": {
+        "attempts": 9,
+        "accepted": 9,
+        "lanes": [
+          0,
+          1,
+          2
+        ],
+        "peakLoad": 78
+      },
+      "window": {
+        "elapsedMs": 20187.899999976158,
+        "actions": [
+          {
+            "step": 17,
+            "type": "tap",
+            "at": 0
+          },
+          {
+            "step": 65,
+            "type": "tap",
+            "at": 1
+          },
+          {
+            "step": 106,
+            "type": "tap",
+            "at": 2
+          },
+          {
+            "step": 154,
+            "type": "tap",
+            "at": 0
+          },
+          {
+            "step": 200,
+            "type": "tap",
+            "at": 1
+          },
+          {
+            "step": 254,
+            "type": "tap",
+            "at": 2
+          },
+          {
+            "step": 297,
+            "type": "tap",
+            "at": 0
+          },
+          {
+            "step": 347,
+            "type": "tap",
+            "at": 1
+          },
+          {
+            "step": 403,
+            "type": "tap",
+            "at": 2
+          }
+        ],
+        "busyFrames": 78,
+        "peakLoad": 80
+      },
+      "qualityStart": {
+        "ratio": 1,
+        "width": 375,
+        "height": 690
+      },
+      "qualityEnd": {
+        "ratio": 1,
+        "width": 375,
+        "height": 690
+      },
+      "advanceP50": 32,
+      "advanceP95": 56.9,
+      "ticksPerFrameP50": 8,
+      "ticksPerFrameP95": 8,
+      "tickP50": 3.1,
+      "tickP95": 6.6,
+      "drawP50": 7.8,
+      "drawP95": 13,
+      "frames": 139,
+      "frameP50": 133.3,
+      "frameP95": 300,
+      "ticks": 510,
+      "onBelt": 30,
+      "funnel": 47
+    },
+    {
+      "level": "loop-61",
+      "cpu": 4,
+      "speed": 1,
+      "limits": {
+        "tick": 10,
+        "tickAndDraw": 33
+      },
+      "workload": {
+        "attempts": 5,
+        "accepted": 5,
+        "lanes": [
+          0,
+          1,
+          2
+        ],
+        "peakLoad": 38
+      },
+      "window": {
+        "elapsedMs": 20153.600000023842,
+        "actions": [
+          {
+            "step": 24,
+            "type": "tap",
+            "at": 0
+          },
+          {
+            "step": 73,
+            "type": "tap",
+            "at": 1
+          },
+          {
+            "step": 117,
+            "type": "tap",
+            "at": 0
+          },
+          {
+            "step": 175,
+            "type": "tap",
+            "at": 2
+          },
+          {
+            "step": 265,
+            "type": "tap",
+            "at": 1
+          }
+        ],
+        "busyFrames": 107,
+        "peakLoad": 38
+      },
+      "qualityStart": {
+        "ratio": 1,
+        "width": 375,
+        "height": 690
+      },
+      "qualityEnd": {
+        "ratio": 1,
+        "width": 375,
+        "height": 690
+      },
+      "advanceP50": 16.1,
+      "advanceP95": 32.8,
+      "ticksPerFrameP50": 8,
+      "ticksPerFrameP95": 8,
+      "tickP50": 0.9,
+      "tickP95": 3.7,
+      "drawP50": 8.3,
+      "drawP95": 15.9,
+      "frames": 108,
+      "frameP50": 183.3,
+      "frameP95": 366.7,
+      "ticks": 714,
+      "onBelt": 24
+    },
+    {
+      "level": "loop-86",
+      "cpu": 4,
+      "speed": 1,
+      "limits": {
+        "tick": 10,
+        "tickAndDraw": 22
+      },
+      "workload": {
+        "attempts": 7,
+        "accepted": 7,
+        "lanes": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "peakLoad": 46
+      },
+      "window": {
+        "elapsedMs": 20055.600000023842,
+        "actions": [
+          {
+            "step": 16,
+            "type": "tap",
+            "at": 0
+          },
+          {
+            "step": 82,
+            "type": "tap",
+            "at": 1
+          },
+          {
+            "step": 123,
+            "type": "tap",
+            "at": 2
+          },
+          {
+            "step": 178,
+            "type": "tap",
+            "at": 3
+          },
+          {
+            "step": 220,
+            "type": "tap",
+            "at": 0
+          },
+          {
+            "step": 260,
+            "type": "tap",
+            "at": 1
+          },
+          {
+            "step": 302,
+            "type": "tap",
+            "at": 2
+          }
+        ],
+        "busyFrames": 36,
+        "peakLoad": 46
+      },
+      "qualityStart": {
+        "ratio": 1,
+        "width": 375,
+        "height": 690
+      },
+      "qualityEnd": {
+        "ratio": 1,
+        "width": 375,
+        "height": 690
+      },
+      "advanceP50": 21.1,
+      "advanceP95": 50.7,
+      "ticksPerFrameP50": 8,
+      "ticksPerFrameP95": 8,
+      "tickP50": 1.5,
+      "tickP95": 6.5,
+      "drawP50": 8.5,
+      "drawP95": 16.5,
+      "frames": 110,
+      "frameP50": 183.3,
+      "frameP95": 400,
+      "ticks": 342,
+      "onBelt": 32
+    },
+    {
+      "level": "board-57",
+      "cpu": 4,
+      "speed": 5,
+      "limits": {
+        "tick": 10,
+        "tickAndDraw": 40
+      },
+      "workload": {
+        "attempts": 9,
+        "accepted": 8,
+        "lanes": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "peakLoad": 40
+      },
+      "window": {
+        "elapsedMs": 20093.899999976158,
+        "actions": [
+          {
+            "step": 39,
+            "type": "tap",
+            "at": 0
+          },
+          {
+            "step": 144,
+            "type": "tap",
+            "at": 1
+          },
+          {
+            "step": 204,
+            "type": "tap",
+            "at": 2
+          },
+          {
+            "step": 309,
+            "type": "tap",
+            "at": 3
+          },
+          {
+            "step": 399,
+            "type": "tap",
+            "at": 0
+          },
+          {
+            "step": 519,
+            "type": "tap",
+            "at": 1
+          },
+          {
+            "step": 624,
+            "type": "tap",
+            "at": 2
+          },
+          {
+            "step": 714,
+            "type": "tap",
+            "at": 3
+          }
+        ],
+        "busyFrames": 49,
+        "peakLoad": 41
+      },
+      "qualityStart": {
+        "ratio": 1,
+        "width": 375,
+        "height": 690
+      },
+      "qualityEnd": {
+        "ratio": 1,
+        "width": 375,
+        "height": 690
+      },
+      "advanceP50": 53.6,
+      "advanceP95": 82.6,
+      "ticksPerFrameP50": 15,
+      "ticksPerFrameP95": 15,
+      "tickP50": 2.7,
+      "tickP95": 5.1,
+      "drawP50": 10,
+      "drawP95": 15.4,
+      "frames": 120,
+      "frameP50": 166.6,
+      "frameP95": 316.7,
+      "ticks": 778,
+      "onBelt": 14,
+      "funnel": 26
+    },
+    {
+      "level": "loop-86",
+      "cpu": 4,
+      "speed": 5,
+      "limits": {
+        "tick": 10,
+        "tickAndDraw": 23
+      },
+      "workload": {
+        "attempts": 7,
+        "accepted": 6,
+        "lanes": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "peakLoad": 44
+      },
+      "window": {
+        "elapsedMs": 20462.200000047684,
+        "actions": [
+          {
+            "step": 38,
+            "type": "tap",
+            "at": 0
+          },
+          {
+            "step": 173,
+            "type": "tap",
+            "at": 1
+          },
+          {
+            "step": 323,
+            "type": "tap",
+            "at": 2
+          },
+          {
+            "step": 413,
+            "type": "tap",
+            "at": 3
+          },
+          {
+            "step": 533,
+            "type": "tap",
+            "at": 0
+          },
+          {
+            "step": 638,
+            "type": "tap",
+            "at": 1
+          }
+        ],
+        "busyFrames": 23,
+        "peakLoad": 44
+      },
+      "qualityStart": {
+        "ratio": 1,
+        "width": 375,
+        "height": 690
+      },
+      "qualityEnd": {
+        "ratio": 1,
+        "width": 375,
+        "height": 690
+      },
+      "advanceP50": 31.8,
+      "advanceP95": 51.3,
+      "ticksPerFrameP50": 15,
+      "ticksPerFrameP95": 15,
+      "tickP50": 1,
+      "tickP95": 5,
+      "drawP50": 9.4,
+      "drawP95": 16.5,
+      "frames": 116,
+      "frameP50": 183.3,
+      "frameP95": 383.4,
+      "ticks": 718,
+      "onBelt": 32
+    }
+  ],
+  "limitsChanged": false,
+  "budgetOverrides": false,
+  "timingBaselines": {
+    "recordedAt": "2026-11-07T10:45:36.757219+00:00",
+    "hostOverrides": {},
+    "files": {
+      "docs/performance/alpha-0.0.1-baseline.json": "39c4aab413df0a62b0d20c9b4ed991b3f25d69781bd45782ceebadc237ad0149",
+      "docs/performance/campaign-41-60-baseline.json": "5e3d5d0054da75181dbf5c71b0d475c15ba5cbb2434a4d4156497f85e36cb7a3"
+    }
+  },
+  "world": {
+    "rawScopes": 10,
+    "summary": "output/current/world-3d/combined-final-20261107T104422Z/world-summary.json",
+    "rawDirectory": "/home/stone/dev/Tumbleworks/output/current/world-3d/combined-final-20261107T104422Z/world-summary.raw-DsnWeX",
+    "sourceHashesEqual": true,
+    "zeroGameplayWork": true,
+    "quality": {
+      "ratio": 1.25,
+      "css": [
+        375,
+        690
+      ],
+      "backing": [
+        468,
+        862
+      ],
+      "cpuSlowdown": 4
+    },
+    "timingCeilingsAdded": false
+  },
+  "build": {
+    "firstDownloadMB": 2.106,
+    "ceilingMB": 2.125,
+    "fixedGeometryGzipBytes": 118577,
+    "geometryCeilingBytes": 120000,
+    "rewardAndCuePngBytes": 72296,
+    "previewCeilingBytes": 100000,
+    "audioBytes": 37470,
+    "audioCeilingBytes": 45000
+  },
+  "host": {
+    "loadBefore": "3.59 2.40 2.76 2/841 1185525",
+    "loadAfter": "8.18 5.27 3.82 2/841 1185719",
+    "dockerBefore": [
+      "cbz_reader_panel-page-flip-fix-20261030_05dd-php-1 0.01%",
+      "cbz_reader_panel-page-flip-fix-20261030_05dd-database-1 0.75%",
+      "tumbleworks-dev-1 0.01%"
+    ],
+    "rawCpuBefore": "output/current/world-3d/combined-final-20261107T104422Z/gameplay-host-cpu-before.txt",
+    "rawCpuAfter": "output/current/world-3d/combined-final-20261107T104422Z/gameplay-host-cpu-after.txt"
+  },
+  "skillLiveEvidence": "output/current/verify/verify-atelier-final-20261107T104045Z/summary.json",
+  "cueEvidence": "output/current/world-3d/cue-final/reporter.json",
+  "readonlyReview": "output/current/world-3d/combined-final-20261107T104422Z/sol-readonly-review.json",
+  "physicalPhonePerformance": false,
+  "committed": false,
+  "deployed": false,
+  "boundary": "Single-worker browser/SwiftShader regression checks with fixed existing gameplay limits; no physical-phone performance or measured-speedup claim."
+}

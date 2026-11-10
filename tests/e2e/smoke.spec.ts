@@ -1,3 +1,4 @@
+import { enterGame } from '../fixtures/picker';
 import { expect, test } from '@playwright/test';
 import { CAMPAIGN } from '../../src/campaign';
 
@@ -13,6 +14,7 @@ test('the site boots, draws the toy and takes a real tap', async ({ page }) => {
   page.on('response', (response) => { if (response.status() >= 400) problems.push(`${response.status()} ${response.url()}`); });
 
   await page.goto('/');
+  await enterGame(page);
   await expect(page.locator('#boot')).toBeHidden({ timeout: 60_000 });
   await expect(page.locator('#level-name')).not.toBeEmpty();
 

@@ -1,0 +1,3 @@
+// UNUSED / UNRUN. Fixed ceilings remain; HAND +116 has no current headroom.
+import{expect,it}from'vitest';import{Mesh}from'three';import{villageWorld}from'./village-world-fixture';
+it('actual full detail keeps map/film ceilings after the separate exact painted-union dependency is proved',()=>{const f=villageWorld(1);try{for(const film of[false,true]){if(film)f.world.film(0);let triangles=0,meshes=0;f.world.scene.traverse(o=>{if(!(o instanceof Mesh))return;for(let p:import('three').Object3D|null=o;p;p=p.parent)if(!p.visible)return;meshes++;triangles+=(o.geometry.index?.count??o.geometry.getAttribute('position').count)/3;});expect(triangles).toBeLessThanOrEqual(film?37224:36160);expect(meshes).toBeLessThanOrEqual(film?30:29);}}finally{f.dispose();}});

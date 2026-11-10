@@ -22,6 +22,7 @@ function write(progress: Progress): void {
   try { localStorage.setItem(KEY, JSON.stringify(progress)); } catch { unsaved = true; }
 }
 export const isCompleted = (id: string): boolean => read().completed.includes(id);
+export const completedLevels = (): readonly string[] => [...read().completed];
 export function markCompleted(id: string): void {
   const progress = read();
   if (!progress.completed.includes(id)) write({ ...progress, completed: [...progress.completed, id] });

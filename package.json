@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "oxlint --deny-warnings",
     "test": "vitest run",
+    "test:research": "TW_VILLAGE_RESEARCH=1 vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test"
   },

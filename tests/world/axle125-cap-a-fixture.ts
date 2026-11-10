@@ -1,0 +1,3 @@
+import{vi}from'vitest';import*as core from'../../src/view/axle-floor-cap';import{oldAxleCap}from'./axle-old-cap';import{axleCandidateFixture}from'./axle-candidate-fixture';
+/** Literal114/125 capA negative in the real selected candidate Scene. No fake state/READY. */
+export function legacyAxleCapAFixture(){const original=core.embeddedFloorCoreCap,spy=vi.spyOn(core,'embeddedFloorCoreCap').mockImplementation((track,x,h,bottom)=>{const fresh=original(track,x,h,bottom);fresh.geometry.dispose();return{...fresh,geometry:oldAxleCap(track,x,bottom)};});try{return axleCandidateFixture();}finally{spy.mockRestore();}}

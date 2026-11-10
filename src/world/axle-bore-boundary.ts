@@ -1,0 +1,28 @@
+import{Matrix4,Vector3,Box3,Mesh}from'three';
+import{closed,type Tri}from'../view/support-exact';
+import{strictSolidInside}from'../view/support-solid';
+import{exact,rat,add,sub,mul,div,cmp,clipped,polygonArea,type R,type P}from'./rocker-foot';
+import{reject,type NativeInput,type V}from'./axle-types';
+const Z=rat(0n),abs=(x:R)=>x.n<0n?rat(-x.n,x.d):x,E=(p:V)=>p.map(exact),minus=(a:readonly R[],b:readonly R[])=>a.map((v,i)=>sub(v,b[i]!)),cross=(a:readonly R[],b:readonly R[])=>[sub(mul(a[1]!,b[2]!),mul(a[2]!,b[1]!)),sub(mul(a[2]!,b[0]!),mul(a[0]!,b[2]!)),sub(mul(a[0]!,b[1]!),mul(a[1]!,b[0]!))],dot=(a:readonly R[],b:readonly R[])=>a.reduce((s,v,i)=>add(s,mul(v,b[i]!)),Z),text=(x:R)=>x.n+'/'+x.d;
+/** Necessary negative preflight on actual rigid rotor material boundaries.
+ * A finite weld does not excuse duplicate draw facets facing the shared bore's
+ * actual air volume. Never issues eligibility or changes geometry. */
+export function assertAxleBoreBoundary(input:NativeInput){const m=input.model,s=m.station,tick=()=>m.work.tick();m.work.phase='native-bore-boundary';const A=input.parts.find(p=>p.id==='spoke-0'),B=input.parts.find(p=>p.id==='pin-boss'),ca=input.canonical.find(p=>p.id==='spoke-0'),cb=input.canonical.find(p=>p.id==='pin-boss');if(!A||!B||!ca||!cb||A.body!=='rotor'||B.body!=='rotor'||A.mesh!==B.mesh||A.geometry!==B.geometry||!(A.mesh instanceof Mesh)||A.geometry!==A.mesh.geometry||A.geometry.index||input.canonical!==input.binding.parts)reject(s,'weld-identity','Actual owned common rotor ranges required');
+ const expected=new Matrix4().setPosition(m.kinematics.O[0],m.kinematics.O[1],0);if(A.toWorld.elements.some((v,i)=>!Object.is(v,B.toWorld.elements[i])||!Object.is(v,expected.elements[i])))reject(s,'weld-identity','Bore preflight requires actual HOME rotor frame');
+ const raw=(part:typeof A)=>{const p=part.geometry.getAttribute('position');return Array.from({length:part.count/3},(_,i)=>{tick();return[0,1,2].map(j=>[p.getX(part.first+3*i+j),p.getY(part.first+3*i+j),p.getZ(part.first+3*i+j)]as V)as unknown as Tri;});},a=raw(A),b=raw(B);closed(a);closed(b);const facts=(ts:readonly Tri[])=>ts.map(t=>{tick();const p=t.map(E);return{p,n:cross(minus(p[1]!,p[0]!),minus(p[2]!,p[0]!)),bounds:new Box3().setFromPoints(t.map(v=>new Vector3(...v)))};}),aa=facts(a),bb=facts(b),axis=E([0,-m.kinematics.R,0]);
+ for(let i=0;i<aa.length;i++){const f=aa[i]!,drop=f.n.findIndex(v=>v.n!==0n);if(drop<0||f.n[2]!.n!==0n||cmp(dot(f.n,minus(axis,f.p[0]!)),Z)<=0)continue;const uv=[0,1,2].filter(j=>j!==drop);
+  for(let j=0;j<bb.length;j++){tick();const g=bb[j]!;if(!f.bounds.intersectsBox(g.bounds)||cmp(dot(f.n,g.n),Z)<=0||cross(f.n,g.n).some(v=>v.n!==0n)||g.p.some(p=>dot(f.n,minus(p,f.p[0]!)).n!==0n))continue;
+   const polygon=clipped(f.p.map(p=>uv.map(k=>p[k]!)as unknown as P),g.p.map(p=>uv.map(k=>p[k]!)as unknown as P)),area=polygonArea(polygon);if(cmp(area,Z)<=0)continue;
+   const centre=[Z,Z,Z];for(let k=0;k<2;k++)centre[uv[k]!]=div(polygon.reduce((sum,p)=>add(sum,p[k]!),Z),rat(BigInt(polygon.length)));centre[drop]=sub(f.p[0]![drop]!,div(uv.reduce((sum,k)=>add(sum,mul(f.n[k]!,sub(centre[k]!,f.p[0]![k]!))),Z),f.n[drop]!));
+   const n=new Vector3(...a[i]![1]).sub(new Vector3(...a[i]![0])).cross(new Vector3(...a[i]![2]).sub(new Vector3(...a[i]![0]))).normalize(),air=centre.map((p,k)=>Number(p.n)/Number(p.d)+n.getComponent(k)*2**-20)as unknown as V;
+   if(strictSolidInside(air,a)||strictSolidInside(air,b))continue;
+   // A strictly positive all-plane distance proves an open air cube; no boundary
+   // point, finite-area cutoff or uniform packing allowance can trigger this exit.
+   let margin:R|undefined;for(const t of[...aa,...bb]){tick();const distance=abs(dot(t.n,minus(E(air),t.p[0]!))),length=t.n.reduce((r,v)=>add(r,abs(v)),Z);if(length.n===0n||distance.n===0n){margin=Z;break;}const h=div(distance,length);if(!margin||cmp(h,margin)<0)margin=h;}
+   if(!margin||cmp(margin,Z)<=0)continue;
+   let covered=false;const box=new Box3().setFromCenterAndSize(new Vector3(...air),new Vector3().setScalar(2*Number(margin.n)/Number(margin.d)/4));for(const part of input.canonical.filter(p=>p.body==='rotor'&&p!==ca&&p!==cb)){part.solid.computeBoundingBox();tick();if(part.solid!==part.render)reject(s,'weld-identity','Changed rigid rotor physical source');if(part.solid.boundingBox!.intersectsBox(box)){const p=part.solid.getAttribute('position'),ix=part.solid.index,other=Array.from({length:(ix?.count??p.count)/3},(_,i)=>{tick();return[0,1,2].map(j=>{const k=ix?ix.getX(3*i+j):3*i+j;return[p.getX(k),p.getY(k),p.getZ(k)]as V;})as unknown as Tri;});closed(other);if(strictSolidInside(air,other)){covered=true;break;}for(const t of facts(other)){const distance=abs(dot(t.n,minus(E(air),t.p[0]!))),length=t.n.reduce((r,v)=>add(r,abs(v)),Z);if(length.n===0n||distance.n===0n){covered=true;break;}const h=div(distance,length);if(cmp(h,margin)<0)margin=h;}if(covered)break;}}if(covered)continue;
+   reject(s,'exposed-overlap',JSON.stringify({parts:[A.id,B.id],body:'rotor',nativeFaces:[A.first/3+i,B.first/3+j],projectedArea:text(area),projectedAreaValue:Number(area.n)/Number(area.d),polygon:polygon.map(p=>p.map(text)),localAirPoint:air,airCubeHalf:text(div(margin,rat(4n))),reason:'Same-facing positive-area coincident INNER bore draw boundaries. Closed actual spoke/boss solids both exclude a finite open air cube on their outward side; every other rigid rotor member is bounded away. A real rigid weld and the scoped nominal journal do not remove duplicated exposed facets. Actual full-Scene TOP exposure is independently witnessed separately.'}),Number(area.n)/Number(area.d),0);
+  }
+ }
+ return{scope:'No reproduced inner-bore duplicate; not a global boundary or native certificate'};
+}

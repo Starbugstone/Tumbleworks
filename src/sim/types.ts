@@ -1,4 +1,5 @@
 import type { BeltShape } from '../engine/belt-path';
+import type { DockPallet } from './dock-pallets';
 /** Every marble colour, in palette order: five chromatic colours, then black and white. */
 export const COLORS = ['red', 'blue', 'green', 'yellow', 'orange', 'black', 'white'] as const;
 export type Color = (typeof COLORS)[number];
@@ -12,6 +13,8 @@ export interface Packet {
 
 /** Crate IDs are zero-based, in original supply/packet order (independent of marble counts). */
 export interface FunnelVariants {
+  /** Both front boxes must be reserved before either adjacent queue advances. */
+  readonly pallets?: readonly DockPallet[];
   readonly pairs?: readonly (readonly [number, number])[];
   /** Replaces column access. Omitted IDs have no predecessors. */
   readonly predecessors?: Readonly<Record<number, readonly number[]>>;

@@ -1,3 +1,4 @@
+import { enterGame } from '../fixtures/picker';
 import { expect, test } from '@playwright/test';
 import type { App } from '../../src/view/App';
 type GameWindow = Window & { tumbleworks: { app: App } };
@@ -6,6 +7,7 @@ test('Funnel Sort accepts every crate before animation, keeps the overflow in th
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/');
+  await enterGame(page);
   await page.waitForFunction(() => Boolean((window as unknown as Partial<GameWindow>).tumbleworks?.app?.runtime), undefined, { timeout: 60000 });
   await page.evaluate(() => { (window as unknown as GameWindow).tumbleworks.app.manualClock = true; });
   const state = () => page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.debugState());

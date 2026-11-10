@@ -138,7 +138,7 @@ export interface ScoreRow {
 export interface Placement { readonly round: number; readonly game: Game; readonly slot: Slot; readonly row: ScoreRow; readonly signature?: string }
 
 /** A level's structure: the same structure may not recur within five rounds of itself. */
-export function signatureOf(board: { readonly supplies?: readonly (readonly { readonly count: number }[])[]; readonly docks?: readonly unknown[]; readonly trackShape?: string; readonly lanes?: readonly (readonly { readonly id?: string; readonly capacity?: number; readonly pourAfter?: string; readonly segments: readonly { readonly color: string }[] }[])[]; readonly couplings?: readonly (readonly [string, string])[]; readonly loop?: readonly { readonly color: string; readonly count: number }[]; readonly tubes?: readonly (readonly string[])[]; readonly capacity?: number; readonly containers?: readonly unknown[] }): string {
+export function signatureOf(board: { readonly supplies?: readonly (readonly { readonly count: number }[])[]; readonly docks?: readonly unknown[]; readonly trackShape?: string; readonly lanes?: readonly (readonly { readonly id?: string; readonly capacity?: number; readonly pourAfter?: string; readonly segments: readonly { readonly color: string }[] }[])[]; readonly couplings?: readonly (readonly [string, string])[]; readonly loop?: readonly { readonly color: string; readonly count: number }[]; readonly tubes?: readonly (readonly string[])[]; readonly capacity?: number; readonly containers?: readonly unknown[]; readonly pallets?: readonly (readonly [number, number])[]; readonly colorCapacities?: Readonly<Partial<Record<string, number>>> }): string {
   const sorted = (values: readonly number[]): string => [...values].sort((a, b) => b - a).join();
   const shape = board.trackShape ?? 'oval';
   if (board.supplies) {
@@ -146,7 +146,7 @@ export function signatureOf(board: { readonly supplies?: readonly (readonly { re
     const colors = new Set((trays as readonly { readonly color?: string }[]).map((tray) => tray.color)).size;
     // Crates of three teach something other than crates of six, so they count apart; boards without them keep their label.
     const smalls = trays.filter((tray) => tray.count <= 3).length;
-    return `c${colors} [${sorted(board.supplies.map((column) => column.length))}] sh${trays.filter((tray) => tray.count < 9 && tray.count > 3).length}${smalls ? ` sm${smalls}` : ''} d${board.docks?.length} ${shape}`;
+    return `c${colors} [${sorted(board.supplies.map((column) => column.length))}] sh${trays.filter((tray) => tray.count < 9 && tray.count > 3).length}${smalls ? ` sm${smalls}` : ''} d${board.docks?.length} ${shape}${board.pallets?.length ? ` pallets${JSON.stringify(board.pallets)}` : ''}`;
   }
   if (board.lanes) {
     const colors = new Set(board.lanes.flat().flatMap((truck) => truck.segments.map((segment) => segment.color))).size;
@@ -158,7 +158,7 @@ export function signatureOf(board: { readonly supplies?: readonly (readonly { re
   }
   const tubes = board.tubes ?? [];
   const colors = new Set(tubes.flat()).size;
-  return `c${colors} h${board.capacity} F${tubes.length - colors} spread${tubes.filter((tube) => tube.length).length}${board.containers ? ` roles${JSON.stringify(board.containers)}` : ''}`;
+  return `c${colors} h${board.capacity} F${tubes.length - colors} spread${tubes.filter((tube) => tube.length).length}${board.containers ? ` roles${JSON.stringify(board.containers)}` : ''}${board.colorCapacities ? ` homes${JSON.stringify(board.colorCapacities)}` : ''}`;
 }
 
 const PEAK_PHASE: Readonly<Record<Game, number>> = { funnel: 4, loop: 0, tube: 2 };
