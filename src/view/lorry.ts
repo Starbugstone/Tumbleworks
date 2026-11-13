@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { candy } from '../engine/candy';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Color } from '../sim/types';
@@ -12,7 +13,7 @@ export function lorryMaterials() {
   const chrome = new THREE.MeshStandardMaterial({ color: 0xbccbdc, roughness: 0.3, metalness: 0.45 });
   return {
     paints: new Map<Color, THREE.MeshStandardMaterial>(),
-    ivory: new THREE.MeshStandardMaterial({ color: 0xfff7e5, roughness: 0.4 }),
+    ivory: candy(new THREE.MeshStandardMaterial({ color: 0xfff7e5, roughness: 0.2, envMapIntensity: 1.3 })),
     rubber, chrome,
     // Ordinary and instanced geometry need separate material identities to keep shader variants stable.
     tires: rubber.clone(), hubs: chrome.clone(),
@@ -27,10 +28,10 @@ export function lorry(target: Color, dimensions: Dimensions, materials: LorryMat
   const { bedWidth: w, bedLength: length, bedHeight: h, cabLength: cab } = dimensions;
   const body = new THREE.Group();
   let paint = materials.paints.get(target);
-  if (!paint) { paint = new THREE.MeshStandardMaterial({ color: COLORS[target].hex, roughness: 0.28 }); materials.paints.set(target, paint); }
+  if (!paint) { paint = candy(new THREE.MeshStandardMaterial({ color: COLORS[target].hex, roughness: 0.12, envMapIntensity: 1.5 })); materials.paints.set(target, paint); }
   const { ivory, rubber, chrome, windowMaterial, lights } = materials;
   const box = (width: number, height: number, depth: number, x: number, y: number, z: number, material: THREE.Material) => {
-    const mesh = new THREE.Mesh(new RoundedBoxGeometry(width, height, depth, 2, Math.min(0.07, height / 3, depth / 3, width / 3)), material);
+    const mesh = new THREE.Mesh(new RoundedBoxGeometry(width, height, depth, 3, Math.min(0.12, height / 3, depth / 3, width / 3)), material);
     mesh.position.set(x, y, z);
     mesh.castShadow = true;
     body.add(mesh);

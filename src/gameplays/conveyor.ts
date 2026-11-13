@@ -33,6 +33,7 @@ export class ConveyorRuntime implements GameRuntime {
     this.view.setMachine(this.machine);
   }
   get game() { return this.machine; }
+  celebrate(clean = 1): void { this.view.celebrate(clean); }
   get status() { return this.machine.rules.status; }
   get busy() { return this.machine.transferring; }
   get canUndo() { return this.machine.canUndo; }

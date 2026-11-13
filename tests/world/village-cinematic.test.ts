@@ -108,5 +108,5 @@ describe("cinematic village films", () => {
 it('keeps the vertical loop brisk through its upside-down section',()=>{
  const scene=VILLAGE_SCENE_PLANS.find(s=>s.chapter===5)!,route=new VillageCinematic(scene.plan),loop=route.segments.find(p=>p.kind==='contact'&&scene.plan.stations.find(s=>s.stop===p.stop)!.mechanism.kind==='loop')!,p=new Vector3(),a=new Vector3(),b=new Vector3();let top=loop.start,height=-Infinity;
  for(let t=loop.start;t<=loop.end;t+=.01){route.sample(t,p);if(p.y>height){height=p.y;top=t;}}
- route.sample(top-.001,a);route.sample(top+.001,b);expect(a.distanceTo(b)/.002).toBeGreaterThan(4);expect(a.distanceTo(b)/.002).toBeLessThanOrEqual(4.51);
+ route.sample(top-.001,a);route.sample(top+.001,b);expect(a.distanceTo(b)/.002).toBeGreaterThan(6);expect(a.distanceTo(b)/.002).toBeLessThanOrEqual(6.51);
 });

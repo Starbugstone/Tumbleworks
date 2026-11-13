@@ -58,6 +58,8 @@ export interface GameRuntime {
   undo(): boolean;
   step(): readonly Feedback[];
   render(alpha: number, seconds: number): void;
+  /** The level has just been won: the board's own send-off, if it has one. */
+  celebrate?(clean?: number): void;
   resize(): void;
   targets(): Record<string, ScreenPoint>;
   inspect(): Record<string, unknown>;

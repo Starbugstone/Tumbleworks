@@ -1,4 +1,5 @@
 import { sfx } from '../audio';
+import { confetti } from './confetti';
 import { CAMPAIGN, TRY_LEVEL } from '../campaign';
 import { canEnterProject, workshopProject } from '../world/workshop-projects';
 import type { Feedback, GameLevel, GameRuntime, GameServices, ScreenPoint } from '../engine/contracts';
@@ -58,6 +59,8 @@ export class App {
   private targetKey = '';
   private focusTarget: string | null = null;
   private chain = 0;
+  /** An undo or a hint was used on this level: the send-off is a little smaller, never withheld. */
+  private helped = false;
   private guiding = false;
   /** Simulation speed while the fast-forward button or key is held. Rules are unchanged; ticks just come faster. */
   private speed = 1;
@@ -277,6 +280,7 @@ export class App {
     this.runtime?.dispose();
     this.boardIndex = index;
     this.runtime = level.create(this.services);
+    this.helped = false;
     this.stage.resized();
     this.redraw = true;
     this.guiding = Boolean(this.runtime.guideId && !guideSeen(this.runtime.guideId));
@@ -447,6 +451,7 @@ export class App {
     this.ring.hidden = true;
     this.focusTarget = null;
     this.setMessage('');
+    this.helped = true;
     this.feedback(this.runtime.hint());
   }
 
@@ -456,7 +461,7 @@ export class App {
     if (events.length) this.redraw = true;
     for (const event of events) {
       switch (event.type) {
-        case 'tap': if (!quiet) sfx.tap(); break;
+        case 'tap': if (!quiet) { sfx.tap(); } break;
         case 'move': sfx.release(); break;
         case 'match': sfx.boxFilled(this.chain++); break;
         case 'blocked': sfx.blocked(); break;
@@ -480,6 +485,7 @@ export class App {
     this.pointer.cancel();
     sfx.unlock();
     if (!this.runtime.undo()) return;
+    this.helped = true;
     sfx.cancel();
     this.redraw = true;
     window.clearTimeout(this.winTimer);
@@ -504,6 +510,7 @@ export class App {
       sfx.win();
       this.renderChips();
       this.confetti();
+      this.runtime.celebrate?.(this.helped ? 0.65 : 1);
       this.winTimer = window.setTimeout(() => {
         if (this.screen !== 'game' || this.runtime.status !== 'won') return;
         if (this.source === 'campaign' && this.nextRoundLevel() === null) {
@@ -730,17 +737,7 @@ export class App {
     this.card.dataset['kind'] = kind;
     this.card.hidden = false;
   }
-  private confetti(): void {
-    const palette = Object.values(COLORS);
-    element('confetti').replaceChildren(...Array.from({ length: 65 }, (_, index) => {
-      const piece = document.createElement('i');
-      piece.style.left = `${Math.random() * 100}%`;
-      piece.style.background = palette[index % palette.length]?.base ?? '#fff';
-      piece.style.animationDelay = `${Math.random() * 0.4}s`;
-      piece.style.animationDuration = `${1.5 + Math.random()}s`;
-      return piece;
-    }));
-  }
+  private confetti(): void { confetti(element('confetti')); }
   private key(event: KeyboardEvent): void {
     if (this.screen !== 'game') return;
     if (event.ctrlKey || event.metaKey || event.altKey) return;

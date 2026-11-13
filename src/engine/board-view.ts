@@ -4,6 +4,8 @@ import type { GameServices, ScreenPoint } from './contracts';
 import type { MarbleEntity } from './marbles';
 import { FIXED_SECONDS, MarbleDrop, type Point3 } from './physics';
 import { boxCorners, frameBoard } from './framing';
+import { focusOn } from './finish';
+import { Shake } from './shake';
 
 interface Placement { readonly id: string; readonly color: Color; readonly radius: number; readonly at: Point3; readonly target?: string }
 interface Actor { readonly entity: MarbleEntity; radius: number; target: Point3 }
@@ -23,6 +25,11 @@ export abstract class BoardView {
   private readonly anchors = new Map<string, THREE.Vector3>();
   private bursts: { entity: MarbleEntity; at: Point3; to?: Point3; radius: number; time: number }[] = [];
   protected framing: Point3[] | null = null;
+  /** Where each marble in the air is this tick, for a view that draws trails behind them. */
+  protected readonly flying: Point3[] = [];
+  /** Kept for the exceptional moment only; a view decides when that is. */
+  protected readonly shake = new Shake();
+  private readonly calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   constructor(protected readonly services: GameServices, private readonly elevation = 0.85) {
     this.scene = services.stage.createScene('studio');
@@ -84,7 +91,9 @@ export abstract class BoardView {
   }
   protected placeMarble(id: string, at: Point3): void {
     this.stop(id);
-    this.marbles.get(id)?.entity.mesh.position.set(at.x, at.y, at.z);
+    const placed = this.marbles.get(id);
+    placed?.entity.mesh.scale.setScalar(placed.radius);
+    placed?.entity.mesh.position.set(at.x, at.y, at.z);
   }
   protected restoreMarble(id: string): void {
     const actor = this.marbles.get(id);
@@ -105,6 +114,7 @@ export abstract class BoardView {
   }
 
   step(): void {
+    this.flying.length = 0;
     for (const [id, motion] of this.motions) {
       const actor = this.marbles.get(id);
       if (!actor) { this.stop(id); continue; }
@@ -116,7 +126,10 @@ export abstract class BoardView {
         actor.entity.mesh.position.set(from.x + (to.x - from.x) * eased,
           from.y + (to.y + 0.12 - from.y) * eased + Math.sin(t * Math.PI) * 0.75,
           from.z + (to.z - from.z) * eased);
+        // In the air a marble is drawn a little tall and thin, and leaves a trail.
+        if (!this.calm) { actor.entity.mesh.scale.set(actor.radius * 0.95, actor.radius * 1.12, actor.radius * 0.95); this.flying.push(actor.entity.mesh.position); }
       } else {
+        actor.entity.mesh.scale.setScalar(actor.radius);
         motion.drop ??= new MarbleDrop(this.services.physics, motion.to, actor.radius, 0.12);
         const at = motion.drop.step();
         actor.entity.mesh.position.set(at.x, at.y, at.z);
@@ -171,9 +184,17 @@ export abstract class BoardView {
       const bounds = new THREE.Box3().setFromObject(this.board).union(new THREE.Box3().setFromObject(this.marbleLayer));
       this.framing = boxCorners(bounds);
     }
+    this.services.stage.fitShadows(this.scene, this.framing);
     frameBoard(this.camera, width, height, this.framing, new THREE.Vector3(0, this.elevation, 0.65));
+    focusOn(this.scene, this.camera, this.framing);
+  }
+  /** Lifts a resting marble off its place by `dy`; a marble in motion is left to its motion. */
+  protected nudge(id: string, dy: number): void {
+    const actor = this.marbles.get(id);
+    if (actor && !this.motions.has(id)) actor.entity.mesh.position.y = actor.target.y + dy;
   }
   render(): void {
+    this.shake.apply(this.camera, FIXED_SECONDS);
     this.services.stage.draw(this.scene, this.camera);
   }
   dispose(): void {

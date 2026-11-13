@@ -227,7 +227,7 @@ function assertPaused(sample: Sample, screen: string): void {
   expect(sample.runtimeUnchanged).toBe(true); expect(sample.fingerprintUnchanged).toBe(true);
   expect(sample.stepCalls).toBe(0); expect(sample.gameRenderCalls).toBe(0);
   expect(sample.after.steps).toBe(sample.before.steps);
-  expect(sample.before.quality).toEqual({ ratio: 1.25, width: Math.floor(PHONE.width * 1.25), height: Math.floor(PHONE.height * 1.25) });
+  expect(sample.before.quality).toEqual({ ratio: 1.5, width: Math.floor(PHONE.width * 1.5), height: Math.floor(PHONE.height * 1.5) });
   expect([sample.before.cssWidth, sample.before.cssHeight]).toEqual([PHONE.width, PHONE.height]);
   expect([sample.after.cssWidth, sample.after.cssHeight]).toEqual([PHONE.width, PHONE.height]);
   expect(sample.after.quality).toEqual(sample.before.quality); expect(sample.qualityChanges).toBe(0);

@@ -9,8 +9,17 @@ export const OVERVIEW_CELLS = [8, 8] as const;
 
 interface Sink { positions: number[]; colors: number[] }
 const scratch = new THREE.Color();
+const hsl = { h: 0, s: 0, l: 0 };
+/**
+ * The authored land palettes are dusty. The valley is drawn as a sunny toy, so each colour keeps its hue
+ * and its lightness and gains saturation; equal authored colours stay equal, which the land merging needs.
+ */
+export function sunny(color: number, target: THREE.Color): THREE.Color {
+  target.setHex(color).getHSL(hsl);
+  return target.setHSL(hsl.h, Math.min(1, hsl.s * 1.9 + 0.06), Math.min(1, hsl.l * 1.04));
+}
 function face(sink: Sink, color: number, ...points: readonly (readonly [number, number, number])[]): void {
-  scratch.setHex(color);
+  sunny(color, scratch);
   for (const point of points) { sink.positions.push(point[0], point[1], point[2]); sink.colors.push(scratch.r, scratch.g, scratch.b); }
 }
 
@@ -67,8 +76,9 @@ export function villageTerrainGeometry(source: VillageTerrain | VillageTerrainSp
       const top = cell === 'water' ? spec.water : undefined;
       const bottom = side.neighbour === 'void' ? skirtBottom : spec.water - 0.5;
       const a = vertex(side.a[0], side.a[1], top), b = vertex(side.b[0], side.b[1], top);
-      // Lean the foot slightly inward so the cliff reads as a volume, not a curtain.
-      const lean = 0.12 * Math.min(cellWidth, cellDepth);
+      // Straight down into the sea. A foot leaning inward opened a wedge at every outside corner, where
+      // neighbouring walls lean different ways, and the backdrop showed through as a dark spike.
+      const lean = 0;
       const inward = [-(b[2] - a[2]), b[0] - a[0]] as const; const length = Math.hypot(inward[0], inward[1]) || 1;
       const foot = (p: [number, number, number]): [number, number, number] => [p[0] - inward[0] / length * lean, bottom, p[2] - inward[1] / length * lean];
       const color = side.neighbour === 'void' ? spec.palette.cliff : spec.palette.rock;

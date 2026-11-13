@@ -3,12 +3,12 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#1f2650" />
+    <meta name="theme-color" content="#1c1d4f" />
     <title>Tumbleworks</title>
     <style>
       :root { --ink: #2f3358; --cream: #fff9ee; --accent: #f25f33; }
       * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-      html, body { margin: 0; height: 100%; background: #1f2650; overflow: hidden; overscroll-behavior: none; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; font-family: Fredoka, 'Trebuchet MS', sans-serif; font-weight: 500; color: var(--ink); }
+      html, body { margin: 0; height: 100%; background: #1c1d4f; overflow: hidden; overscroll-behavior: none; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; font-family: Fredoka, 'Trebuchet MS', sans-serif; font-weight: 500; color: var(--ink); }
       #scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
       body[data-screen='game'] #scene, #level-name { touch-action: none; }
       /* Keep native picker scrolling without opting its nested scrollers into zoom gestures. */
@@ -83,11 +83,11 @@
       @media (max-width: 420px) { #top { gap: 5px; left: 8px; right: 8px; } .pill { font-size: 12px; padding: 0 9px; gap: 4px; } }
       @media (prefers-reduced-motion: reduce) { #confetti { display: none; } #focus-ring, #undo.attention { animation: none; } }
       /* The controls sit on the same dark enamel and amber buttons as the arcade machines. */
-      #top .pill, #hud #mute { background: #10283e; color: #efffff; border: 1px solid #3d7e8d; box-shadow: 0 3px 0 #071521, 0 5px 14px #0005; }
+      #top .pill, #hud #mute { background: #1b1a52; color: #f4f2ff; border: 1px solid #6258dc; box-shadow: 0 3px 0 #0c0b2e, 0 5px 14px #0005; }
       #load { color: #81ffe2 !important; letter-spacing: .02em; }
       #load.full { color: #ffd98a !important; border-color: #b58a3c; }
       #load.jammed { color: #ffe1a3 !important; border-color: #ff9c54; }
-      #instruction { background: #10283ef2; color: #deeeef; border: 1px solid #345f70; border-radius: 12px; }
+      #instruction { background: #1b1a52f2; color: #ecebff; border: 1px solid #4a44b0; border-radius: 12px; }
       .action { background: #ffce65; box-shadow: 0 4px 0 #a56b29, 0 7px 12px #0006; }
       .action:active { box-shadow: 0 1px 0 #a56b29, 0 4px 8px #0006; }
       #hint { background: #80ead8; box-shadow: 0 4px 0 #267c79, 0 7px 12px #0006; }
@@ -99,9 +99,16 @@
       #language button, #guide-replay, #copy-replay { background: #e1e9e6; border-radius: 8px; padding: 7px 10px; }
       #copy-replay { margin-top: 6px; }
       #language button[aria-pressed='true'] { background: var(--ink); color: white; }
-      #guide { padding: 2px 10px; background: #10283ed9; border-radius: 12px; text-align: center; }
+      /* Candy finish: a soft sheen on every round button, and a card that sits up off the board. */
+      .action, #top .pill, #hud #mute { background-image: linear-gradient(rgb(255 255 255 / 0.4), rgb(255 255 255 / 0) 58%); }
+      #top .pill, #hud #mute { background-image: linear-gradient(rgb(255 255 255 / 0.16), rgb(255 255 255 / 0) 58%); }
+      #card { border-radius: 30px; background: linear-gradient(#fffdf6, #ffeccb); border: 3px solid #fff; box-shadow: 0 8px 0 #d9b98a, 0 22px 40px rgb(0 0 0 / 0.45); animation: pop 0.34s cubic-bezier(0.2, 1.7, 0.4, 1); }
+      #card-action { border-radius: 18px; box-shadow: 0 5px 0 #15143f; }
+      #card[data-kind='win'] #card-action { background: linear-gradient(#ff8a52, #f2542a); box-shadow: 0 5px 0 #a83c1b; }
+      #card[data-kind='win'] #card-title { color: #f2542a; }
+      #guide { padding: 2px 10px; background: #1b1a52d9; border-radius: 12px; text-align: center; }
       #guide-text { margin: 0 0 5px; }
-      #hud #guide-skip { color: #a8d8d8; background: none; font-size: 12px; text-decoration: underline; padding: 5px 10px; }
+      #hud #guide-skip { color: #c5c1ff; background: none; font-size: 12px; text-decoration: underline; padding: 5px 10px; }
       #guide-pointer { position: fixed; width: 62px; height: 62px; border: 3px solid #ffce65; border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 0 3px #10283e; pointer-events: none; }
       #guide-pointer svg { position: absolute; width: 42px; height: 48px; left: 35px; top: 34px; filter: drop-shadow(0 2px 2px #0009); transform-origin: 15px 7px; animation: guide-tap 1.6s ease-in-out infinite; }
       @keyframes guide-tap { 0%, 65%, 100% { transform: translate(3px, 7px) rotate(-18deg); } 30%, 40% { transform: translate(-3px, -4px) rotate(-26deg) scale(.94); } }

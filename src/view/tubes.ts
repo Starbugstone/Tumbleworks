@@ -1,8 +1,10 @@
 import * as THREE from 'three';
+import { bakeOcclusion } from '../engine/candy';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { Sparks } from '../engine/sparks';
 import { Glass } from '../engine/glass';
 import { COLORS, containerSymbolTexture } from './art';
+import { ARCADE, ArcadeYard, bodyPlastic, fuse, hull, plate } from './arcade';
 import type { Color } from '../sim/types';
 import { FIXED_SECONDS } from '../engine/physics';
 import { BoardView } from '../engine/board-view';
@@ -27,9 +29,14 @@ export class TubeView extends BoardView {
   private readonly cups = new Map<number, { parts: { mesh: THREE.Object3D; y: number }[]; lid: THREE.Mesh; height: number; progress: number; spent: boolean }>();
   private readonly reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   private readonly pulses: number[] = [];
+  /** Seconds until each tube's rim joins the win wave; 0 when none is due. */
+  private readonly waves: number[] = [];
+  /** Finished tubes whose whole column is hopping once, together, so no marble meets its neighbour. */
+  private hops: { tube: number; age: number }[] = [];
   /** Home plaques name the colour a taller or shorter home is for; each pulses when that colour fills the wrong tube. */
   private readonly plaques: { group: THREE.Group; color: Color; pulse: number }[] = [];
   private readonly sparks: Sparks;
+  private readonly yard: ArcadeYard;
   private selected = -1;
   private identities: string[][] = [];
   private nextIdentity = 0;
@@ -41,21 +48,24 @@ export class TubeView extends BoardView {
 
   constructor(services: GameServices, readonly definition: TubeDef, state: TubeState) {
     super(services, 1.35);
-    this.sparks = new Sparks(this.scene);
+    this.sparks = new Sparks(this.scene, 1.7);
     for (const color of Object.keys(COLORS) as Color[]) this.badgeMaterials.set(color,
       new THREE.MeshBasicMaterial({ map: containerSymbolTexture(color), transparent: true, depthWrite: false, toneMapped: false }));
     // The plinth grows with the rows of tubes, so a seventh tube still stands on it.
     const rows = Math.ceil(definition.tubes.length / 2);
     const depth = rows * 4.8 + 0.8;
     const centerZ = (rows - 1) * 2.4 - 4.8 + 0.3;
-    const plinth = toyBox(8.2, 0.5, depth, 0x5566d9, 0.2);
+    // One fused body: the hull with its rail, a deeper keel that reaches the water, and the dark deck the tubes stand on.
+    const parts = [...hull(4.1, depth / 2, centerZ), plate(4.15, depth / 2 + 0.05, -0.55, 1.3, 0.6, 0.08, ARCADE.edge, centerZ)];
+    for (const part of parts) part.translate(0, 0.55, 0);
+    parts.push(plate(3.8, depth / 2 - 0.3, 0.61, 0.08, 0.3, 0.025, ARCADE.track, centerZ));
+    const plinth = new THREE.Mesh(fuse(parts), bodyPlastic());
+    plinth.castShadow = true;
     plinth.receiveShadow = true;
-    plinth.position.set(0, 0.3, centerZ);
     this.board.add(plinth);
-    const deck = toyBox(7.7, 0.08, depth - 0.5, 0xe6e9ff, 0.16);
-    deck.receiveShadow = true;
-    deck.position.set(0, 0.57, centerZ);
-    this.board.add(deck);
+    bakeOcclusion(services.stage.renderer, [plinth], { minX: -4.6, maxX: 4.6, minZ: centerZ - depth / 2 - 0.4, maxZ: centerZ + depth / 2 + 0.4 });
+    // The scene owns the lagoon and disposes of it with everything else.
+    this.yard = new ArcadeYard(this.scene, 4.1, centerZ - depth / 2, centerZ + depth / 2);
     const glass = new Glass(new THREE.MeshStandardMaterial({ color: 0xe4f5ff, transparent: true,
       opacity: 0.2, roughness: 0.08, depthWrite: false, envMapIntensity: 1.5 }));
     const plaques = homePlaques(definition);
@@ -68,7 +78,7 @@ export class TubeView extends BoardView {
       const isCup = container.role === 'cup';
       const railX = at.x + (isCup ? 1.17 : 0.94);
       // A slate backing separates white cargo from the pale deck and from unfilled slots.
-      const backing = toyBox(isCup ? 1.72 : 1.28, height, 0.1, 0x596887, 0.05);
+      const backing = toyBox(isCup ? 1.72 : 1.28, height, 0.1, ARCADE.edge, 0.05);
       backing.position.set(at.x, 0.7 + height / 2, at.z - 0.64);
       this.board.add(backing);
       const tubeGeometry = isCup
@@ -83,7 +93,7 @@ export class TubeView extends BoardView {
       this.board.add(rim);
       this.rims.push(rim);
       this.pulses.push(0);
-      const base = new THREE.Mesh(new THREE.CylinderGeometry(isCup ? 1.01 : 0.85, isCup ? 1.09 : 0.92, 0.25, 32), toyMaterial(0x3b4069));
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(isCup ? 1.01 : 0.85, isCup ? 1.09 : 0.92, 0.25, 32), toyMaterial(ARCADE.deck));
       base.position.set(at.x, 0.64, at.z);
       this.selectors.push(base);
       this.board.add(base);
@@ -91,10 +101,10 @@ export class TubeView extends BoardView {
       light.position.set(at.x, 0.67, at.z + 1);
       this.lights.push(light);
       this.board.add(light);
-      const number = label(String(index + 1), 0.75);
+      const number = label(String(index + 1), 0.75, '#cfc8ff');
       number.position.set(at.x, 0.64, at.z + 1.35);
       this.board.add(number);
-      const rail = toyBox(0.46, height, 0.1, 0x3b4069, 0.04);
+      const rail = toyBox(0.46, height, 0.1, ARCADE.lane, 0.04);
       rail.position.set(railX, 0.7 + height / 2, at.z);
       this.board.add(rail);
       const badges = Array.from({ length: container.capacity }, (_, slot) => {
@@ -175,12 +185,25 @@ export class TubeView extends BoardView {
     this.cancelMotion();
     this.sparks.clear();
     this.pulses.fill(0);
+    this.waves.fill(0);
+    this.hops = [];
     for (const plaque of this.plaques) { plaque.pulse = 0; plaque.group.scale.setScalar(1); }
     this.identities = state.tubes.map((tube) => tube.map(() => String(this.nextIdentity++)));
     for (const [index, cap] of this.caps) { cap.progress = state.opened[index] ? 1 : 0; }
     for (const [index, cup] of this.cups) { cup.progress = state.spent[index] ? 1 : 0; }
     this.layout(state);
+    this.glow(state);
     this.commitmentPose(0);
+  }
+
+  /** A tube holding one colour and one marble short of full gets the steady glow: it is about to finish. */
+  private glow(state: TubeState): void {
+    state.tubes.forEach((tube, index) => {
+      if (index >= 8) return;
+      const capacity = tubeContainer(this.definition, index).capacity;
+      const near = tube.length > 0 && tube.length === capacity - 1 && tube.every((color) => color === tube[0]);
+      this.sparks.halo(index, near ? this.position(index, (capacity - 1) / 2) : null);
+    });
   }
 
   private layout(state: TubeState, animate = false): void {
@@ -225,7 +248,7 @@ export class TubeView extends BoardView {
     this.selectors.forEach((mesh, i) => {
       mesh.scale.setScalar(i === index ? 1.12 : 1);
       if (mesh.material instanceof THREE.MeshStandardMaterial) {
-        mesh.material.color.setHex(i === index ? 0xf25f33 : 0x3b4069);
+        mesh.material.color.setHex(i === index ? ARCADE.gold : ARCADE.deck);
         mesh.material.emissive.setHex(i === index ? 0x6c2109 : 0);
       }
     });
@@ -298,14 +321,28 @@ export class TubeView extends BoardView {
 
   /** Nothing on the board would move if it were drawn again. */
   get still(): boolean {
-    return !this.busy && !this.sparks.active && this.pulses.every((pulse) => pulse === 0) && this.plaques.every((plaque) => plaque.pulse === 0)
+    return !this.busy && !this.sparks.active && !this.shake.active && !this.hops.length && this.waves.every((wait) => wait <= 0) && this.pulses.every((pulse) => pulse === 0) && this.plaques.every((plaque) => plaque.pulse === 0)
       && [...this.caps.values()].every((cap) => cap.progress === (cap.open ? 1 : 0))
       && [...this.cups.values()].every((cup) => cup.progress === (cup.spent ? 1 : 0));
   }
 
   override step(): void {
     super.step();
+    for (const at of this.flying) this.sparks.trail(at, 0xfff1c9);
+    this.waves.forEach((wait, index) => {
+      if (wait <= 0) return;
+      this.waves[index] = wait - FIXED_SECONDS;
+      if (this.waves[index]! <= 0) this.pulses[index] = 1;
+    });
+    this.hops = this.hops.filter((hop) => {
+      hop.age += FIXED_SECONDS;
+      const t = Math.min(1, hop.age / 0.26);
+      for (const id of this.identities[hop.tube] ?? []) this.nudge(id, Math.sin(t * Math.PI) * 0.2);
+      return t < 1;
+    });
     this.sparks.step(FIXED_SECONDS);
+    // The water drifts only on ticks the board is already moving for.
+    this.yard.step(FIXED_SECONDS);
     this.commitmentPose(FIXED_SECONDS);
     this.rims.forEach((rim, index) => {
       const pulse = Math.max(0, (this.pulses[index] ?? 0) - FIXED_SECONDS * 3);
@@ -318,8 +355,16 @@ export class TubeView extends BoardView {
     }
   }
 
+  /** The level is won: one glitter fountain from each corner of the hull, with the confetti. */
+  celebrate(clean = 1): void {
+    this.yard.corners.forEach((corner, index) => this.sparks.fountain({ ...corner, y: corner.y + 0.55 }, index * 0.15, clean));
+    // The tubes that are left take a bow one after another, left to right.
+    if (!this.reducedMotion) this.pulses.forEach((_, index) => { this.waves[index] = 0.02 + index * 0.06; });
+  }
+
   override dispose(): void {
     this.sparks.dispose();
+    this.yard.dispose();
     super.dispose();
     for (const material of this.badgeMaterials.values()) {
       material.map?.dispose();
@@ -334,6 +379,12 @@ export class TubeView extends BoardView {
     moved.forEach((id, offset) => { const at = origins?.[offset]; if (at) this.placeMarble(id, at); });
     this.layout(state, true);
     this.pulses[result.to] = this.reducedMotion ? 0 : 1;
+    this.glow(state);
+    // Flecks where the group lifts off, and a glint where it comes to rest about a quarter second later.
+    const lifted = origins?.[origins.length - 1];
+    if (lifted) this.sparks.tap(lifted);
+    const rest = this.position(result.to, (state.tubes[result.to]?.length ?? 1) - 1);
+    this.sparks.land({ ...rest, y: rest.y + 0.3 }, COLORS[result.color].hex, 0.28);
     // Full of one colour that belongs in another home: point at that home, without a sound or a word, since the move was legal.
     const tube = state.tubes[result.to]!;
     const container = tubeContainer(this.definition, result.to);
@@ -342,7 +393,8 @@ export class TubeView extends BoardView {
     }
     if (result.completedTube) {
       const at = this.position(result.to, tubeContainer(this.definition, result.to).capacity - 1);
-      this.sparks.burst({ ...at, y: at.y + 0.5 }, COLORS[result.color].hex, 18);
+      if (this.sparks.payoff({ ...at, y: at.y + 0.5 }, COLORS[result.color].hex) === 2) this.shake.kick();
+      if (!this.reducedMotion) this.hops.push({ tube: result.to, age: -0.3 });
     }
   }
 }

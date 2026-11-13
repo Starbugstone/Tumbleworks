@@ -34,8 +34,11 @@ export class BeltSurface {
   /** With reduced motion the plates hold still; the marbles and cargo still show the belt is running. */
   private readonly still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  /** 0 at rest; a streak or a win lifts the plates and chevrons toward their own colours, lit from within. */
+  setEnergy(value: number): void { this.mesh.material.emissiveIntensity = this.still ? 0 : value * 0.85; }
+
   constructor(path: BeltPath, halfWidth: number, floorY: number, readonly plateLength: number,
-    palette = { base: '#243d4d', seam: '#172b38', bevel: '#2d4a5c', edge: '#1a2f3d' }) {
+    palette = { base: '#2a1742', seam: '#170b27', bevel: '#40245f', edge: '#1c0f2e' }) {
     this.map = plateTexture(palette.base, palette.seam, palette.bevel, palette.edge);
     const samples = 320;
     const positions: number[] = [], uvs: number[] = [], indices: number[] = [];
@@ -55,7 +58,7 @@ export class BeltSurface {
     geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
     geometry.setIndex(indices);
     geometry.computeVertexNormals();
-    const material = new THREE.MeshStandardMaterial({ map: this.map, roughness: 0.78, metalness: 0, envMapIntensity: 0.4, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
+    const material = new THREE.MeshStandardMaterial({ map: this.map, emissiveMap: this.map, emissive: 0xffffff, emissiveIntensity: 0, roughness: 0.78, metalness: 0, envMapIntensity: 0.4, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
     this.mesh = new THREE.Mesh(geometry, material);
     this.mesh.receiveShadow = true;
     this.mesh.frustumCulled = false;

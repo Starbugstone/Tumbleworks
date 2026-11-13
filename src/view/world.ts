@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { confetti } from './confetti';
+import { DEEP_SEA } from '../engine/stage';
 import type { Stage } from '../engine/stage';
 import type { GameLevel } from '../engine/contracts';
 import { t } from '../i18n';
@@ -78,7 +80,7 @@ export class WorldView {
     this.panel.className = 'wv-panel'; this.panel.hidden = true;
     this.filmControls.className = 'wv-film-controls'; this.filmControls.hidden = true;
     this.filmNote.className = 'wv-film-status'; this.filmNote.setAttribute('role', 'status');
-    this.blankScene.background = new THREE.Color(0x172e3b);
+    this.blankScene.background = new THREE.Color(DEEP_SEA);
     this.ownership = new VillageOwnership(chapter => new SceneBuild(chapter, this.stage, {motion:'cinematic'}), () => this.built());
     this.workshopMarker.type = 'button'; this.workshopMarker.className = 'map-workshop'; this.workshopMarker.hidden = true;
     this.workshopMarker.dataset['worldWorkshop'] = '';
@@ -392,7 +394,10 @@ export class WorldView {
       }
       this.dirty = false;
       this.filmTime += seconds;
-      if (this.filmTime >= this.playback.duration) { this.finishFilm(); return false; }
+      if (this.filmTime >= this.playback.duration) {
+        // The run came home: paper over the map it returns to. A skipped film ends quietly.
+        this.finishFilm(); confetti(); return false;
+      }
       this.playback.render(this.filmTime, !this.reduced.matches); return true;
     }
     if (this.view === 'overview') { if (!this.dirty) return false; this.dirty = false; this.valley?.draw(); return true; }

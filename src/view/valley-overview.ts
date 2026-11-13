@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { DEEP_SEA } from '../engine/stage';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Stage } from '../engine/stage';
 import type { ScreenPoint } from '../engine/contracts';
@@ -49,7 +50,7 @@ export class ValleyOverview {
 
   constructor(private readonly stage: OverviewStage, progress: WorldProgress, private readonly assets: ValleyOverviewAssets) {
     this.scene = stage.createScene('arcade');
-    this.scene.background = new THREE.Color(0x172e3b);
+    this.scene.background = new THREE.Color(DEEP_SEA);
     this.scene.environmentIntensity = 0.55;
     this.layout = worldLayout(progress.chapters.length, stage.rect);
     const rewards = earnedProjects(new Set(completedLevels()));

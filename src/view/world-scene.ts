@@ -2,6 +2,7 @@ import{certifyRockerScene}from'./gravity-rocker-native';
 import{bindNativeTerrain}from'./village-terrain';
 import * as THREE from 'three';
 import type { Stage } from '../engine/stage';
+import { boxCorners } from '../engine/framing';
 import type { MarbleEntity } from '../engine/marbles';
 import type { ScreenPoint } from '../engine/contracts';
 import type { WorldChapter } from '../world/progression';
@@ -15,6 +16,7 @@ import { VillageMachine } from './village-machine';
 import { VillageFilmCamera } from './village-film-camera';
 import { WorldKitAssets } from './world-kit';
 import { createVillageTerrain } from './village-terrain';
+import { villageSea } from './village-sea';
 import { createProjectReward } from './project-rewards';
 import { WorkshopBuilding } from './workshop-building';
 import { bakeWorldGroup } from './world-bake';
@@ -69,9 +71,7 @@ export class WorldScene {
   constructor(private readonly stage: Stage, readonly chapter: number, options: WorldSceneOptions = {}, mode?: typeof STAGED) {
     this.scenePlan = villageScenePlan(chapter);
     this.hasAxle=this.scenePlan.plan.stations.some(s=>s.mechanism.kind==='wheelbucket'&&s.mechanism.axleCarry);
-    this.scene = stage.createScene('arcade');
-    this.scene.background = new THREE.Color(0x172e3b);
-    this.scene.traverse(object => { if (object instanceof THREE.Light) object.castShadow = false; });
+    this.scene = stage.createScene('village');
     if (mode === STAGED) return;
     let complete = false;
     try { drain(this.complete(options)); complete = true; } finally { if (!complete) this.dispose(); }
@@ -106,6 +106,10 @@ export class WorldScene {
     const bakedLand=bakeWorldGroup(landscape, this.material)!;this.detachedBaked=bakedLand?.geometry;bindNativeTerrain(ground.geometry,bakedLand);
     ground.geometry.dispose(); this.detachedGround = undefined;
     this.scene.add(landscape, this.workshopBuilding.sign);this.detachedBaked=undefined;
+    // Just under the village's own water, so the harbour runs out into the sea and no two sheets share a plane.
+    this.scene.add(villageSea(terrain.spec.water - 0.08, terrain.spec.palette.water));
+    bakedLand.geometry.computeBoundingBox();
+    this.stage.fitShadows?.(this.scene, boxCorners(bakedLand.geometry.boundingBox!.clone().applyMatrix4(bakedLand.matrixWorld)), 1);
     yield 'land-merge';
     this.sceneMachine = new VillageMachine(this.scenePlan.plan, this.assets, this.material, (x, z) => terrainHeightAt(terrain, x, z), bakedLand,this.scenePlan.plan.staticSupports?this.scene:undefined,'staged',options.motion??'physical');
     yield 'route';
@@ -150,12 +154,25 @@ export class WorldScene {
     yield 'foundations';
     if(this.machine.route.mode==='physical'&&this.scenePlan.plan.stations.some(s=>s.rollingDrive?.kind==='contact-gravity-rocker')){this.machine.apply(0);this.scene.updateMatrixWorld(true);try{certifyRockerScene(this.machine,bakedLand);this.rockerFilmReady=this.machine.route.motionStatus.state==='ready';}catch(error){this.dispose();throw error;}}
     yield 'rocker';
-    this.installProjects(); this.setYaw(0);
+    this.installProjects(); this.setYaw(0); this.shade();
     yield 'projects';
     if(this.machine.route.mode==='physical')this.staticProof = yield* this.machine.sealStaticProof(options.proof ?? defaultStaticProofBackend(), () => this.constructed && this.nativeAtRest(), options.scheduler ?? browserScheduler(), options.sliceMs);
     this.constructed = true;
   }
 
+  /**
+   * Everything drawn with the village material takes shadows, so that material keeps one shader. Only what
+   * never moves casts them, because the shadow map is drawn once: land, houses, fixed track and its supports.
+   */
+  private shade(): void {
+    const fixed = (object: THREE.Object3D): boolean => /^village-landscape-|-static$|^project-|^village-foundation-/.test(object.name)
+      || (object.parent !== null && fixed(object.parent));
+    this.scene.traverse(object => {
+      if (!(object instanceof THREE.Mesh) || object.material !== this.material) return;
+      object.receiveShadow = true; object.castShadow = fixed(object);
+    });
+    this.stage.refreshShadows?.(this.scene);
+  }
   private model(name: string): THREE.Group {
     if (!this.assets.modelNames.includes(name)) throw new Error(`Village model is missing: ${name}`);
     return this.assets.model(name, this.material);
@@ -177,9 +194,11 @@ export class WorldScene {
     this.camera.position.set(target.x + Math.sin(this.angle) * horizontal,
       target.y + Math.sin(this.filmCamera.restElevation) * distance, target.z + Math.cos(this.angle) * horizontal);
     this.camera.lookAt(target); this.camera.zoom = 1; this.camera.updateProjectionMatrix(); this.camera.updateMatrixWorld();
+    // On the map the whole village is sharp and only the open sea softens.
+    this.scene.userData['focus'] = { near: 0, far: distance + 22, falloff: 30 };
   }
   update(chapter: WorldChapter, animate: boolean): void {
-    this.installProjects(); this.stopFilm(); this.machine.apply(0); this.workshopBuilding.reset(); this.setYaw(0);
+    this.installProjects(); this.shade(); this.stopFilm(); this.machine.apply(0); this.workshopBuilding.reset(); this.setYaw(0);
     const next = chapter.stops.map(stop => stop.status === 'built');
     const growing = animate ? next.findIndex((built, index) => built && this.built[index] === false) : -1;
     this.growing = growing < 0 ? null : growing; this.growth = this.growing === null ? 1 : 0; this.built = next;
@@ -219,11 +238,12 @@ export class WorldScene {
   advance(seconds: number): boolean {
     if (this.growth >= 1 || this.growing === null) return false;
     this.growth = Math.min(1, this.growth + seconds / 0.65); this.constructionPose(this.growing, this.growth);
+    this.stage.refreshShadows?.(this.scene);
     if (this.growth >= 1) this.staticProof?.checkpoint();
     return true;
   }
   finishConstruction(): void {
-    if (this.growing !== null) { this.constructionPose(this.growing, 1); this.growing = null; this.growth = 1; }
+    if (this.growing !== null) { this.constructionPose(this.growing, 1); this.growing = null; this.growth = 1; this.stage.refreshShadows?.(this.scene); }
     this.staticProof?.checkpoint();
   }
   /** Native static frames are those recorded at sealing: no stop rising, none hidden. An
@@ -260,16 +280,20 @@ export class WorldScene {
     this.requireFilmReady();
     if(this.machine.route.mode==='physical'){if(!this.rockerFilmReady||this.hasAxle)this.machine.route.requirePhysical();}else if(this.machine.route.playback.state!=='ready')throw Error(this.machine.route.playback.reason);
     if(this.stage.canvas.dataset)this.stage.canvas.dataset.worldMotion=this.machine.route.mode;
-    this.marble ??= this.stage.marbles.create('red', VILLAGE_RADIUS);
+    if (!this.marble) { this.marble = this.stage.marbles.create('red', VILLAGE_RADIUS); this.marble.mesh.castShadow = false; }
     const marble = this.marble.mesh; if (!marble.parent) this.scene.add(marble);
     this.machine.apply(seconds, !cameraMotion); this.machine.sample(seconds, marble.position);
     this.machine.marbleOrientation(seconds, marble.quaternion);
     this.workshopBuilding.apply(seconds, this.workshopPass, !cameraMotion);
-    this.filmCamera.apply(this.camera, seconds, cameraMotion); this.draw();
+    this.filmCamera.apply(this.camera, seconds, cameraMotion);
+    // The film is a miniature: sharp where the marble is, soft in front of it and beyond.
+    const reach = this.camera.position.distanceTo(marble.position);
+    this.scene.userData['focus'] = { near: reach - 5, far: reach + 5, falloff: 16 };
+    this.draw();
   }
   handoff(seconds: number): void {
     this.requireFilmReady();
-    this.marble ??= this.stage.marbles.create('red', VILLAGE_RADIUS);
+    if (!this.marble) { this.marble = this.stage.marbles.create('red', VILLAGE_RADIUS); this.marble.mesh.castShadow = false; }
     const marble = this.marble.mesh; if (!marble.parent) this.scene.add(marble);
     this.machine.handoff(seconds, marble.position);
     if(this.machine.route.mode==='cinematic')this.machine.marbleOrientation(Math.max(0,Math.min(2.5,seconds)),marble.quaternion);

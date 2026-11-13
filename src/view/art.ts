@@ -51,7 +51,7 @@ function texture(element: HTMLCanvasElement): THREE.CanvasTexture {
 
 /** The shared marble entity: a plain glossy sphere in its natural colour. */
 export function marbleMaterial(color: Color): THREE.MeshPhysicalMaterial {
-  return new THREE.MeshPhysicalMaterial({ color: COLORS[color].hex, roughness: 0.2, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.08, envMapIntensity: 1.3 });
+  return new THREE.MeshPhysicalMaterial({ color: COLORS[color].hex, roughness: 0.12, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.03, envMapIntensity: 1.6 });
 }
 
 /** Each colour has its own shape, so the machine never relies on hue alone. */
@@ -121,7 +121,7 @@ export function containerSymbolTexture(color: Color): THREE.CanvasTexture {
 
 /** A plain glossy marble in its natural colour, for instanced crowds. Patterns live on the containers. */
 export function crowdMaterial(color: Color): THREE.MeshPhysicalMaterial {
-  return new THREE.MeshPhysicalMaterial({ color: COLORS[color].hex, roughness: 0.2, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.08, envMapIntensity: 1.3 });
+  return new THREE.MeshPhysicalMaterial({ color: COLORS[color].hex, roughness: 0.12, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.03, envMapIntensity: 1.6 });
 }
 
 /**

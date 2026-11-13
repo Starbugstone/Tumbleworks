@@ -27,8 +27,20 @@ import type {
   VillageAuxiliaryPose,
   VillageRoute,
 } from "./village-motion";
+/**
+ * Pacing for a lively run. The owner found the first films heavy and slow: a marble that crept at under
+ * two units a second and gathered speed like something on the moon. These are authored, not derived.
+ */
 const RATE = 120,
-  CRUISE = 1.8,
+  CRUISE = 3.2,
+  SLOWEST = 2.2,
+  FASTEST = 7.5,
+  /** Speed squared gained per unit of height lost, and the most it may change per unit travelled. */
+  FALL = 26,
+  SURGE = 14,
+  /** Through a vertical loop, and how fast a carrier takes its cargo across. */
+  LOOP_SPEED = 6.5,
+  CARRY_SPEED = 4,
   clamp = (x: number) => Math.max(0, Math.min(1, x));
 const lengths = (ps: readonly VillagePort[]) => {
   const ls = [0];
@@ -67,28 +79,28 @@ class CineRun {
       this.at(s, p);
       this.distances[i] = s;
       this.speeds[i] = Math.max(
-        1.2,
+        SLOWEST,
         Math.min(
-          4.5,
-          Math.sqrt(Math.max(0, CRUISE * CRUISE + 14 * (first - p.y))),
+          FASTEST,
+          Math.sqrt(Math.max(0, CRUISE * CRUISE + FALL * (first - p.y))),
         ),
       );
       // Keep a vertical loop brisk rather than making the marble appear stuck
       // to its upside-down rails. Neighbouring cells share the same acceleration
       // envelope; this is authored pacing, not a traction/energy certificate.
-      for(const[a,b]of brisk){const away=Math.max(a-s,s-b,0);this.speeds[i]=Math.max(this.speeds[i]!,Math.sqrt(Math.max(0,4.5**2-5*away)));}
+      for(const[a,b]of brisk){const away=Math.max(a-s,s-b,0);this.speeds[i]=Math.max(this.speeds[i]!,Math.sqrt(Math.max(0,LOOP_SPEED**2-SURGE*away)));}
     }
     this.speeds[0] = entry;
     this.speeds[count] = exit;
     for (let i = 1; i <= count; i++)
       this.speeds[i] = Math.min(
         this.speeds[i]!,
-        Math.sqrt(this.speeds[i - 1]! ** 2 + 5 * step),
+        Math.sqrt(this.speeds[i - 1]! ** 2 + SURGE * step),
       );
     for (let i = count - 1; i >= 0; i--)
       this.speeds[i] = Math.min(
         this.speeds[i]!,
-        Math.sqrt(this.speeds[i + 1]! ** 2 + 5 * step),
+        Math.sqrt(this.speeds[i + 1]! ** 2 + SURGE * step),
       );
     for (let i = 1; i <= count; i++)
       this.times[i] =
@@ -349,7 +361,7 @@ export class VillageCinematic implements VillageRoute {
           station: s,
           start,
           catch: caught,
-          ride: caught + 0.3,
+          ride: caught + 0.14,
           dock: 0,
           release: 0,
           end: 0,
@@ -392,14 +404,14 @@ export class VillageCinematic implements VillageRoute {
                 ? Math.abs(m.angle) * p.distanceTo(new Vector3(...m.pivot))
                 : a.distanceTo(b),
           rideDuration = moving
-            ? Math.max(1.1, travel / 2.2)
+            ? Math.max(0.55, travel / CARRY_SPEED)
             : m.kind === "escapement"
-              ? 0.65
+              ? 0.4
               : m.kind === "striker"
-                ? 0.24
+                ? 0.2
                 : 0.1;
         clip.dock = clip.ride + rideDuration;
-        clip.release = clip.dock + 0.15;
+        clip.release = clip.dock + 0.08;
         this.phases.push(
           {
             kind: "hold",

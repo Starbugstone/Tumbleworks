@@ -34,7 +34,6 @@ export default defineConfig({
       'three',
       'three/examples/jsm/utils/BufferGeometryUtils.js',
       'three/examples/jsm/geometries/RoundedBoxGeometry.js',
-      'three/examples/jsm/environments/RoomEnvironment.js',
       '@dimforge/rapier3d-compat',
     ],
   },

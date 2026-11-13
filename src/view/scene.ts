@@ -1,6 +1,8 @@
 import { beltDeck } from './belt-deck';
 import { BeltSurface } from './belt-surface';
 import * as THREE from 'three';
+import { bakeOcclusion, candy, moulded } from '../engine/candy';
+import { Shake } from '../engine/shake';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { Sparks } from '../engine/sparks';
@@ -8,13 +10,14 @@ import { Glass } from '../engine/glass';
 import { FIXED_SECONDS } from '../engine/physics';
 import { MarbleCrowd } from '../engine/crowd';
 import { frameBoard } from '../engine/framing';
+import { focusOn } from '../engine/finish';
 import type { Stage } from '../engine/stage';
 import type { Machine, MachineEvent, MarbleDelivery, Pose } from '../machine/machine';
 import { BOX, CRATE, FUNNEL, funnelFaces, funnelHalfWidth, MARBLE_RADIUS, RACEWAY, RIDE_Y, STACK, Track, dockX } from '../machine/layout';
 import { shelfMarks, type ShelfMarks } from '../sim/shelf-marks';
 import type { Color } from '../sim/types';
 import { COLORS, decal } from './art';
-import { ARCADE, ArcadeYard } from './arcade';
+import { ARCADE, ArcadeYard, bodyPlastic, fuse, hull, plate, roundRect, tinted } from './arcade';
 
 const DECK_TOP = RACEWAY.floorY;
 const RIM_TOP = RACEWAY.floorY + RACEWAY.wallHeight;
@@ -24,10 +27,33 @@ const PLATFORM_DARK = ARCADE.edge;
 const CHANNEL = ARCADE.track;
 
 const plastic = (color: number, roughness = 0.42): THREE.MeshStandardMaterial =>
-  new THREE.MeshStandardMaterial({ color, roughness, metalness: 0, envMapIntensity: 0.7 });
+  candy(new THREE.MeshStandardMaterial({ color, roughness, metalness: 0, envMapIntensity: 0.7 }));
 /** Glossy toy plastic, without the clearcoat layer the marbles keep. */
 const shiny = (color: number): THREE.MeshStandardMaterial =>
-  new THREE.MeshStandardMaterial({ color, roughness: 0.3, metalness: 0, envMapIntensity: 0.9 });
+  candy(new THREE.MeshStandardMaterial({ color, roughness: 0.12, metalness: 0, envMapIntensity: 1.5 }));
+
+/**
+ * A moulded toy tray in one piece: a floor and a wall that runs round it with round corners and a rolled
+ * lip, which is what catches the light. Outer size, floor and wall are the machine's own measurements.
+ */
+function trayGeometry(halfWidth: number, halfDepth: number, floor: number, wallHeight: number, wall: number, corner: number): THREE.BufferGeometry {
+  const lip = Math.min(0.035, wall * 0.4);
+  const outline = new THREE.Shape();
+  roundRect(outline, halfWidth - lip, halfDepth - lip, corner);
+  const base = new THREE.ExtrudeGeometry(outline, { depth: floor, bevelEnabled: false, curveSegments: 5 });
+  const ring = new THREE.Shape();
+  roundRect(ring, halfWidth - lip, halfDepth - lip, corner);
+  const hole = new THREE.Path();
+  roundRect(hole, halfWidth - wall + lip, halfDepth - wall + lip, Math.max(0.02, corner - wall));
+  ring.holes.push(hole);
+  const walls = new THREE.ExtrudeGeometry(ring, { depth: wallHeight - lip, bevelEnabled: true, bevelThickness: lip, bevelSize: lip, bevelSegments: 2, curveSegments: 5 });
+  walls.translate(0, 0, floor);
+  const merged = mergeGeometries([base, walls]);
+  base.dispose(); walls.dispose();
+  if (!merged) throw new Error('Tray geometry could not be merged');
+  merged.rotateX(-Math.PI / 2);
+  return merged;
+}
 
 function stadium(track: Track, radius: number): THREE.Shape {
   const { straightHalf: s, centerZ: cz } = track;
@@ -71,7 +97,13 @@ function rounded(width: number, height: number, depth: number, material: THREE.M
 
 const BOX_FILL_ORDER: readonly number[] = [0, 2, 1];
 const BOX_SHAKE_SECONDS = 0.24;
-interface BoxVisual { group: THREE.Group; badge: THREE.Object3D; machineScale: number; shakeAge: number; offsetX: number; offsetY: number; shared?: true }
+/** A box hops once as it rolls up to its dock; a crate swells once as it becomes the one to tap. */
+const BOX_HOP_SECONDS = 0.3;
+const BOX_LAND_SECONDS = 0.16;
+/** Distance in one tick above which a marble is flying or falling, not riding the belt. */
+const TRAIL_STEP = 0.115;
+const CRATE_SWELL_SECONDS = 0.32;
+interface BoxVisual { group: THREE.Group; badge: THREE.Object3D; machineScale: number; shakeAge: number; hopAge: number; landAge: number; bounce: number; spin: number; offsetX: number; offsetY: number; shared?: true }
 /** `pause` stands over a full box while its partner still fills: the same sign Loop Sort uses for a held pour. */
 interface PalletVisual { mesh: THREE.Mesh; pause: THREE.Group; first: BoxVisual; second: BoxVisual; docks: readonly [number, number]; index: number; completed: boolean }
 interface Tracked { previous: Pose; current: Pose; box: BoxVisual | null; landed: boolean }
@@ -104,7 +136,7 @@ const SEAL_POP_SECONDS = 0.2;
 /** The Funnel Sort platform: crates over a clear dish, the belt loop, and docks of boxes in front. */
 export class MachineScene {
   readonly scene: THREE.Scene;
-  readonly camera = new THREE.PerspectiveCamera(38, 1, 1, 200);
+  readonly camera = new THREE.PerspectiveCamera(46, 1, 1, 200);
   private machine: Machine | null = null;
   private crowd: MarbleCrowd | null = null;
   private readonly level = new THREE.Group();
@@ -137,6 +169,7 @@ export class MachineScene {
   private readonly pocketOffsets = [0, 1, 2].map((slot) => new THREE.Matrix4().makeTranslation((slot - 1) * BOX.slotSpacing, BOX.height + 0.01, 0));
   /** One plastic and one printed pattern per colour, shared by every crate and box of that colour. */
   private readonly paints = new Map<Color, THREE.MeshStandardMaterial>();
+  private crateShell: THREE.BufferGeometry | null = null;
   private readonly decals = new Map<Color, THREE.MeshBasicMaterial>();
   private previousCrates: ReturnType<Machine['readCrates']> = [];
   private currentCrates: ReturnType<Machine['readCrates']> = [];
@@ -154,14 +187,16 @@ export class MachineScene {
   private readonly tempA = new THREE.Quaternion();
   private readonly tempB = new THREE.Quaternion();
   private readonly sparks: Sparks;
+  private readonly swells = new Map<number, number>();
   private readonly reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   private readonly delivery: MarbleDelivery = { dock: -1, box: -1, slot: 0, fraction: 0, landed: false };
   private yard: ArcadeYard | null = null;
+  private readonly shake = new Shake();
   private framing: { x: number; y: number; z: number }[] = [];
 
   constructor(private readonly stage: Stage) {
     this.scene = stage.createScene('arcade');
-    this.sparks = new Sparks(this.scene);
+    this.sparks = new Sparks(this.scene, BOX.halfWidth * 2);
     this.scene.add(this.level);
   }
 
@@ -180,10 +215,9 @@ export class MachineScene {
     const outer = track.radius + RACEWAY.channelHalf + RACEWAY.wallThickness;
     const inner = track.radius - RACEWAY.channelHalf;
     const side = plastic(PLATFORM_DARK);
-    const top = shiny(PLATFORM);
     const deck = slab(stadium(track, outer), 0, DECK_TOP, side, plastic(CHANNEL, 0.55));
-    const rim = slab(ring(track, outer, track.radius + RACEWAY.channelHalf), DECK_TOP, RIM_TOP, side, top);
-    const island = slab(stadium(track, inner), DECK_TOP, RIM_TOP, side, top);
+    const rim = slab(ring(track, outer, track.radius + RACEWAY.channelHalf), DECK_TOP, RIM_TOP, side, shiny(ARCADE.rim));
+    const island = slab(stadium(track, inner), DECK_TOP, RIM_TOP, side, shiny(PLATFORM));
     this.level.add(deck, rim, island);
   }
 
@@ -198,18 +232,40 @@ export class MachineScene {
     const pipe = this.chuteGlass.mesh(new THREE.CylinderGeometry(chuteRadius, chuteRadius, length, 24, 1, true), 1);
     pipe.position.copy(top).addScaledVector(axis, 0.5);
     pipe.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), axis.normalize());
-    const lip = new THREE.Mesh(new THREE.TorusGeometry(chuteRadius + 0.02, 0.05, 10, 28), shiny(0xf25f33));
+    const lip = new THREE.Mesh(new THREE.TorusGeometry(chuteRadius + 0.02, 0.05, 10, 28), shiny(ARCADE.gold));
     lip.position.copy(bottom);
     lip.quaternion.copy(pipe.quaternion);
     lip.rotateX(Math.PI / 2);
     this.level.add(pipe, lip);
   }
 
-  /** The slab under everything is cut to the level: just wide enough for its columns and docks. */
-  private buildBase(halfWidth: number, backZ: number, frontZ: number): void {
-    const base = rounded(halfWidth * 2, 0.9, frontZ - backZ, shiny(PLATFORM), 0.3, true);
-    base.position.set(0, -0.45, (frontZ + backZ) / 2);
-    this.level.add(base);
+  /**
+   * The toy's body in one draw: the hull cut to the level, a dark well under each dock, and the tower the
+   * crates are racked against. Seen from the player's side the tower is what lies behind every crate and
+   * behind the glass dish, and the wells lie under every box, so cargo is always read against the machine's
+   * own dark plastic, never against the bright frame or the water around it.
+   */
+  private buildBody(halfWidth: number, backZ: number, frontZ: number, half: number, rows: number, docks: number, queueEnd: number): void {
+    const parts = hull(halfWidth, (frontZ - backZ) / 2, (frontZ + backZ) / 2);
+    const top = STACK.y + STACK.stepY * (rows - 1) + CRATE.floorThickness + CRATE.wallHeight + 0.4;
+    const front = Math.min(STACK.z + STACK.stepZ * (rows - 1) - CRATE.halfDepth - 0.2, FUNNEL.mouth.back - 0.3);
+    const box = (width: number, height: number, depth: number, radius: number, hex: number, x: number, y: number, z: number): void => {
+      parts.push(tinted(new RoundedBoxGeometry(width, height, depth, 3, Math.min(radius, width / 2, height / 2, depth / 2)).translate(x, y, z), hex));
+    };
+    box(half * 2 + 0.9, top, 0.5, 0.2, CHANNEL, 0, top / 2 - 0.02, front - 0.25);
+    box(half * 2 + 1.14, 0.26, 0.74, 0.12, ARCADE.rim, 0, top + 0.07, front - 0.25);
+    box(half * 2 + 1.0, 0.1, 0.62, 0.05, ARCADE.trim, 0, top - 0.14, front - 0.25);
+    for (const side of [-1, 1]) box(0.34, top + 0.1, 0.66, 0.14, ARCADE.deck, side * (half + 0.5), top / 2 - 0.02, front - 0.25);
+    // Each dock's lane is its own dark inlay with round ends, so the violet deck shows between the lanes.
+    const length = queueEnd - BOX.z + 0.9, middle = (queueEnd + BOX.z) / 2 - 0.15;
+    for (let dock = 0; dock < docks; dock++) {
+      parts.push(plate(BOX.halfWidth + 0.06, length / 2, 0.05, 0.06, 0.16, 0.02, CHANNEL, 0).translate(dockX(dock, docks), 0, middle));
+    }
+    const body = new THREE.Mesh(fuse(parts), bodyPlastic());
+    body.castShadow = true;
+    body.receiveShadow = true;
+    this.level.add(body);
+    bakeOcclusion(this.stage.renderer, [body], { minX: -halfWidth - 0.4, maxX: halfWidth + 0.4, minZ: backZ - 0.4, maxZ: frontZ + 0.4 });
     this.yard = new ArcadeYard(this.scene, halfWidth, backZ, frontZ);
   }
 
@@ -227,7 +283,8 @@ export class MachineScene {
       group.add(new THREE.Mesh(geometry, this.glass.flat));
     }
     const rimHeight = rimY - mouthY;
-    const rimMaterial = shiny(0xffc857);
+    // Lilac, not the old gold: a yellow crate stands right behind this rim.
+    const rimMaterial = shiny(ARCADE.rim);
     const lips: THREE.BufferGeometry[] = [];
     for (const [x, z, w, d] of [[-half, midZ, 0.14, depth + 0.14], [half, midZ, 0.14, depth + 0.14], [0, mouth.back, half * 2 + 0.14, 0.14], [0, mouth.front, half * 2 + 0.14, 0.14]] as const) {
       const wall = this.glass.mesh(new THREE.BoxGeometry(w, 0.06, d));
@@ -245,7 +302,7 @@ export class MachineScene {
     const rim = new THREE.Mesh(rimGeometry, rimMaterial);
     rim.castShadow = true;
     group.add(rim);
-    const neckRing = new THREE.Mesh(new THREE.TorusGeometry(neck.halfX + 0.16, 0.07, 10, 28), shiny(0xf25f33));
+    const neckRing = new THREE.Mesh(new THREE.TorusGeometry(neck.halfX + 0.16, 0.07, 10, 28), shiny(ARCADE.gold));
     neckRing.rotation.x = Math.PI / 2;
     neckRing.position.set(0, neckY + 0.02, neck.z);
     group.add(neckRing);
@@ -255,7 +312,9 @@ export class MachineScene {
   private paint(color: Color): THREE.MeshStandardMaterial {
     let material = this.paints.get(color);
     if (!material) {
+      // Crates and boxes are moulded in two tones: every shape drawn with this carries its own shading.
       material = shiny(COLORS[color].hex);
+      material.vertexColors = true;
       this.paints.set(color, material);
     }
     return material;
@@ -264,16 +323,9 @@ export class MachineScene {
   private crateGroup(color: Color): THREE.Group {
     const group = new THREE.Group();
     const { halfWidth: hw, halfDepth: hd, floorThickness: ft, wallHeight: wh, wallThickness: wt } = CRATE;
-    // The floor and four walls share one plastic, so they are one mesh: one draw a crate, not five.
-    const piece = (w: number, h: number, d: number, radius: number, x: number, y: number, z: number): THREE.BufferGeometry =>
-      new RoundedBoxGeometry(w, h, d, 3, Math.min(radius, w / 2, h / 2, d / 2)).translate(x, y, z);
-    const pieces = [piece(hw * 2, ft, hd * 2, 0.04, 0, ft / 2, 0),
-      ...([[-hw + wt / 2, 0, wt, hd * 2], [hw - wt / 2, 0, wt, hd * 2], [0, -hd + wt / 2, hw * 2, wt], [0, hd - wt / 2, hw * 2, wt]] as const)
-        .map(([x, z, w, d]) => piece(w, wh, d, 0.03, x, ft + wh / 2, z))];
-    const merged = mergeGeometries(pieces);
-    for (const geometry of pieces) geometry.dispose();
-    if (!merged) throw new Error('Crate geometry could not be merged');
-    const shell = new THREE.Mesh(merged, this.paint(color));
+    // One moulded tray per crate, shared by every crate on the board: one draw each.
+    this.crateShell ??= moulded(trayGeometry(hw, hd, ft, wh, wt, 0.3));
+    const shell = new THREE.Mesh(this.crateShell, this.paint(color));
     shell.castShadow = true;
     group.add(shell);
     const badge = decal(color, 0.42, this.decals);
@@ -284,13 +336,14 @@ export class MachineScene {
 
   private boxGroup(color: Color): BoxVisual {
     const group = new THREE.Group();
-    const body = rounded(BOX.halfWidth * 2, BOX.height, BOX.halfDepth * 2, this.paint(color), 0.08);
+    const body = rounded(BOX.halfWidth * 2, BOX.height, BOX.halfDepth * 2, this.paint(color), 0.16);
+    moulded(body.geometry, 0.55, 1.12);
     body.position.y = BOX.height / 2;
     group.add(body);
     const badge = decal(color, 0.34, this.decals);
     badge.position.set(0, BOX.height / 2, BOX.halfDepth + 0.01);
     group.add(badge);
-    return { group, badge, machineScale: 1, shakeAge: BOX_SHAKE_SECONDS, offsetX: 0, offsetY: 0 };
+    return { group, badge, machineScale: 1, shakeAge: BOX_SHAKE_SECONDS, hopAge: BOX_HOP_SECONDS, landAge: BOX_LAND_SECONDS, bounce: 0, spin: 0, offsetX: 0, offsetY: 0 };
   }
 
   /** Three instanced draws for every padlock and strap on the board, whatever the number of crates. */
@@ -513,13 +566,7 @@ export class MachineScene {
     const queueEnd = BOX.queueZ + BOX.queueSpacing * (Math.min(BOX.queueVisible, Math.max(...machine.board.docks.map((queue) => queue.length)) - 1) - 1) + 0.9;
     const trackHalf = Math.max(...Array.from({ length: 64 }, (_, i) => Math.abs(machine.track.point(i / 64 * machine.track.length).x)));
     const baseHalf = Math.max(half, dockHalf, trackHalf + 1.1) + 0.45;
-    this.buildBase(baseHalf, FUNNEL.mouth.back - 0.5, queueEnd + 0.7);
-    // A quiet lane under each dock groups its waiting boxes; a tint, not a dark slot.
-    for (let dock = 0; dock < docks; dock++) {
-      const lane = rounded(BOX.halfWidth * 2 + 0.12, 0.04, queueEnd - BOX.z + 0.9, plastic(ARCADE.lane, 0.6), 0.02, true);
-      lane.position.set(dockX(dock, docks), 0.03, (queueEnd + BOX.z) / 2 - 0.15);
-      this.level.add(lane);
-    }
+    this.buildBody(baseHalf, FUNNEL.mouth.back - 0.5, queueEnd + 0.7, half, rows, docks, queueEnd);
     this.framing = [
       { x: -half - 0.3, y: FUNNEL.rimY, z: FUNNEL.mouth.back }, { x: half + 0.3, y: FUNNEL.rimY, z: FUNNEL.mouth.back },
       { x: -half, y: STACK.y + STACK.stepY * (rows - 1) + 1.1, z: STACK.z + STACK.stepZ * (rows - 1) - CRATE.halfDepth },
@@ -531,6 +578,7 @@ export class MachineScene {
       const point = machine.track.point(i / 64 * machine.track.length, side * (RACEWAY.channelHalf + RACEWAY.wallThickness));
       this.framing.push({ x: point.x, y: RIM_TOP + point.y + MARBLE_RADIUS, z: point.z });
     }
+    this.stage.fitShadows(this.scene, this.framing, 2.5);
     this.syncAfterJump();
     this.resize();
   }
@@ -549,6 +597,7 @@ export class MachineScene {
     this.pallets.length = 0;
     this.pockets = null;
     this.paints.clear();
+    this.crateShell = null;
     this.decals.clear();
     for (const target of this.hitTargets) {
       this.scene.remove(target);
@@ -569,6 +618,12 @@ export class MachineScene {
     this.belt = null;
   }
 
+  /** The level is won: one glitter fountain from each corner of the hull, with the confetti. */
+  celebrate(clean = 1): void {
+    (this.yard?.corners ?? []).forEach((corner, index) => this.sparks.fountain(corner, index * 0.15, clean));
+    this.sparks.boost();
+  }
+
   dispose(): void {
     this.clearLevel();
     this.sparks.dispose();
@@ -581,12 +636,26 @@ export class MachineScene {
   react(events: readonly MachineEvent[]): void {
     if (!this.machine) return;
     for (const event of events) {
+      if (event.type === 'pour') {
+        const crate = this.machine.readCrates().find((crate) => crate.supply === event.supply && crate.color === event.color);
+        if (crate) this.sparks.tap({ x: crate.x, y: crate.y + CRATE.wallHeight + 0.3, z: crate.z });
+      }
+      if (event.type === 'captured' && event.fill < this.machine.board.boxSize) {
+        // A marble seats: the box takes the weight for a moment and the pocket it landed in glints.
+        const box = this.machine.readBoxes().find((box) => box.dock === event.dock && box.index === event.box);
+        const visual = box && this.boxes.get(`${box.dock}:${box.index}`);
+        if (box && visual && !this.reducedMotion) {
+          visual.landAge = 0;
+          this.sparks.land({ x: box.x + (event.fill === 1 ? -1 : 1) * BOX.slotSpacing, y: box.y + BOX.height + 0.25, z: box.z }, COLORS[box.color].hex);
+        }
+      }
       if (event.type !== 'captured' || event.fill !== this.machine.board.boxSize) continue;
       const box = this.machine.readBoxes().find(box => box.dock === event.dock && box.index === event.box);
       if (!box) continue;
       const visual = this.boxes.get(`${box.dock}:${box.index}`);
       if (visual) visual.shakeAge = 0;
-      if (!this.reducedMotion) this.sparks.burst({ x: box.x, y: box.y + BOX.height + 0.3, z: box.z }, COLORS[box.color].hex, 20);
+      // The top of a streak, three finishes in quick succession, is the one moment the camera jolts.
+      if (this.sparks.payoff({ x: box.x, y: box.y + BOX.height + 0.3, z: box.z }, COLORS[box.color].hex) === 2) this.shake.kick();
       if (visual?.shared) {
         const pallet = this.pallets.find((entry) => entry.first === visual || entry.second === visual);
         if (pallet && !pallet.completed && pallet.docks.every((dock) => this.machine!.rules.boxFill(dock, pallet.index) === this.machine!.board.boxSize)) {
@@ -605,23 +674,37 @@ export class MachineScene {
     if (!machine) return;
     this.previousCrates = this.currentCrates;
     this.currentCrates = machine.readCrates();
+    if (!this.reducedMotion) for (const [index, crate] of this.currentCrates.entries()) {
+      if (crate.accessible && crate.visible && this.previousCrates[index]?.accessible === false) this.swells.set(crate.key, 0);
+    }
     for (const [dock, shutter] of this.shutters) shutter.lift = machine.rules.dockOpen(dock) ? (this.reducedMotion ? 1 : Math.min(1, shutter.lift + FIXED_SECONDS / SEAL_POP_SECONDS)) : 0;
     this.updateShelfLocks(false);
     this.previousBoxes = this.currentBoxes;
     this.currentBoxes = machine.readBoxes();
-    for (const box of this.currentBoxes) this.boxes.get(`${box.dock}:${box.index}`)!.machineScale = box.scale;
+    for (const [index, box] of this.currentBoxes.entries()) {
+      const visual = this.boxes.get(`${box.dock}:${box.index}`)!;
+      visual.machineScale = box.scale;
+      if (box.docked && this.previousBoxes[index]?.docked === false && !this.reducedMotion) visual.hopAge = 0;
+      // One marble from done: a steady warm glow sits behind the box, so the eye finds what is about to pay off.
+      if (box.docked && box.dock < 8) this.sparks.halo(box.dock, box.departure === null && box.fill === machine.board.boxSize - 1 ? { x: box.x, y: box.y + BOX.height * 0.4, z: box.z } : null);
+    }
     for (const [id, entry] of this.tracked) {
       const swap = entry.previous;
       entry.previous = entry.current;
       entry.current = swap;
       this.readMarble(id, entry);
+      // Anything quicker than the belt, a marble falling from a crate or flying to its box, leaves a short trail.
+      const dx = entry.current.x - entry.previous.x, dy = entry.current.y - entry.previous.y, dz = entry.current.z - entry.previous.z;
+      const moved = dx * dx + dy * dy + dz * dz;
+      if (moved > TRAIL_STEP * TRAIL_STEP && moved < 4 && !entry.landed) this.sparks.trail(entry.current, Number.parseInt(COLORS[machine.marbleColor(id)].light.slice(1), 16));
     }
   }
 
   /** Undo and restart jump the world, so blending across the jump would look wrong. */
   syncAfterJump(): void {
     this.sparks.clear();
-    for (const box of this.boxes.values()) { box.shakeAge = BOX_SHAKE_SECONDS; box.offsetX = box.offsetY = 0; }
+    this.swells.clear();
+    for (const box of this.boxes.values()) { box.shakeAge = BOX_SHAKE_SECONDS; box.hopAge = BOX_HOP_SECONDS; box.landAge = BOX_LAND_SECONDS; box.offsetX = box.offsetY = 0; }
     const machine = this.machine;
     if (!machine) return;
     this.previousCrates = this.currentCrates = machine.readCrates();
@@ -660,7 +743,17 @@ export class MachineScene {
       group.visible = crate.visible;
       group.position.set(crate.x, previous.y + (crate.y - previous.y) * blend + open * 0.6, previous.z + (crate.z - previous.z) * blend);
       group.rotation.x = -open * 0.9;
-      group.scale.setScalar(1 - open * 0.85);
+      // A quick swell as the tap lands, inside the first tenth of a second of the pour and outward only:
+      // the crate's marbles are drawn where physics has them, so its walls must never close in on them.
+      const pop = this.reducedMotion ? 0 : 0.1 * Math.sin(Math.PI * Math.min(1, open / 0.35));
+      // The crate that has just become the one to tap swells once, outward only for the same reason, and then rests.
+      const age = this.swells.get(crate.key);
+      let swell = 0;
+      if (age !== undefined) {
+        swell = 0.09 * Math.sin(Math.PI * age / CRATE_SWELL_SECONDS);
+        if (age + seconds >= CRATE_SWELL_SECONDS) this.swells.delete(crate.key); else this.swells.set(crate.key, age + Math.max(0, seconds));
+      }
+      group.scale.setScalar((1 - open * 0.85) * (1 + pop + swell));
     }
     for (const target of this.hitTargets) {
       const action = Number(target.userData['supply']);
@@ -703,29 +796,45 @@ export class MachineScene {
       const scale = previous.scale + (box.scale - previous.scale) * blend;
       visual.group.visible = box.visible;
       visual.group.position.set(previous.x + (box.x - previous.x) * blend, previous.y + (box.y - previous.y) * blend, previous.z + (box.z - previous.z) * blend);
-      visual.group.scale.setScalar(scale);
-      if (visual.shared) {
-        // The empty preview's top is readable on a phone; the loaded box keeps its front-wall pattern.
-        const preview = !box.docked && box.departure === null && box.fill === 0;
-        // Above the pocket tops (BOX.height + 0.035): level with them, the middle pocket hid the symbol and left a bare ring.
-        visual.badge.position.set(0, preview ? BOX.height + 0.07 : BOX.height / 2, preview ? 0 : BOX.halfDepth + 0.01);
-        visual.badge.rotation.x = preview ? -Math.PI / 2 : 0;
-        visual.badge.scale.setScalar(preview ? 3 : 1);
-      }
+      // Waiting boxes are drawn larger than the machine's own half size, which left their patterns too
+      // small to read on a phone; they still grow to exactly full size as they reach the dock.
+      const size = 1 - (1 - scale) * 0.5;
+      // The last marble lands with weight: the box flattens for a moment before it jumps.
+      const squash = this.reducedMotion || visual.shakeAge >= 0.09 ? 0 : Math.sin(visual.shakeAge / 0.09 * Math.PI);
+      visual.group.scale.set(size * (1 + 0.05 * squash), size * (1 - 0.1 * squash), size * (1 + 0.05 * squash));
+      // An empty box that is not at its dock yet shows its pattern large on top; a docked or loaded one
+      // shows its pockets there and keeps the pattern on its front wall.
+      const preview = !box.docked && box.departure === null && box.fill === 0;
+      // Above the pocket tops (BOX.height + 0.035): level with them, the middle pocket hid the symbol and left a bare ring.
+      visual.badge.position.set(0, preview ? BOX.height + 0.07 : BOX.height / 2, preview ? 0 : BOX.halfDepth + 0.01);
+      visual.badge.rotation.x = preview ? -Math.PI / 2 : 0;
+      visual.badge.scale.setScalar(preview ? (visual.shared ? 3 : 2.1) : 1);
       visual.shakeAge = Math.min(BOX_SHAKE_SECONDS, visual.shakeAge + Math.max(0, seconds));
       visual.offsetX = !this.reducedMotion && visual.shakeAge < BOX_SHAKE_SECONDS
         ? 0.157 * Math.sin(visual.shakeAge * Math.PI * 22) * Math.exp(-visual.shakeAge * 13) : 0;
       visual.offsetY = -Math.abs(visual.offsetX) * 0.35;
+      visual.landAge = Math.min(BOX_LAND_SECONDS, visual.landAge + Math.max(0, seconds));
+      // The box dips under a landing and the marbles already in it hop in their pockets.
+      const land = visual.landAge < BOX_LAND_SECONDS ? Math.sin(visual.landAge / BOX_LAND_SECONDS * Math.PI) : 0;
+      visual.offsetY -= 0.09 * land;
+      visual.bounce = 0.13 * land;
+      visual.spin = 0;
+      visual.hopAge = Math.min(BOX_HOP_SECONDS, visual.hopAge + Math.max(0, seconds));
+      if (visual.hopAge < BOX_HOP_SECONDS) visual.offsetY += 0.2 * Math.abs(Math.sin(visual.hopAge / BOX_HOP_SECONDS * Math.PI * 2)) * (1 - visual.hopAge / BOX_HOP_SECONDS);
       if (box.departure !== null) {
         const from = previous.departure ?? 0;
         const departure = from + (box.departure - from) * blend;
         // Accelerate out within the original departure window; the next box remains immediately usable.
         visual.offsetY += -BOX.leaveDrop * departure * departure - visual.group.position.y;
-        if (visual.shared && !this.reducedMotion) visual.offsetY += 0.55 * Math.sin(Math.PI * Math.min(1, departure / 0.45));
+        // A finished box jumps before it drops away.
+        if (!this.reducedMotion) visual.offsetY += (visual.shared ? 0.55 : 0.7) * Math.sin(Math.PI * Math.min(1, departure / 0.45));
+        // One full turn while it is in the air, clear of the well and of its neighbours; its cargo turns with it.
+        if (!this.reducedMotion && !visual.shared) { const turn = Math.min(1, Math.max(0, (departure - 0.08) / 0.34)); visual.spin = Math.PI * 2 * turn * turn * (3 - 2 * turn); }
       }
       visual.group.position.x += visual.offsetX;
       visual.group.position.y += visual.offsetY;
-      if (!pockets || !box.visible) continue;
+      visual.group.rotation.y = visual.spin;
+      if (!pockets || !box.visible || (preview && !visual.shared)) continue;
       visual.group.updateMatrix();
       this.pocketOffsets.forEach((offset, slot) => {
         const mesh = BOX_FILL_ORDER.indexOf(slot) < box.fill ? pockets.on : pockets.off;
@@ -753,13 +862,27 @@ export class MachineScene {
       this.tempB.set(c.qx, c.qy, c.qz, c.qw);
       this.tempA.slerp(this.tempB, alpha);
       const dx = entry.landed && box ? box.offsetX : 0;
-      const dy = entry.landed && box ? box.offsetY : 0;
-      this.crowd.set(id, p.x + (c.x - p.x) * alpha + dx, p.y + (c.y - p.y) * alpha + dy,
-        p.z + (c.z - p.z) * alpha, this.tempA.x, this.tempA.y, this.tempA.z, this.tempA.w);
+      const dy = entry.landed && box ? box.offsetY + box.bounce : 0;
+      let x = p.x + (c.x - p.x) * alpha + dx;
+      let z = p.z + (c.z - p.z) * alpha;
+      const y = p.y + (c.y - p.y) * alpha + dy;
+      if (entry.landed && box && box.spin) {
+        // Cargo rides the turning box about the box's own centre.
+        const cos = Math.cos(box.spin), sin = Math.sin(box.spin), rx = x - box.group.position.x, rz = z - box.group.position.z;
+        x = box.group.position.x + rx * cos + rz * sin;
+        z = box.group.position.z - rx * sin + rz * cos;
+      }
+      const vx = c.x - p.x, vy = c.y - p.y, vz = c.z - p.z;
+      // Flying or falling faster than the belt: drawn a little long along its travel.
+      if (!this.reducedMotion && !entry.landed && vx * vx + vy * vy + vz * vz > TRAIL_STEP * TRAIL_STEP) this.crowd.setStretched(id, x, y, z, vx, vy, vz);
+      else this.crowd.set(id, x, y, z, this.tempA.x, this.tempA.y, this.tempA.z, this.tempA.w);
     }
     this.crowd.commit();
     this.belt?.setTravel(machine.beltDistance + alpha * RACEWAY.speed * FIXED_SECONDS);
+    this.belt?.setEnergy(this.sparks.heat);
     this.renderShelfLocks();
+    this.yard?.step(Math.max(0, seconds));
+    this.shake.apply(this.camera, seconds);
     this.stage.draw(this.scene, this.camera);
   }
 
@@ -795,6 +918,8 @@ export class MachineScene {
     const width = element.clientWidth || window.innerWidth;
     const height = element.clientHeight || window.innerHeight;
     this.stage.renderer.setSize(width, height, false);
-    if (this.framing.length) frameBoard(this.camera, width, height, this.framing, width <= 600 ? new THREE.Vector3(0, 0.9, 0.436).normalize() : CAMERA_DIRECTION);
+    if (!this.framing.length) return;
+    frameBoard(this.camera, width, height, this.framing, width <= 600 ? new THREE.Vector3(0, 0.74, 0.67).normalize() : CAMERA_DIRECTION);
+    focusOn(this.scene, this.camera, this.framing);
   }
 }

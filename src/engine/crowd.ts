@@ -11,6 +11,8 @@ export class MarbleCrowd {
   private readonly written = new Map<Color, number>();
   private readonly used = new Map<Color, number>();
   private readonly dummy = new THREE.Object3D();
+  private readonly forward = new THREE.Vector3(0, 0, 1);
+  private readonly heading = new THREE.Vector3();
   private readonly geometry: THREE.SphereGeometry;
 
   constructor(parent: THREE.Object3D, counts: ReadonlyMap<Color, number>, readonly radius: number) {
@@ -46,6 +48,20 @@ export class MarbleCrowd {
     this.dummy.position.set(x, y, z);
     this.dummy.quaternion.set(qx, qy, qz, qw);
     this.dummy.scale.setScalar(scale);
+    this.dummy.updateMatrix();
+    const index = this.written.get(slot.color) ?? 0;
+    mesh.setMatrixAt(index, this.dummy.matrix);
+    this.written.set(slot.color, index + 1);
+  }
+
+  /** A marble in flight, drawn a little long along its travel and a little thin across it. */
+  setStretched(id: number, x: number, y: number, z: number, dx: number, dy: number, dz: number, along = 1.1, across = 0.95): void {
+    const slot = this.slots.get(id);
+    const mesh = slot && this.meshes.get(slot.color);
+    if (!slot || !mesh) return;
+    this.dummy.position.set(x, y, z);
+    this.dummy.quaternion.setFromUnitVectors(this.forward, this.heading.set(dx, dy, dz).normalize());
+    this.dummy.scale.set(across, across, along);
     this.dummy.updateMatrix();
     const index = this.written.get(slot.color) ?? 0;
     mesh.setMatrixAt(index, this.dummy.matrix);

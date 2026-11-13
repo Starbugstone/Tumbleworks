@@ -79,3 +79,5 @@ body[data-screen='map'] #load, body[data-screen='workshop'] #load { color: #e5e5
 #card { z-index: 3; }
 @media (min-width: 700px) { .wv-heading { top: 58px; } .wv-footer { bottom: 20px; } .wv-heading h1 { font-size: 30px; } }
 @media (prefers-reduced-motion: reduce) { #journey-transition { transition: none; } }
+/* Over a village the top row wears the sea's colours, like the buttons under the map. */
+body[data-screen='map'] #top .pill, body[data-screen='map'] #hud #mute { background: #173947; color: #f5edd9; border-color: #648d8d; box-shadow: 0 3px 0 #0d242e, 0 5px 14px #0005; }

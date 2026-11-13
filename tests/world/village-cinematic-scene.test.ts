@@ -14,7 +14,8 @@ for(let chapter=0;chapter<6;chapter++)describe(`cinematic scene ${chapter}`,()=>
    expect(f.machine.program).toBeUndefined();expect(f.world.filmReadiness()).toBe('ready');
    for(const phase of['map','film']){if(phase==='film')f.world.film(0);let meshes=0,triangles=0;
     f.world.scene.traverse(o=>{if(o instanceof Mesh&&visible(o)){meshes++;triangles+=(o.geometry.index?.count??o.geometry.getAttribute('position').count)/3;}});
-    expect(meshes).toBeLessThanOrEqual(phase==='map'?29:30);expect(triangles).toBeLessThanOrEqual(phase==='map'?36160:37224);
+    // One mesh and 384 triangles of each budget are the sea the village stands in.
+    expect(meshes).toBeLessThanOrEqual(phase==='map'?30:31);expect(triangles).toBeLessThanOrEqual(phase==='map'?36544:37608);
    }
   }finally{f.dispose();}
  });

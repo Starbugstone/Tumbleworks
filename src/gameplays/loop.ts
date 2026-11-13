@@ -18,6 +18,7 @@ export class LoopRuntime implements GameRuntime {
     this.view.setMachine(this.machine);
   }
   get game() { return this.machine; }
+  celebrate(clean = 1): void { this.view.celebrate(clean); }
   get status() { return this.machine.rules.status; }
   get busy() { return this.machine.transferring; }
   get canUndo() { return this.machine.canUndo; }
@@ -83,7 +84,7 @@ export class LoopRuntime implements GameRuntime {
     this.view.afterTick();
     return feedback;
   }
-  render(alpha: number): void { this.view.render(alpha); }
+  render(alpha: number, seconds = 0): void { this.view.render(alpha, seconds); }
   resize(): void { this.view.resize(); }
   pick(x: number, y: number): string | null {
     const picked = this.view.pick(x, y);

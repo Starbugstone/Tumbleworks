@@ -1,12 +1,13 @@
 import * as THREE from 'three';
+import { candy } from '../engine/candy';
 import type { BeltPath } from '../engine/belt-path';
 import { ARCADE } from './arcade';
 
 /** Sample the same elevated path as transport, including both separated passes at the crossing. */
 export function beltDeck(path: BeltPath, halfWidth: number, floorY: number, wallHeight: number): THREE.Group {
   const group = new THREE.Group();
-  const floor = new THREE.MeshStandardMaterial({ color: ARCADE.track, roughness: 0.6 });
-  const edge = new THREE.MeshStandardMaterial({ color: ARCADE.edge, roughness: 0.45 });
+  const floor = candy(new THREE.MeshStandardMaterial({ color: ARCADE.track, roughness: 0.6 }));
+  const edge = candy(new THREE.MeshStandardMaterial({ color: ARCADE.rim, roughness: 0.4 }));
   const band = (left: number, right: number, bottom: number, top: number, material: THREE.Material): void => {
     const positions: number[] = [], indices: number[] = [];
     const samples = 256;

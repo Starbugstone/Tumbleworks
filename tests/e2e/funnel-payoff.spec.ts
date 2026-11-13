@@ -122,7 +122,8 @@ for (const reduced of [false, true]) {
     expect(result.landings.map(e => e.fill)).toEqual([1, 2, 3]);
     for (const [index, x] of [-0.7, 0.7, 0].entries()) expect(result.landings[index]!.x).toBeCloseTo(x, 4);
     expect(result.landings.slice(0, 2).map(e => e.stretch)).toEqual([1, 1]);
-    expect(result.landings.slice(0, 2).map(e => e.shift)).toEqual([0, 0]);
+    // The first two landings only dip the box under the marble; the shake belongs to the third.
+    for (const landing of result.landings.slice(0, 2)) expect(landing.shift).toBeLessThan(reduced ? 0.0001 : 0.1);
     expect(result.prematureSounds).toBe(0);
     for (const landing of result.landings) expect(landing.feedback.filter(f => f.type !== 'impact')).toEqual(landing.expected);
     if (reduced) expect(Math.max(...result.displacement)).toBe(0);

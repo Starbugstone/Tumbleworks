@@ -23,7 +23,8 @@ it('keeps the captive fork on its pin while its separate front leaf opens',()=>{
 
 it('rejects the old cable-bank pylon in the diagonal carrier corridor',()=>{
  const f=cinematicWorld(4,true);try{
-  f.machine.apply(3);expect(new CinematicHardwareAudit(f.machine,f.world.scene).check()).toEqual([]);
+  // The same point of the long carry as before the films were quickened: 15% of the way across.
+  f.machine.apply(1.951111111111111);expect(new CinematicHardwareAudit(f.machine,f.world.scene).check()).toEqual([]);
   const pylons=f.world.scene.getObjectsByProperty('name','village-bank-pylon-9');expect(pylons).toHaveLength(2);
   for(const p of pylons){p.matrix.identity();p.matrixWorldNeedsUpdate=true;p.children[0]!.position.z+=1.2;}
   expect(new CinematicHardwareAudit(f.machine,f.world.scene).check().some(x=>x.a==='village-track-carrier-9'||x.b==='village-track-carrier-9')).toBe(true);
@@ -40,7 +41,7 @@ it('does not classify a foreign block as an axle joint',()=>{
 
 it('keeps the long-carry counterweight outside the travelling yoke',()=>{
  const f=cinematicWorld(4,true);try{
-  f.machine.apply(3.316666666666667);expect(new CinematicHardwareAudit(f.machine,f.world.scene).check()).toEqual([]);
+  f.machine.apply(2.125277777777778);expect(new CinematicHardwareAudit(f.machine,f.world.scene).check()).toEqual([]);
   const weight=f.world.scene.getObjectByName('village-9-weight')!;weight.matrix.elements[12]!-=1.8;weight.matrixWorldNeedsUpdate=true;
   expect(new CinematicHardwareAudit(f.machine,f.world.scene).check().some(x=>x.a.includes('carrier')&&x.b.includes('weight')||x.b.includes('carrier')&&x.a.includes('weight'))).toBe(true);
  }finally{f.dispose();}
