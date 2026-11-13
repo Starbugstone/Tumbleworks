@@ -1,6 +1,6 @@
 # Level picker and progress
 
-The level pill opens the picker: the campaign's chips grouped into chapters with completion counts, the level's title and difficulty, the pattern legend, the language switch and a button that copies the current game for a bug report. Completion is stored by stable ID. Next level resumes an unfinished puzzle within the accepted stop; finishing that stop returns to the village map.
+The level pill opens the picker: the campaign's chips grouped into chapters with completion counts, the level's title and difficulty, the pattern legend, the language switch and a button that copies the current game for a bug report. Completion is stored by stable ID. Next level resumes an unfinished puzzle within the accepted stop, or steps to the next game in order when a completed stop is being replayed; finishing that stop returns to the village map. A win fires confetti together with the board's own corner fountains.
 
 ## Sub-features
 
@@ -33,6 +33,6 @@ Preconditions:
 ## Gotchas
 
 - Each journey starts from empty storage. If a picker visit opens a later puzzle within a stop, Next level can return to that stop's earlier unfinished puzzle. Never assume the next numeric campaign index or cross-stop progression.
-- Language switching can close the picker. Check `#levels` visibility before another toggle; paused UI clocks must let the picker animation finish. Final corrected regression evidence is linked in [`../integration.md`](../integration.md).
+- Language switching relabels the open picker in place and leaves it open. Check `#levels` visibility before another toggle all the same; paused UI clocks must let the picker animation finish. Final corrected regression evidence is linked in [`../integration.md`](../integration.md).
 - French is chosen automatically when the browser prefers it; the journeys run with an English browser.
 - The level pill's accessible name includes the current number, campaign count and game name (for example `1 / 180 · Funnel Sort`); the authored title is separate. Use `#levels-toggle`.

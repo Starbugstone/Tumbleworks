@@ -4,7 +4,8 @@ The player moves the contiguous same-colour group on top of one tube onto an emp
 
 ## Sub-features
 
-- `tube-select` the first tap selects a tube, highlights its base and enlarges its rim.
+- `tube-select` the first tap selects a tube, turns its plum base gold and enlarges its rim.
+- `tube-look` the hull is ivory with a gold step and a dark plum deck; tube bases are plum, never ivory, so yellow and white marbles are not seen against a light surface. A marble in the air is drawn slightly tall and leaves a trail. A finished tube throws fine dust with small twinkles and its whole column hops once; there is no label and no pattern icon. A tube holding one colour and one marble short of full has a steady warm glow. On a win the remaining tube rims pulse one after another.
 - `tube-move` the second tap moves as many of the group as fit.
 - `tube-refuse` a move onto a different colour or a full tube is refused with a message, and the destination becomes the new selection.
 - `tube-drag` dragging the group onto a tube moves it; releasing elsewhere changes nothing.
