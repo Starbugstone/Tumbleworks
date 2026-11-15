@@ -239,6 +239,8 @@ test('a native swipe in the compact menu cannot pour the board or expose unrelat
   await expect(page.locator('.chip')).toHaveCount(3);
   expect(await page.locator('#chips').evaluate(el => el.scrollHeight === el.clientHeight)).toBe(true);
   expect(await state(page)).toEqual(before);
+  // Chromium suppresses the next tap just after a native swipe, even on a static page.
+  await page.waitForTimeout(250);
   await page.locator('.chip[data-level="1"]').tap();
   await expect.poll(async () => (await state(page))['levelIndex']).toBe(1);
   await expect(page.locator('#levels')).toBeHidden();
