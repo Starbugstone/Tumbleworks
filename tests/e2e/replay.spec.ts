@@ -4,7 +4,7 @@ import { CAMPAIGN } from '../../src/campaign';
 import type { ReplayLog } from '../../src/engine/replay';
 import { initPhysics } from '../../src/machine/machine';
 import { replayed } from '../replay-target';
-import { chooseLevel } from '../fixtures/picker';
+import { openMenuSettings, chooseLevel } from '../fixtures/picker';
 
 const LEVEL = 'board-47';
 
@@ -33,12 +33,21 @@ test('a game played by touch and copied from the picker replays to the same phys
   // Long enough for marbles to reach the shaken dish and the belt: engine differences only show there.
   await page.waitForFunction(() => (window as never as { tumbleworks: { app: { runtime: { game: { steps: number } } } } }).tumbleworks.app.runtime.game.steps > 500, undefined, { timeout: 120_000 });
 
-  const copied = new Promise<string>((resolve) => {
+  const clipboard = await page.evaluate(() => Boolean(navigator.clipboard));
+  if (clipboard) await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  const copied = clipboard ? null : new Promise<string>((resolve) => {
     page.once('dialog', (dialog) => { resolve(dialog.defaultValue()); void dialog.dismiss(); });
   });
   await page.locator('#levels-toggle').click();
+  await openMenuSettings(page);
   await page.locator('#copy-replay').click();
-  const log = JSON.parse(await copied) as ReplayLog;
+  let text: string;
+  if (copied) text = await copied;
+  else {
+    await expect(page.locator('#message')).toContainText('Game copied.');
+    text = await page.evaluate(() => navigator.clipboard.readText());
+  }
+  const log = JSON.parse(text) as ReplayLog;
 
   expect(log.level).toBe(LEVEL);
   expect(log.actions.map((action) => action.type)).toEqual(['tap', 'tap', 'undo', 'tap']);

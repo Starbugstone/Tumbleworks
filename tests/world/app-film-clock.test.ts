@@ -10,7 +10,7 @@ function clock(playing = true, reduced = false) {
   vi.stubGlobal('document', { hidden: false });
   const render = vi.fn(), step = vi.fn(), gameRender = vi.fn();
   const world = Object.assign(Object.create(WorldView.prototype), {
-    element: { hidden: false }, ownership: { scene: {} }, view: 'film', playing, dirty: true,
+    element: { hidden: false }, ownership: { scene: { stepSea: vi.fn() } }, view: 'film', playing, dirty: true,
     filmWait: 'ready',
     reduced: { matches: reduced }, filmTime: 0, playback: { duration: 40, render },
     finishFilm: () => { throw new Error('This fixture must remain inside the film'); },

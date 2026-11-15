@@ -11,7 +11,7 @@ export class TestWorldScene extends WorldScene {
 
 export class TestWorldFilm extends WorldFilm {
   constructor(stage: Stage, chapter: number, current?: WorldScene) {
-    super(stage, chapter, current, undefined, { motion: 'cinematic' });
+    super(stage, chapter, current, { motion: 'cinematic' });
     if (!this.begin()) throw new Error('Cinematic fixture failed to start');
   }
 }

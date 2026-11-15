@@ -14,7 +14,7 @@ import win from './sounds/win.mp3?no-inline';
 const SOUNDS = { tap, release, wood, glass, light, final, complete, blocked, undo, jam, win };
 type Cue = keyof typeof SOUNDS;
 
-/** A small CC0 sample bank, loaded once after the player enables sound. See assets/audio/README.md. */
+/** CC0 recorded foley and offline modal mallets. See assets/audio/README.md. */
 class Sfx {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
@@ -33,6 +33,12 @@ class Sfx {
       try {
         this.ctx = new AudioContext();
         const compressor = this.ctx.createDynamicsCompressor();
+        // Only catch dense peaks; the baked room and quiet impacts need no audible gain riding.
+        compressor.threshold.value = -8;
+        compressor.knee.value = 12;
+        compressor.ratio.value = 2;
+        compressor.attack.value = 0.012;
+        compressor.release.value = 0.18;
         this.master = this.ctx.createGain();
         this.master.gain.value = 0.8;
         this.master.connect(compressor).connect(this.ctx.destination);
@@ -46,7 +52,7 @@ class Sfx {
         if (!response.ok) return;
         const buffer = await context.decodeAudioData(await response.arrayBuffer());
         this.buffers.set(cue, buffer);
-      } catch { /* A failed sample keeps its quiet fallback; it must not break the game or retry per tick. */ }
+      } catch { /* Silence on failure; never block input or retry per tick. */ }
     })).then(() => {});
   }
 
@@ -70,27 +76,16 @@ class Sfx {
     if (!this.ctx || !this.master || this.muted || this.ctx.state !== 'running') return;
     // Ordinary cues leave four voices for completion payoffs; a dense pour cannot drown them out.
     if (this.voices.size >= (reward ? 12 : 8)) return;
-    const now = this.ctx.currentTime;
-    const envelope = this.ctx.createGain();
     const buffer = this.buffers.get(cue);
-    if (buffer) {
-      const source = this.ctx.createBufferSource();
-      source.buffer = buffer;
-      source.playbackRate.value = rate;
-      envelope.gain.value = gain;
-      this.track(source, envelope);
-      source.start(now);
-    } else {
-      // Immediate first-touch/offline feedback. Replaced by the sample on subsequent actions, never late.
-      const source = this.ctx.createOscillator();
-      source.type = 'sine';
-      source.frequency.setValueAtTime((reward ? 660 : 440) * rate, now);
-      envelope.gain.setValueAtTime(0.0001, now);
-      envelope.gain.exponentialRampToValueAtTime(Math.max(0.0001, gain * 0.12), now + 0.004);
-      envelope.gain.exponentialRampToValueAtTime(0.0001, now + 0.055);
-      this.track(source, envelope);
-      source.start(now); source.stop(now + 0.06);
-    }
+    // Loading/offline feedback is silent. A completed download never replays a stale action.
+    if (!buffer) return;
+    const envelope = this.ctx.createGain();
+    const source = this.ctx.createBufferSource();
+    source.buffer = buffer;
+    source.playbackRate.value = rate;
+    envelope.gain.value = gain;
+    this.track(source, envelope);
+    source.start(this.ctx.currentTime);
   }
 
   /** Undo, restart, navigation and hidden/blurred pages discard all sound tails. */
@@ -100,20 +95,21 @@ class Sfx {
     this.lastImpact = -Infinity;
   }
 
-  tap(): void { this.play('tap', 0.55); }
-  release(): void { this.play('release', 0.55); }
+  tap(): void { this.play('tap', 0.36 * (0.94 + Math.random() * 0.12), 0.98 + Math.random() * 0.04); }
+  release(): void { this.play('release', 0.38 * (0.94 + Math.random() * 0.12), 0.98 + Math.random() * 0.04); }
 
   impact(strength: number): void {
     if (!this.ctx || this.muted || this.ctx.currentTime - this.lastImpact < 0.065 || this.voices.size >= 4) return;
     this.lastImpact = this.ctx.currentTime;
     const weight = Math.max(0, Math.min(1, strength));
-    this.play(this.impactCount++ % 4 === 3 ? 'glass' : 'wood', 0.06 + weight * 0.12, 0.96 + Math.random() * 0.08);
+    this.play(this.impactCount++ % 4 === 3 ? 'glass' : 'wood',
+      (0.05 + weight * 0.10) * (0.9 + Math.random() * 0.2), 0.96 + Math.random() * 0.08);
   }
 
-  deliver(slot: number): void { this.play('light', 0.42, 2 ** (Math.min(slot, 4) / 12)); }
+  deliver(slot: number): void { this.play('light', 0.26, 2 ** (Math.min(slot, 4) / 12)); }
 
   landing(arrival: number): void {
-    if (arrival < 3) this.play('light', arrival === 1 ? 0.42 : 0.48, arrival === 1 ? 1 : 2 ** (2 / 12));
+    if (arrival < 3) this.play('light', arrival === 1 ? 0.27 : 0.31, arrival === 1 ? 1 : 2 ** (2 / 12));
     else {
       this.play('final', 0.8, 1, true);
       this.play('complete', 0.4, 1, true);
@@ -122,7 +118,7 @@ class Sfx {
 
   boxFilled(chain: number): void { this.play('complete', 0.7, 2 ** (Math.min(chain, 7) / 12), true); }
   blocked(): void { this.play('blocked', 0.5, 0.9); }
-  undo(): void { this.play('undo', 0.65); }
+  undo(): void { this.play('undo', 0.48); }
   jam(): void { this.cancel(); this.play('jam', 0.65, 0.9, true); }
   win(): void { this.cancel(); this.play('win', 0.95, 1, true); }
 }

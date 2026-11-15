@@ -1,6 +1,5 @@
 import { enterGame } from '../fixtures/picker';
 import { expect, test } from '@playwright/test';
-import { CAMPAIGN } from '../../src/campaign';
 
 /**
  * CI runs this against the real hosting build under Apache, as the last deploy gate; the full
@@ -29,6 +28,6 @@ test('the site boots, draws the toy and takes a real tap', async ({ page }) => {
   await expect(page.locator('#guide-text')).not.toHaveText(instruction ?? '', { timeout: 30_000 });
 
   await page.locator('#levels-toggle').click();
-  await expect(page.locator('.chip')).toHaveCount(CAMPAIGN.length);
+  await expect(page.locator('.chip')).toHaveCount(3);
   expect(problems).toEqual([]);
 });

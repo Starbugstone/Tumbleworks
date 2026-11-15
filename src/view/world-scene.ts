@@ -16,10 +16,12 @@ import { VillageMachine } from './village-machine';
 import { VillageFilmCamera } from './village-film-camera';
 import { WorldKitAssets } from './world-kit';
 import { createVillageTerrain } from './village-terrain';
-import { villageSea } from './village-sea';
+import { VillageOrbit } from './village-orbit';
+import { tropicalCoast, islandPalms } from './tropical-island';
+import { villageSea, advanceVillageSea } from './village-sea';
 import { createProjectReward } from './project-rewards';
 import { WorkshopBuilding } from './workshop-building';
-import { bakeWorldGroup } from './world-bake';
+import { bakeWorldGroup, appendWorldGeometry } from './world-bake';
 import { browserScheduler, drain, type TaskScheduler } from './cooperative';
 import { defaultStaticProofBackend, type StaticProofBackend, type StaticProofOwner } from './static-proof-owner';
 import { assertStaticSupportCertificate } from './static-support-graph';
@@ -40,7 +42,7 @@ export class WorldScene {
   get machine(): VillageMachine { if (!this.sceneMachine) throw new Error('Village scene is still being built'); return this.sceneMachine; }
   get plan(): VillagePlan { if (!this.scenePlanned) throw new Error('Village scene is still being built'); return this.scenePlanned; }
   private readonly scenePlan: VillageScenePlan;
-  private readonly assets = new WorldKitAssets();
+  private readonly assets = new WorldKitAssets(true);
   private readonly material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 });
   private readonly builds: THREE.Group[] = [];
   private readonly foundations: THREE.Group[] = [];
@@ -62,6 +64,12 @@ export class WorldScene {
   private growth = 1;
   private built: boolean[] = [];
   private angle = 0;
+  cameraMode: 'map' | 'film' = 'film';
+  private mapOrbit?: VillageOrbit;
+  private sea?: THREE.Mesh;
+  readonly coastalDressing={beachCount:0,palmCount:0};
+  private readonly coastalProtected: THREE.Box3[] = [];
+  get orbit(): VillageOrbit { if (!this.mapOrbit) throw new Error('Village is still building'); return this.mapOrbit; }
   private rockerFilmReady=true;
   private readonly hasAxle:boolean;
   get filmShots(): readonly VillageCameraShot[] { return this.filmCamera.shots; }
@@ -88,26 +96,27 @@ export class WorldScene {
     const terrain = compileTerrain(this.scenePlan.terrain);
     yield 'terrain';
     const landscape = new THREE.Group(); landscape.name = `village-landscape-${chapter}`;
-    const ground = createVillageTerrain(terrain, this.material); landscape.add(ground);
+    const ground = createVillageTerrain({ ...terrain, spec: { ...terrain.spec, mergeFlatLand:true, palette: { ...terrain.spec.palette, grass: 0x7b917c, grassAlt: 0x7b917c, cliff: 0xa1a38a, rock: 0xb0ac91, shore: 0xecd5a3 } } }, this.material, 'full', true); landscape.add(ground);
     this.detachedGround = ground.geometry;
     yield 'ground';
     for (const piece of this.scenePlan.scenery) {
       const model = this.model(piece.model);
       model.position.fromArray(piece.position); model.rotation.y = piece.yaw; model.scale.setScalar(piece.scale);
+      model.updateWorldMatrix(true,true); this.coastalProtected.push(new THREE.Box3().setFromObject(model).expandByScalar(.6));
       landscape.add(model);
       yield 'scenery';
     }
     const workshop = this.scenePlan.workshop;
     const house = this.model('house-a'); house.position.fromArray(workshop.house.position);
-    house.rotation.y = workshop.house.yaw; house.scale.setScalar(workshop.house.scale); landscape.add(house);
+    house.rotation.y = workshop.house.yaw; house.scale.setScalar(workshop.house.scale); landscape.add(house); house.updateWorldMatrix(true,true); this.coastalProtected.push(new THREE.Box3().setFromObject(house).expandByScalar(.6));
     this.workshopBuilding = new WorkshopBuilding(this.material, workshopSignPlacement(workshop));
     landscape.add(this.workshopBuilding.fixed);
     yield 'workshop';
     const bakedLand=bakeWorldGroup(landscape, this.material)!;this.detachedBaked=bakedLand?.geometry;bindNativeTerrain(ground.geometry,bakedLand);
     ground.geometry.dispose(); this.detachedGround = undefined;
     this.scene.add(landscape, this.workshopBuilding.sign);this.detachedBaked=undefined;
-    // Just under the village's own water, so the harbour runs out into the sea and no two sheets share a plane.
-    this.scene.add(villageSea(terrain.spec.water - 0.08, terrain.spec.palette.water));
+    // One water surface continues through every inlet; the terrain omits its old water sheets.
+    this.sea = villageSea(terrain.spec.water, terrain.spec.palette.water, terrain); this.scene.add(this.sea);
     bakedLand.geometry.computeBoundingBox();
     this.stage.fitShadows?.(this.scene, boxCorners(bakedLand.geometry.boundingBox!.clone().applyMatrix4(bakedLand.matrixWorld)), 1);
     yield 'land-merge';
@@ -117,6 +126,22 @@ export class WorldScene {
     this.scenePlanned = this.machine.route.plan;
     this.scene.add(this.machine.root);
     yield 'scene-root';
+    this.machine.root.updateWorldMatrix(true,true);
+    this.machine.root.traverse(object => { if (object instanceof THREE.Mesh) this.coastalProtected.push(new THREE.Box3().setFromObject(object).expandByScalar(.7)); });
+    for (const slot of this.scenePlan.rewards) this.coastalProtected.push(new THREE.Box3(new THREE.Vector3(...slot.position).addScalar(-3),new THREE.Vector3(...slot.position).addScalar(3)));
+    for(let seconds=0;seconds<=this.machine.route.duration;seconds+=.15){const p=new THREE.Vector3();this.machine.sample(seconds,p);this.coastalProtected.push(new THREE.Box3(p.clone().addScalar(-.8),p.clone().addScalar(.8)));}
+    const beach = new THREE.Mesh(tropicalCoast(terrain,this.coastalProtected),this.material); beach.name='village-beach'; beach.receiveShadow=true;
+    const palms=islandPalms(terrain,beach,this.coastalProtected,this.material);
+    const beachCount=(beach.geometry.index?.count??beach.geometry.getAttribute('position').count);
+    const palmCount=palms?.geometry.getAttribute('position').count??0;
+    const dressingStart=bakedLand.geometry.getAttribute('position').count;
+    appendWorldGeometry(bakedLand,[beach.geometry,...(palms?[palms.geometry]:[])]);
+    bakedLand.geometry.userData['coastalDressing']={first:dressingStart,beachCount,palmCount};Object.assign(this.coastalDressing,{beachCount,palmCount});
+    const mapBounds=bakedLand.geometry.boundingBox!.clone();
+    if(beach.geometry.getAttribute('position').count)mapBounds.union(new THREE.Box3().setFromObject(beach));
+    const mapPoints:THREE.Vector3[]=[];for(const mesh of [bakedLand,beach]){const p=mesh.geometry.getAttribute('position');for(let i=0;i<p.count;i++)mapPoints.push(new THREE.Vector3().fromBufferAttribute(p,i));}
+    this.mapOrbit=new VillageOrbit(mapBounds,mapPoints);beach.geometry.dispose();palms?.geometry.dispose();
+    yield 'coast';
     this.filmCamera = new VillageFilmCamera(this.machine, this.machine.route,this.machine.route.mode==='cinematic'?'cargo':'envelope');
     yield 'film-camera';
     const source = this.plan.stations.find(station => station.stop === workshop.connector.from);
@@ -187,7 +212,14 @@ export class WorldScene {
       bakeWorldGroup(reward, this.material); this.scene.add(reward); this.installedProjects.add(project.id);
     }
   }
+  inspect(): void {
+    this.cameraMode='map';const width=this.stage.canvas.clientWidth||375,height=this.stage.canvas.clientHeight||690;this.camera.setViewOffset(width,height,0,height*.065,width,height);this.orbit.apply(this.camera);
+    this.scene.userData['focus']={near:0,far:160,falloff:30};
+  }
+  resetView(): void { this.orbit.reset();this.inspect(); }
+  stepSea(seconds:number,reduced:boolean):void{if(this.sea&&!reduced)advanceVillageSea(this.sea,seconds);}
   setYaw(radians: number): void {
+    this.camera.clearViewOffset();this.cameraMode='film';
     this.angle = THREE.MathUtils.clamp(radians, -MAX_YAW, MAX_YAW);
     const target = this.filmCamera.restTarget, distance = this.filmCamera.restDistance;
     const horizontal = Math.cos(this.filmCamera.restElevation) * distance;
@@ -221,7 +253,7 @@ export class WorldScene {
   resize(): void {
     const width = this.stage.canvas.clientWidth || window.innerWidth, height = this.stage.canvas.clientHeight || window.innerHeight;
     this.stage.renderer.setSize(width, height, false); this.camera.aspect = width / height;
-    this.filmCamera.resize(this.camera.aspect); this.setYaw(this.angle);
+    this.filmCamera.resize(this.camera.aspect); this.mapOrbit?.fit(this.camera.aspect,height); if(this.cameraMode==='map')this.inspect();else this.setYaw(this.angle);
   }
   private project(points: readonly THREE.Vector3[]): readonly ScreenPoint[] {
     const rect = this.stage.rect;
@@ -268,7 +300,7 @@ export class WorldScene {
   }
   /** The film's first framing without the marble or motion, shown while it waits. */
   filmPoster(cameraMotion = true): void {
-    this.stopFilm(); this.machine.apply(0, !cameraMotion);
+    this.camera.clearViewOffset();this.cameraMode='film'; this.stopFilm(); this.machine.apply(0, !cameraMotion);
     this.workshopBuilding.apply(0, this.workshopPass, !cameraMotion);
     this.filmCamera.apply(this.camera, 0, cameraMotion); this.draw();
   }
@@ -277,7 +309,7 @@ export class WorldScene {
     if(this.staticProof&&!this.filmStarted)this.beginFilm();
   }
   film(seconds: number, cameraMotion = true): void {
-    this.requireFilmReady();
+    this.camera.clearViewOffset();this.cameraMode='film'; this.requireFilmReady();
     if(this.machine.route.mode==='physical'){if(!this.rockerFilmReady||this.hasAxle)this.machine.route.requirePhysical();}else if(this.machine.route.playback.state!=='ready')throw Error(this.machine.route.playback.reason);
     if(this.stage.canvas.dataset)this.stage.canvas.dataset.worldMotion=this.machine.route.mode;
     if (!this.marble) { this.marble = this.stage.marbles.create('red', VILLAGE_RADIUS); this.marble.mesh.castShadow = false; }
@@ -290,15 +322,6 @@ export class WorldScene {
     const reach = this.camera.position.distanceTo(marble.position);
     this.scene.userData['focus'] = { near: reach - 5, far: reach + 5, falloff: 16 };
     this.draw();
-  }
-  handoff(seconds: number): void {
-    this.requireFilmReady();
-    if (!this.marble) { this.marble = this.stage.marbles.create('red', VILLAGE_RADIUS); this.marble.mesh.castShadow = false; }
-    const marble = this.marble.mesh; if (!marble.parent) this.scene.add(marble);
-    this.machine.handoff(seconds, marble.position);
-    if(this.machine.route.mode==='cinematic')this.machine.marbleOrientation(Math.max(0,Math.min(2.5,seconds)),marble.quaternion);
-    else marble.rotation.z = -THREE.MathUtils.smoothstep(seconds, 0, 2.5) * 7 / VILLAGE_RADIUS;
-    this.workshopBuilding.reset(); this.setYaw(0); this.draw();
   }
   draw(): void { this.stage.draw(this.scene, this.camera); }
   stopFilm(): void { this.filmStarted=false;if (this.marble) this.stage.marbles.release(this.marble); this.marble = null; }

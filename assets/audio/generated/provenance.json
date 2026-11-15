@@ -1,0 +1,24 @@
+{
+  "generator": "scripts/generate-sounds.py",
+  "generatorSha256": "e49d708b65a4aaa71d7db4e77a3e584458977dfefa4cf0f7fc98359bd2fcf322",
+  "recordings": {
+    "sources/kenney-impact/impactWood_light_000.ogg": "eb45e35b4bed784d3f120de4afec4b0d6ac09d9e143cce8cfcb7d739e1b1f3c3",
+    "sources/kenney-impact/impactGlass_light_000.ogg": "d750cf88097d0c3e69920e6e14496e1444e1a9da01aa4cca8f5ec8cb44c57b4f",
+    "sources/kenney-impact/impactSoft_medium_000.ogg": "7d3ba0bb5e60a11b5d3e558c141303dcf494256675fbf753c0d252d2cf0481e3"
+  },
+  "recipes": {
+    "tap": "Kenney wood at 0.82x, double low-pass 1600 Hz, 5 ms felt onset",
+    "release": "Four rounded Kenney wood knocks at 0/32/71/118 ms, varied pitch, A3 wooden body; no air",
+    "impact-wood": "Kenney light wood at 0.94x, double low-pass 1800 Hz, 5 ms onset",
+    "impact-glass": "Kenney light glass at 0.87x, double low-pass 1800 Hz, 6 ms onset",
+    "landing-light": "G4 (392 Hz) felt marimba/kalimba, detuned modes, 0.30 s, low-pass 1800 Hz",
+    "landing-final": "D4 (293.66 Hz) felt marimba with audible 587 Hz body partial, 0.40 s",
+    "complete": "D4 A4 D5 warm marimba triplet at 0/85/170 ms, quiet D6 vibraphone accent",
+    "blocked": "Kenney soft/wood at 0.78x/0.72x with D4/587 Hz muted body, low-pass 1250 Hz",
+    "undo": "D4 C4 damped wooden double note at 0/95 ms; no reverse or air",
+    "jam": "Muted marimba A4 D4 descent at 0/160 ms, warm room",
+    "win": "D4 F#4 A4 D5 marimba ascent at 0/120/240/360 ms; warm D-major vibraphone chord at 520 ms, quiet D6 accent"
+  },
+  "sampleRate": 44100,
+  "seedPolicy": "fixed explicit seed per felt strike and modal note"
+}

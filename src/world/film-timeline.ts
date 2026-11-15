@@ -1,5 +1,4 @@
 export const LOCAL_FILM_SECONDS = 25;
-export const CONNECTION_SECONDS = 2.5;
 
 /** Authored film time, independent of browser speed and the gameplay clock. */
 export function filmTimeline(seconds: number): { travel: number; visible: boolean; cameraZ: number; zoom: number } {

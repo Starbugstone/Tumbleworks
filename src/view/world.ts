@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { separateMapPins } from './map-pins';
 import { confetti } from './confetti';
 import { DEEP_SEA } from '../engine/stage';
 import type { Stage } from '../engine/stage';
@@ -63,9 +64,11 @@ export class WorldView {
   private valley: ValleyOverview | null = null;
   private valleyAssets: WorldKitAssets | null = null;
   private gesture: { id: number; x: number; y: number; moved: boolean } | null = null;
-  private spring = 0;
-  private springYaw = 0;
-  private yaw = 0;
+  private readonly mapPointers = new Map<number, { x:number; y:number; startX:number; startY:number }>();
+  private mapMoved = false;
+  private suppressMapClick = false;
+  private readonly viewControls = document.createElement('div');
+  private readonly resetView = makeButton('↺', () => { this.scene?.resetView();this.mapChanged(); }, 'wv-reset-view');
   private filmIndex = 0;
   private transitionTimer = 0;
   private transitionFrame = 0;
@@ -81,7 +84,7 @@ export class WorldView {
     this.filmControls.className = 'wv-film-controls'; this.filmControls.hidden = true;
     this.filmNote.className = 'wv-film-status'; this.filmNote.setAttribute('role', 'status');
     this.blankScene.background = new THREE.Color(DEEP_SEA);
-    this.ownership = new VillageOwnership(chapter => new SceneBuild(chapter, this.stage, {motion:'cinematic'}), () => this.built());
+    this.ownership = new VillageOwnership(chapter => new SceneBuild(chapter, this.stage, {motion:'cinematic'}), () => this.built(), false);
     this.workshopMarker.type = 'button'; this.workshopMarker.className = 'map-workshop'; this.workshopMarker.hidden = true;
     this.workshopMarker.dataset['worldWorkshop'] = '';
     this.workshopMarker.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="currentColor" transform="rotate(-35 12 12)"><rect x="5" y="3" width="14" height="6" rx="1.2"/><rect x="10" y="8" width="4" height="13" rx="1.1"/></g></svg><i class="map-stem" aria-hidden="true"></i>';
@@ -89,16 +92,19 @@ export class WorldView {
     this.element.append(this.heading, this.nodes, this.workshopMarker, this.panel, this.footer, this.filmControls);
     document.getElementById('hud')!.prepend(this.element);
     this.curtain.id = 'journey-transition'; this.curtain.hidden = true; this.curtain.setAttribute('aria-hidden', 'true'); document.body.append(this.curtain);
+    this.viewControls.className='wv-view-controls';this.resetView.setAttribute('aria-label',t('Reset village view','Recentrer le village'));this.viewControls.append(this.resetView);this.element.append(this.viewControls);
     this.bindWorldPointer();
   }
 
   show(progress: WorldProgress, chapter: number, construct = false): void {
+    const returningFromFilm=this.view==='film';this.clearMapPointers();
     const fromMap = this.view === 'map' && !this.element.hidden;
     this.disposeValley();
     this.stopFilm(); this.progress = progress;
-    this.panel.classList.remove('wv-overview-panel'); this.spring = this.yaw = 0;
+    this.panel.classList.remove('wv-overview-panel');
     this.chapter = Math.max(0, Math.min(chapter, progress.chapters.length - 1));
-    this.view = 'map'; this.element.hidden = false; this.panel.hidden = true;
+    this.view = 'map'; this.element.hidden = false;this.viewControls.hidden=false;this.resetView.hidden=!this.scene?.orbit.changed; this.panel.hidden = true;
+    this.resetView.setAttribute('aria-label',t('Reset village view','Recentrer le village'));
     this.workshopMarker.hidden = false; this.workshopMarker.setAttribute('aria-label', t('Workshop', 'Atelier'));
     this.workshopMarker.querySelector('.wv-project-notice')?.remove(); this.workshopMarker.removeAttribute('aria-description');
     this.actions.screen(this.view);
@@ -107,7 +113,7 @@ export class WorldView {
     // Switching villages: the old view stays, dimmed, until the new one is drawn (reduced motion: plain backdrop).
     if (fromMap && this.scene && this.scene.chapter !== this.chapter && !this.reduced.matches) { this.cover(); this.holdBuildCover = true; this.curtain.classList.add('wv-building'); this.curtain.style.opacity = '0.4'; }
     this.pendingConstruct = construct && !this.reduced.matches;
-    if (current && this.scene?.chapter === this.chapter) this.scene.update(current, this.pendingConstruct);
+    if (current && this.scene?.chapter === this.chapter) { this.scene.update(current, this.pendingConstruct);if(!returningFromFilm)this.scene.orbit.reset();this.scene.inspect(); }
     this.ownership.showMap(this.chapter); // retained: activates its proof after update; else builds
     this.stage.canvas.dataset['worldScene'] = this.scene ? 'ready' : 'building';
     if (!current) return;
@@ -118,7 +124,7 @@ export class WorldView {
     if (!this.scene) subtitle.setAttribute('role', 'status');
     this.heading.replaceChildren(title, subtitle);
     this.nodes.replaceChildren(...current.stops.map(stop => {
-      const button = makeButton(stop.status === 'built' ? '✓' : String(stop.local + 1), () => this.actions.enter(stop.index), 'map-stop');
+      const button = makeButton(stop.status === 'built' ? '•' : String(stop.local + 1), () => this.actions.enter(stop.index), 'map-stop');
       button.dataset['round'] = String(stop.index); button.dataset['status'] = stop.status;
       button.disabled = stop.status === 'locked';
       button.setAttribute('aria-label', t(`Construction stop ${stop.index + 1}, ${stop.completed} of 3 puzzles completed${stop.status === 'locked' ? ', locked' : ''}`, `Étape de construction ${stop.index + 1}, ${stop.completed} puzzles sur 3 terminés${stop.status === 'locked' ? ', verrouillée' : ''}`));
@@ -154,10 +160,10 @@ export class WorldView {
     nav.append(previous, makeButton(t('The valley', 'La vallée'), () => this.overview(), 'wv-soft'), atelier, next);
     this.footer.replaceChildren(primary, nav);
     this.nodes.hidden = this.workshopMarker.hidden = !this.scene;
-    this.positions(); this.dirty = true;
+    this.resetView.hidden=!this.scene?.orbit.changed;this.positions(); this.dirty = true;
     if (this.scene) this.scene.draw(); else this.drawBlank();
   }
-  /** A build settled: a map scene, or a film's previous scene. Called before its proof is activated. */
+  /** A build settled: the map scene a film also borrows. Called before its proof is activated. */
   private built(): void {
     if (this.element.hidden) return;
     if (this.view === 'film') { this.filmBuilt(); return; }
@@ -168,17 +174,17 @@ export class WorldView {
       if (this.ownership.failedChapter === this.chapter) { this.stage.canvas.dataset['worldScene'] = 'unavailable'; this.releaseBuildCover(); }
       return;
     }
-    scene.resize(); scene.update(current, this.pendingConstruct);
+    scene.resize(); scene.update(current, this.pendingConstruct);scene.inspect();
     if (subtitle) { subtitle.removeAttribute('role'); subtitle.textContent = `${worldLocation(this.chapter).creation} · ${current.stops.filter(stop => stop.status === 'built').length}/${current.stops.length}`; }
     this.nodes.hidden = this.workshopMarker.hidden = false; this.stage.canvas.dataset['worldScene'] = 'ready';
-    this.positions(); this.dirty = true; scene.draw(); this.releaseBuildCover(); this.reveal();
+    this.resetView.hidden=!scene.orbit.changed;this.positions(); this.dirty = true; scene.draw(); this.releaseBuildCover(); this.reveal();
   }
   private drawBlank(): void { this.stage.draw(this.blankScene, this.blankCamera); }
   private releaseBuildCover(): void { const held = this.holdBuildCover; this.holdBuildCover = false; if (held) this.reveal(); }
 
   private overview(): void {
     if (!this.progress) return;
-    this.releaseBuildCover(); this.ownership.leave('overview');
+    this.clearMapPointers();this.viewControls.hidden=true;this.releaseBuildCover(); this.ownership.leave('overview');
     this.view = 'overview'; this.nodes.hidden = this.footer.hidden = true; this.panel.hidden = false;
     this.workshopMarker.hidden = true;
     this.actions.screen(this.view);
@@ -282,6 +288,7 @@ export class WorldView {
   }
 
   playFilm(chapter: number, earned = false): void {
+    this.clearMapPointers();this.viewControls.hidden=true;this.cover();
     this.filmFinished=false;
     this.releaseBuildCover();
     if (!this.progress?.chapters[chapter]?.complete) return;
@@ -294,14 +301,14 @@ export class WorldView {
     const label = document.createElement('span'); label.textContent = worldLocation(chapter).creation;
     const skip = makeButton(t('Back to map', 'Retour à la carte'), () => this.finishFilm(), 'wv-soft'); skip.id = 'film-skip';
     this.filmControls.replaceChildren(label, skip);
-    this.ownership.openFilm(chapter, earned); // borrows the map scene or builds it, then builds the handoff scene
+    this.ownership.openFilm(chapter, earned); // borrows the map scene or builds it
     this.filmTime = 0; this.playing = false; this.filmWait = 'waiting'; this.dirty = true;
     this.filmStatus(t('Getting the machine ready…', 'Préparation de la machine…'), 'waiting');
     if (this.scene?.chapter !== chapter) this.drawBlank();
     this.filmBuilt();
     skip.focus({ preventScroll: true });
   }
-  /** Film screen: create the playback once both scenes it renders are built; until then the
+  /** Film screen: create the playback once its scene is built; until then the
    *  current scene's first framing (when built) under the same status line. */
   private filmBuilt(): void {
     if (this.view !== 'film' || this.filmWait !== 'waiting') return;
@@ -314,10 +321,10 @@ export class WorldView {
         return;
       }
       scenes.current.resize();
-      this.playback = new WorldFilm(this.stage, this.filmIndex, scenes.current, scenes.previous);
+      this.playback = new WorldFilm(this.stage, this.filmIndex, scenes.current);
       this.dirty = true;
     }
-    this.startWhenReady();
+    this.startWhenReady();this.reveal();
   }
   /** Motion starts only when every scene is ready for its selected playback model, and only
    *  while this same film screen is still open. */
@@ -361,20 +368,25 @@ export class WorldView {
     this.scene?.stopFilm(); this.filmNote.remove();
     delete this.stage.canvas.dataset['worldPlayback']; delete this.stage.canvas.dataset['worldFilm']; this.filmControls.hidden = true;
   }
-  hide(): void { this.releaseBuildCover(); this.stopFilm(); this.ownership.leave('hidden'); this.disposeValley(); this.gesture = null; this.spring = 0; this.element.hidden = true; }
+  hide(): void { this.releaseBuildCover(); this.stopFilm(); this.ownership.leave('hidden'); this.disposeValley(); this.gesture = null; this.clearMapPointers(); this.element.hidden = true; }
   resize(): void { this.scene?.resize(); this.valley?.resize(); this.playback?.resize(); if (this.view === 'overview') this.valleyLabels(); else this.positions(); this.dirty = true; }
   private positions(): void {
-    this.scene?.targets().forEach((point, index) => {
+    const workshop=this.scene?.workshopTargets(),badges=this.scene?.targets()??[];
+    const pins=separateMapPins([...(workshop?[workshop.badge]:[]),...badges],this.stage.canvas.clientWidth,this.stage.canvas.clientHeight);
+    badges.forEach((raw, index) => {
+      const point=pins[index+1]??raw;
       const button = this.nodes.children.item(index);
       if (button instanceof HTMLElement) {
+        button.hidden=point.x<16||point.x>this.stage.canvas.clientWidth-16||point.y<112||point.y>this.stage.canvas.clientHeight-145;
         button.style.left = `${point.x}px`; button.style.top = `${point.y}px`;
         const ground = this.scene!.groundTargets()[index]!;
         const stem = button.querySelector<HTMLElement>('.map-stem');
         if (stem) { stem.style.width = `${Math.hypot(ground.x - point.x, ground.y - point.y)}px`; stem.style.transform = `rotate(${Math.atan2(ground.y - point.y, ground.x - point.x)}rad)`; }
       }
     });
-    const workshop = this.scene?.workshopTargets();
     if (workshop) {
+      workshop.badge=pins[0]??workshop.badge;
+      this.workshopMarker.hidden=this.view!=='map'||workshop.badge.x<22||workshop.badge.x>this.stage.canvas.clientWidth-22||workshop.badge.y<120||workshop.badge.y>this.stage.canvas.clientHeight-150;
       this.workshopMarker.style.left = `${workshop.badge.x}px`; this.workshopMarker.style.top = `${workshop.badge.y}px`;
       const stem = this.workshopMarker.querySelector<HTMLElement>('.map-stem')!;
       stem.style.width = `${Math.hypot(workshop.door.x - workshop.badge.x, workshop.door.y - workshop.badge.y)}px`;
@@ -390,7 +402,7 @@ export class WorldView {
       if (!this.playing) {
         if (!this.dirty) return false;
         this.dirty = false;
-        this.playback.render(this.filmTime, !this.reduced.matches); return true;
+        this.scene?.stepSea(seconds,this.reduced.matches);this.playback.render(this.filmTime, !this.reduced.matches); return true;
       }
       this.dirty = false;
       this.filmTime += seconds;
@@ -398,18 +410,13 @@ export class WorldView {
         // The run came home: paper over the map it returns to. A skipped film ends quietly.
         this.finishFilm(); confetti(); return false;
       }
-      this.playback.render(this.filmTime, !this.reduced.matches); return true;
+      this.scene?.stepSea(seconds,this.reduced.matches);this.playback.render(this.filmTime, !this.reduced.matches); return true;
     }
     if (this.view === 'overview') { if (!this.dirty) return false; this.dirty = false; this.valley?.draw(); return true; }
     if (!this.scene) return false;
-    if (this.spring > 0) {
-      this.spring = Math.max(0, this.spring - seconds);
-      this.yaw = this.springYaw * (this.spring / 0.35) ** 3;
-      this.scene.setYaw(this.yaw); this.positions(); this.dirty = true;
-    }
     const moving = this.view === 'map' && this.scene.advance(seconds);
     if (!moving && !this.dirty) return false;
-    this.dirty = false; this.scene.draw(); return true;
+    this.dirty = false;this.scene.stepSea(seconds,this.reduced.matches); this.scene.draw(); return true;
   }
 
   /** One boundary snapshot fades after the new scene is ready; no second renderer runs alongside play. */
@@ -439,37 +446,83 @@ export class WorldView {
   get currentChapter(): number { return this.chapter; }
   get mode(): string { return this.view; }
 
+  private mapChanged(): void {
+    this.scene?.inspect();this.positions();this.dirty=true;this.resetView.hidden=!this.scene?.orbit.changed;
+  }
+  private clearMapPointers():void {
+    for(const id of this.mapPointers.keys())if(this.stage.canvas.hasPointerCapture(id))this.stage.canvas.releasePointerCapture(id);
+    this.mapPointers.clear();this.mapMoved=false;this.element.classList.remove('wv-inspecting');
+  }
   private bindWorldPointer(): void {
     const canvas = this.stage.canvas;
-    canvas.addEventListener('pointerdown', event => {
-      if (this.element.hidden || !['map', 'overview'].includes(this.view) || event.button !== 0 || this.gesture) return;
-      this.spring = 0; this.gesture = { id: event.pointerId, x: event.clientX, y: event.clientY, moved: false };
-      canvas.setPointerCapture(event.pointerId);
-    });
-    canvas.addEventListener('pointermove', event => {
-      const gesture = this.gesture; if (!gesture || gesture.id !== event.pointerId) return;
-      const delta = event.clientX - gesture.x;
-      if (this.view === 'map' && Math.abs(delta) >= 10) {
-        gesture.moved = true; this.yaw = Math.max(-Math.PI / 12, Math.min(Math.PI / 12, delta / 220));
-        this.scene?.setYaw(this.yaw); this.positions(); this.dirty = true;
-      } else if (this.view === 'overview' && Math.abs(event.clientY - gesture.y) >= 30) gesture.moved = true;
-    });
-    const release = (event: PointerEvent): void => {
-      const gesture = this.gesture; if (!gesture || gesture.id !== event.pointerId) return;
-      this.gesture = null;
-      if (this.view === 'map' && gesture.moved) {
-        this.springYaw = this.yaw; this.spring = this.reduced.matches ? 0 : 0.35;
-        if (this.reduced.matches) { this.yaw = 0; this.scene?.setYaw(0); this.positions(); this.dirty = true; }
-      } else if (this.view === 'overview') {
-        if (gesture.moved && this.valley?.panRows(Math.sign(gesture.y - event.clientY))) { this.valleyLabels(); this.dirty = true; }
-        else if (!gesture.moved && event.type === 'pointerup') { const hit = this.valley?.pick(event.clientX, event.clientY); if (hit !== null && hit !== undefined) this.enterVillage(hit); }
-      }
-      if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+    const mapTarget=(target:EventTarget|null):boolean=>target===canvas||target instanceof Element&&!!target.closest('.map-stop,.map-workshop');
+    document.addEventListener('pointerdown',event=>{
+      if(this.element.hidden||this.view!=='map'||!this.scene||!this.curtain.hidden||!mapTarget(event.target)||event.button!==0)return;
+      if(!this.mapPointers.size){this.suppressMapClick=false;this.mapMoved=false;}
+      this.mapPointers.set(event.pointerId,{x:event.clientX,y:event.clientY,startX:event.clientX,startY:event.clientY});
+      if(this.mapPointers.size>1){this.mapMoved=true;this.suppressMapClick=true;this.element.classList.add('wv-inspecting');}
+    },true);
+    document.addEventListener('pointermove',event=>{
+      const p=this.mapPointers.get(event.pointerId);if(!p||this.view!=='map'||!this.scene)return;
+      const dx=event.clientX-p.x,dy=event.clientY-p.y;
+      const pointers=[...this.mapPointers.values()],other=pointers.find(q=>q!==p);
+      const before=other?Math.hypot(p.x-other.x,p.y-other.y):0;
+      p.x=event.clientX;p.y=event.clientY;
+      if(!this.mapMoved&&Math.hypot(p.x-p.startX,p.y-p.startY)<9)return;
+      this.mapMoved=true;this.suppressMapClick=true;this.element.classList.add('wv-inspecting');
+      if(!canvas.hasPointerCapture(event.pointerId))canvas.setPointerCapture(event.pointerId);
+      if(other){
+        const after=Math.hypot(p.x-other.x,p.y-other.y);
+        if(before>1&&after>1)this.scene.orbit.magnify(after/before);
+        this.scene.orbit.move(dx/2,dy/2,canvas.clientHeight);
+      }else if(event.shiftKey)this.scene.orbit.move(dx,dy,canvas.clientHeight);
+      else this.scene.orbit.rotate(dx,dy);
+      this.mapChanged();event.preventDefault();
+    },{capture:true,passive:false});
+    const releaseMap=(event:PointerEvent):void=>{
+      if(!this.mapPointers.has(event.pointerId))return;
+      this.mapPointers.delete(event.pointerId);
+      if(canvas.hasPointerCapture(event.pointerId))canvas.releasePointerCapture(event.pointerId);
+      // The remaining finger starts a fresh one-finger drag, with no pinch-to-orbit jump.
+      for(const p of this.mapPointers.values()){p.startX=p.x;p.startY=p.y;}
+      if(!this.mapPointers.size){this.mapMoved=false;this.element.classList.remove('wv-inspecting');this.positions();}
     };
-    canvas.addEventListener('pointerup', release); canvas.addEventListener('pointercancel', release);
-    canvas.addEventListener('wheel', event => {
-      if (this.view !== 'overview' || this.element.hidden) return;
-      event.preventDefault(); if (this.valley?.panRows(Math.sign(event.deltaY))) { this.valleyLabels(); this.dirty = true; }
-    }, { passive: false });
+    document.addEventListener('pointerup',releaseMap,true);document.addEventListener('pointercancel',releaseMap,true);
+    document.addEventListener('click',event=>{
+      if(this.suppressMapClick&&mapTarget(event.target)){event.preventDefault();event.stopImmediatePropagation();}
+    },true);
+    window.addEventListener('blur',()=>this.clearMapPointers());
+    document.addEventListener('visibilitychange',()=>{if(document.hidden)this.clearMapPointers();});
+    canvas.addEventListener('pointerdown',event=>{
+      if(this.element.hidden||this.view!=='overview'||event.button!==0||this.gesture)return;
+      this.gesture={id:event.pointerId,x:event.clientX,y:event.clientY,moved:false};canvas.setPointerCapture(event.pointerId);
+    });
+    canvas.addEventListener('pointermove',event=>{if(this.gesture?.id===event.pointerId&&Math.abs(event.clientY-this.gesture.y)>=30)this.gesture.moved=true;});
+    const release=(event:PointerEvent):void=>{
+      const gesture=this.gesture;if(!gesture||gesture.id!==event.pointerId)return;this.gesture=null;
+      if(this.view==='overview'){
+        if(gesture.moved&&this.valley?.panRows(Math.sign(gesture.y-event.clientY))){this.valleyLabels();this.dirty=true;}
+        else if(!gesture.moved&&event.type==='pointerup'){const hit=this.valley?.pick(event.clientX,event.clientY);if(hit!==null&&hit!==undefined)this.enterVillage(hit);}
+      }
+      if(canvas.hasPointerCapture(event.pointerId))canvas.releasePointerCapture(event.pointerId);
+    };
+    canvas.addEventListener('pointerup',release);canvas.addEventListener('pointercancel',release);
+    canvas.addEventListener('wheel',event=>{
+      if(this.element.hidden)return;
+      if(this.view==='map'&&this.scene){event.preventDefault();this.scene.orbit.magnify(Math.exp(-event.deltaY*.001));this.mapChanged();}
+      else if(this.view==='overview'){event.preventDefault();if(this.valley?.panRows(Math.sign(event.deltaY))){this.valleyLabels();this.dirty=true;}}
+    },{passive:false});
+    document.addEventListener('keydown',event=>{
+      if(this.element.hidden||this.view!=='map'||!this.scene||!this.panel.hidden||!this.curtain.hidden)return;
+      if(event.target instanceof HTMLElement&&event.target.closest('#levels,input,textarea,select'))return;
+      const orbit=this.scene.orbit;
+      switch(event.key){
+        case 'ArrowLeft':orbit.rotate(-12,0);break;case 'ArrowRight':orbit.rotate(12,0);break;
+        case 'ArrowUp':orbit.rotate(0,-8);break;case 'ArrowDown':orbit.rotate(0,8);break;
+        case '+':case '=':orbit.magnify(1.15);break;case '-':orbit.magnify(1/1.15);break;
+        case 'Home':orbit.reset();break;default:return;
+      }
+      event.preventDefault();this.mapChanged();
+    });
   }
 }

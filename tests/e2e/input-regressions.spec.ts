@@ -221,13 +221,12 @@ test('two fingers can share a hold while another pours, and the faster hold fall
   await cadence(page, 1);
 });
 
-test('a native swipe scrolls the picker and its newly revealed levels remain playable', async ({ page }) => {
+test('a native swipe in the compact menu cannot pour the board or expose unrelated levels', async ({ page }) => {
   await open(page);
+  const before = await state(page);
   await page.locator('#levels-toggle').click();
   await page.locator('#levels').evaluate((el) => Promise.all(el.getAnimations().map((animation) => animation.finished)));
-  const chips = page.locator('#chips');
-  const box = (await chips.boundingBox())!;
-  const before = await chips.evaluate((el) => el.scrollTop);
+  const box = (await page.locator('#chips').boundingBox())!;
   const touch = await touches(page);
   const x = box.x + box.width / 2;
   const from = box.y + box.height - 20;
@@ -237,21 +236,12 @@ test('a native swipe scrolls the picker and its newly revealed levels remain pla
     await page.waitForTimeout(25);
   }
   await touch('touchEnd', []);
-  await expect.poll(() => chips.evaluate((el) => el.scrollTop)).toBeGreaterThan(before + 80);
-  // Stop inertia without scrolling the element programmatically.
-  await page.waitForTimeout(500);
-  const revealed = await chips.evaluate((el) => {
-    const bounds = el.getBoundingClientRect();
-    const chip = [...el.querySelectorAll<HTMLElement>('.chip')].filter((candidate) => {
-      const rect = candidate.getBoundingClientRect();
-      return rect.top > bounds.top + 10 && rect.bottom < bounds.bottom - 10;
-    }).at(-1)!;
-    const rect = chip.getBoundingClientRect();
-    return { index: Number(chip.dataset['level']), x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
-  });
-  expect(revealed.index).toBeGreaterThan(2);
-  await page.touchscreen.tap(revealed.x, revealed.y);
-  expect((await state(page))['levelIndex']).toBe(revealed.index);
+  await expect(page.locator('.chip')).toHaveCount(3);
+  expect(await page.locator('#chips').evaluate(el => el.scrollHeight === el.clientHeight)).toBe(true);
+  expect(await state(page)).toEqual(before);
+  await page.locator('.chip[data-level="1"]').tap();
+  await expect.poll(async () => (await state(page))['levelIndex']).toBe(1);
+  await expect(page.locator('#levels')).toBeHidden();
 });
 
 test('a repeated restart key does not reload a second time', async ({ page }) => {

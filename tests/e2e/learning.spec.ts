@@ -2,7 +2,7 @@ import { PHONE } from '../fixtures/viewports';
 import { expect, test, type Page } from '@playwright/test';
 import type { App } from '../../src/view/App';
 import { TUBE_BOARDS } from '../../src/puzzles/levels';
-import { chooseLevel, enterGame } from '../fixtures/picker';
+import { openMenuSettings, chooseLevel, enterGame } from '../fixtures/picker';
 type GameWindow = Window & { tumbleworks: { app: App } };
 /** Uncaught page errors explain a missing target far better than the missing target does. */
 const pageErrors = new WeakMap<Page, string[]>();
@@ -50,7 +50,10 @@ test('French is detected, changing language preserves the live puzzle, and the c
   await expect(page.locator('#guide-text')).toContainText('caisse rouge');
   const before = await page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.debugState());
   await page.locator('#levels-toggle').click();
+  await openMenuSettings(page);
+  await page.locator('#help-label').click();
   await expect(page.locator('#level-help')).toContainText('Touchez');
+  await openMenuSettings(page);
   await page.getByRole('button', { name: 'English', exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   expect(await page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.debugState())).toEqual(before);
@@ -65,6 +68,7 @@ test('French is detected, changing language preserves the live puzzle, and the c
   }
   await expect(page.locator('#card-title')).toHaveText('Nicely sorted!');
   await page.locator('#levels-toggle').click();
+  await openMenuSettings(page);
   await page.getByRole('button', { name: 'Français', exact: true }).click();
   await expect(page.locator('#card-title')).toHaveText('Bien trié !');
   await page.locator('#levels-toggle').click();
@@ -93,6 +97,8 @@ test('the written instruction shows only during onboarding and stays readable be
     await expect(instruction).toBeHidden();
   }
   await page.locator('#levels-toggle').click();
+  await openMenuSettings(page);
+  await page.locator('#help-label').click();
   await expect(page.locator('#level-help')).not.toBeEmpty();
   await page.locator('#levels-toggle').click();
   // Once a guide has been skipped, its level stops showing the instruction too.
@@ -132,6 +138,7 @@ test('tap icons guide the first three puzzles through real actions and remember 
   await page.getByRole('button', { name: 'Restart', exact: true }).click();
   await expect(page.locator('#guide')).toBeHidden();
   await page.locator('#levels-toggle').click();
+  await openMenuSettings(page);
   await page.getByRole('button', { name: 'Restart with guide', exact: true }).click();
   await expect(page.locator('#guide-pointer svg')).toBeVisible();
   await page.getByRole('button', { name: 'Skip guide', exact: true }).click();

@@ -1,3 +1,4 @@
+import { openMenuSettings } from '../fixtures/picker';
 import { expect, test, type Page } from '@playwright/test';
 import type { App } from '../../src/view/App';
 type GameWindow = Window & { tumbleworks: { app: App } };
@@ -37,6 +38,7 @@ for (const id of [200, 201, 202]) test(`Loop Sort feature ${id}: phone input, un
     await tap(page, 'undo');
     expect(await page.locator('.lr-latch').count()).toBe(1);
     await page.locator('#levels-toggle').click();
+    await openMenuSettings(page);
     await page.locator('#language-fr').click();
     await page.locator('#levels-toggle').click();
     await tap(page, 'lane0');

@@ -34,10 +34,10 @@ test('retired matching levels fall back safely without losing sorting progress o
   expect(await page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.debugState())).toMatchObject({ levelId: 'board-1' });
   await expect(page.getByRole('button', { name: 'Sound', exact: true })).toHaveClass(/muted/);
   await page.locator('#levels-toggle').click();
-  await expect(page.locator('.chip')).toHaveCount(CAMPAIGN.length);
-  for (const id of ['tube-1', 'loop-2']) {
-    await expect(page.locator(`.chip[data-level="${CAMPAIGN.findIndex((level) => level.id === id)}"]`)).toHaveText('✓');
-  }
+  await expect(page.locator('.chip')).toHaveCount(3);
+  await expect(page.locator('.chip[data-level="2"]')).toHaveClass(/completed/);
+  const completed = await page.evaluate(() => JSON.parse(localStorage.getItem('tumbleworks.progress.v1')!).completed);
+  expect(completed).toEqual(expect.arrayContaining(['tube-1', 'loop-2']));
   await expect(page.locator('#levels')).not.toContainText(/Tray Match|Connected Match/);
 });
 

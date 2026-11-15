@@ -1,0 +1,321 @@
+[
+  {
+    "cue": "tap",
+    "bytes": 4223,
+    "encodedSha256": "f33014fea5f5a80b080e6ef6069c0c685fe861d1aa0db86afac445d874a082af",
+    "decoded": {
+      "durationSeconds": 0.14,
+      "peakDbfs": -6.55,
+      "rmsDbfs": -22.45,
+      "spectralCentroidHz": 321,
+      "energyBelow1587Hz": 1.0,
+      "phoneBodyEnergy": 0.4316,
+      "dominantPartialEnergy": 0.4541,
+      "firstMillisecondPeak": 0.00459,
+      "edgeStep": 1.6e-05,
+      "onsetSeconds": 0.0007
+    },
+    "source": {
+      "durationSeconds": 0.14,
+      "peakDbfs": -6.11,
+      "rmsDbfs": -22.0,
+      "spectralCentroidHz": 321,
+      "energyBelow1587Hz": 1.0,
+      "phoneBodyEnergy": 0.4316,
+      "dominantPartialEnergy": 0.4541,
+      "firstMillisecondPeak": 0.00482,
+      "edgeStep": 0.0,
+      "onsetSeconds": 0.0007
+    }
+  },
+  {
+    "cue": "release",
+    "bytes": 6835,
+    "encodedSha256": "75a58b6132487f7a01253bf85cf0329948fc5ab53fc4738a4bdae49150db4638",
+    "decoded": {
+      "durationSeconds": 0.27,
+      "peakDbfs": -7.91,
+      "rmsDbfs": -22.45,
+      "spectralCentroidHz": 302,
+      "energyBelow1587Hz": 0.9999,
+      "phoneBodyEnergy": 0.384,
+      "dominantPartialEnergy": 0.5449,
+      "firstMillisecondPeak": 0.00294,
+      "edgeStep": 3.6e-05,
+      "onsetSeconds": 0.0007
+    },
+    "source": {
+      "durationSeconds": 0.27,
+      "peakDbfs": -7.47,
+      "rmsDbfs": -22.0,
+      "spectralCentroidHz": 302,
+      "energyBelow1587Hz": 0.9999,
+      "phoneBodyEnergy": 0.384,
+      "dominantPartialEnergy": 0.545,
+      "firstMillisecondPeak": 0.00311,
+      "edgeStep": 0.0,
+      "onsetSeconds": 0.0007
+    }
+  },
+  {
+    "cue": "impact-wood",
+    "bytes": 4223,
+    "encodedSha256": "de32ade3eb2fedb6d8a099c5bafc613d722a03dca080603ba7bdc31cfb6161ff",
+    "decoded": {
+      "durationSeconds": 0.14,
+      "peakDbfs": -5.76,
+      "rmsDbfs": -22.45,
+      "spectralCentroidHz": 373,
+      "energyBelow1587Hz": 1.0,
+      "phoneBodyEnergy": 0.8232,
+      "dominantPartialEnergy": 0.4678,
+      "firstMillisecondPeak": 0.00558,
+      "edgeStep": 1.8e-05,
+      "onsetSeconds": 0.0007
+    },
+    "source": {
+      "durationSeconds": 0.14,
+      "peakDbfs": -5.31,
+      "rmsDbfs": -22.0,
+      "spectralCentroidHz": 373,
+      "energyBelow1587Hz": 1.0,
+      "phoneBodyEnergy": 0.8232,
+      "dominantPartialEnergy": 0.4678,
+      "firstMillisecondPeak": 0.00586,
+      "edgeStep": 0.0,
+      "onsetSeconds": 0.0007
+    }
+  },
+  {
+    "cue": "impact-glass",
+    "bytes": 4746,
+    "encodedSha256": "fc53f21b7d8bcf492b09197da3b067b5629e3595ec8c694ee7efe4dd42489611",
+    "decoded": {
+      "durationSeconds": 0.18,
+      "peakDbfs": -6.87,
+      "rmsDbfs": -22.44,
+      "spectralCentroidHz": 1206,
+      "energyBelow1587Hz": 0.7708,
+      "phoneBodyEnergy": 0.0007,
+      "dominantPartialEnergy": 0.5916,
+      "firstMillisecondPeak": 0.00017,
+      "edgeStep": 0.000125,
+      "onsetSeconds": 0.0015
+    },
+    "source": {
+      "durationSeconds": 0.18,
+      "peakDbfs": -6.43,
+      "rmsDbfs": -22.0,
+      "spectralCentroidHz": 1206,
+      "energyBelow1587Hz": 0.7707,
+      "phoneBodyEnergy": 0.0007,
+      "dominantPartialEnergy": 0.5916,
+      "firstMillisecondPeak": 0.00021,
+      "edgeStep": 0.0,
+      "onsetSeconds": 0.0015
+    }
+  },
+  {
+    "cue": "landing-light",
+    "bytes": 7358,
+    "encodedSha256": "9c601316a0424ecf03021873c2718fc26e91e002e8e71cafc12e889ccf225210",
+    "decoded": {
+      "durationSeconds": 0.3,
+      "peakDbfs": -8.97,
+      "rmsDbfs": -22.45,
+      "spectralCentroidHz": 466,
+      "energyBelow1587Hz": 0.9999,
+      "phoneBodyEnergy": 0.9781,
+      "dominantPartialEnergy": 0.8539,
+      "firstMillisecondPeak": 0.00086,
+      "edgeStep": 2.4e-05,
+      "onsetSeconds": 0.0012
+    },
+    "source": {
+      "durationSeconds": 0.3,
+      "peakDbfs": -8.53,
+      "rmsDbfs": -22.0,
+      "spectralCentroidHz": 466,
+      "energyBelow1587Hz": 0.9999,
+      "phoneBodyEnergy": 0.9781,
+      "dominantPartialEnergy": 0.8539,
+      "firstMillisecondPeak": 0.00095,
+      "edgeStep": 0.0,
+      "onsetSeconds": 0.0012
+    }
+  },
+  {
+    "cue": "landing-final",
+    "bytes": 9448,
+    "encodedSha256": "0324ee73123384fd61321a427795764f086fd6f86fce2e1573b641ceee9d85b8",
+    "decoded": {
+      "durationSeconds": 0.4,
+      "peakDbfs": -8.61,
+      "rmsDbfs": -22.45,
+      "spectralCentroidHz": 363,
+      "energyBelow1587Hz": 0.9999,
+      "phoneBodyEnergy": 0.4329,
+      "dominantPartialEnergy": 0.8239,
+      "firstMillisecondPeak": 0.00137,
+      "edgeStep": 5.7e-05,
+      "onsetSeconds": 0.0009
+    },
+    "source": {
+      "durationSeconds": 0.4,
+      "peakDbfs": -8.16,
+      "rmsDbfs": -22.0,
+      "spectralCentroidHz": 363,
+      "energyBelow1587Hz": 0.9999,
+      "phoneBodyEnergy": 0.4329,
+      "dominantPartialEnergy": 0.8239,
+      "firstMillisecondPeak": 0.00143,
+      "edgeStep": 0.0,
+      "onsetSeconds": 0.0009
+    }
+  },
+  {
+    "cue": "complete",
+    "bytes": 14150,
+    "encodedSha256": "d26e3eed14d7002000a90157bb7161506b75e34e6a2d64637f5e11bea4a999bb",
+    "decoded": {
+      "durationSeconds": 0.65,
+      "peakDbfs": -9.48,
+      "rmsDbfs": -22.45,
+      "spectralCentroidHz": 562,
+      "energyBelow1587Hz": 0.9813,
+      "phoneBodyEnergy": 0.7888,
+      "dominantPartialEnergy": 0.4108,
+      "firstMillisecondPeak": 0.00097,
+      "edgeStep": 4e-06,
+      "onsetSeconds": 0.001
+    },
+    "source": {
+      "durationSeconds": 0.65,
+      "peakDbfs": -9.04,
+      "rmsDbfs": -22.0,
+      "spectralCentroidHz": 562,
+      "energyBelow1587Hz": 0.9813,
+      "phoneBodyEnergy": 0.7888,
+      "dominantPartialEnergy": 0.4108,
+      "firstMillisecondPeak": 0.00104,
+      "edgeStep": 0.0,
+      "onsetSeconds": 0.001
+    }
+  },
+  {
+    "cue": "blocked",
+    "bytes": 5791,
+    "encodedSha256": "1acd4052a2ef81627c87b97179f961f576eaf50bb5d3d892f9fc322fd161518a",
+    "decoded": {
+      "durationSeconds": 0.22,
+      "peakDbfs": -8.66,
+      "rmsDbfs": -22.45,
+      "spectralCentroidHz": 347,
+      "energyBelow1587Hz": 0.9999,
+      "phoneBodyEnergy": 0.4166,
+      "dominantPartialEnergy": 0.7144,
+      "firstMillisecondPeak": 0.00346,
+      "edgeStep": 1.6e-05,
+      "onsetSeconds": 0.0007
+    },
+    "source": {
+      "durationSeconds": 0.22,
+      "peakDbfs": -8.21,
+      "rmsDbfs": -22.0,
+      "spectralCentroidHz": 347,
+      "energyBelow1587Hz": 0.9999,
+      "phoneBodyEnergy": 0.4166,
+      "dominantPartialEnergy": 0.7144,
+      "firstMillisecondPeak": 0.00372,
+      "edgeStep": 0.0,
+      "onsetSeconds": 0.0007
+    }
+  },
+  {
+    "cue": "undo",
+    "bytes": 7880,
+    "encodedSha256": "2330b35c5b04bec30d46e5b26bfd6118e068797b7ca46b175df7702290b4bae3",
+    "decoded": {
+      "durationSeconds": 0.32,
+      "peakDbfs": -11.43,
+      "rmsDbfs": -22.45,
+      "spectralCentroidHz": 362,
+      "energyBelow1587Hz": 0.9997,
+      "phoneBodyEnergy": 0.3094,
+      "dominantPartialEnergy": 0.5776,
+      "firstMillisecondPeak": 0.00096,
+      "edgeStep": 2.7e-05,
+      "onsetSeconds": 0.001
+    },
+    "source": {
+      "durationSeconds": 0.32,
+      "peakDbfs": -10.99,
+      "rmsDbfs": -22.0,
+      "spectralCentroidHz": 362,
+      "energyBelow1587Hz": 0.9997,
+      "phoneBodyEnergy": 0.3094,
+      "dominantPartialEnergy": 0.5776,
+      "firstMillisecondPeak": 0.00101,
+      "edgeStep": 0.0,
+      "onsetSeconds": 0.001
+    }
+  },
+  {
+    "cue": "jam",
+    "bytes": 14150,
+    "encodedSha256": "789b205927daab114906db53d774c1b4ec1d7cc5ddb2a6f1cec944eadbdc1f8f",
+    "decoded": {
+      "durationSeconds": 0.64,
+      "peakDbfs": -9.03,
+      "rmsDbfs": -22.45,
+      "spectralCentroidHz": 428,
+      "energyBelow1587Hz": 0.995,
+      "phoneBodyEnergy": 0.6259,
+      "dominantPartialEnergy": 0.509,
+      "firstMillisecondPeak": 0.00066,
+      "edgeStep": 6.6e-05,
+      "onsetSeconds": 0.0013
+    },
+    "source": {
+      "durationSeconds": 0.64,
+      "peakDbfs": -8.59,
+      "rmsDbfs": -22.0,
+      "spectralCentroidHz": 428,
+      "energyBelow1587Hz": 0.995,
+      "phoneBodyEnergy": 0.6259,
+      "dominantPartialEnergy": 0.5089,
+      "firstMillisecondPeak": 0.00064,
+      "edgeStep": 0.0,
+      "onsetSeconds": 0.0013
+    }
+  },
+  {
+    "cue": "win",
+    "bytes": 26688,
+    "encodedSha256": "893bc54d6deb554a023cd61c5fde69a1031ea67cc1ebd7a94c6074ce52de597f",
+    "decoded": {
+      "durationSeconds": 1.28,
+      "peakDbfs": -5.93,
+      "rmsDbfs": -22.45,
+      "spectralCentroidHz": 490,
+      "energyBelow1587Hz": 0.9912,
+      "phoneBodyEnergy": 0.8238,
+      "dominantPartialEnergy": 0.2717,
+      "firstMillisecondPeak": 0.00098,
+      "edgeStep": 2.1e-05,
+      "onsetSeconds": 0.001
+    },
+    "source": {
+      "durationSeconds": 1.28,
+      "peakDbfs": -5.48,
+      "rmsDbfs": -22.0,
+      "spectralCentroidHz": 490,
+      "energyBelow1587Hz": 0.9912,
+      "phoneBodyEnergy": 0.8238,
+      "dominantPartialEnergy": 0.2718,
+      "firstMillisecondPeak": 0.00104,
+      "edgeStep": 0.0,
+      "onsetSeconds": 0.001
+    }
+  }
+]

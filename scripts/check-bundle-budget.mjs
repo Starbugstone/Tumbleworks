@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
 
 export const FIRST_DOWNLOAD_BUDGET = Number(process.env.TUMBLEWORKS_BUDGET_BYTES ?? 2_125_000);
-const AUDIO_BUDGET = 45_000;
+const AUDIO_BUDGET = 150_000;
 const WORLD_GEOMETRY_BUDGET = 120_000;
 const WORLD_PREVIEW_BUDGET = 100_000;
 const repository = fileURLToPath(new URL('../', import.meta.url));

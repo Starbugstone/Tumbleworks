@@ -36,9 +36,9 @@ fixed-25-second films, universal shots and old mover timing are not live contrac
 - `machine.route.duration` is authoritative, `route.plan` is compiled and
   `route.authoredPlan` preserves story metadata. Authored times and
   `VILLAGE_DURATION` are not speed prescriptions or film time warps.
-- Consumers read `contacts`, `transfers`, `boundaries` and `handoff`. The suffix
-  uses `CONNECTION_SECONDS` and the published physical entry/cause; do not squeeze
-  an entire carrier station into it.
+- Consumers read `contacts`, `transfers` and `boundaries`. A film ends in its own
+  village: the closing glimpse of the preceding village was removed at the owner's
+  request. `route.handoff` remains for offline physical research only.
 - Preserve seek/replay and `marbleOrientation()`. Distance/radius erases actual
   slip/spin or rigid carry. Reduced motion changes camera/construction, not physics.
 - Check support/traction on every span and moving seam. Captures need an actual

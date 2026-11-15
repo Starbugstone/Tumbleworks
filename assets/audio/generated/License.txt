@@ -1,0 +1,9 @@
+Tumbleworks modal mallets and sound arrangements
+
+Original synthesis and arrangements in scripts/generate-sounds.py and the
+resulting original audio are dedicated to the public domain under CC0 1.0:
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Derived foley uses Kenney Impact Sounds (1.0), also CC0. Its original notice
+is preserved in ../sources/kenney-impact/License.txt. The manifest names every
+recording used. No Kenney Interface Sounds recording is used by this bank.

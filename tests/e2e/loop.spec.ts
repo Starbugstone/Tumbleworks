@@ -5,7 +5,7 @@ import { LOOP_BOARDS } from '../../src/loop/boards';
 import { placeLane, rosterLayout } from '../../src/loop/roster-layout';
 import { LOOP_JAMS, LOOP_WITNESSES } from '../witnesses';
 import type { App } from '../../src/view/App';
-import { chooseLevel } from '../fixtures/picker';
+import { openMenuSettings, chooseLevel } from '../fixtures/picker';
 type GameWindow = Window & { tumbleworks: { app: App } };
 
 test('Loop Sort explains a refused tap: a full loop, a pour in progress, or a one-color truck', async ({ page }) => {
@@ -173,6 +173,7 @@ test('a level with queued lorries shows what is coming and how full each lorry i
 
   // Manifests are printed once per lorry, so a language change has to reprint them without restarting the puzzle.
   await page.locator('#levels-toggle').click();
+  await openMenuSettings(page);
   await page.locator('#language-fr').click();
   await page.locator('#levels-toggle').click();
   await page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.advance(1 / 60));

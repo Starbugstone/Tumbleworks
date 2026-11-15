@@ -1,15 +1,23 @@
 import { expect, type Page } from '@playwright/test';
+import type { App } from '../../src/view/App';
 
 /**
- * Opens a level from the level picker, as a player does, and waits until that level is the one loaded.
- * The picker pops open from 80% scale. Under a loaded machine Playwright can find a chip steady and then
- * click where it was a moment earlier, so the click lands beside it and the old level stays: wait for the
- * pop to finish first, and fail on the level actually loaded rather than on a later, stranger check.
+ * Set up an arbitrary campaign board for gameplay fixtures, then exercise its real menu row.
+ * Campaign navigation is tested through village stops; the player menu has only the current triple.
  */
 export async function chooseLevel(page: Page, index: number, pausedUiClock = false): Promise<void> {
   const picker = page.locator('#levels');
   if (await picker.isHidden()) await page.locator('#levels-toggle').click();
+  if (await page.locator(`.chip[data-level="${index}"]`).count() === 0) {
+    await page.evaluate(selected => {
+      const app = (window as unknown as { tumbleworks: { app: App } }).tumbleworks.app;
+      app['loadBoard'](selected, 'campaign');
+    }, index);
+    if (pausedUiClock) await page.clock.runFor(320);
+    await page.locator('#levels-toggle').click();
+  }
   await expect(picker).toBeVisible();
+  if (pausedUiClock) await page.clock.runFor(200);
   await picker.evaluate((element) => Promise.all(element.getAnimations().map((animation) => animation.finished)));
   await page.locator(`.chip[data-level="${index}"]`).click();
   if (pausedUiClock) await page.clock.runFor(320);
@@ -18,6 +26,12 @@ export async function chooseLevel(page: Page, index: number, pausedUiClock = fal
   }).toBe(index);
   await expect(page.locator('body')).toHaveAttribute('data-screen', 'game');
   await expect(page.locator('#journey-transition')).toBeHidden();
+}
+
+/** Settings are secondary to village and round navigation. */
+export async function openMenuSettings(page: Page): Promise<void> {
+  if (await page.locator('#levels').isHidden()) await page.locator('#levels-toggle').click();
+  if (await page.locator('#menu-secondary').isHidden()) await page.locator('#menu-settings').click();
 }
 
 /** Existing gameplay tests enter the saved board through real UI; production uses the map's first stop. */

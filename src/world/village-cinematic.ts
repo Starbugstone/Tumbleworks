@@ -41,6 +41,19 @@ const RATE = 120,
   /** Through a vertical loop, and how fast a carrier takes its cargo across. */
   LOOP_SPEED = 6.5,
   CARRY_SPEED = 4,
+  /**
+   * The owner would not have the marble stop at a seesaw, a swinging bar or the clock gate: only a lift
+   * may hold it. Those mechanisms are crossed at cruise. A deck tips once the whole marble is on it and is
+   * still again before the marble leaves; a knocked part starts fast, so it stays ahead of the marble.
+   */
+  TILT_LEAD = 0.1,
+  TILT_SETTLE = 0.15,
+  KNOCK = 0.28,
+  RETURN_DELAY = 0.15,
+  easeOut = (u: number) => {
+    const t = Math.max(0, Math.min(1, u));
+    return t * (2 - t);
+  },
   clamp = (x: number) => Math.max(0, Math.min(1, x));
 const lengths = (ps: readonly VillagePort[]) => {
   const ls = [0];
@@ -173,6 +186,8 @@ interface Clip {
   end: number;
   held: number;
   returnEnd: number;
+  /** Crossed at cruise without a stop. */
+  through: boolean;
 }
 type Phase =
   | { kind: "roll"; start: number; end: number; run: CineRun }
@@ -183,7 +198,9 @@ type Phase =
       clip: Clip;
       x0: number;
       x1: number;
-      ease: "in" | "out" | "hold";
+      ease: "in" | "out" | "hold" | "through";
+      /** The deck's own travel along its length while the marble crosses at a steady world speed. */
+      slide?: number;
     };
 /** Production film model: authored, absolute-time, geometric. It never compiles or claims mechanical physics. */
 export class VillageCinematic implements VillageRoute {
@@ -350,119 +367,183 @@ export class VillageCinematic implements VillageRoute {
                 ? (shape?.fork ?? 0.34) - dir * 0.34
                 : local[0]),
           start = stop === 9 ? 0 : time,
-          approach = s.initialCargo
-            ? 0
-            : Math.max(
-                0.18,
-                (2 * Math.abs(held - local[0] - edges[0])) / CRUISE,
-              ),
-          caught = time + approach;
-        const clip: Clip = {
-          station: s,
-          start,
-          catch: caught,
-          ride: caught + 0.14,
-          dock: 0,
-          release: 0,
-          end: 0,
-          held,
-          returnEnd: 0,
-        };
-        this.clips.set(stop, clip);
-        if (s.initialCargo)
-          this.phases.push({
-            kind: "hold",
-            start: 0,
-            end: time,
-            clip,
-            x0: held,
-            x1: held,
-            ease: "hold",
-          });
-        else
+          moving = hasVillageCarrier(m),
+          // A short carriage sliding along its own deck is a moving walkway, not a lift.
+          slide =
+            m.kind === "translating" &&
+            m.travel[0] > 0 &&
+            Math.abs(m.travel[1]) < 0.2 &&
+            m.travel[2] === 0
+              ? m.travel[0] * Math.cos(m.deckPitch ?? 0) +
+                m.travel[1] * Math.sin(m.deckPitch ?? 0)
+              : 0,
+          through =
+            stop !== 9 &&
+            stop !== 0 &&
+            (slide > 0 ||
+              (!s.retention &&
+                (m.kind === "striker" ||
+                  m.kind === "escapement" ||
+                  ("pivot" in m && !m.dockingLift))));
+        let clip: Clip;
+        if (through) {
+          const x0 = local[0] + edges[0],
+            x1 = local[0] + edges[1],
+            at = (x: number) => time + (x - x0) / CRUISE,
+            end = at(x1 + slide),
+            ride = slide
+              ? at(x0 + TILT_LEAD)
+              : "pivot" in m
+                ? at(Math.max(x0 + TILT_LEAD, local[0] + m.pivot[0] - TILT_LEAD))
+                : at(held),
+            dock = slide
+              ? end - TILT_SETTLE / CRUISE
+              : "pivot" in m
+                ? at(x1 - TILT_SETTLE)
+                : ride + KNOCK;
+          clip = {
+            station: s,
+            start,
+            catch: ride,
+            ride,
+            dock,
+            release: dock,
+            end,
+            held,
+            returnEnd: s.rollingDrive
+              ? end + RETURN_DELAY + 1.35
+              : m.kind === "striker"
+                ? end + 1.5
+                : end,
+            through: true,
+          };
+          this.clips.set(stop, clip);
           this.phases.push({
             kind: "deck",
             start: time,
-            end: caught,
+            end,
             clip,
-            x0: local[0] + edges[0],
-            x1: held,
-            ease: "in",
+            x0,
+            x1,
+            ease: "through",
+            slide,
           });
-        const moving = hasVillageCarrier(m),
-          p = new Vector3(held, local[1], local[2]),
-          a = p
-            .clone()
-            .applyMatrix4(mechanismMatrix(m, s.anchor, 0, new Matrix4())),
-          b = p
-            .clone()
-            .applyMatrix4(mechanismMatrix(m, s.anchor, 1, new Matrix4())),
-          travel =
-            m.kind === "wheelbucket"
-              ? Math.abs(m.angle * m.radius)
-              : "pivot" in m
-                ? Math.abs(m.angle) * p.distanceTo(new Vector3(...m.pivot))
-                : a.distanceTo(b),
-          rideDuration = moving
-            ? Math.max(0.55, travel / CARRY_SPEED)
-            : m.kind === "escapement"
-              ? 0.4
-              : m.kind === "striker"
-                ? 0.2
-                : 0.1;
-        clip.dock = clip.ride + rideDuration;
-        clip.release = clip.dock + 0.08;
-        this.phases.push(
-          {
-            kind: "hold",
-            start: caught,
-            end: clip.ride,
-            clip,
-            x0: held,
-            x1: held,
-            ease: "hold",
-          },
-          {
-            kind: "ride",
-            start: clip.ride,
-            end: clip.dock,
-            clip,
-            x0: held,
-            x1: held,
-            ease: "hold",
-          },
-          {
-            kind: "hold",
-            start: clip.dock,
-            end: clip.release,
-            clip,
-            x0: held,
-            x1: held,
-            ease: "hold",
-          },
-        );
-        const endX = stop === 0 ? held : local[0] + edges[1],
-          departure =
-            stop === 0
+        } else {
+          const approach = s.initialCargo
               ? 0
-              : Math.max(0.18, (2 * Math.abs(endX - held)) / CRUISE);
-        clip.end = clip.release + departure;
-        clip.returnEnd = s.rollingDrive ? clip.end + 1.35 : m.kind==='striker'?clip.end+1.5:clip.end;
-        if (departure)
-          this.phases.push({
-            kind: "deck",
-            start: clip.release,
-            end: clip.end,
-            clip,
-            x0: held,
-            x1: endX,
-            ease: "out",
-          });
+              : Math.max(
+                  0.18,
+                  (2 * Math.abs(held - local[0] - edges[0])) / CRUISE,
+                ),
+            caught = time + approach;
+          clip = {
+            station: s,
+            start,
+            catch: caught,
+            ride: caught + 0.14,
+            dock: 0,
+            release: 0,
+            end: 0,
+            held,
+            returnEnd: 0,
+            through: false,
+          };
+          this.clips.set(stop, clip);
+          if (s.initialCargo)
+            this.phases.push({
+              kind: "hold",
+              start: 0,
+              end: time,
+              clip,
+              x0: held,
+              x1: held,
+              ease: "hold",
+            });
+          else
+            this.phases.push({
+              kind: "deck",
+              start: time,
+              end: caught,
+              clip,
+              x0: local[0] + edges[0],
+              x1: held,
+              ease: "in",
+            });
+          const
+            p = new Vector3(held, local[1], local[2]),
+            a = p
+              .clone()
+              .applyMatrix4(mechanismMatrix(m, s.anchor, 0, new Matrix4())),
+            b = p
+              .clone()
+              .applyMatrix4(mechanismMatrix(m, s.anchor, 1, new Matrix4())),
+            travel =
+              m.kind === "wheelbucket"
+                ? Math.abs(m.angle * m.radius)
+                : "pivot" in m
+                  ? Math.abs(m.angle) * p.distanceTo(new Vector3(...m.pivot))
+                  : a.distanceTo(b),
+            rideDuration = moving
+              ? Math.max(0.55, travel / CARRY_SPEED)
+              : m.kind === "escapement"
+                ? 0.4
+                : m.kind === "striker"
+                  ? 0.2
+                  : 0.1;
+          clip.dock = clip.ride + rideDuration;
+          clip.release = clip.dock + 0.08;
+          this.phases.push(
+            {
+              kind: "hold",
+              start: caught,
+              end: clip.ride,
+              clip,
+              x0: held,
+              x1: held,
+              ease: "hold",
+            },
+            {
+              kind: "ride",
+              start: clip.ride,
+              end: clip.dock,
+              clip,
+              x0: held,
+              x1: held,
+              ease: "hold",
+            },
+            {
+              kind: "hold",
+              start: clip.dock,
+              end: clip.release,
+              clip,
+              x0: held,
+              x1: held,
+              ease: "hold",
+            },
+          );
+          const endX = stop === 0 ? held : local[0] + edges[1],
+            departure =
+              stop === 0
+                ? 0
+                : Math.max(0.18, (2 * Math.abs(endX - held)) / CRUISE);
+          clip.end = clip.release + departure;
+          clip.returnEnd = s.rollingDrive ? clip.end + 1.35 : m.kind==='striker'?clip.end+1.5:clip.end;
+          if (departure)
+            this.phases.push({
+              kind: "deck",
+              start: clip.release,
+              end: clip.end,
+              clip,
+              x0: held,
+              x1: endX,
+              ease: "out",
+            });
+        }
         time = clip.end;
         this.contacts.push({
           stop,
           start,
-          contact: caught,
+          contact: clip.catch,
           end: time,
           moverIds: [
             ...(moving ? [`village-${stop}-carrier`] : []),
@@ -493,7 +574,7 @@ export class VillageCinematic implements VillageRoute {
           this.transfers.push({
             stop,
             kind: "strike",
-            start: caught,
+            start: clip.catch,
             end: clip.returnEnd,
           });
       }
@@ -563,8 +644,19 @@ export class VillageCinematic implements VillageRoute {
       s = c.station,
       local = carrierContact(s.mechanism),
       u = clamp((t - ph.start) / (ph.end - ph.start || 1)),
-      f = ph.ease === "in" ? 1 - (1 - u) ** 2 : ph.ease === "out" ? u * u : 0,
-      x = ph.x0 + (ph.x1 - ph.x0) * f;
+      f =
+        ph.ease === "in"
+          ? 1 - (1 - u) ** 2
+          : ph.ease === "out"
+            ? u * u
+            : ph.ease === "through"
+              ? u
+              : 0,
+      slide = ph.slide ?? 0,
+      x =
+        ph.x0 +
+        (ph.x1 - ph.x0 + slide) * f -
+        slide * villageEase((t - c.ride) / (c.dock - c.ride));
     p.set(x, local[1], local[2]);
     this.carrierPose(s.stop, t, this.matrix);
     p.applyMatrix4(this.matrix);
@@ -592,7 +684,11 @@ export class VillageCinematic implements VillageRoute {
     if (!s) throw Error("Unknown village stop");
     let p = c ? clamp((t - c.ride) / (c.dock - c.ride)) : 0;
     if (c && s.rollingDrive && t > c.end)
-      p = 1 - villageEase((t - c.end) / (c.returnEnd - c.end));
+      p =
+        1 -
+        villageEase(
+          (t - c.end - RETURN_DELAY) / (c.returnEnd - c.end - RETURN_DELAY),
+        );
     return mechanismMatrix(s.mechanism, s.anchor, p, target);
   }
   private buildOrientation() {
@@ -604,7 +700,8 @@ export class VillageCinematic implements VillageRoute {
       rotation = new Quaternion(),
       held = new Quaternion(),
       base = new Quaternion(),
-      M = new Matrix4();
+      M = new Matrix4(),
+      M0 = new Matrix4();
     this.position(0, previous, normal);
     this.quaternions.push(new Quaternion());
     this.distances.push(0);
@@ -632,6 +729,15 @@ export class VillageCinematic implements VillageRoute {
         this.carrierPose(ph.clip.station.stop, t, M);
         q.setFromRotationMatrix(M).multiply(base).multiply(held);
       } else if (ph.kind === "roll" || ph.kind === "deck") {
+        if (ph.kind === "deck" && ph.clip.through && last === ph) {
+          // On a tipping deck the marble rolls by its travel along the deck; the deck's own turn
+          // carries it round without adding spin.
+          const stop = ph.clip.station.stop;
+          this.carrierPose(stop, (i - 1) / RATE, M0).invert();
+          M0.premultiply(this.carrierPose(stop, t, M));
+          delta.subVectors(point, previous.applyMatrix4(M0));
+          q.premultiply(rotation.setFromRotationMatrix(M0));
+        }
         axis.crossVectors(normal, delta);
         if (axis.lengthSq() > 1e-20) {
           rotation.setFromAxisAngle(axis.normalize(), delta.length() / radius);
@@ -716,7 +822,8 @@ export class VillageCinematic implements VillageRoute {
     const c = this.clips.get(stop),
       s = this.authoredPlan.stations.find((s) => s.stop === stop);
     if (!s) throw Error("Unknown village stop");
-    const p = c ? villageEase((t - c.ride) / (c.dock - c.ride)) : 0,
+    const u = c ? (t - c.ride) / (c.dock - c.ride) : 0,
+      p = c?.through ? easeOut(u) : villageEase(u),
       m = s.mechanism;
     if (s.releasePin && part === "gate") {
       out.y = 0.6 * villageEase((t - 0.2) / 0.5);
@@ -730,13 +837,26 @@ export class VillageCinematic implements VillageRoute {
           s.mechanism.kind === "wheelbucket" && s.mechanism.angle < 0 ? -1 : 1,
         first = s.retention.captureStart + direction * 0.34,
         last = this.retainedForkOrigin(stop),
-        catchU = c ? villageEase((t - c.start) / (c.catch - c.start || 1)) : 0;
+        catchU = c?.through
+          ? 1
+          : c
+            ? villageEase((t - c.start) / (c.catch - c.start || 1))
+            : 0;
       out.x = first + (last - first) * catchU;
-      const closed = c ? villageEase((t - c.catch) / 0.3) : 0,
-        opened = c ? villageEase((t - c.dock) / 0.15) : 0;
+      // On a walkway nothing clamps the marble. Its gear stays as a lift leaves it after letting
+      // go: fork home at the end of its slot, head raised, the one pose the marble rolls under.
+      // A captive fork cannot lift, so that one stays swung open instead.
+      const captive = this.retainedLayout(stop) === "keyed-prismatic",
+        closed = c?.through
+          ? captive
+            ? 0
+            : 1
+          : c
+            ? villageEase((t - c.catch) / 0.3)
+            : 0,
+        opened = c?.through ? 1 : c ? villageEase((t - c.dock) / 0.15) : 0;
       out.angle =
         part === "fork" ? ((-direction * Math.PI) / 2) * (1 - closed) : 0;
-      const captive=this.retainedLayout(stop)==='keyed-prismatic';
       out.y = part === "head-frame" || captive&&part==='fork' ? 0 : (this.retainedSide(stop)===1 ? .45 : .6) * opened;
       return;
     }
@@ -747,11 +867,17 @@ export class VillageCinematic implements VillageRoute {
     else if (part === "gate") out.y = 1.2 * p;
     else if (part === "striker" && c) {
       if (m.kind === "escapement") {
-        out.angle = (Math.PI / 2) * villageEase((t - (c.catch - 0.25)) / 0.3);
+        out.angle =
+          (Math.PI / 2) *
+          (c.through
+            ? easeOut((t - c.catch) / KNOCK)
+            : villageEase((t - (c.catch - 0.25)) / 0.3));
         return;
       }
       const swing =
-        villageEase((t - c.catch) / 0.35) *
+        (c.through
+          ? easeOut((t - c.catch) / KNOCK)
+          : villageEase((t - c.catch) / 0.35)) *
         (1 - villageEase((t - c.end - 0.4) / 1.1));
       if (s.strikerDrive?.kind === "pendulum")
         out.angle = s.strikerDrive.stopAngle * swing;

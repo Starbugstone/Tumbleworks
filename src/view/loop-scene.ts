@@ -5,7 +5,7 @@ import { bakeOcclusion, candy } from '../engine/candy';
 import { Shake } from '../engine/shake';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { Sparks } from '../engine/sparks';
-import { lorry, lorryMaterials, type LorryMaterials } from './lorry';
+import { cargoBrick, lorry, lorryMaterials, TUB, type LorryMaterials } from './lorry';
 import { LoopRoster, type RosterPick } from './loop-roster';
 import { MarbleCrowd } from '../engine/crowd';
 import { frameBoard } from '../engine/framing';
@@ -21,12 +21,13 @@ const CAMERA_DIRECTION = new THREE.Vector3(0, 0.84, 0.54).normalize();
 const PLATFORM = ARCADE.deck;
 const PLATFORM_DARK = ARCADE.edge;
 const CHANNEL = ARCADE.track;
+const BAY = 0x8a66b4;
 const MAX_BLOCKS = 6;
 const plastic = (color: number, roughness = 0.42): THREE.MeshStandardMaterial =>
   candy(new THREE.MeshStandardMaterial({ color, roughness, metalness: 0, envMapIntensity: 0.7 }));
 /** Glossy toy plastic, without the clearcoat layer the marbles keep. */
 const shiny = (color: number): THREE.MeshStandardMaterial =>
-  candy(new THREE.MeshStandardMaterial({ color, roughness: 0.12, metalness: 0, envMapIntensity: 1.5 }));
+  candy(new THREE.MeshStandardMaterial({ color, roughness: 0.3, metalness: 0 }));
 
 function roundedRect(halfWidth: number, halfDepth: number, radius: number): THREE.Shape {
   const shape = new THREE.Shape();
@@ -66,7 +67,7 @@ function rounded(width: number, height: number, depth: number, material: THREE.M
   return mesh;
 }
 
-interface Block { readonly group: THREE.Group; readonly box: THREE.Mesh; readonly badge: THREE.Mesh; color: Color | null; units: number; previousUnits: number }
+interface Block { readonly group: THREE.Group; readonly box: THREE.Mesh; readonly setLength: (length: number) => void; readonly badge: THREE.Mesh; color: Color | null; units: number; previousUnits: number }
 interface TruckVisual { readonly group: THREE.Group; readonly blocks: Block[]; readonly setLatched: (latched: boolean) => void; readonly setWheelTravel: (distance: number) => void; readonly setUnloading: (state: 'pouring' | 'waiting' | null, time: number) => void; pulse: number }
 
 /** The Loop Sort toy: the belt and the row of docked lorries. Numbers and waiting lorries live in the cards beneath it. */
@@ -104,7 +105,8 @@ export class LoopScene {
     this.scene.add(this.level);
     this.sparks = new Sparks(this.scene);
     for (const color of Object.keys(COLORS) as Color[]) {
-      this.blockMaterials.set(color, shiny(COLORS[color].hex));
+      // Matt enough that the top keeps its palette colour wherever the light falls; the brick's own sides give it depth.
+      this.blockMaterials.set(color, candy(new THREE.MeshStandardMaterial({ color: COLORS[color].hex, roughness: 0.5, vertexColors: true })));
       this.symbols.set(color, containerSymbolTexture(color));
     }
   }
@@ -120,7 +122,8 @@ export class LoopScene {
     // Long enough that five ticks per frame at 30 fps still reads as forward travel.
     this.belt = new BeltSurface(track, LOOP.channelHalf - 0.03, LOOP.floorY, MARBLE_RADIUS * 13);
     this.level.add(this.belt.mesh);
-    const top = shiny(PLATFORM);
+    // The parking deck is a pale lilac, so every lorry's shadow shows on it. No cargo is ever read against it.
+    const top = plastic(BAY, 0.5);
     const lip = shiny(ARCADE.rim);
     if (!eight) {
       const side = plastic(PLATFORM_DARK);
@@ -149,7 +152,7 @@ export class LoopScene {
         const start = mouth - TRUCK.mouthGap + LOOP.channelHalf;
         part(TRUCK.bedWidth + 0.14, DECK_TOP, end - start, 0.05, PLATFORM, bay.x, DECK_TOP / 2, (end + start) / 2);
       }
-      part(TRUCK.bedWidth + 0.12, 0.04, end - mouth + 0.2, 0.02, CHANNEL, bay.x, DECK_TOP + 0.015, (end + mouth - 0.2) / 2);
+      part(TRUCK.bedWidth + 0.12, 0.04, end - mouth + 0.2, 0.02, PLATFORM, bay.x, DECK_TOP + 0.015, (end + mouth - 0.2) / 2);
       part(TRUCK.bedWidth * 0.86, 0.05, 0.16, 0.02, ARCADE.gold, bay.x, DECK_TOP + 0.03, mouth - 0.3);
     });
     const base = new THREE.Mesh(fuse(parts), bodyPlastic());
@@ -172,16 +175,19 @@ export class LoopScene {
     const blocks: Block[] = [];
     for (let i = 0; i < MAX_BLOCKS; i++) {
       const block = new THREE.Group();
-      const box = new THREE.Mesh(new RoundedBoxGeometry(TRUCK.bedWidth - 0.16, 0.34, 1, 2, 0.05), this.blockMaterials.get('red')!);
+      const brick = cargoBrick(TRUCK.bedWidth - TUB.inset * 2);
+      const box = new THREE.Mesh(brick.geometry, this.blockMaterials.get('red')!);
       box.castShadow = true;
+      box.receiveShadow = true;
+      box.frustumCulled = false;
       block.add(box);
       const badge = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: this.symbols.get('red')!, transparent: true, depthWrite: false, toneMapped: false }));
       badge.rotation.x = -Math.PI / 2;
-      badge.position.y = 0.18;
+      badge.position.y = TUB.cargo + 0.006;
       block.add(badge);
       block.visible = false;
       group.add(block);
-      blocks.push({ group: block, box, badge, color: null, units: 0, previousUnits: 0 });
+      blocks.push({ group: block, box, setLength: brick.setLength, badge, color: null, units: 0, previousUnits: 0 });
     }
     return { group, blocks, setLatched: shell.setLatched, setWheelTravel: shell.setWheelTravel, setUnloading: shell.setUnloading, pulse: 0 };
   }
@@ -209,7 +215,7 @@ export class LoopScene {
       // Dark edges show on the ivory beds and the light stripe stays continuous across the dark lane gap, in grayscale too.
       const mesh = new THREE.Group();
       const body = rounded(1, 0.16, 0.24, materials.rubber, 0.04);
-      const stripe = new THREE.Mesh(new THREE.BoxGeometry(1, 0.03, 0.07), materials.ivory);
+      const stripe = new THREE.Mesh(new THREE.BoxGeometry(1, 0.03, 0.07), materials.trim);
       stripe.position.y = 0.095;
       mesh.add(body, stripe);
       mesh.name = 'coupling-bar';
@@ -438,8 +444,8 @@ export class LoopScene {
         const length = (block.previousUnits + (block.units - block.previousUnits) * alpha) * unit;
         block.group.visible = length > 0.005;
         if (!block.group.visible) return;
-        block.group.position.set(0, TRUCK.bedHeight + 0.17, edge + facing * length / 2);
-        block.box.scale.z = Math.max(length - 0.04, 0.005);
+        block.group.position.set(0, TRUCK.bedHeight, edge + facing * length / 2);
+        block.setLength(Math.max(length - 0.03, 0.005));
         const side = Math.min(0.34, length - 0.05);
         block.badge.visible = side > 0.06;
         block.badge.scale.setScalar(side);

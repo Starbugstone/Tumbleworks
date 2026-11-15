@@ -49,9 +49,18 @@ function texture(element: HTMLCanvasElement): THREE.CanvasTexture {
   return result;
 }
 
+/**
+ * Marble gloss. The colour-blind owner must be able to match a marble to its container, so the sphere keeps
+ * its palette colour: one clean highlight from the clearcoat, and little of the pale studio mirrored in the body,
+ * which bleached yellow towards cream and orange towards peach until the two were hard to tell apart.
+ */
+function glossy(color: Color): THREE.MeshPhysicalMaterial {
+  return new THREE.MeshPhysicalMaterial({ color: COLORS[color].hex, roughness: 0.25, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.05, specularIntensity: 0.5 });
+}
+
 /** The shared marble entity: a plain glossy sphere in its natural colour. */
 export function marbleMaterial(color: Color): THREE.MeshPhysicalMaterial {
-  return new THREE.MeshPhysicalMaterial({ color: COLORS[color].hex, roughness: 0.12, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.03, envMapIntensity: 1.6 });
+  return glossy(color);
 }
 
 /** Each colour has its own shape, so the machine never relies on hue alone. */
@@ -121,7 +130,7 @@ export function containerSymbolTexture(color: Color): THREE.CanvasTexture {
 
 /** A plain glossy marble in its natural colour, for instanced crowds. Patterns live on the containers. */
 export function crowdMaterial(color: Color): THREE.MeshPhysicalMaterial {
-  return new THREE.MeshPhysicalMaterial({ color: COLORS[color].hex, roughness: 0.12, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.03, envMapIntensity: 1.6 });
+  return glossy(color);
 }
 
 /**

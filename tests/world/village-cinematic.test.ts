@@ -81,6 +81,33 @@ describe("cinematic village films", () => {
           expect(a.distanceTo(b)).toBeLessThan(1e-12);
         }
       });
+      it("rolls through seesaws, swinging bars, the clock gate and sliding carriages without stopping", () => {
+        // Owner: only a lift may hold the marble. The first and last stops are the film's own rests.
+        const a = new Vector3(),
+          b = new Vector3();
+        for (const s of scene.plan.stations) {
+          const m = s.mechanism,
+            passes =
+              s.stop !== 9 &&
+              s.stop !== 0 &&
+              ((m.kind === "translating" &&
+                m.travel[0] > 0 &&
+                Math.abs(m.travel[1]) < 0.2) ||
+                (!s.retention &&
+                  (m.kind === "striker" ||
+                    m.kind === "escapement" ||
+                    ("pivot" in m && !m.dockingLift))));
+          if (!passes) continue;
+          const c = route.contacts.find((c) => c.stop === s.stop)!;
+          let slowest = Infinity;
+          for (let t = c.start; t < c.end - 1 / 120; t += 1 / 120) {
+            route.sample(t, a);
+            route.sample(t + 1 / 120, b);
+            slowest = Math.min(slowest, a.distanceTo(b) * 120);
+          }
+          expect(slowest, `stop ${s.stop} ${m.kind}`).toBeGreaterThan(2);
+        }
+      });
       it("keeps the established renderer shape contract", () => {
         const physical = new VillageProgram(scene.plan);
         for (const s of scene.plan.stations) {

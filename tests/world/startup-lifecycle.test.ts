@@ -7,5 +7,5 @@ it('production suspend/build-cancel/eligibility mutants break replay invariants'
 
 it('does not start a previous scene after the current film build failed',()=>{
  let listener:()=>void=()=>{},starts=0;const build={chapter:1,state:'running' as 'running'|'failed',take:()=>{throw Error('failed');},cancel:()=>{},onSettled:(f:()=>void)=>{listener=f;}};
- const own=new VillageOwnership(()=>{starts++;return build;},()=>{});try{own.openFilm(1,false);build.state='failed';listener();expect(own.filmFailed()).toBe(true);expect(starts).toBe(1);expect(own.film?.previousBuild).toBeNull();}finally{own.dispose();}
+ const own=new VillageOwnership(()=>{starts++;return build;},()=>{},true);try{own.openFilm(1,false);build.state='failed';listener();expect(own.filmFailed()).toBe(true);expect(starts).toBe(1);expect(own.film?.previousBuild).toBeNull();}finally{own.dispose();}
 });

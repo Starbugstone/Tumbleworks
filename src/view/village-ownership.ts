@@ -26,7 +26,7 @@ export type VillageScreen = 'map' | 'film' | 'overview' | 'workshop' | 'hidden';
 export interface FilmOwnership<S> {
   readonly chapter: number;
   readonly earned: boolean;
-  /** Owned by the film: built for its handoff, disposed when the film ends. */
+  /** Owned by the film when `filmPrevious` is on; disposed when the film ends. */
   previous: S | null;
   previousBuild: LifecycleBuild<S> | null;
   previousFailed: boolean;
@@ -41,7 +41,10 @@ export class VillageOwnership<S extends LifecycleScene> {
   failedChapter: number | null = null;
   film: FilmOwnership<S> | null = null;
 
-  constructor(private readonly startBuild: (chapter: number) => LifecycleBuild<S>, private readonly changed: () => void) {}
+  /** `filmPrevious`: a film also builds and owns the preceding village. The game no longer shows that
+   *  closing glimpse and passes false; the checked model keeps the two-scene case covered. */
+  constructor(private readonly startBuild: (chapter: number) => LifecycleBuild<S>, private readonly changed: () => void,
+    private readonly filmPrevious: boolean) {}
 
   showMap(chapter: number): void {
     this.endFilm(); this.screen = 'map'; this.ensure(chapter); this.scene?.activateProof();
@@ -66,7 +69,7 @@ export class VillageOwnership<S extends LifecycleScene> {
   filmScenes(): { readonly current: S; readonly previous: S | null } | null {
     const film = this.film;
     if (!film || this.scene?.chapter !== film.chapter) return null;
-    if (film.chapter > 0 && !film.previous) return null;
+    if (this.filmPrevious && film.chapter > 0 && !film.previous) return null;
     return { current: this.scene, previous: film.previous };
   }
   filmFailed(): boolean {
@@ -106,7 +109,7 @@ export class VillageOwnership<S extends LifecycleScene> {
   /** The film's previous scene builds only after the map scene: one build at a time. */
   private pump(): void {
     const film = this.film;
-    if (!film || this.failedChapter === film.chapter || film.chapter === 0 || film.previous || film.previousBuild || film.previousFailed || this.build) return;
+    if (!this.filmPrevious || !film || this.failedChapter === film.chapter || film.chapter === 0 || film.previous || film.previousBuild || film.previousFailed || this.build) return;
     const build = this.startBuild(film.chapter - 1); film.previousBuild = build;
     build.onSettled(() => this.settled(build));
   }

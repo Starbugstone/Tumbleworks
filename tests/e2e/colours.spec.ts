@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { mkdir } from 'node:fs/promises';
 import type { App } from '../../src/view/App';
 import type { ColourGame } from '../fixtures/seven-colours';
-import { chooseLevel } from '../fixtures/picker';
+import { openMenuSettings, chooseLevel } from '../fixtures/picker';
 
 // TUMBLEWORKS_URL=http://127.0.0.1:5191 npx playwright test tests/e2e/colours.spec.ts
 // Fixtures are loaded by Vite only in this test, through the existing development app hook.
@@ -65,14 +65,16 @@ test('seven colours on real boards, cargo, tube rails and the picker at 375×690
     expect(await page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.runtime.status)).toBe('playing');
   }
   await page.locator('#levels-toggle').click();
+  await openMenuSettings(page);
   await page.locator('#patterns').scrollIntoViewIfNeeded();
   await expect(page.locator('#patterns > span')).toHaveCount(7);
-  await expect(page.locator('#patterns')).toContainText('Dots = black');
-  await expect(page.locator('#patterns')).toContainText('Heart = white');
+  await expect(page.locator('#patterns [aria-label="Dots = black"]')).toBeVisible();
+  await expect(page.locator('#patterns [aria-label="Heart = white"]')).toBeVisible();
   await capture(page, 'legend');
+  await openMenuSettings(page);
   await page.locator('#language-fr').click();
-  await expect(page.locator('#patterns')).toContainText('Points = noir');
-  await expect(page.locator('#patterns')).toContainText('Cœur = blanc');
+  await expect(page.locator('#patterns [aria-label="Points = noir"]')).toBeVisible();
+  await expect(page.locator('#patterns [aria-label="Cœur = blanc"]')).toBeVisible();
   await capture(page, 'legend-fr');
   expect(errors).toEqual([]);
 });

@@ -14,7 +14,8 @@ interface Motion { readonly from: Point3; readonly to: Point3; time: number; dro
 /** Stable actors can be retargeted during motion. Rules never wait for presentation. */
 export abstract class BoardView {
   readonly scene: THREE.Scene;
-  readonly camera = new THREE.PerspectiveCamera(40, 1, 0.1, 150);
+  // A long lens: every tube is seen from nearly the same angle. At 40 degrees the nearest tube was looked down into and its lower marbles hid behind the top one.
+  readonly camera = new THREE.PerspectiveCamera(20, 1, 0.1, 300);
   readonly board = new THREE.Group();
   protected readonly actors = new THREE.Group();
   private readonly marbleLayer = new THREE.Group();

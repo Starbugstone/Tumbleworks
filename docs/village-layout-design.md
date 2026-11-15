@@ -21,7 +21,7 @@ existing owners. A chapter selects an explicit `VillagePlan`, never a location
 Each plan owns terrain footprint/heights/holes, ten stable stop indices with
 independent build and badge anchors, mechanical assemblies, explicitly authored
 connections, contact timing, scenery, Workshop and reward placements, camera
-shots and the previous-village handoff port. Location kind can select dressing
+shots and the entry port. Location kind can select dressing
 assets; it must not select a recycled layout.
 
 Shared mechanical primitives own both rendered support surfaces and marble
@@ -85,7 +85,7 @@ Workshop marker's stronger stop/stem separation checks remain. All badges,
 stems, build masses and Workshop door/marker must clear the HUD across ±15° map
 yaw. A badge must not sit on another stop's visible construction.
 
-The film remains 25 seconds plus the 2.5-second previous-village handoff. It
+The film ends in its own village, with no glimpse of the preceding one. It
 enters at stable stop 9 and ends at stop 0. Each stop has a contact, with contact
 windows of 0.8–4 seconds, no plain connector longer than 2.5 seconds, first
 contact by 2.5 seconds and the finale resolved at least 1.2 seconds before the

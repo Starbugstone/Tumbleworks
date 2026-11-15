@@ -74,6 +74,7 @@ export function registerWorldKit(raw: string): void { kit = parseWorldAsset(raw)
 
 /** Geometry belongs to one scene; repeated village pieces share it only inside that scene. */
 export class WorldKitAssets {
+  constructor(private readonly tropical = false) {}
   private readonly geometries = new Map<AssetMesh, THREE.BufferGeometry>();
   get modelNames(): readonly string[] { return [...new Set(kit?.meshes.map(mesh => mesh.model) ?? [])]; }
   model(name: string, material: THREE.Material): THREE.Group {
@@ -89,7 +90,13 @@ export class WorldKitAssets {
         geometry = new THREE.BufferGeometry();
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(source.positions.map(value => value / asset.positionScale), 3));
         geometry.setAttribute('normal', new THREE.Float32BufferAttribute(source.normals.map(value => value / asset.normalScale), 3));
-        geometry.setAttribute('color', new THREE.Float32BufferAttribute(source.colors.flatMap(index => asset.palette[index]!), 3));
+        geometry.setAttribute('color', new THREE.Float32BufferAttribute(source.colors.flatMap(index => {
+          if (this.tropical && ['house-a', 'house-b', 'warehouse'].includes(source.model)) {
+            const paint: Record<number, number> = { 0: 0xf7e9c7, 1: 0xe7bb86, 7: source.model === 'warehouse' ? 0x398d8c : 0x329b9c };
+            if (paint[index] !== undefined) return new THREE.Color(paint[index]).toArray();
+          }
+          return asset.palette[index]!;
+        }), 3));
         geometry.setIndex(source.indices);
         geometry.computeBoundingSphere();
         this.geometries.set(source, geometry);

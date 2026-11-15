@@ -47,7 +47,8 @@ export class TubeView extends BoardView {
   private readonly dragRay = new THREE.Raycaster();
 
   constructor(services: GameServices, readonly definition: TubeDef, state: TubeState) {
-    super(services, 1.35);
+    // Low enough that each marble in a stack shows about two thirds of itself above the one in front.
+    super(services, 1.15);
     this.sparks = new Sparks(this.scene, 1.7);
     for (const color of Object.keys(COLORS) as Color[]) this.badgeMaterials.set(color,
       new THREE.MeshBasicMaterial({ map: containerSymbolTexture(color), transparent: true, depthWrite: false, toneMapped: false }));

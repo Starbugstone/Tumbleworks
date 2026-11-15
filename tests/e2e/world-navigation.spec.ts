@@ -1,3 +1,4 @@
+import { openMenuSettings } from '../fixtures/picker';
 import { expect, test, type Page } from '@playwright/test';
 import { CAMPAIGN } from '../../src/campaign';
 import type { App } from '../../src/view/App';
@@ -66,7 +67,7 @@ test('the phone overview shows six compact village labels over resting 3D terrai
   await expect(page.locator('.wv-location[data-chapter="1"]')).toHaveAttribute('aria-disabled', 'true');
   const art = await page.evaluate(() => {
     const app = (window as unknown as GameWindow).tumbleworks.app;
-    return { camera: app.world.valley?.camera.type, terrain: Boolean(app.world.valley?.scene.getObjectByName('valley-terrain')),
+    return { camera: app.world.valley?.camera.type, terrain: app.world.valley?.scene.children.filter(child => child.name.startsWith('valley-village-')).every(child => Boolean(child.getObjectByProperty('type', 'Mesh'))),
       villages: app.world.valley?.scene.children.filter(child => child.name.startsWith('valley-village-') && child.visible).length,
       triangles: app.stage.renderer.info.render.triangles };
   });
@@ -137,7 +138,7 @@ test('visiting the wider valley preserves an unfinished puzzle and its Undo stat
 
 test('French overview labels wrap without clipping on the phone and existing desktop layout', async ({ page }) => {
   await page.goto('/'); await ready(page);
-  await page.locator('#levels-toggle').click(); await page.getByRole('button', { name: 'Français', exact: true }).click();
+  await page.locator('#levels-toggle').click(); await openMenuSettings(page); await page.getByRole('button', { name: 'Français', exact: true }).click();
   if (await page.locator('#levels').isVisible()) await page.locator('#levels-toggle').click();
   await overview(page, 'fr');
   await labelsFit(page);

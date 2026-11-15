@@ -70,8 +70,10 @@ partial handoffs do not deliver a playable film.
 Use [the checks and tool map](references/checks.md). Retain a regression that
 rejects the old defect and accepts the real repair. Distinguish:
 
-- a rolling pass with continuous incoming/outgoing velocity;
-- a genuine catch with finite braking, spin settling and visible release;
+- a rolling pass with continuous incoming/outgoing velocity. The owner requires this at every
+  seesaw, swinging bar, clock gate and short sliding carriage: the marble never stops there;
+- a genuine catch with finite braking, spin settling and visible release, reserved for lift-class
+  carries;
 - a powered carry with a visible, mechanically plausible source and shared mesh/actor frames.
 
 Reuse supported primitives where they fit the visible design. Physical research

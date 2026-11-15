@@ -16,6 +16,9 @@ import { guideSeen, locale, onLocaleChange, setGuideSeen, setLocale } from '../p
 import { enterStop, nextInStop, worldProgress, type WorldProgress } from '../world/progression';
 import { filmSeen, initializeValley, markFilmSeen } from '../world/film-progress';
 import { WorldView } from './world';
+import { worldLocation } from '../world/locations';
+import { levelIcon } from './level-icon';
+import './level-menu.css';
 import './world.css';
 
 const element = (id: string): HTMLElement => {
@@ -129,9 +132,15 @@ export class App {
         this.showMap(earned && progress.chapters[chapter + 1]?.available ? chapter + 1 : chapter);
       },
     });
-    const mapButton = document.createElement('button'); mapButton.id = 'map-open';
-    mapButton.addEventListener('click', () => { sfx.unlock(); this.showMap(undefined, false, true); });
-    element('levels').prepend(mapButton);
+    button('map-open').addEventListener('click', () => {
+      sfx.unlock();
+      if (this.source === 'workshop' && this.screen === 'game') this.showWorkshop();
+      else this.showMap(this.menuStop()?.chapter, false, true);
+    });
+    button('menu-close').addEventListener('click', () => this.showLevels(false));
+    element('levels-backdrop').addEventListener('click', () => this.showLevels(false));
+    button('menu-settings').addEventListener('click', () => this.showMenuSettings(true));
+    button('menu-back').addEventListener('click', () => this.showMenuSettings(false));
     this.undoButton.addEventListener('click', () => this.undo());
     button('restart').addEventListener('click', () => { sfx.unlock(); this.loadBoard(this.boardIndex); });
     button('hint').addEventListener('click', () => { this.hint(); this.refresh(); });
@@ -602,12 +611,18 @@ export class App {
     document.documentElement.lang = locale();
     for (const [id, label] of Object.entries({
       undo: t('Undo', 'Annuler'), restart: t('Restart', 'Recommencer'), hint: t('Hint', 'Indice'), fast: t('Fast forward ×3 (hold)', 'Avance rapide ×3 (maintenir)'), faster: t('Fast forward ×5 (hold)', 'Avance rapide ×5 (maintenir)'), mute: t('Sound', 'Son'),
-      scene: t('Puzzle board', 'Plateau de jeu'), chips: t('Campaign levels', 'Niveaux'), 'board-controls': t('Board pieces', 'Pièces du plateau'), patterns: t('Container patterns', 'Motifs des contenants'),
+      scene: t('Puzzle board', 'Plateau de jeu'), chips: t('Round levels', 'Niveaux de l’étape'), 'board-controls': t('Board pieces', 'Pièces du plateau'), patterns: t('Container patterns', 'Motifs des contenants'),
     })) element(id).setAttribute('aria-label', label);
     element('language-label').textContent = t('Language', 'Langue');
     for (const language of ['en', 'fr'] as const) button(`language-${language}`).setAttribute('aria-pressed', String(locale() === language));
     button('guide-skip').textContent = t('Skip guide', 'Passer le guide');
-    button('map-open').textContent = t('Valley map', 'Carte de la vallée');
+    element('levels').setAttribute('aria-label', t('Levels', 'Niveaux'));
+    button('levels-toggle').setAttribute('aria-label', t('Open level menu', 'Ouvrir le menu des niveaux'));
+    button('menu-close').setAttribute('aria-label', t('Close menu', 'Fermer le menu'));
+    button('menu-settings').setAttribute('aria-label', t('Settings and help', 'Réglages et aide'));
+    button('menu-back').setAttribute('aria-label', t('Back to levels', 'Retour aux niveaux'));
+    element('menu-heading').textContent = t('Settings and help', 'Réglages et aide');
+    element('help-label').textContent = t('How to play', 'Comment jouer');
     button('guide-replay').textContent = t('Restart with guide', 'Recommencer avec le guide');
     button('guide-replay').hidden = !this.runtime.guideId;
     button('copy-replay').textContent = t('Copy this game for a bug report', 'Copier cette partie pour signaler un bug');
@@ -621,14 +636,15 @@ export class App {
       icon.setAttribute('aria-hidden', 'true');
       const context = icon.getContext('2d');
       if (context) { context.fillStyle = '#202335'; drawSymbol(context, color, 32, 32, 26); }
-      item.append(icon, ` ${patternName(color)} = ${colorName(color)}`);
+      item.append(icon, ` ${colorName(color)}`);
+      item.setAttribute('role', 'img');
+      item.setAttribute('aria-label', `${patternName(color)} = ${colorName(color)}`);
       return item;
     }));
     const level = this.levels[this.boardIndex];
     if (!level) return;
     element('level-name').textContent = `${this.boardIndex + 1} / ${this.levels.length} · ${level.name}`;
     element('level-title').textContent = `${level.title} · ${difficultyName(level.difficulty)}`;
-    element('difficulty').textContent = difficultyName(level.difficulty);
     element('level-help').textContent = level.instructions;
     element('instruction').textContent = level.instructions;
     this.renderChips();
@@ -669,45 +685,84 @@ export class App {
   }
 
   private showLevels(open: boolean): void {
+    const wasOpen = !element('levels').hidden;
+    if (open) {
+      this.pointer.cancel();
+      this.setFast(false);
+      this.renderChips();
+      this.showMenuSettings(false, false);
+    }
     element('levels').hidden = !open;
+    element('levels-backdrop').hidden = !open;
     button('levels-toggle').setAttribute('aria-expanded', String(open));
-    if (open) this.chips.querySelector('.chip.active')?.scrollIntoView({ block: 'center' });
+    if (open) button('menu-close').focus({ preventScroll: true });
+    else if (wasOpen) button('levels-toggle').focus({ preventScroll: true });
     if (this.runtime) this.refreshGuide(this.runtime.targets());
   }
 
-  /** Chapters of ten rounds, thirty levels, each under a heading with its completion count; the list scrolls. */
-  private renderChips(): void {
-    const groups: HTMLElement[] = [];
-    for (let start = 0; start < CAMPAIGN.length; start += CHAPTER_LEVELS) {
-      const levels = CAMPAIGN.slice(start, start + CHAPTER_LEVELS);
-      const done = levels.filter((level) => isCompleted(level.id)).length;
-      const last = start + levels.length;
-      const head = document.createElement('h3');
-      head.className = 'chapter';
-      head.textContent = `${t(`Levels ${start + 1}–${last}`, `Niveaux ${start + 1} à ${last}`)} · ${done}/${levels.length}`;
-      const grid = document.createElement('div');
-      grid.className = 'chapter-chips';
-      grid.append(...levels.map((_, offset) => this.chip(start + offset)));
-      groups.push(head, grid);
-    }
-    this.chips.replaceChildren(...groups);
+  private showMenuSettings(settings: boolean, focus = true): void {
+    element('menu-main').hidden = settings;
+    element('menu-secondary').hidden = !settings;
+    button('map-open').hidden = settings || this.screen === 'map';
+    button('menu-settings').hidden = settings;
+    button('menu-back').hidden = !settings;
+    element('menu-heading').hidden = !settings;
+    if (focus) button(settings ? 'menu-back' : 'menu-settings').focus({ preventScroll: true });
   }
 
-  private chip(index: number): HTMLButtonElement {
-    const level = CAMPAIGN[index]!;
+  private menuStop() {
+    const progress = this.worldProgress();
+    if (this.screen === 'map' || this.screen === 'workshop') {
+      const stops = progress.chapters[this.world.currentChapter]?.stops;
+      return stops?.find(stop => stop.status === 'available') ?? stops?.at(-1);
+    }
+    if (this.source === 'workshop') return undefined;
+    return progress.stops.find(stop => this.boardIndex >= stop.firstLevel && this.boardIndex < stop.firstLevel + stop.levels.length);
+  }
+
+  /** The village owns the campaign; this menu only selects among one stop's three puzzles. */
+  private renderChips(): void {
+    const stop = this.menuStop();
+    const project = this.source === 'workshop' && this.screen === 'game';
+    element('map-label').textContent = project ? t('Back to workshop', 'Retour à l’atelier') : t('Back to village', 'Retour au village');
+    element('menu-round').textContent = stop
+      ? `${worldLocation(stop.chapter).name} · ${t(`Round ${stop.index + 1}`, `Étape ${stop.index + 1}`)}`
+      : project ? t('Workshop', 'Atelier') : t('Trial level', 'Niveau d’essai');
+    const indexes = stop ? stop.levels.map((_, offset) => stop.firstLevel + offset) : [this.boardIndex];
+    this.chips.replaceChildren(...indexes.map(index => this.chip(index, this.screen !== 'game' && stop?.status === 'locked')));
+  }
+
+  private chip(index: number, locked = false): HTMLButtonElement {
+    const menuSource = this.screen === 'game' ? this.source : 'campaign';
+    const level = (menuSource === 'campaign' ? CAMPAIGN : this.workshopLevels)[index]!;
     const chip = document.createElement('button');
+    const active = this.screen === 'game' && index === this.boardIndex;
+    const completed = isCompleted(level.id);
     chip.className = 'chip';
     chip.dataset['level'] = String(index);
     chip.dataset['kind'] = level.kind;
-    chip.classList.toggle('active', this.source === 'campaign' && index === this.boardIndex);
-    chip.textContent = isCompleted(level.id) ? '✓' : String(index + 1);
-    chip.setAttribute('aria-label', t(`Level ${index + 1}: ${level.name}, ${difficultyName(level.difficulty)}${isCompleted(level.id) ? ', completed' : ''}`, `Niveau ${index + 1} : ${level.name}, ${difficultyName(level.difficulty)}${isCompleted(level.id) ? ', terminé' : ''}`));
-    chip.setAttribute('aria-current', index === this.boardIndex ? 'step' : 'false');
+    chip.classList.toggle('active', active);
+    chip.classList.toggle('completed', completed);
+    const name = document.createElement('span');
+    name.className = 'level-game';
+    name.textContent = level.name;
+    const number = document.createElement('span');
+    number.className = 'level-number';
+    number.setAttribute('aria-hidden', 'true');
+    number.textContent = completed && !active ? '✓' : String(index + 1);
+    chip.append(levelIcon(level.kind), name, number);
+    chip.setAttribute('aria-label', t(`Level ${index + 1}: ${level.name}${completed ? ', completed' : ''}`, `Niveau ${index + 1} : ${level.name}${completed ? ', terminé' : ''}`));
+    chip.setAttribute('aria-current', active ? 'step' : 'false');
+    chip.setAttribute('aria-disabled', String(locked));
     chip.addEventListener('click', () => {
+      if (locked) return;
       sfx.unlock(); this.showLevels(false);
-      const stop = this.worldProgress().stops[Math.floor(index / 3)];
+      const stop = menuSource === 'campaign' ? this.worldProgress().stops.find(stop => index >= stop.firstLevel && index < stop.firstLevel + stop.levels.length) : undefined;
       this.activeStop = stop ? { index: stop.index, replay: stop.status === 'built' } : null;
-      if (index !== this.boardIndex || this.screen !== 'game' || this.source !== 'campaign') this.loadBoard(index, 'campaign');
+      if (!active) {
+        if (this.screen === 'map' && stop && enterStop(stop, new Set(completedLevels()))?.index === index) this.startStop(stop.index);
+        else this.loadBoard(index, menuSource);
+      }
     });
     return chip;
   }
@@ -739,6 +794,16 @@ export class App {
   }
   private confetti(): void { confetti(element('confetti')); }
   private key(event: KeyboardEvent): void {
+    if (!element('levels').hidden) {
+      if (event.key === 'Escape') { event.preventDefault(); this.showLevels(false); }
+      else if (event.key === 'Tab') {
+        const controls = [...element('levels').querySelectorAll<HTMLElement>('button, summary')].filter(control => control.getClientRects().length > 0);
+        const first = controls[0], last = controls.at(-1);
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+      }
+      return;
+    }
     if (this.screen !== 'game') return;
     if (event.ctrlKey || event.metaKey || event.altKey) return;
     if (event.target instanceof HTMLButtonElement && (event.key === 'Enter' || event.key === ' ')) return;

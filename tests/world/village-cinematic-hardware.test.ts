@@ -13,10 +13,12 @@ for(let chapter=0;chapter<6;chapter++)it(`cinematic ${chapter}: all moving hardw
 },180000);
 
 it('keeps the captive fork on its pin while its separate front leaf opens',()=>{
- const f=cinematicWorld(1,true),r=f.machine.route as VillageCinematic,ride=r.phases.find(p=>p.kind==='ride'&&p.clip.station.stop===5)!;
+ const f=cinematicWorld(1,true),r=f.machine.route as VillageCinematic,crossing=r.contacts.find(c=>c.stop===5)!;
  try{
-  const t=ride.end+.015;f.machine.apply(t);expect(new CinematicHardwareAudit(f.machine,f.world.scene).check()).toEqual([]);
-  const original=r.auxiliaryPose.bind(r),old=vi.spyOn(r,'auxiliaryPose').mockImplementation((stop,part,time,out)=>{original(stop,part,time,out);if(stop===5&&part==='fork'){const leaf={angle:0,x:0,y:0,z:0};original(stop,'capture-head',time,leaf);out.y=leaf.y;}});
+  // The carriage is crossed without a stop now: its leaf is open and its fork swung aside throughout.
+  // The old defect is the closed fork starting to lift off its pin with the leaf (0.017 at the old instant).
+  const t=crossing.contact;f.machine.apply(t);expect(new CinematicHardwareAudit(f.machine,f.world.scene).check()).toEqual([]);
+  const original=r.auxiliaryPose.bind(r),old=vi.spyOn(r,'auxiliaryPose').mockImplementation((stop,part,time,out)=>{original(stop,part,time,out);if(stop===5&&part==='fork'){out.y=.017;out.angle=0;}});
   try{f.machine.apply(t);expect(new CinematicHardwareAudit(f.machine,f.world.scene).check().some(x=>x.a.includes('fork')&&x.b.includes('head-frame')||x.b.includes('fork')&&x.a.includes('head-frame'))).toBe(true);}finally{old.mockRestore();}
  }finally{f.dispose();}
 });

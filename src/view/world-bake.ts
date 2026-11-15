@@ -26,3 +26,12 @@ export function bakeWorldGroup(group: THREE.Group, material: THREE.Material): TH
   const mesh = new THREE.Mesh(geometry, material); mesh.name = group.name;
   group.add(mesh); return mesh;
 }
+
+/** Append static dressing without changing the producer-owned terrain prefix or geometry identity. */
+export function appendWorldGeometry(mesh: THREE.Mesh, sources: readonly THREE.BufferGeometry[]): void {
+  const parts=sources.map(source=>source.index?source.toNonIndexed():source.clone());
+  const merged=mergeGeometries([mesh.geometry,...parts]);parts.forEach(part=>part.dispose());
+  if(!merged)throw new Error('Island dressing could not be merged');
+  for(const name of ['position','normal','color'])mesh.geometry.setAttribute(name,merged.getAttribute(name));
+  mesh.geometry.computeBoundingBox();mesh.geometry.computeBoundingSphere();merged.dispose();
+}

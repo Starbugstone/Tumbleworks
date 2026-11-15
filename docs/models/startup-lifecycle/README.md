@@ -6,6 +6,11 @@ atomic native fence, reduced Play and earned Back acknowledgement. H is Harbour;
 G is Gardens, whose film owns a previous Harbour. Native geometry and the exact
 kernel are checked separately against actual emitted ranges.
 
+The game no longer shows the preceding village at the end of a film, so `WorldView`
+builds `VillageOwnership` with `filmPrevious` off and every film behaves like H's:
+one borrowed scene, no previous slot. The model and `check.ts` keep the option on,
+so the two-scene case stays checked and the shipped case is a subset of it.
+
 Safety has no fairness assumption about the player. Leaving cancels work; returning
 can start a fresh generation. A certificate means the native fence passed at issue,
 not that an adversarial later write is harmless. Film start checks again.

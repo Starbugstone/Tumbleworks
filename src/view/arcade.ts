@@ -93,7 +93,7 @@ const WATER_LEVEL = -1.15;
 const SPAN = 72;
 
 /** Cell walls of a wrapped Voronoi pattern: sampled twice against itself it gives the light net on a shallow sea bed. */
-function causticTexture(): THREE.DataTexture {
+export function causticTexture(): THREE.DataTexture {
   const SIZE = 128, POINTS = 18;
   const seeds = Array.from({ length: POINTS }, (_, index) => [(index * 0.618034 + 0.13) % 1 * SIZE, (index * 0.381966 * 3.7 + 0.41) % 1 * SIZE] as const);
   const data = new Uint8Array(SIZE * SIZE * 4);

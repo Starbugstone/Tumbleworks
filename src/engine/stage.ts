@@ -5,8 +5,11 @@ import { useOneTapShadows } from './shadow-filter';
 import type { Point3 } from './physics';
 import { Finish } from './finish';
 
-/** Where the key light stands from whatever it lights: high, a little left and toward the player, so shadows stay short. */
-const KEY_FROM = new THREE.Vector3(-0.42, 1, 0.36).normalize();
+/**
+ * Where the key light stands from whatever it lights: left and toward the player, low enough that a piece lays a
+ * shadow about half its own height long. The boards are seen from nearly overhead, where shadows are most of the depth.
+ */
+const KEY_FROM = new THREE.Vector3(-0.58, 1, 0.42).normalize();
 /** A lower afternoon sun for the villages, so houses and trestles lay shadows long enough to read. */
 const SUN_FROM = new THREE.Vector3(-0.55, 1, 0.42).normalize();
 /** The open sea far from a village, and the colour behind everything there. */
@@ -53,7 +56,9 @@ export class Stage {
     if (backdrop === 'village') return this.villageScene(scene);
     scene.background = new THREE.Color(0x0e5578);
     scene.environment = this.environment;
-    scene.environmentIntensity = 0.7;
+    // Kept low: the pale studio mirrored in every upward face laid a white veil over the cargo colours, and
+    // bleached yellow and orange towards each other. Lit tops now render close to their palette colour.
+    scene.environmentIntensity = 0.25;
     const key = new THREE.DirectionalLight(0xfff0dc, backdrop === 'arcade' ? 2.7 : 3);
     key.position.copy(KEY_FROM).multiplyScalar(26);
     key.castShadow = true;
@@ -64,7 +69,7 @@ export class Stage {
     // The pale Tube Sort deck shows every shadow edge, so its shadows are the lighter ones.
     key.shadow.intensity = backdrop === 'arcade' ? 0.75 : 0.68;
     this.keys.set(scene, key);
-    scene.add(key, key.target, new THREE.HemisphereLight(0xffffff, 0x4a3b30, 0.6));
+    scene.add(key, key.target, new THREE.HemisphereLight(0xffffff, 0x4a3b30, 0.8));
     return scene;
   }
 

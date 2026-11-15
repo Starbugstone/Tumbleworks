@@ -11,8 +11,6 @@
       html, body { margin: 0; height: 100%; background: #1c1d4f; overflow: hidden; overscroll-behavior: none; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; font-family: Fredoka, 'Trebuchet MS', sans-serif; font-weight: 500; color: var(--ink); }
       #scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
       body[data-screen='game'] #scene, #level-name { touch-action: none; }
-      /* Keep native picker scrolling without opting its nested scrollers into zoom gestures. */
-      #levels, #chips { touch-action: pan-y; }
       #hud { position: fixed; inset: 0; pointer-events: none; }
       #hud button { pointer-events: auto; font: inherit; color: inherit; border: 0; cursor: pointer; }
       [hidden] { display: none !important; }
@@ -31,22 +29,6 @@
       #mute .off { display: none; }
       #mute.muted .on { display: none; }
       #mute.muted .off { display: block; }
-
-      /* The level picker: everything that is not the toy lives here. */
-      #levels { z-index: 2; position: absolute; top: max(52px, calc(env(safe-area-inset-top) + 46px)); left: 10px; right: 10px; max-width: 560px; max-height: calc(100dvh - 70px); overflow-y: auto; overscroll-behavior: contain; margin: 0 auto; padding: 14px; border-radius: 20px; background: rgb(255 249 238 / 0.97); box-shadow: 0 12px 30px rgb(0 0 0 / 0.45); pointer-events: auto; animation: pop 0.2s cubic-bezier(0.2, 1.4, 0.4, 1); }
-      #levels-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
-      #wordmark { font-weight: 600; font-size: 20px; }
-      #difficulty { font-size: 13px; opacity: 0.75; }
-      #chips { max-height: min(42dvh, 320px); overflow-y: auto; overscroll-behavior: contain; padding: 0 2px 4px; margin-bottom: 6px; }
-      .chapter { position: sticky; top: 0; z-index: 1; margin: 0; padding: 4px 0 3px; font-size: 12px; font-weight: 600; background: rgb(255 249 238); opacity: 0.85; }
-      .chapter-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 0 8px; }
-      .chip { width: 36px; height: 36px; border-radius: 50%; background: #fff; font-weight: 600; font-size: 15px; box-shadow: 0 2px 5px rgb(0 0 0 / 0.25); display: grid; place-items: center; padding: 0; border-bottom: 3px solid var(--accent) !important; }
-      .chip.active { background: var(--ink); color: var(--cream) !important; }
-      .chip[data-kind='loop'] { border-bottom-color: #ffd166 !important; }
-      .chip[data-kind='tube'] { border-bottom-color: #61b3ff !important; }
-      #level-title { font-weight: 600; font-size: 17px; margin: 2px 0 4px; }
-      #level-help { font-size: 14px; line-height: 1.3; margin: 0 0 8px; }
-      #patterns { display: flex; flex-wrap: wrap; gap: 12px; font-size: 13px; opacity: 0.85; }
 
       /* Short-lived text over the board. */
       #toasts { position: absolute; left: 10px; right: 10px; bottom: var(--toast-bottom, max(86px, calc(env(safe-area-inset-bottom) + 80px))); display: flex; flex-direction: column; align-items: center; gap: 6px; }
@@ -95,10 +77,6 @@
       #faster { background: #b9c8ff; }
       .fast.active, .fast:active { transform: translateY(3px); box-shadow: 0 1px 0 #5e6fb0, 0 4px 8px #0006; background: #fff; }
       .fast:disabled { opacity: 0.45; }
-      #language { display: flex; align-items: center; gap: 8px; margin: 10px 0; }
-      #language button, #guide-replay, #copy-replay { background: #e1e9e6; border-radius: 8px; padding: 7px 10px; }
-      #copy-replay { margin-top: 6px; }
-      #language button[aria-pressed='true'] { background: var(--ink); color: white; }
       /* Candy finish: a soft sheen on every round button, and a card that sits up off the board. */
       .action, #top .pill, #hud #mute { background-image: linear-gradient(rgb(255 255 255 / 0.4), rgb(255 255 255 / 0) 58%); }
       #top .pill, #hud #mute { background-image: linear-gradient(rgb(255 255 255 / 0.16), rgb(255 255 255 / 0) 58%); }
@@ -127,16 +105,27 @@
           <svg class="off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h4L13 5v14l-5-4.5H4z" fill="currentColor"/><path d="M17 9.5l5 5M22 9.5l-5 5"/></svg>
         </button>
       </div>
-      <div id="levels" hidden>
-        <div id="levels-head"><span id="wordmark">Tumbleworks</span><span id="difficulty"></span></div>
-        <nav id="chips" aria-label="Campaign levels"></nav>
-        <div id="level-title"></div>
-        <p id="level-help"></p>
-        <div id="patterns" aria-label="Container patterns"></div>
-        <div id="language"><span id="language-label">Language</span><button id="language-en" lang="en">English</button><button id="language-fr" lang="fr">Français</button></div>
-        <button id="guide-replay" hidden>Restart with guide</button>
-        <button id="copy-replay">Copy this game for a bug report</button>
-      </div>
+      <div id="levels-backdrop" hidden></div>
+      <section id="levels" role="dialog" aria-modal="true" aria-label="Levels" hidden>
+        <header id="levels-head">
+          <button id="map-open"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 5-7 7 7 7M3 12h18"/></svg><span id="map-label">Back to village</span></button>
+          <button id="menu-back" class="menu-icon" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 5-7 7 7 7"/></svg></button>
+          <span id="menu-heading" hidden>Settings</span>
+          <button id="menu-settings" class="menu-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 3-.7 2.4-2 .9L5 5.6 2.8 9.4l1.7 1.7v1.8l-1.7 1.7L5 18.4l2.3-.7 2 .9.7 2.4h4l.7-2.4 2-.9 2.3.7 2.2-3.8-1.7-1.7v-1.8l1.7-1.7L19 5.6l-2.3.7-2-.9L14 3z"/><circle cx="12" cy="12" r="3"/></svg></button>
+          <button id="menu-close" class="menu-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+        </header>
+        <div id="menu-main">
+          <p id="menu-round"></p>
+          <nav id="chips" aria-label="Round levels"></nav>
+        </div>
+        <div id="menu-secondary" hidden>
+          <div id="language"><span id="language-label">Language</span><div><button id="language-en" lang="en">English</button><button id="language-fr" lang="fr">Français</button></div></div>
+          <div id="patterns" aria-label="Container patterns"></div>
+          <details id="level-help-details"><summary id="help-label">How to play</summary><div id="level-title"></div><p id="level-help"></p></details>
+          <button id="guide-replay" hidden>Restart with guide</button>
+          <button id="copy-replay">Copy this game for a bug report</button>
+        </div>
+      </section>
       <div id="focus-ring" hidden></div>
       <div id="guide-pointer" aria-hidden="true" hidden><span id="guide-pointer-label" class="sr">Tap here</span><svg viewBox="0 0 44 50" fill="none"><path d="M11 29V7C11 2 19 2 19 7V18C19 14 26 14 26 19V21C26 17 33 18 33 23V25C33 21 40 22 40 27V33C40 39 36 44 33 47H17L5 33C1 28 6 23 10 28L11 29Z" fill="#fff7db" stroke="#10283e" stroke-width="2.5" stroke-linejoin="round"/><path d="M19 18v10M26 21v8M33 25v6M17 43h18" stroke="#10283e" stroke-width="2" stroke-linecap="round"/></svg></div>
       <div id="board-controls" aria-label="Board pieces"></div>

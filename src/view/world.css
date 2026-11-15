@@ -8,6 +8,14 @@
 .map-stop[aria-current='step'] { outline: 3px solid #ffdf9d; outline-offset: 4px; }
 .map-stop[data-status='built'] { background: #d6e4c8; border-color: #f4ecd5 !important; box-shadow: 0 3px 0 #6a8c78, 0 4px 8px #102b3b60; }
 .map-stop[data-status='locked'] { background: #476961e6; color: #c1d0c6 !important; border: 1px dashed #9db5a4 !important; box-shadow: 0 3px 0 #344f49; cursor: default !important; }
+/* The owner could not see the village under ten full-size discs. Only the stop to play keeps its size: finished
+   stops are small ticks with a full-size touch area, and stops still locked are little numbered beads. */
+.map-stop[data-status='built'] { width: 26px; height: 26px; padding: 0; font-size: 13px !important; border-width: 1.5px !important; box-shadow: 0 2px 0 #6a8c78, 0 3px 6px #102b3b50; }
+.map-stop[data-status='built']::before { content: ''; position: absolute; inset: -9px; border-radius: 50%; }
+.map-stop[data-status='built'] .map-dots { display: none; }
+.map-stop[data-status='locked'] { width: 20px; height: 20px; padding: 0; font-size: 11px !important; background: #2f4f4ab8; box-shadow: none; }
+.map-stop[data-status='locked'] .map-dots { display: none; }
+.map-stop[data-status='locked'] .map-stem, .map-stop[data-status='built'] .map-stem { background: #f4e8c966; height: 1.5px; }
 .map-stop:active:not(:disabled) { transform: translate(-50%, calc(-50% + 2px)); }
 .map-workshop { position: fixed; transform: translate(-50%, -50%); width: 44px; height: 44px; padding: 9px; display: grid; place-items: center; border-radius: 50%; color: #ffe7b0; background: #173a42; border: 2px solid #ffe7b0 !important; box-shadow: 0 3px 0 #0b232c, 0 5px 9px #102b3b65; }
 .map-workshop svg { width: 22px; height: 22px; }
@@ -81,3 +89,15 @@ body[data-screen='map'] #load, body[data-screen='workshop'] #load { color: #e5e5
 @media (prefers-reduced-motion: reduce) { #journey-transition { transition: none; } }
 /* Over a village the top row wears the sea's colours, like the buttons under the map. */
 body[data-screen='map'] #top .pill, body[data-screen='map'] #hud #mute { background: #173947; color: #f5edd9; border-color: #648d8d; box-shadow: 0 3px 0 #0d242e, 0 5px 14px #0005; }
+/* Inspection leaves the island clear; the current stop keeps its large tap target. */
+body[data-screen='map'] .wv-heading { top: max(52px, calc(env(safe-area-inset-top) + 48px)); }
+body[data-screen='map'] .wv-heading h1 { font-size: 22px; }
+body[data-screen='map'] .wv-heading p { font-size: 12px; }
+.map-stop[data-status='built'] { width: 14px; height: 14px; padding: 0; font-size: 11px !important; background: #fff4d9; border-color: #46706c !important; box-shadow: 0 1px 4px #163c4670; }
+.map-stop[data-status='built']::before { inset: -15px; }
+.map-stop[data-status='built'] .map-stem { display: none; }
+.wv-inspecting #world-stops, .wv-inspecting .map-workshop { opacity: 0; pointer-events: none; }
+.wv-inspecting .map-stop { pointer-events: none !important; }
+.wv-view-controls { position: absolute; right: 13px; top: 103px; }
+#world .wv-reset-view { width: 44px; height: 44px; border-radius: 50%; font-size: 27px; background: #173947d9; color: #fff1cf; border: 1px solid #9fb9a7; box-shadow: 0 2px 7px #123d4866; }
+body:not([data-screen='map']) .wv-view-controls { display: none; }

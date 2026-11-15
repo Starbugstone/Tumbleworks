@@ -1,3 +1,4 @@
+import { openMenuSettings } from '../fixtures/picker';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 import type { App } from '../../src/view/App';
@@ -45,7 +46,7 @@ test('cap rejects taps, opens during a move, accepts a rapid pour and undoes its
   await page.mouse.move(capped.x, capped.y, { steps: 8 }); await page.mouse.up();
   expect(await state(page)).toMatchObject({ moves: 0 });
   await expect(page.locator('#message')).toContainText('cap');
-  await page.locator('#levels-toggle').click(); await page.locator('#language-fr').click(); await page.locator('#levels-toggle').click();
+  await page.locator('#levels-toggle').click(); await openMenuSettings(page); await page.locator('#language-fr').click(); await page.locator('#levels-toggle').click();
   await tap(page, 4); await expect(page.locator('#message')).toContainText('couvercle');
   await move(page, 1, 3); await move(page, 0, 1); await move(page, 0, 3);
   const before = await state(page);

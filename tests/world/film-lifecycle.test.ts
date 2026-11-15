@@ -4,10 +4,9 @@ import type { Stage } from '../../src/engine/stage';
 import { MarbleFactory } from '../../src/engine/marbles';
 import { TestWorldFilm as WorldFilm } from './cinematic-scene-fixture';
 import { TestWorldScene as WorldScene } from './cinematic-scene-fixture';
-import { CONNECTION_SECONDS } from '../../src/world/film-timeline';
 import { worldProgress } from '../../src/world/progression';
 
-it.each([3.137, 31.019])('uses the authoritative %fs route for its local film and previous-village cut', duration => {
+it.each([3.137, 31.019])('ends the film in its own village after the authoritative %fs route', duration => {
   for (const chapter of [0, 1]) {
     const stage = {
       canvas: { clientWidth: 375, clientHeight: 690 }, renderer: { setSize: vi.fn() },
@@ -19,15 +18,13 @@ it.each([3.137, 31.019])('uses the authoritative %fs route for its local film an
       filmReadiness: () => 'ready', beginFilm: vi.fn(), film: vi.fn(), stopFilm: vi.fn(), dispose: vi.fn() } as unknown as WorldScene;
     const film = new WorldFilm(stage, chapter, current);
     try {
-      expect(film.duration).toBe(duration + (chapter === 0 ? 0 : CONNECTION_SECONDS));
+      // The owner took the old 2.5-second glimpse of the preceding village for another level.
+      expect(film.duration).toBe(duration);
       film.render(duration - 0.000001);
       expect(current.film).toHaveBeenLastCalledWith(duration - 0.000001, true);
-      film.render(duration);
-      if (chapter === 0) expect(current.film).toHaveBeenLastCalledWith(duration, true);
-      else {
-        expect(current.film).toHaveBeenCalledTimes(1); expect(current.stopFilm).toHaveBeenCalledTimes(1);
-        expect(stage.marbles.count).toBe(1);
-      }
+      film.render(duration + 1);
+      expect(current.film).toHaveBeenLastCalledWith(duration + 1, true);
+      expect(current.stopFilm).not.toHaveBeenCalled();
     } finally { film.dispose(); }
     expect(stage.marbles.count).toBe(0); expect(current.dispose).not.toHaveBeenCalled();
   }
@@ -55,7 +52,7 @@ it('finishes the earned final construction before seating the film marble in its
   finally { film.dispose(); world.dispose(); }
 });
 
-it('keeps the borrowed village alive and returns its actor before switching to the previous village', () => {
+it('keeps the borrowed village alive and never builds a second scene', () => {
   const disposed: THREE.Scene[] = [];
   const stage = {
     canvas: { clientWidth: 375, clientHeight: 690 }, renderer: { setSize: vi.fn() },
@@ -66,24 +63,18 @@ it('keeps the borrowed village alive and returns its actor before switching to t
   const current = new WorldScene(stage, 1);
   const film = new WorldFilm(stage, 1, current);
   const duration = current.machine.route.duration;
-  expect(film.duration).toBe(duration + CONNECTION_SECONDS);
+  expect(film.duration).toBe(duration);
   film.render(1);
   expect(stage.marbles.count).toBe(1);
-  const firstActor = created.mock.results[0]!.value.mesh;
-  expect(firstActor.parent).toBe(current.scene);
-  film.render(duration - 0.000001);
-  expect(firstActor.parent).toBe(current.scene);
+  const actor = created.mock.results[0]!.value.mesh;
   film.render(duration);
-  expect(stage.marbles.count).toBe(1);
-  expect(firstActor.parent).not.toBe(current.scene);
-  film.render(duration + CONNECTION_SECONDS / 2);
+  expect(actor.parent).toBe(current.scene);
   expect(stage.marbles.count).toBe(1);
   film.dispose();
   expect(stage.marbles.count).toBe(0);
-  expect(disposed).toHaveLength(1);
-  expect(disposed).not.toContain(current.scene);
+  expect(disposed).toHaveLength(0);
   current.draw();
   expect(stage.draw).toHaveBeenLastCalledWith(current.scene, current.camera);
   current.dispose();
-  expect(disposed).toHaveLength(2);
+  expect(disposed).toHaveLength(1);
 });

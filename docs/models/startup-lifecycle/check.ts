@@ -34,7 +34,7 @@ class World {
   readonly builds: FakeBuild[] = [];
   readonly scenes: FakeScene[] = [];
   complete = false; writes = 0; backs = 0; issued: { scene: FakeScene; job: number; generationAtIssue: number }[] = [];
-  readonly own = new VillageOwnership<FakeScene>(ch => { const b = new FakeBuild(this, ch); this.builds.push(b); return b; }, () => undefined);
+  readonly own = new VillageOwnership<FakeScene>(ch => { const b = new FakeBuild(this, ch); this.builds.push(b); return b; }, () => undefined, true);
 }
 class FakeScene implements LifecycleScene {
   rest = true; intact = true; disposed = false; readonly proof: StaticProofOwner | undefined;

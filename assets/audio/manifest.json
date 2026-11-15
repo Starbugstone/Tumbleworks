@@ -1,123 +1,225 @@
 [
   {
     "cue": "tap",
-    "source": "sources/kenney-interface/select_008.ogg",
-    "creator": "Kenney",
-    "page": "https://kenney.nl/assets/interface-sounds",
+    "source": "generated/tap.wav",
+    "creator": "Tumbleworks / Kenney",
+    "page": "https://kenney.nl/assets/impact-sounds",
     "licence": "CC0-1.0",
-    "sourceSha256": "f703b6b1c62dae1c246a46d5c2442802588f68be2df4d17e0d65cf7e0dbfc826",
+    "recipe": "Kenney wood at 0.82x, double low-pass 1600 Hz, 5 ms felt onset",
+    "generator": "scripts/generate-sounds.py",
+    "generatorSha256": "e49d708b65a4aaa71d7db4e77a3e584458977dfefa4cf0f7fc98359bd2fcf322",
+    "recordings": [
+      {
+        "source": "sources/kenney-impact/impactWood_light_000.ogg",
+        "sourceSha256": "eb45e35b4bed784d3f120de4afec4b0d6ac09d9e143cce8cfcb7d739e1b1f3c3",
+        "creator": "Kenney",
+        "page": "https://kenney.nl/assets/impact-sounds",
+        "licence": "CC0-1.0"
+      }
+    ],
+    "sourceSha256": "d2bd5ded2d9969eaad525c4bc53890cdfae5470833e2b43e9938d59e4ea0926b",
     "stereo": false,
-    "encodedSha256": "acde6b867d0811dd12cd4fd0e39c28af6397f8e69a30d77cf79b97fe4021d0e5",
-    "encodedBytes": 1611
+    "bitrate": 160000,
+    "encodedSha256": "f33014fea5f5a80b080e6ef6069c0c685fe861d1aa0db86afac445d874a082af",
+    "encodedBytes": 4223
   },
   {
     "cue": "release",
-    "source": "sources/kenney-interface/drop_002.ogg",
-    "creator": "Kenney",
-    "page": "https://kenney.nl/assets/interface-sounds",
+    "source": "generated/release.wav",
+    "creator": "Tumbleworks / Kenney",
+    "page": "https://kenney.nl/assets/impact-sounds",
     "licence": "CC0-1.0",
-    "sourceSha256": "4ac4d1cef7e936965cbf795852ca2020300b9e2ba7daa59f2bf4f1f7bf416218",
-    "stereo": true,
-    "encodedSha256": "e5033c3fa3e1ff4107f4edc248c3be986e117548fccb553d5d3322b4cd6b3ebf",
-    "encodedBytes": 3178
+    "recipe": "Four rounded Kenney wood knocks at 0/32/71/118 ms, varied pitch, A3 wooden body; no air",
+    "generator": "scripts/generate-sounds.py",
+    "generatorSha256": "e49d708b65a4aaa71d7db4e77a3e584458977dfefa4cf0f7fc98359bd2fcf322",
+    "recordings": [
+      {
+        "source": "sources/kenney-impact/impactWood_light_000.ogg",
+        "sourceSha256": "eb45e35b4bed784d3f120de4afec4b0d6ac09d9e143cce8cfcb7d739e1b1f3c3",
+        "creator": "Kenney",
+        "page": "https://kenney.nl/assets/impact-sounds",
+        "licence": "CC0-1.0"
+      }
+    ],
+    "sourceSha256": "c4fbfa6690fe3aae6a050d2a45b514f75fd20ebaa763ab88a1ecd1834ebf3fc8",
+    "stereo": false,
+    "bitrate": 160000,
+    "encodedSha256": "75a58b6132487f7a01253bf85cf0329948fc5ab53fc4738a4bdae49150db4638",
+    "encodedBytes": 6835
   },
   {
     "cue": "impact-wood",
-    "source": "sources/kenney-impact/impactWood_light_000.ogg",
-    "creator": "Kenney",
+    "source": "generated/impact-wood.wav",
+    "creator": "Tumbleworks / Kenney",
     "page": "https://kenney.nl/assets/impact-sounds",
     "licence": "CC0-1.0",
-    "sourceSha256": "eb45e35b4bed784d3f120de4afec4b0d6ac09d9e143cce8cfcb7d739e1b1f3c3",
-    "stereo": true,
-    "encodedSha256": "f4c4295edda0f019da3e4fc53e8399584f519f03a214ba8ebc30823bdd5db262",
-    "encodedBytes": 4119
+    "recipe": "Kenney light wood at 0.94x, double low-pass 1800 Hz, 5 ms onset",
+    "generator": "scripts/generate-sounds.py",
+    "generatorSha256": "e49d708b65a4aaa71d7db4e77a3e584458977dfefa4cf0f7fc98359bd2fcf322",
+    "recordings": [
+      {
+        "source": "sources/kenney-impact/impactWood_light_000.ogg",
+        "sourceSha256": "eb45e35b4bed784d3f120de4afec4b0d6ac09d9e143cce8cfcb7d739e1b1f3c3",
+        "creator": "Kenney",
+        "page": "https://kenney.nl/assets/impact-sounds",
+        "licence": "CC0-1.0"
+      }
+    ],
+    "sourceSha256": "ebe449f893776aefc6b66d01d074abd049c322a34ccc7f13313cdf79c8956b02",
+    "stereo": false,
+    "bitrate": 160000,
+    "encodedSha256": "de32ade3eb2fedb6d8a099c5bafc613d722a03dca080603ba7bdc31cfb6161ff",
+    "encodedBytes": 4223
   },
   {
     "cue": "impact-glass",
-    "source": "sources/kenney-impact/impactGlass_light_000.ogg",
-    "creator": "Kenney",
+    "source": "generated/impact-glass.wav",
+    "creator": "Tumbleworks / Kenney",
     "page": "https://kenney.nl/assets/impact-sounds",
     "licence": "CC0-1.0",
-    "sourceSha256": "d750cf88097d0c3e69920e6e14496e1444e1a9da01aa4cca8f5ec8cb44c57b4f",
-    "stereo": true,
-    "encodedSha256": "74aff40d3de77b34716209c6d65134d7de3d58a7929ff8748d4c01436898d0e1",
-    "encodedBytes": 3492
-  },
-  {
-    "cue": "landing-light",
-    "source": "sources/kenney-interface/glass_002.ogg",
-    "creator": "Kenney",
-    "page": "https://kenney.nl/assets/interface-sounds",
-    "licence": "CC0-1.0",
-    "sourceSha256": "08e972c73e53c91d6d310e107e80db60edce78ae47225889a028e628a6f3da49",
+    "recipe": "Kenney light glass at 0.87x, double low-pass 1800 Hz, 6 ms onset",
+    "generator": "scripts/generate-sounds.py",
+    "generatorSha256": "e49d708b65a4aaa71d7db4e77a3e584458977dfefa4cf0f7fc98359bd2fcf322",
+    "recordings": [
+      {
+        "source": "sources/kenney-impact/impactGlass_light_000.ogg",
+        "sourceSha256": "d750cf88097d0c3e69920e6e14496e1444e1a9da01aa4cca8f5ec8cb44c57b4f",
+        "creator": "Kenney",
+        "page": "https://kenney.nl/assets/impact-sounds",
+        "licence": "CC0-1.0"
+      }
+    ],
+    "sourceSha256": "22e56fb35b1939feb3625a2171b5b865cc7eabd1ff42cbbe7224824ce0564fe0",
     "stereo": false,
-    "encodedSha256": "1348ce8136e9c663cea328f4081b332858d01820a2f285a24053c77cd8d33cb4",
-    "encodedBytes": 2238
-  },
-  {
-    "cue": "landing-final",
-    "source": "sources/kenney-interface/bong_001.ogg",
-    "creator": "Kenney",
-    "page": "https://kenney.nl/assets/interface-sounds",
-    "licence": "CC0-1.0",
-    "sourceSha256": "d21d0f0b782445db579d11e2506b24cd1ac9d664ee33aeaf807761aa7b6fd710",
-    "stereo": false,
-    "encodedSha256": "0c6231f27b65e8b23e69891f2fcd9f5c16294c9a455f7db77762fa1d9a47b92f",
-    "encodedBytes": 2238
-  },
-  {
-    "cue": "complete",
-    "source": "sources/kenney-interface/confirmation_003.ogg",
-    "creator": "Kenney",
-    "page": "https://kenney.nl/assets/interface-sounds",
-    "licence": "CC0-1.0",
-    "sourceSha256": "3091bf0be0497f825769ee0733ca7bdc3bcd59bd6c6e8f2ba8f93d580ff38022",
-    "stereo": false,
-    "encodedSha256": "9313510ff48d7bcabd0b579dec7942e2ba8038b401b2549193c5656163b3296a",
+    "bitrate": 160000,
+    "encodedSha256": "fc53f21b7d8bcf492b09197da3b067b5629e3595ec8c694ee7efe4dd42489611",
     "encodedBytes": 4746
   },
   {
+    "cue": "landing-light",
+    "source": "generated/landing-light.wav",
+    "creator": "Tumbleworks",
+    "page": null,
+    "licence": "CC0-1.0",
+    "recipe": "G4 (392 Hz) felt marimba/kalimba, detuned modes, 0.30 s, low-pass 1800 Hz",
+    "generator": "scripts/generate-sounds.py",
+    "generatorSha256": "e49d708b65a4aaa71d7db4e77a3e584458977dfefa4cf0f7fc98359bd2fcf322",
+    "recordings": [],
+    "sourceSha256": "5787e8eefafb4187b96c27cbef78843b3d54b73a040696bfb52c0678b927df58",
+    "stereo": false,
+    "bitrate": 160000,
+    "encodedSha256": "9c601316a0424ecf03021873c2718fc26e91e002e8e71cafc12e889ccf225210",
+    "encodedBytes": 7358
+  },
+  {
+    "cue": "landing-final",
+    "source": "generated/landing-final.wav",
+    "creator": "Tumbleworks",
+    "page": null,
+    "licence": "CC0-1.0",
+    "recipe": "D4 (293.66 Hz) felt marimba with audible 587 Hz body partial, 0.40 s",
+    "generator": "scripts/generate-sounds.py",
+    "generatorSha256": "e49d708b65a4aaa71d7db4e77a3e584458977dfefa4cf0f7fc98359bd2fcf322",
+    "recordings": [],
+    "sourceSha256": "9d61c18f41414cae766954eefeada0036eb390507b338aba57ef03cc1d3ffbb4",
+    "stereo": false,
+    "bitrate": 160000,
+    "encodedSha256": "0324ee73123384fd61321a427795764f086fd6f86fce2e1573b641ceee9d85b8",
+    "encodedBytes": 9448
+  },
+  {
+    "cue": "complete",
+    "source": "generated/complete.wav",
+    "creator": "Tumbleworks",
+    "page": null,
+    "licence": "CC0-1.0",
+    "recipe": "D4 A4 D5 warm marimba triplet at 0/85/170 ms, quiet D6 vibraphone accent",
+    "generator": "scripts/generate-sounds.py",
+    "generatorSha256": "e49d708b65a4aaa71d7db4e77a3e584458977dfefa4cf0f7fc98359bd2fcf322",
+    "recordings": [],
+    "sourceSha256": "8f53273e313e78fa3f88b97149a8eb38aef31a4c929995ededac83f8debd45a9",
+    "stereo": false,
+    "bitrate": 160000,
+    "encodedSha256": "d26e3eed14d7002000a90157bb7161506b75e34e6a2d64637f5e11bea4a999bb",
+    "encodedBytes": 14150
+  },
+  {
     "cue": "blocked",
-    "source": "sources/kenney-impact/impactSoft_medium_000.ogg",
-    "creator": "Kenney",
+    "source": "generated/blocked.wav",
+    "creator": "Tumbleworks / Kenney",
     "page": "https://kenney.nl/assets/impact-sounds",
     "licence": "CC0-1.0",
-    "sourceSha256": "7d3ba0bb5e60a11b5d3e558c141303dcf494256675fbf753c0d252d2cf0481e3",
-    "stereo": true,
-    "encodedSha256": "4e2e5decea59c2d524e9ad36dd4a45d96eccef375e2a846f851c7fb50b8a859e",
-    "encodedBytes": 2238
+    "recipe": "Kenney soft/wood at 0.78x/0.72x with D4/587 Hz muted body, low-pass 1250 Hz",
+    "generator": "scripts/generate-sounds.py",
+    "generatorSha256": "e49d708b65a4aaa71d7db4e77a3e584458977dfefa4cf0f7fc98359bd2fcf322",
+    "recordings": [
+      {
+        "source": "sources/kenney-impact/impactSoft_medium_000.ogg",
+        "sourceSha256": "7d3ba0bb5e60a11b5d3e558c141303dcf494256675fbf753c0d252d2cf0481e3",
+        "creator": "Kenney",
+        "page": "https://kenney.nl/assets/impact-sounds",
+        "licence": "CC0-1.0"
+      },
+      {
+        "source": "sources/kenney-impact/impactWood_light_000.ogg",
+        "sourceSha256": "eb45e35b4bed784d3f120de4afec4b0d6ac09d9e143cce8cfcb7d739e1b1f3c3",
+        "creator": "Kenney",
+        "page": "https://kenney.nl/assets/impact-sounds",
+        "licence": "CC0-1.0"
+      }
+    ],
+    "sourceSha256": "648617a70c654d0173ebea884debd734f46db783effef2f2dfb97bf25b2484de",
+    "stereo": false,
+    "bitrate": 160000,
+    "encodedSha256": "1acd4052a2ef81627c87b97179f961f576eaf50bb5d3d892f9fc322fd161518a",
+    "encodedBytes": 5791
   },
   {
     "cue": "undo",
-    "source": "sources/kenney-interface/maximize_003.ogg",
-    "creator": "Kenney",
-    "page": "https://kenney.nl/assets/interface-sounds",
+    "source": "generated/undo.wav",
+    "creator": "Tumbleworks",
+    "page": null,
     "licence": "CC0-1.0",
-    "sourceSha256": "df16f25d45189f5d44d6a482ab20d5067350ca8525a9affa1f8ce599e31a20a5",
+    "recipe": "D4 C4 damped wooden double note at 0/95 ms; no reverse or air",
+    "generator": "scripts/generate-sounds.py",
+    "generatorSha256": "e49d708b65a4aaa71d7db4e77a3e584458977dfefa4cf0f7fc98359bd2fcf322",
+    "recordings": [],
+    "sourceSha256": "010de19f34843d8f24c48261fbbd4415f57ef5b4fba91c33819d7c5f75aba4d0",
     "stereo": false,
-    "encodedSha256": "1f935245004ebc181c171fd8aab920de5f06ee0c6ff8009e132c6239eeef9f4f",
-    "encodedBytes": 3492
+    "bitrate": 160000,
+    "encodedSha256": "2330b35c5b04bec30d46e5b26bfd6118e068797b7ca46b175df7702290b4bae3",
+    "encodedBytes": 7880
   },
   {
     "cue": "jam",
-    "source": "sources/kenney-interface/minimize_003.ogg",
-    "creator": "Kenney",
-    "page": "https://kenney.nl/assets/interface-sounds",
+    "source": "generated/jam.wav",
+    "creator": "Tumbleworks",
+    "page": null,
     "licence": "CC0-1.0",
-    "sourceSha256": "400e1041499de85ec8b5529a35ff36787288175c4696cf2018ecff24a3a3fd29",
+    "recipe": "Muted marimba A4 D4 descent at 0/160 ms, warm room",
+    "generator": "scripts/generate-sounds.py",
+    "generatorSha256": "e49d708b65a4aaa71d7db4e77a3e584458977dfefa4cf0f7fc98359bd2fcf322",
+    "recordings": [],
+    "sourceSha256": "40e58546c2e68106aa809ef801769af0644bdd5d5c501cdfc7f1357b19abf4d2",
     "stereo": false,
-    "encodedSha256": "c524858e28c083454ca94cdc70233abc58f943f052422a4a1b9523c590b545ef",
-    "encodedBytes": 3492
+    "bitrate": 160000,
+    "encodedSha256": "789b205927daab114906db53d774c1b4ec1d7cc5ddb2a6f1cec944eadbdc1f8f",
+    "encodedBytes": 14150
   },
   {
     "cue": "win",
-    "source": "sources/kenney-interface/confirmation_004.ogg",
-    "creator": "Kenney",
-    "page": "https://kenney.nl/assets/interface-sounds",
+    "source": "generated/win.wav",
+    "creator": "Tumbleworks",
+    "page": null,
     "licence": "CC0-1.0",
-    "sourceSha256": "568967a3d9f8a8f6af54ea01729c4882284308f2a27d78c07ffd7ee0d6951661",
+    "recipe": "D4 F#4 A4 D5 marimba ascent at 0/120/240/360 ms; warm D-major vibraphone chord at 520 ms, quiet D6 accent",
+    "generator": "scripts/generate-sounds.py",
+    "generatorSha256": "e49d708b65a4aaa71d7db4e77a3e584458977dfefa4cf0f7fc98359bd2fcf322",
+    "recordings": [],
+    "sourceSha256": "9a5fa0fa40ab3b3dd81bb9919c24dc3bc59c9f45acf9d772c5418ca364fb4b70",
     "stereo": false,
-    "encodedSha256": "44bed452c77e338ca4384f9e843e3d94fc191b9895bbadbca078aa72f63d2fb2",
-    "encodedBytes": 6626
+    "bitrate": 160000,
+    "encodedSha256": "893bc54d6deb554a023cd61c5fde69a1031ea67cc1ebd7a94c6074ce52de597f",
+    "encodedBytes": 26688
   }
 ]

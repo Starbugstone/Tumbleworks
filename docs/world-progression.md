@@ -73,8 +73,8 @@ with the recorded pre-map baseline. Browser performance is not physical-phone pr
 
 ## The live marble run
 
-`WorldFilm` runs the authored 25-second Rube Goldberg sequence, then gives later
-locations a 2.5-second handoff into the preceding village. `RubeRoute` owns the
+`WorldFilm` runs the authored 25-second Rube Goldberg sequence and ends in its own
+village. `RubeRoute` owns the
 marble path and surface frames; moving cups and driven mechanisms use the same
 authored time. Camera poses are seekable and return to the map rest. The seven
 reduced-motion shots remain fixed between their authored cuts and widen for the

@@ -1,3 +1,4 @@
+import { openMenuSettings } from '../fixtures/picker';
 import { expect, test, type Page } from '@playwright/test';
 import type { App } from '../../src/view/App';
 type GameWindow = Window & { tumbleworks: { app: App } };
@@ -59,7 +60,7 @@ for (const id of [200,201,202]) test(`Funnel Sort ${id}: real phone input, rapid
   await input.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:370,y:400,id:8}]});
   await input.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
   expect((await state(page)).released).toEqual(before);
-  await page.locator('#levels-toggle').click(); await page.locator('#language-fr').click(); await page.locator('#levels-toggle').click();
+  await page.locator('#levels-toggle').click(); await openMenuSettings(page); await page.locator('#language-fr').click(); await page.locator('#levels-toggle').click();
   await input.detach();
   await page.locator('#hint').click();
   await expect(page.locator('#message')).not.toBeEmpty();

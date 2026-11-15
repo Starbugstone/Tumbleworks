@@ -26,7 +26,8 @@ Reduced motion returns immediately. `ValleyOverview` shows six real village
 clusters at a time and can pan by rows if the campaign later adds more villages.
 
 The completion film renders the 3D Rube Goldberg machine directly for 25 seconds.
-Later locations add a 2.5-second handoff into the preceding village. It borrows
+A film ends in its own village; the earlier closing glimpse of the preceding
+village was removed because the owner took it for another level. The film borrows
 one plain marble from `MarbleFactory`, pauses gameplay, and returns that actor
 before changing scenes or leaving playback. No native video or MP4 request is
 part of this presentation. Reduced motion waits for explicit Play, then uses seven

@@ -126,9 +126,11 @@ test('a completed forty-round save continues into the new campaign', async ({ pa
   expect((await state(page)).levelIndex).toBe(120);
   await page.locator('#levels-toggle').click();
   const chips = await page.locator('.chip').allTextContents();
-  expect(chips).toHaveLength(180);
-  expect(chips.slice(0, 120)).toEqual(Array(120).fill('✓'));
-  expect(chips.slice(120).filter(text => text === '✓')).toHaveLength(0);
+  expect(chips).toHaveLength(3);
+  await expect(page.locator('.chip.completed')).toHaveCount(0);
+  const savedCompleted = await page.evaluate(() => JSON.parse(localStorage.getItem('tumbleworks.progress.v1')!).completed);
+  expect(savedCompleted).toEqual(expect.arrayContaining(CAMPAIGN.slice(0, 120).map(level => level.id)));
+  expect(savedCompleted).toHaveLength(120);
 });
 
 test.describe('the whole campaign completes through real touch input', () => {
@@ -142,7 +144,7 @@ test.describe('the whole campaign completes through real touch input', () => {
       await page.goto('/');
       await ready(page);
       await page.locator('#levels-toggle').click();
-      await expect(page.locator('.chip')).toHaveCount(CAMPAIGN.length);
+      await expect(page.locator('.chip')).toHaveCount(3);
       await page.locator('#levels-toggle').click();
       if (first > 0) await select(page, first);
       for (let index = first; index < last; index++) {
@@ -151,7 +153,7 @@ test.describe('the whole campaign completes through real touch input', () => {
         await settle(page);
         await page.screenshot({ path: `output/current/campaign-level${index + 1}.png` });
         await solve(page, index);
-        await expect(page.locator(`.chip[data-level="${index}"]`)).toHaveText('✓');
+        await expect.poll(() => page.evaluate(id => JSON.parse(localStorage.getItem('tumbleworks.progress.v1')!).completed.includes(id), CAMPAIGN[index]!.id)).toBe(true);
         if ((index + 1) % 3 === 0) {
           await expect.poll(async () => (await state(page)).screen).not.toBe('game');
           if ((await state(page)).screen === 'film') await page.locator('#film-skip').click();
@@ -165,9 +167,10 @@ test.describe('the whole campaign completes through real touch input', () => {
       await page.reload();
       await ready(page);
       await page.locator('#levels-toggle').click();
-      const chips = await page.locator('.chip').allTextContents();
-      expect(chips.slice(first, last)).toEqual(Array(last - first).fill('✓'));
-      expect(chips.filter((text) => text === '✓')).toHaveLength(last - first);
+      await expect(page.locator('.chip')).toHaveCount(3);
+      const savedCompleted = await page.evaluate(() => JSON.parse(localStorage.getItem('tumbleworks.progress.v1')!).completed);
+      expect(savedCompleted).toEqual(expect.arrayContaining(CAMPAIGN.slice(first, last).map(level => level.id)));
+      expect(savedCompleted).toHaveLength(last - first);
       expect(errors).toEqual([]);
     });
   }
@@ -266,11 +269,11 @@ test('storage write failure still records completion and keeps round boundaries 
   const tube = levelIndex('tube-1');
   await select(page, tube);
   await solve(page, tube);
-  await expect(page.locator(`.chip[data-level="${tube}"]`)).toHaveText('✓');
+  await expect(page.locator(`.chip[data-level="${tube}"]`)).toHaveClass(/completed/);
   // The earlier two games are unfinished, so completing this Tube Sort resumes the first missing game of its own stop.
   await page.getByRole('button', { name: 'Next level', exact: true }).click();
   expect((await state(page)).levelId).toBe(CAMPAIGN[tube - 2]?.id);
-  await expect(page.locator(`.chip[data-level="${tube}"]`)).toHaveText('✓');
+  await expect(page.locator(`.chip[data-level="${tube}"]`)).toHaveClass(/completed/);
 });
 
 test('keyboard board selection works after clicking the level navigator', async ({ page }) => {

@@ -19,7 +19,7 @@ function site(files: Record<string, number>, page = '<script src="/assets/index.
   for (const [name, size] of Object.entries(files)) writeFileSync(join(root, 'assets', name), randomBytes(size));
   return root;
 }
-const check = (root: string) => spawnSync(process.execPath, [script, root], { encoding: 'utf8', env: { ...process.env, TUMBLEWORKS_BUDGET_BYTES: '100000' } });
+const check = (root: string, budget = '100000') => spawnSync(process.execPath, [script, root], { encoding: 'utf8', env: { ...process.env, TUMBLEWORKS_BUDGET_BYTES: budget } });
 
 describe('the first-download budget', () => {
   it('accepts a page under its ceiling', () => {
@@ -43,7 +43,8 @@ describe('the first-download budget', () => {
     expect(check(site({ 'index.js': 60_000, 'win.mp3': 30_000 })).status).toBe(0);
   });
   it('caps the sound bank independently so it cannot quietly grow inside spare bundle space', () => {
-    const run = check(site({ 'index.js': 10_000, 'sound.mp3': 45_001 }));
+    expect(check(site({ 'index.js': 10_000, 'sound.mp3': 150_000 }), '200000').status).toBe(0);
+    const run = check(site({ 'index.js': 10_000, 'sound.mp3': 150_001 }), '200000');
     expect(run.status).toBe(1);
     expect(run.stderr).toContain('Audio over budget');
   });

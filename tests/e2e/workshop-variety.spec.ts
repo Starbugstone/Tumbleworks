@@ -172,7 +172,7 @@ test.beforeAll(async () => { mkdirSync(out, { recursive: true }); await initPhys
 for (const id of ids) test(`${id} Workshop real input, causal rules, undo, jam and win`, async ({ page }) => {
   test.setTimeout(360_000);
   const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
-  const seeded = await seedMilestone(page, id);
+  await seedMilestone(page, id);
   await page.goto('/'); await page.locator('#world-workshop').click();
   await workshopReady(page, id);
   await page.locator(`.wv-experiment[data-workshop="${id}"]`).click(); await ready(page, id);
@@ -206,7 +206,7 @@ for (const id of ids) test(`${id} Workshop real input, causal rules, undo, jam a
   await workshopReady(page, id);
   await expect(page.locator(`.wv-experiment[data-workshop="${id}"]`)).toHaveAttribute('data-status', 'completed');
   await page.locator(`.wv-experiment[data-workshop="${id}"]`).click(); await ready(page, id);
-  await page.locator('#levels-toggle').click(); await expect(page.locator('.chip').filter({ hasText: /^✓$/ })).toHaveCount(seeded.length); await page.locator('#levels-toggle').click();
+  await page.locator('#levels-toggle').click(); await expect(page.locator('.chip')).toHaveCount(1); await expect(page.locator('.chip')).toHaveClass(/completed/); await page.locator('#levels-toggle').click();
   await page.setViewportSize({ width: 1280, height: 800 }); await advance(page); await capture(page, id, 'desktop');
   if (id.startsWith('loop')) {
     const numbers = await page.locator('.lr-number').evaluateAll(els => els.map(el => ({ font: parseFloat(getComputedStyle(el).fontSize), clipped: el.scrollWidth > el.clientWidth + 1 })));

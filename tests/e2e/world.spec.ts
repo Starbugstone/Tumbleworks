@@ -1,10 +1,10 @@
+import { openMenuSettings } from '../fixtures/picker';
 import { expect, test, type Page } from '@playwright/test';
 import { CAMPAIGN } from '../../src/campaign';
 import type { App } from '../../src/view/App';
 import { FUNNEL_WITNESSES, LOOP_WITNESSES } from '../witnesses';
 import { TUBE_BOARDS } from '../../src/puzzles/levels';
 import { DESKTOP } from '../fixtures/viewports';
-import { CONNECTION_SECONDS } from '../../src/world/film-timeline';
 import type { WorldScene } from '../../src/view/world-scene';
 import type { MarbleEntity } from '../../src/engine/marbles';
 
@@ -33,7 +33,8 @@ async function movingFilm(page: Page, baselineEntities: number, fixedCamera = fa
   const initial = await filmSnapshot(page);
   if (initial.duration === undefined || initial.localDuration === undefined || initial.chapter === undefined) throw new Error('Film requires a compiled runtime duration');
   const timeout = Math.ceil(initial.duration * 1000) + 30_000;
-  expect(initial.duration).toBe(initial.localDuration + (initial.chapter > 0 ? CONNECTION_SECONDS : 0));
+  // A film ends in its own village: no closing glimpse of the preceding one.
+  expect(initial.duration).toBe(initial.localDuration);
   const fixedShot = initial.shots[1] ?? initial.shots[0];
   if (fixedCamera) {
     if (!fixedShot) throw new Error('Village has no authored fixed shot');
@@ -232,6 +233,7 @@ test('desktop and French map navigation preserve the campaign and phone-independ
   await expect(page.locator('.wv-location')).toHaveCount(Math.ceil(CAMPAIGN.length / 30));
   await page.locator('.wv-location[data-chapter="0"]').click();
   await page.locator('#levels-toggle').click();
+  await openMenuSettings(page);
   await page.getByRole('button', { name: 'Français', exact: true }).click();
   if (await page.locator('#levels').isVisible()) await page.locator('#levels-toggle').click();
   await expect(page.locator('.wv-heading h1')).toHaveText('Le petit port');
@@ -249,7 +251,7 @@ test('Play continues from an earlier location in English and French with Film se
   await expect(page.getByRole('button', { name: 'Watch your machine' })).toHaveText('Film');
   await primaryFits(page);
   await page.screenshot({ path: 'output/current/world/map-phone-completed.png' });
-  await page.locator('#levels-toggle').click(); await page.getByRole('button', { name: 'Français', exact: true }).click();
+  await page.locator('#levels-toggle').click(); await openMenuSettings(page); await page.getByRole('button', { name: 'Français', exact: true }).click();
   if (await page.locator('#levels').isVisible()) await page.locator('#levels-toggle').click();
   await primaryFits(page);
   await page.screenshot({ path: 'output/current/world/map-phone-fr.png' });

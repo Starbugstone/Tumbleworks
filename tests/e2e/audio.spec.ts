@@ -47,7 +47,7 @@ test('real MP3 bank loads once on a gesture, decodes cleanly and follows mute/re
     expect(sample.peak, sample.cue).toBeLessThan(.8);
     expect(sample.onset, sample.cue).toBeGreaterThanOrEqual(0);
     expect(sample.onset, sample.cue).toBeLessThan(.035);
-    expect(sample.duration, sample.cue).toBeLessThan(.6);
+    expect(sample.duration, sample.cue).toBeLessThan(sample.cue === 'win' ? 1.5 : .95);
   }
   await tapCrate(page);
   expect(await page.evaluate(() => (window as unknown as AudioWindow).tumbleworks.app.debugState()['released'])).toEqual([0]);

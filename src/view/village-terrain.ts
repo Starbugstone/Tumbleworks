@@ -31,14 +31,14 @@ function faceColor(terrain: VillageTerrain, column: number, row: number, corners
   if (rise / Math.min(terrain.cellWidth, terrain.cellDepth) > 0.75) return palette.rock;
   const mean = corners.reduce((sum, value) => sum + value, 0) / corners.length;
   if (mean < water + 0.45) return palette.shore;
-  return (column * 7 + row * 13) % 5 === 0 ? palette.grassAlt : palette.grass;
+  return palette.grass;
 }
 
 /**
  * One flat-shaded geometry per landform: land triangles following `cellDiagonal`,
  * water sheets in holes, and cliff skirts wherever land or water meets the void.
  */
-export function villageTerrainGeometry(source: VillageTerrain | VillageTerrainSpec, detail: VillageTerrainDetail = 'full'): THREE.BufferGeometry {
+export function villageTerrainGeometry(source: VillageTerrain | VillageTerrainSpec, detail: VillageTerrainDetail = 'full', continuousSea = false): THREE.BufferGeometry {
   const spec = 'spec' in source ? source.spec : source;
   const terrain = detail === 'overview' ? compileTerrain(spec, OVERVIEW_CELLS) : 'spec' in source ? source : compileTerrain(spec);
   const { columns, rows, originX, originZ, cellWidth, cellDepth, heights } = terrain;
@@ -59,7 +59,7 @@ export function villageTerrainGeometry(source: VillageTerrain | VillageTerrainSp
       const v00 = vertex(column, row), v10 = vertex(column + 1, row), v01 = vertex(column, row + 1), v11 = vertex(column + 1, row + 1);
       if (cellDiagonal(column, row) === 'main') { face(sink, color, v00, v11, v10); face(sink, color, v00, v01, v11); }
       else { face(sink, color, v00, v01, v10); face(sink, color, v10, v01, v11); }
-    } else {
+    } else if (!continuousSea) {
       const w = spec.water;
       face(sink, spec.palette.water, vertex(column, row, w), vertex(column + 1, row + 1, w), vertex(column + 1, row, w));
       face(sink, spec.palette.water, vertex(column, row, w), vertex(column, row + 1, w), vertex(column + 1, row + 1, w));
@@ -103,8 +103,8 @@ export function villageTerrainGeometry(source: VillageTerrain | VillageTerrainSp
 }
 
 /** The caller owns the returned mesh's geometry; the material is borrowed. */
-export function createVillageTerrain(source: VillageTerrain | VillageTerrainSpec, material: THREE.Material, detail: VillageTerrainDetail = 'full'): THREE.Mesh {
-  const mesh = new THREE.Mesh(villageTerrainGeometry(source, detail), material);
+export function createVillageTerrain(source: VillageTerrain | VillageTerrainSpec, material: THREE.Material, detail: VillageTerrainDetail = 'full', continuousSea = false): THREE.Mesh {
+  const mesh = new THREE.Mesh(villageTerrainGeometry(source, detail, continuousSea), material);
   mesh.name = detail === 'overview' ? 'village-terrain-overview' : 'village-terrain';
   mesh.receiveShadow = false;
   return mesh;
