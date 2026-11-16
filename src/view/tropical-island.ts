@@ -31,34 +31,72 @@ export function coastSample(edges: readonly Edge[], water: number, x: number, z:
   return { distance, height: bank + (water - .35 - bank) * fall };
 }
 
-/** No beach is allowed inside an inlet or any protected swept structure bounds. */
+/** Steepest grade of a dip, rise per unit run: about the beach's own fall from a high bank. */
+const DIP_SLOPE = 2;
+/**
+ * No beach is allowed inside an inlet or any protected swept structure bounds. Rather than cutting a hole,
+ * which left sand and grass ledges hanging over the water, the beach dips under the opaque sea there:
+ * those cells sink to the sea floor and their neighbours slope down to them.
+ */
 export function tropicalCoast(t: VillageTerrain, protectedBounds: readonly THREE.Box3[]): THREE.BufferGeometry {
   const edges = coastalEdges(t), positions: number[] = [], colors: number[] = [];
   const color = new THREE.Color(), grass = new THREE.Color(0x60a95c), sand = new THREE.Color(0xf6dfac), wet = new THREE.Color(0xc6bd8a);
   const samples = new Map<string, ReturnType<typeof coastSample>>();
   const sampleAt=(x:number,z:number)=>{const key=`${x},${z}`;let sample=samples.get(key);if(!sample){sample=coastSample(edges,t.spec.water,x,z);samples.set(key,sample);}return sample;};
-  const margin = 8, box = new THREE.Box3();
+  const margin = 8, box = new THREE.Box3(), floor = t.spec.water - .35;
   type Patch={c:number;r:number;size:number};
   const cells=new Map<string,Patch>(),key=(c:number,r:number)=>`${c},${r}`;
-  const point=(c:number,r:number)=>{const x=t.originX+c*t.cellWidth,z=t.originZ+r*t.cellDepth;return new THREE.Vector3(x,sampleAt(x,z).height,z);};
+  // Grid vertices with an explicit ceiling. Every other vertex keeps its natural height unless a cone of
+  // DIP_SLOPE rising from a ceiling passes below it, so a dip has no step at its rim.
+  const caps=new Map<string,{c:number;r:number;y:number}>(),heights=new Map<string,number>();
+  const cap=(c:number,r:number,y:number)=>{const k=key(c,r),y0=Math.max(floor,y),prior=caps.get(k);if(prior&&prior.y<=y0)return false;caps.set(k,{c,r,y:y0});heights.clear();return true;};
+  const natural=(c:number,r:number)=>{const x=t.originX+c*t.cellWidth,z=t.originZ+r*t.cellDepth;return sampleAt(x,z).height;};
+  const heightAt=(c:number,r:number)=>{
+    const k=key(c,r);let y=heights.get(k);if(y!==undefined)return y;y=natural(c,r);
+    for(const q of caps.values())y=Math.min(y,q.y+DIP_SLOPE*Math.hypot((c-q.c)*t.cellWidth,(r-q.r)*t.cellDepth));
+    heights.set(k,y);return y;
+  };
+  const point=(c:number,r:number)=>new THREE.Vector3(t.originX+c*t.cellWidth,heightAt(c,r),t.originZ+r*t.cellDepth);
+  const corners=(c:number,r:number,size=1)=>[[c,r],[c+size,r],[c,r+size],[c+size,r+size]] as const;
   for (let r = -margin; r < t.rows + margin; r++) for (let c = -margin; c < t.columns + margin; c++) {
     const x = t.originX + (c+.5) * t.cellWidth, z = t.originZ + (r+.5) * t.cellDepth;
     if (terrainOccupancy(t, x,z) !== 'void') continue;
-    if (t.spec.features.some(f => f.kind === 'hole' && distanceToPolygon(f.polygon,x,z) < 1.1)) continue;
     if (sampleAt(x,z).distance > 3.5) continue;
-    box.setFromPoints([point(c,r),point(c+1,r),point(c,r+1),point(c+1,r+1)]);
-    if (protectedBounds.some(bound => bound.intersectsBox(box))) continue;
+    // Inlet mouths stay open water: the cell lies on the sea floor, under the sea.
+    if (t.spec.features.some(f => f.kind === 'hole' && distanceToPolygon(f.polygon,x,z) < 1.1)) { for (const [vc,vr] of corners(c,r)) cap(vc,vr,floor); continue; }
     cells.set(key(c,r),{c,r,size:1});
   }
+  // Only the land's cliff may close a beach edge; against inlet water or open sea the edge must be submerged.
+  for(const {c,r} of [...cells.values()])for(const [dc,dr,a,b] of [[0,-1,[c,r],[c+1,r]],[1,0,[c+1,r],[c+1,r+1]],[0,1,[c,r+1],[c+1,r+1]],[-1,0,[c,r],[c,r+1]]] as const){
+    if(cells.has(key(c+dc,r+dr))||terrainOccupancy(t,t.originX+(c+dc+.5)*t.cellWidth,t.originZ+(r+dr+.5)*t.cellDepth)==='land')continue;
+    for(const [vc,vr] of [a,b])if(natural(vc,vr)>t.spec.water)cap(vc,vr,floor);
+  }
+  // Lowering only ever moves a vertex down, so this settles: each pass caps the corners of every cell that
+  // still reaches a structure, just under that structure, until every remaining cell clears them all.
+  for(let changed=true;changed;){
+    changed=false;
+    for(const [k,{c,r}] of cells){
+      box.setFromPoints(corners(c,r).map(([vc,vr])=>point(vc,vr)));
+      const hits=protectedBounds.filter(bound=>bound.intersectsBox(box));if(!hits.length)continue;
+      const ceiling=Math.min(...hits.map(bound=>bound.min.y))-.05;
+      // A structure reaching below the sea floor keeps its footprint as open water.
+      if(ceiling<=floor)cells.delete(k);
+      for(const [vc,vr] of corners(c,r))changed=cap(vc,vr,ceiling)||changed;
+    }
+  }
+  const dipped=(c:number,r:number)=>heightAt(c,r)<natural(c,r);
   // Keep every original land-edge vertex. Coarsen only complete, empty outer squares;
   // fine neighbours retain their shared midpoint, so there are no open T-junctions.
   for(const size of [2,4])for(let r=-margin;r<t.rows+margin;r+=size)for(let c=-margin;c<t.columns+margin;c+=size){
     const square:Patch[]=[];let complete=true;
     for(let dz=0;dz<size;dz++)for(let dx=0;dx<size;dx++){const p=cells.get(key(c+dx,r+dz));if(p)square.push(p);else complete=false;}
     if(!complete)continue;
-    const corners=[point(c,r),point(c+size,r),point(c,r+size),point(c+size,r+size)];
-    if(corners.some(p=>sampleAt(p.x,p.z).distance<.8))continue;
-    box.setFromPoints(corners);if(protectedBounds.some(bound=>bound.intersectsBox(box)))continue;
+    const outer=corners(c,r,size).map(([vc,vr])=>point(vc,vr));
+    if(outer.some(p=>sampleAt(p.x,p.z).distance<.8))continue;
+    // A coarse square drops its interior vertices, so it may not span any part of a dip.
+    let even=true;for(let dz=0;dz<=size&&even;dz++)for(let dx=0;dx<=size&&even;dx++)if(dipped(c+dx,r+dz))even=false;
+    if(!even)continue;
+    box.setFromPoints(outer);if(protectedBounds.some(bound=>bound.intersectsBox(box)))continue;
     const patch={c,r,size};for(let dz=0;dz<size;dz++)for(let dx=0;dx<size;dx++)cells.set(key(c+dx,r+dz),patch);
   }
   for(const patch of new Set(cells.values())){
@@ -72,8 +110,10 @@ export function tropicalCoast(t: VillageTerrain, protectedBounds: readonly THREE
     const faces=THREE.ShapeUtils.triangulateShape(points.map(p=>new THREE.Vector2(p.x,p.z)),[]);
     for(const face of faces)for(const i of [...face].reverse()){
       const p=points[i]!;positions.push(p.x,p.y,p.z);
-      const d=sampleAt(p.x,p.z).distance;
-      color.copy(sand).lerp(grass,1-THREE.MathUtils.smoothstep(d,.05,1.4));
+      const d=sampleAt(p.x,p.z).distance,y0=sampleAt(p.x,p.z).height;
+      // Grass belongs to the bank's top; the sides of a dip are sand, never green slabs over the water.
+      const kept=y0>floor?THREE.MathUtils.smoothstep((p.y-floor)/(y0-floor),.55,.95):1;
+      color.copy(sand).lerp(grass,(1-THREE.MathUtils.smoothstep(d,.05,1.4))*kept);
       color.lerp(wet,(1-THREE.MathUtils.smoothstep(p.y-t.spec.water,0,.35))*.4);
       colors.push(color.r,color.g,color.b);
     }

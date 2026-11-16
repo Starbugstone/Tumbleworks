@@ -47,3 +47,23 @@ it('keeps the overview coarse while retaining real holes, height and independent
     expect(terrainHeightAt(terrain, -1, -1)).toBeGreaterThan(3);
   } finally { full.geometry.dispose(); overview.geometry.dispose(); material.dispose(); }
 });
+
+it.each([0, 1, 2, 3, 4, 5])('faces every chapter %i cliff skirt outward, so the single-sided land never shows the sea through it', async chapter => {
+  const { villageScenePlan } = await import('../../src/world/village-plans');
+  const terrain = compileTerrain(villageScenePlan(chapter).terrain), material = new MeshBasicMaterial();
+  const mesh = createVillageTerrain(terrain, material, 'full', true), p = mesh.geometry.getAttribute('position');
+  const rank = { void: 0, water: 1, land: 2 } as const, wrong: number[][] = [];
+  let walls = 0;
+  for (let i = 0; i < p.count; i += 3) {
+    const [a, b, c] = [0, 1, 2].map(j => new Vector3().fromBufferAttribute(p, i + j)) as [Vector3, Vector3, Vector3];
+    const n = new Vector3().crossVectors(b.clone().sub(a), c.clone().sub(a)).normalize();
+    if (Math.abs(n.y) > 1e-6) continue;
+    walls++;
+    const centre = a.clone().add(b).add(c).divideScalar(3), step = terrain.cellWidth / 2;
+    const front = terrainOccupancy(terrain, centre.x + n.x * step, centre.z + n.z * step), back = terrainOccupancy(terrain, centre.x - n.x * step, centre.z - n.z * step);
+    if (rank[front] >= rank[back]) wrong.push([centre.x, centre.z, n.x, n.z].map(v => +v.toFixed(2)));
+  }
+  expect(walls).toBeGreaterThan(100);
+  expect(wrong).toEqual([]);
+  mesh.geometry.dispose(); material.dispose();
+});

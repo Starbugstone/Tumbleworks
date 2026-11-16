@@ -3,7 +3,7 @@ import { expect, it } from 'vitest';
 import { compileTerrain, terrainHeightAt } from '../../src/world/village-terrain';
 import { villageScenePlan } from '../../src/world/village-plans';
 import { createVillageTerrain } from '../../src/view/village-terrain';
-import { tropicalCoast } from '../../src/view/tropical-island';
+import { coastalEdges, coastSample, tropicalCoast } from '../../src/view/tropical-island';
 
 it('opens the harbour water to the continuous sea without moving any land', () => {
   const terrain = compileTerrain(villageScenePlan(0).terrain), material = new MeshBasicMaterial();
@@ -99,3 +99,28 @@ it.each([0,1,2,3,4,5])('keeps chapter %i new shore faces separate from exposed l
     expect(overlaps.map(o=>({a:o.a.index,b:o.b.index,area:o.area}))).toEqual([]);
   }finally{f.dispose();}
 },30_000);
+
+/** An open beach edge is visible unless the land's cliff closes it or the opaque sea covers it. */
+function exposedBeachEdges(chapter:number,protectedBounds:readonly Box3[]){
+  const terrain=compileTerrain(villageScenePlan(chapter).terrain),edges=coastalEdges(terrain),g=tropicalCoast(terrain,protectedBounds);
+  const p=g.getAttribute('position'),ix=g.index!,count=new Map<string,number>(),key=(a:number,b:number)=>a<b?`${a}/${b}`:`${b}/${a}`;
+  for(let i=0;i<ix.count;i+=3)for(let j=0;j<3;j++){const k=key(ix.getX(i+j),ix.getX(i+(j+1)%3));count.set(k,(count.get(k)??0)+1);}
+  const onLand=(i:number)=>coastSample(edges,terrain.spec.water,p.getX(i),p.getZ(i)).distance<1e-5,wet=(i:number)=>p.getY(i)<=terrain.spec.water;
+  const exposed:number[][]=[];
+  for(const [k,n] of count){if(n!==1)continue;const [a,b]=k.split('/').map(Number) as [number,number];if((onLand(a)&&onLand(b))||(wet(a)&&wet(b)))continue;exposed.push([a,b].flatMap(i=>[p.getX(i),p.getY(i),p.getZ(i)].map(v=>+v.toFixed(2))));}
+  g.dispose();return exposed;
+}
+it.each([0,1,2,3,4,5])('never leaves a chapter %i beach edge hanging above the water beside an inlet',chapter=>{
+  expect(exposedBeachEdges(chapter,[])).toEqual([]);
+});
+it('dips the beach under the water around coastal structures instead of cutting a ledge',()=>{
+  // Little Harbour's corner house overhangs the shore; a support beside it stands in the sea.
+  const house=new Box3(new Vector3(-10.2,3.1,10.4),new Vector3(-5.8,8,14.6)),post=new Box3(new Vector3(-3.4,-2,-14.8),new Vector3(-1.8,6,-13.6));
+  expect(exposedBeachEdges(0,[house,post])).toEqual([]);
+  const terrain=compileTerrain(villageScenePlan(0).terrain),g=tropicalCoast(terrain,[house,post]),p=g.getAttribute('position'),ix=g.index!;
+  for(let i=0;i<ix.count;i+=3){
+    const tri=new Box3();for(let j=0;j<3;j++)tri.expandByPoint(new Vector3().fromBufferAttribute(p,ix.getX(i+j)));
+    for(const bound of [house,post])expect(tri.intersectsBox(bound),`beach triangle ${tri.min.toArray()} enters a structure`).toBe(false);
+  }
+  g.dispose();
+});

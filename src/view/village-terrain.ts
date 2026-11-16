@@ -82,7 +82,9 @@ export function villageTerrainGeometry(source: VillageTerrain | VillageTerrainSp
       const inward = [-(b[2] - a[2]), b[0] - a[0]] as const; const length = Math.hypot(inward[0], inward[1]) || 1;
       const foot = (p: [number, number, number]): [number, number, number] => [p[0] - inward[0] / length * lean, bottom, p[2] - inward[1] / length * lean];
       const color = side.neighbour === 'void' ? spec.palette.cliff : spec.palette.rock;
-      face(sink, color, a, b, foot(b)); face(sink, color, a, foot(b), foot(a));
+      // Wound to face the lower side. The village material is single-sided: a wall facing into its own
+      // land is culled from outside, and the lagoon showed through the island wherever no beach hid it.
+      face(sink, color, a, foot(b), b); face(sink, color, a, foot(a), foot(b));
     }
   }
   const geometry = new THREE.BufferGeometry();
