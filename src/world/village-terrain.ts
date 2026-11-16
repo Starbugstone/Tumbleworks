@@ -36,6 +36,8 @@ export interface VillageTerrainSpec {
   readonly mergeFlatLand?: boolean;
   /** FULL-detail only: exact painted rectangles, all boundary nodes retained. */
   readonly mergePaintedFlatLand?: boolean;
+  /** Render-only: unpainted slopes carry their grade per vertex (`grade`), and the material draws rock along its contour. */
+  readonly rockContour?: boolean;
   /** Grid extent in world units, centred on the origin: width along x, depth along z. */
   readonly size: TerrainVec2;
   /** Full-detail grid subdivision: columns along x, rows along z. */

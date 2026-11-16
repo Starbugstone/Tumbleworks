@@ -67,3 +67,42 @@ it.each([0, 1, 2, 3, 4, 5])('faces every chapter %i cliff skirt outward, so the 
   expect(wrong).toEqual([]);
   mesh.geometry.dispose(); material.dispose();
 });
+
+it.each([0, 1, 2, 3, 4, 5])('draws chapter %i rock along each slope contour, never along a cell edge between two slopes', async chapter => {
+  const { villageScenePlan } = await import('../../src/world/village-plans');
+  const { ROCK_GRADE } = await import('../../src/view/village-terrain');
+  const base = compileTerrain(villageScenePlan(chapter).terrain), terrain = { ...base, spec: { ...base.spec, rockContour: true } }, material = new MeshBasicMaterial();
+  const mesh = createVillageTerrain(terrain, material, 'full', true), p = mesh.geometry.getAttribute('position'), g = mesh.geometry.getAttribute('grade');
+  const byCell = new Map<number, number[]>();
+  for (let t = 0; t < p.count / 3; t++) {
+    const ys = [0, 1, 2].map(j => p.getY(t * 3 + j)), cx = [0, 1, 2].reduce((s, j) => s + p.getX(t * 3 + j), 0) / 3, cz = [0, 1, 2].reduce((s, j) => s + p.getZ(t * 3 + j), 0) / 3;
+    if (Math.abs(ys[0]! - ys[1]!) + Math.abs(ys[1]! - ys[2]!) < 1e-9 && ![0, 1, 2].some(j => g.getX(t * 3 + j))) continue;
+    const c = Math.floor((cx - terrain.originX) / terrain.cellWidth), r = Math.floor((cz - terrain.originZ) / terrain.cellDepth), id = r * terrain.columns + c;
+    if (terrain.cells[id] !== 'land' || terrain.paint[id]) continue;
+    byCell.set(id, [...byCell.get(id) ?? [], t]);
+  }
+  // The shader's rock decision at a point, from the grade interpolated inside the cell's triangle there.
+  const rockAt = (id: number, x: number, z: number) => {
+    for (const t of byCell.get(id) ?? []) {
+      const [a, b, c] = [0, 1, 2].map(j => [p.getX(t * 3 + j), p.getZ(t * 3 + j), g.getX(t * 3 + j)] as const) as unknown as [readonly number[], readonly number[], readonly number[]];
+      const d = (b[1]! - c[1]!) * (a[0]! - c[0]!) + (c[0]! - b[0]!) * (a[1]! - c[1]!), u = ((b[1]! - c[1]!) * (x - c[0]!) + (c[0]! - b[0]!) * (z - c[1]!)) / d, v = ((c[1]! - a[1]!) * (x - c[0]!) + (a[0]! - c[0]!) * (z - c[1]!)) / d;
+      if (u >= -1e-9 && v >= -1e-9 && u + v <= 1 + 1e-9) { const grade = u * a[2]! + v * b[2]! + (1 - u - v) * c[2]!; return Math.abs(grade - ROCK_GRADE) < 1e-3 ? undefined : grade >= ROCK_GRADE; }
+    }
+    return undefined;
+  };
+  const seams: number[][] = [];let shared = 0;
+  for (const id of byCell.keys()) {
+    const c = id % terrain.columns, r = Math.floor(id / terrain.columns);
+    for (const [dc, dr] of [[1, 0], [0, 1]] as const) {
+      const other = (r + dr) * terrain.columns + c + dc; if (!byCell.has(other) || c + dc >= terrain.columns) continue;
+      for (const s of [.2, .5, .8]) {
+        const x = terrain.originX + (c + (dc ? 1 : s)) * terrain.cellWidth, z = terrain.originZ + (r + (dr ? 1 : s)) * terrain.cellDepth;
+        const here = rockAt(id, x, z), there = rockAt(other, x, z); if (here === undefined || there === undefined) continue;
+        shared++; if (here !== there) seams.push([x, z].map(v => +v.toFixed(2)));
+      }
+    }
+  }
+  if (chapter === 3) expect(shared).toBeGreaterThan(200);
+  expect(seams).toEqual([]);
+  mesh.geometry.dispose(); material.dispose();
+});

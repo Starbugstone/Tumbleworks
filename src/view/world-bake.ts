@@ -10,7 +10,7 @@ export function bakeWorldGroup(group: THREE.Group, material: THREE.Material): TH
     if (!(object instanceof THREE.Mesh)) return;
     const part = object.geometry.index ? object.geometry.toNonIndexed() : object.geometry.clone();
     for (const attribute of Object.keys(part.attributes)) {
-      if (!['position', 'normal', 'color'].includes(attribute)) part.deleteAttribute(attribute);
+      if (!['position', 'normal', 'color', 'grade'].includes(attribute)) part.deleteAttribute(attribute);
     }
     if (!part.getAttribute('normal')) part.computeVertexNormals();
     if (!part.getAttribute('color')) {
@@ -20,6 +20,7 @@ export function bakeWorldGroup(group: THREE.Group, material: THREE.Material): TH
     parts.push(part.applyMatrix4(inverse.clone().multiply(object.matrixWorld))); meshes.push(object);
   });
   if (!parts.length) return null;
+  levelGrades(parts);
   const geometry = mergeGeometries(parts); parts.forEach(part => part.dispose());
   if (!geometry) throw new Error('World geometry could not be merged');
   meshes.forEach(mesh => mesh.removeFromParent());
@@ -30,8 +31,15 @@ export function bakeWorldGroup(group: THREE.Group, material: THREE.Material): TH
 /** Append static dressing without changing the producer-owned terrain prefix or geometry identity. */
 export function appendWorldGeometry(mesh: THREE.Mesh, sources: readonly THREE.BufferGeometry[]): void {
   const parts=sources.map(source=>source.index?source.toNonIndexed():source.clone());
+  if(mesh.geometry.getAttribute('grade'))levelGrades(parts,true);
   const merged=mergeGeometries([mesh.geometry,...parts]);parts.forEach(part=>part.dispose());
   if(!merged)throw new Error('Island dressing could not be merged');
-  for(const name of ['position','normal','color'])mesh.geometry.setAttribute(name,merged.getAttribute(name));
+  for(const name of ['position','normal','color','grade'])if(merged.getAttribute(name))mesh.geometry.setAttribute(name,merged.getAttribute(name));
   mesh.geometry.computeBoundingBox();mesh.geometry.computeBoundingSphere();merged.dispose();
+}
+
+/** Slope grades ride along with the land; every other part reads level, so merged attribute sets match. */
+function levelGrades(parts: readonly THREE.BufferGeometry[], force = false): void {
+  if (!force && !parts.some(part => part.getAttribute('grade'))) return;
+  for (const part of parts) if (!part.getAttribute('grade')) part.setAttribute('grade', new THREE.BufferAttribute(new Float32Array(part.getAttribute('position').count), 1));
 }

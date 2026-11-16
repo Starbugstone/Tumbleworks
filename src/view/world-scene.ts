@@ -7,7 +7,7 @@ import type { MarbleEntity } from '../engine/marbles';
 import type { ScreenPoint } from '../engine/contracts';
 import type { WorldChapter } from '../world/progression';
 import { villageScenePlan, type VillageScenePlan } from '../world/village-plans';
-import { compileTerrain, terrainHeightAt } from '../world/village-terrain';
+import { compileTerrain, terrainHeightAt, type VillageTerrain } from '../world/village-terrain';
 import { VILLAGE_RADIUS, type VillagePlan, type VillageCameraShot } from '../world/village-plan';
 import { completedLevels } from '../progress';
 import { earnedProjects } from '../world/workshop-projects';
@@ -15,9 +15,10 @@ import { findWorkshopPass, workshopSignPlacement } from '../world/workshop-build
 import { VillageMachine } from './village-machine';
 import { VillageFilmCamera } from './village-film-camera';
 import { WorldKitAssets } from './world-kit';
-import { createVillageTerrain } from './village-terrain';
+import { createVillageTerrain, rockContour, sunny } from './village-terrain';
 import { VillageOrbit } from './village-orbit';
-import { tropicalCoast, islandPalms } from './tropical-island';
+import { tropicalCoast, islandPalms, riverBanks, triangleBounds } from './tropical-island';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { villageSea, advanceVillageSea } from './village-sea';
 import { createProjectReward } from './project-rewards';
 import { WorkshopBuilding } from './workshop-building';
@@ -32,6 +33,24 @@ export interface WorldSceneOptions {
   readonly motion?:'physical'|'cinematic'; readonly proof?: StaticProofBackend; readonly scheduler?: TaskScheduler; readonly sliceMs?: number }
 const STAGED = Symbol('staged construction');
 
+/**
+ * Shore clearance around each triangle of a house or scenery piece. Hardly any below: the shore never rises
+ * above the bank a piece stands on, so padding below its base just sank the shore and bared the stepped cliff.
+ */
+const SCENERY_CLEARANCE = new THREE.Vector3(.3, .05, .3);
+/** Moments along the film at which each moving part's sweep is sampled for shore clearance. */
+const MOTION_SAMPLES = 24;
+/** Shore clearance around every machine triangle at rest, and around each moving part as it sweeps. */
+const MACHINE_CLEARANCE = new THREE.Vector3(.15, .02, .15);
+/** The slab construction lays under a station: width, thickness, depth. */
+const FOUNDATION = [1.7, 0.12, 1.5] as const;
+function foundationSite(station: { readonly anchor: readonly number[]; readonly supports?: readonly (readonly number[])[] }, terrain: VillageTerrain): { x: number; z: number; height: number } {
+  const mount = station.supports?.[0];
+  const x = mount?.[0] ?? station.anchor[0]!, z = mount?.[2] ?? station.anchor[2]!;
+  const height = terrainHeightAt(terrain, x, z);
+  if (height === undefined) throw new Error('Village foundation needs an authored bank mount');
+  return { x, z, height };
+}
 /** Each chapter owns its terrain, machine and dressing; only the renderer is shared. */
 export class WorldScene {
   readonly scene: THREE.Scene;
@@ -96,19 +115,22 @@ export class WorldScene {
     const terrain = compileTerrain(this.scenePlan.terrain);
     yield 'terrain';
     const landscape = new THREE.Group(); landscape.name = `village-landscape-${chapter}`;
-    const ground = createVillageTerrain({ ...terrain, spec: { ...terrain.spec, mergeFlatLand:true, palette: { ...terrain.spec.palette, grass: 0x7b917c, grassAlt: 0x7b917c, cliff: 0xa1a38a, rock: 0xb0ac91, shore: 0xecd5a3 } } }, this.material, 'full', true); landscape.add(ground);
+    // The land as drawn: dressing beside it (river banks) continues these colours.
+    const drawn = { ...terrain, spec: { ...terrain.spec, mergeFlatLand:true, rockContour:true, palette: { ...terrain.spec.palette, grass: 0x7b917c, grassAlt: 0x7b917c, cliff: 0xa1a38a, rock: 0xb0ac91, shore: 0xecd5a3 } } };
+    rockContour(this.material, sunny(drawn.spec.palette.rock, new THREE.Color()));
+    const ground = createVillageTerrain(drawn, this.material, 'full', true); landscape.add(ground);
     this.detachedGround = ground.geometry;
     yield 'ground';
     for (const piece of this.scenePlan.scenery) {
       const model = this.model(piece.model);
       model.position.fromArray(piece.position); model.rotation.y = piece.yaw; model.scale.setScalar(piece.scale);
-      model.updateWorldMatrix(true,true); this.coastalProtected.push(new THREE.Box3().setFromObject(model).expandByScalar(.6));
+      triangleBounds(model,SCENERY_CLEARANCE,this.coastalProtected);
       landscape.add(model);
       yield 'scenery';
     }
     const workshop = this.scenePlan.workshop;
     const house = this.model('house-a'); house.position.fromArray(workshop.house.position);
-    house.rotation.y = workshop.house.yaw; house.scale.setScalar(workshop.house.scale); landscape.add(house); house.updateWorldMatrix(true,true); this.coastalProtected.push(new THREE.Box3().setFromObject(house).expandByScalar(.6));
+    house.rotation.y = workshop.house.yaw; house.scale.setScalar(workshop.house.scale); landscape.add(house); triangleBounds(house,SCENERY_CLEARANCE,this.coastalProtected);
     this.workshopBuilding = new WorkshopBuilding(this.material, workshopSignPlacement(workshop));
     landscape.add(this.workshopBuilding.fixed);
     yield 'workshop';
@@ -127,10 +149,22 @@ export class WorldScene {
     this.scene.add(this.machine.root);
     yield 'scene-root';
     this.machine.root.updateWorldMatrix(true,true);
-    this.machine.root.traverse(object => { if (object instanceof THREE.Mesh) this.coastalProtected.push(new THREE.Box3().setFromObject(object).expandByScalar(.7)); });
+    triangleBounds(this.machine.root,MACHINE_CLEARANCE,this.coastalProtected);
+    // A moving part sweeps through more than its rest pose: keep the shore clear of each one along the film.
+    const rest=new Map<THREE.Mesh,THREE.Matrix4>();this.machine.root.traverse(object=>{if(object instanceof THREE.Mesh)rest.set(object,object.matrixWorld.clone());});
+    for(let step=1;step<=MOTION_SAMPLES;step++){
+      this.machine.apply(this.machine.route.duration*step/MOTION_SAMPLES);this.machine.root.updateMatrixWorld(true);
+      for(const [mesh,matrix] of rest)if(!mesh.matrixWorld.equals(matrix))this.coastalProtected.push(new THREE.Box3().setFromObject(mesh).expandByVector(MACHINE_CLEARANCE));
+    }
+    this.machine.apply(0);this.machine.root.updateMatrixWorld(true);
     for (const slot of this.scenePlan.rewards) this.coastalProtected.push(new THREE.Box3(new THREE.Vector3(...slot.position).addScalar(-3),new THREE.Vector3(...slot.position).addScalar(3)));
+    // Construction lays a slab under each station; the shore keeps clear of it too.
+    for (const station of this.plan.stations) { const { x, z, height } = foundationSite(station, terrain); this.coastalProtected.push(new THREE.Box3(new THREE.Vector3(x - FOUNDATION[0] / 2, height, z - FOUNDATION[2] / 2), new THREE.Vector3(x + FOUNDATION[0] / 2, height + FOUNDATION[1], z + FOUNDATION[2] / 2)).expandByVector(SCENERY_CLEARANCE)); }
     for(let seconds=0;seconds<=this.machine.route.duration;seconds+=.15){const p=new THREE.Vector3();this.machine.sample(seconds,p);this.coastalProtected.push(new THREE.Box3(p.clone().addScalar(-.8),p.clone().addScalar(.8)));}
-    const beach = new THREE.Mesh(tropicalCoast(terrain,this.coastalProtected),this.material); beach.name='village-beach'; beach.receiveShadow=true;
+    const coast=tropicalCoast(terrain,this.coastalProtected),banks=riverBanks(drawn,this.coastalProtected);
+    const shore=banks?mergeGeometries([coast,banks]):coast;if(banks){coast.dispose();banks.dispose();}
+    if(!shore)throw new Error('Shore dressing could not be merged');
+    const beach = new THREE.Mesh(shore,this.material); beach.name='village-beach'; beach.receiveShadow=true;
     const palms=islandPalms(terrain,beach,this.coastalProtected,this.material);
     const beachCount=(beach.geometry.index?.count??beach.geometry.getAttribute('position').count);
     const palmCount=palms?.geometry.getAttribute('position').count??0;
@@ -165,11 +199,8 @@ export class WorldScene {
       build.position.copy(anchor); local.position.copy(anchor).negate();
       local.add(this.machine.groups[stop]!); build.add(local); this.machine.root.add(build); this.builds.push(build);
       const foundation = new THREE.Group(); foundation.name = `village-foundation-${stop}`;
-      const mount = station.supports?.[0];
-      const x = mount?.[0] ?? anchor.x, z = mount?.[2] ?? anchor.z;
-      const height = terrainHeightAt(terrain, x, z);
-      if (height === undefined) throw new Error('Village foundation needs an authored bank mount');
-      const geometry = new THREE.BoxGeometry(1.7, 0.12, 1.5); geometry.deleteAttribute('uv');
+      const { x, z, height } = foundationSite(station, terrain);
+      const geometry = new THREE.BoxGeometry(FOUNDATION[0], FOUNDATION[1], FOUNDATION[2]); geometry.deleteAttribute('uv');
       const color = new THREE.Color(0xb9b49a), colors = new Float32Array(geometry.getAttribute('position').count * 3);
       for (let index = 0; index < colors.length; index += 3) color.toArray(colors, index);
       geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));

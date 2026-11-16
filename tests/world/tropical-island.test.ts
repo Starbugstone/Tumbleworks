@@ -1,9 +1,9 @@
-import { Box3, MeshBasicMaterial, Raycaster, Vector3 } from 'three';
-import { expect, it } from 'vitest';
-import { compileTerrain, terrainHeightAt } from '../../src/world/village-terrain';
+import { Box3, Mesh, MeshBasicMaterial, Raycaster, Vector3 } from 'three';
+import { describe, expect, it } from 'vitest';
+import { compileTerrain, distanceToPolygon, pointInPolygon, terrainHeightAt, terrainOccupancy } from '../../src/world/village-terrain';
 import { villageScenePlan } from '../../src/world/village-plans';
 import { createVillageTerrain } from '../../src/view/village-terrain';
-import { coastalEdges, coastSample, tropicalCoast } from '../../src/view/tropical-island';
+import { BANK_HIGHEST, coastalEdges, coastSample, riverBanks, tropicalCoast } from '../../src/view/tropical-island';
 
 it('opens the harbour water to the continuous sea without moving any land', () => {
   const terrain = compileTerrain(villageScenePlan(0).terrain), material = new MeshBasicMaterial();
@@ -123,4 +123,79 @@ it('dips the beach under the water around coastal structures instead of cutting 
     for(const bound of [house,post])expect(tri.intersectsBox(bound),`beach triangle ${tri.min.toArray()} enters a structure`).toBe(false);
   }
   g.dispose();
+});
+
+// Glasshouse Gardens (chapter 1) is drawn on 1.33 x 2.29 m cells: a notch's outer corner lies a metre beyond
+// its steps and the beach slopes from it by design. Fine grids must fill their notches.
+it.each([0,2,3,4,5])('fills every chapter %i coastal stair notch flush with the bank, so a diagonal coast reads as a line',chapter=>{
+  const terrain=compileTerrain(villageScenePlan(chapter).terrain);
+  expect(Math.max(terrain.cellWidth,terrain.cellDepth)).toBeLessThan(.6);
+  const mesh=new Mesh(tropicalCoast(terrain,[]),new MeshBasicMaterial()),ray=new Raycaster();
+  const kind=(c:number,r:number)=>c<0||r<0||c>=terrain.columns||r>=terrain.rows?'void':terrain.cells[r*terrain.columns+c];
+  const sunk:number[][]=[];let notches=0;
+  for(let r=0;r<terrain.rows;r++)for(let c=0;c<terrain.columns;c++){
+    if(kind(c,r)!=='void')continue;
+    // An inside corner of the staircase: land on one side in each direction.
+    const across=[kind(c-1,r),kind(c+1,r)].includes('land'),along=[kind(c,r-1),kind(c,r+1)].includes('land');
+    if(!across||!along)continue;
+    const x=terrain.originX+(c+.5)*terrain.cellWidth,z=terrain.originZ+(r+.5)*terrain.cellDepth;
+    ray.set(new Vector3(x,50,z),new Vector3(0,-1,0));const hit=ray.intersectObject(mesh)[0];if(!hit)continue;
+    notches++;
+    const bank=Math.min(...[[c,r],[c+1,r],[c,r+1],[c+1,r+1]].filter(([vc,vr])=>[kind(vc!-1,vr!-1),kind(vc!,vr!-1),kind(vc!-1,vr!),kind(vc!,vr!)].includes('land')).map(([vc,vr])=>terrain.heights[vr!*(terrain.columns+1)+vc!]!));
+    if(hit.point.y<bank-.08)sunk.push([x,z,hit.point.y,bank].map(v=>+v.toFixed(2)));
+  }
+  if(chapter===0)expect(notches).toBeGreaterThan(10);
+  expect(sunk).toEqual([]);
+  mesh.geometry.dispose();
+});
+
+it('keeps the Little Harbour shore level with the lawn beside its corner house',async()=>{
+  const {cinematicWorld}=await import('./cinematic-world-fixture');
+  const f=cinematicWorld(0);
+  try{
+    const land=surfaceMesh(f.world.scene),ray=new Raycaster(new Vector3(-7.25,50,14.6),new Vector3(0,-1,0));
+    // The house stands on the bank; padding its clearance downwards sank the beach and bared the stepped cliff.
+    expect(ray.intersectObject(land)[0]!.point.y).toBeGreaterThan(terrainHeightAt(compileTerrain(villageScenePlan(0).terrain),-7.25,14.4)!-.15);
+  }finally{f.dispose();}
+},30_000);
+function surfaceMesh(scene:import('three').Object3D):Mesh{let found:Mesh|undefined;scene.traverse(o=>{if(o instanceof Mesh&&o.geometry.userData['coastalDressing'])found=o;});return found!;}
+
+describe('Willow Mill river banks',()=>{
+  const terrain=compileTerrain(villageScenePlan(2).terrain),river=villageScenePlan(2).terrain.features.find(f=>f.kind==='hole')!.polygon;
+  const kind=(c:number,r:number)=>c<0||r<0||c>=terrain.columns||r>=terrain.rows?'void':terrain.cells[r*terrain.columns+c];
+  const touchesLand=(x:number,z:number)=>[[1,1],[1,-1],[-1,1],[-1,-1]].some(([dx,dz])=>terrainOccupancy(terrain,x+dx!*1e-3,z+dz!*1e-3)==='land');
+  it('closes every open bank edge against the land or under the water',()=>{
+    const g=riverBanks(terrain,[])!,p=g.getAttribute('position'),ix=g.index!,count=new Map<string,number>(),key=(a:number,b:number)=>a<b?`${a}/${b}`:`${b}/${a}`;
+    for(let i=0;i<ix.count;i+=3)for(let j=0;j<3;j++){const k=key(ix.getX(i+j),ix.getX(i+(j+1)%3));count.set(k,(count.get(k)??0)+1);}
+    const exposed:number[][]=[];
+    for(const [k,n] of count){if(n!==1)continue;const ends=k.split('/').map(Number);
+      if(ends.every(i=>touchesLand(p.getX(i),p.getZ(i)))||ends.every(i=>p.getY(i)<=terrain.spec.water))continue;exposed.push(ends.flatMap(i=>[p.getX(i),p.getY(i),p.getZ(i)].map(v=>+v.toFixed(2))));}
+    expect(ix.count).toBeGreaterThan(300);expect(exposed).toEqual([]);g.dispose();
+  });
+  it('fills every stair notch of the low slanted banks level with the land; high cliffs keep their wall',()=>{
+    const mesh=new Mesh(riverBanks(terrain,[])!,new MeshBasicMaterial()),ray=new Raycaster(),sunk:number[][]=[];let notches=0;
+    for(let r=0;r<terrain.rows;r++)for(let c=0;c<terrain.columns;c++){
+      if(kind(c,r)!=='water'||![kind(c-1,r),kind(c+1,r)].includes('land')||![kind(c,r-1),kind(c,r+1)].includes('land'))continue;
+      const x=terrain.originX+(c+.5)*terrain.cellWidth,z=terrain.originZ+(r+.5)*terrain.cellDepth;notches++;
+      ray.set(new Vector3(x,50,z),new Vector3(0,-1,0));const hit=ray.intersectObject(mesh)[0];
+      const banks=[[c,r],[c+1,r],[c,r+1],[c+1,r+1]].filter(([vc,vr])=>[kind(vc!-1,vr!-1),kind(vc!,vr!-1),kind(vc!-1,vr!),kind(vc!,vr!)].includes('land')).map(([vc,vr])=>terrain.heights[vr!*(terrain.columns+1)+vc!]!),bank=Math.min(...banks);
+      if(bank-terrain.spec.water>BANK_HIGHEST){expect(hit,'a high cliff keeps its plain wall').toBeUndefined();continue;}
+      // Where a low bank meets a high cliff the notch is part of either; only wholly low notches must be filled.
+      if(Math.max(...banks)-terrain.spec.water>BANK_HIGHEST)continue;
+      if(!hit||hit.point.y<bank-.08)sunk.push([x,z,hit?.point.y??NaN,bank].map(v=>+v.toFixed(2)));
+    }
+    expect(notches).toBeGreaterThan(20);expect(sunk).toEqual([]);mesh.geometry.dispose();
+  });
+  it('keeps the middle of the river open water',()=>{
+    const mesh=new Mesh(riverBanks(terrain,[])!,new MeshBasicMaterial()),ray=new Raycaster(),filled:number[][]=[];let open=0;
+    for(let z=-15;z<=15;z+=.25)for(let x=-6;x<=5;x+=.25){
+      if(!pointInPolygon(river,x,z)||distanceToPolygon(river,x,z)<1.1||terrainOccupancy(terrain,x,z)!=='water')continue;open++;
+      ray.set(new Vector3(x,50,z),new Vector3(0,-1,0));const hit=ray.intersectObject(mesh)[0];
+      if(hit&&hit.point.y>terrain.spec.water)filled.push([x,z,hit.point.y].map(v=>+v.toFixed(2)));
+    }
+    expect(open).toBeGreaterThan(50);expect(filled).toEqual([]);mesh.geometry.dispose();
+  });
+  it('leaves banks drawn along the grid as plain cliffs',()=>{
+    for(const chapter of [0,1])expect(riverBanks(compileTerrain(villageScenePlan(chapter).terrain),[])).toBeNull();
+  });
 });

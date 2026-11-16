@@ -23,15 +23,56 @@ function face(sink: Sink, color: number, ...points: readonly (readonly [number, 
   for (const point of points) { sink.positions.push(point[0], point[1], point[2]); sink.colors.push(scratch.r, scratch.g, scratch.b); }
 }
 
-function faceColor(terrain: VillageTerrain, column: number, row: number, corners: readonly number[]): number {
+/** A cell's ground colour before any rock: its paint, low shore or grass. */
+function groundColor(terrain: VillageTerrain, column: number, row: number, corners: readonly number[]): number {
   const { palette, water } = terrain.spec;
   const painted = terrain.paint[row * terrain.columns + column]!;
   if (painted) return painted;
-  const rise = Math.max(...corners) - Math.min(...corners);
-  if (rise / Math.min(terrain.cellWidth, terrain.cellDepth) > 0.75) return palette.rock;
   const mean = corners.reduce((sum, value) => sum + value, 0) / corners.length;
   if (mean < water + 0.45) return palette.shore;
   return palette.grass;
+}
+function faceColor(terrain: VillageTerrain, column: number, row: number, corners: readonly number[]): number {
+  if (terrain.paint[row * terrain.columns + column]) return groundColor(terrain, column, row, corners);
+  const rise = Math.max(...corners) - Math.min(...corners);
+  if (rise / Math.min(terrain.cellWidth, terrain.cellDepth) > 0.75) return terrain.spec.palette.rock;
+  return groundColor(terrain, column, row, corners);
+}
+/** Ground at least this steep (rise over run) is drawn as rock where the contour shader runs. */
+export const ROCK_GRADE = 0.75;
+/** Height-field steepness at a grid vertex, by central differences (one-sided at the border). */
+function grade(terrain: VillageTerrain, column: number, row: number): number {
+  const { columns, rows, heights, cellWidth, cellDepth } = terrain, stride = columns + 1;
+  const h = (c: number, r: number) => heights[Math.min(rows, Math.max(0, r)) * stride + Math.min(columns, Math.max(0, c))]!;
+  const c0 = Math.max(0, column - 1), c1 = Math.min(columns, column + 1), r0 = Math.max(0, row - 1), r1 = Math.min(rows, row + 1);
+  return Math.hypot((h(c1, row) - h(c0, row)) / ((c1 - c0) * cellWidth), (h(column, r1) - h(column, r0)) / ((r1 - r0) * cellDepth));
+}
+
+/**
+ * Draw rock wherever a slope's interpolated grade reaches ROCK_GRADE, with an anti-aliased edge. The rock
+ * line follows the slope's contour across the triangles instead of stepping cell by cell; geometry,
+ * triangle count and the land's ownership are untouched. Meshes without a `grade` attribute read 0.
+ */
+export function rockContour(material: THREE.Material, rock: THREE.Color): void {
+  const uniform = { value: rock.clone() };
+  material.onBeforeCompile = shader => {
+    shader.uniforms['uRock'] = uniform;
+    shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nattribute float grade;\nvarying float vGrade;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvGrade = grade;');
+    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uRock;\nvarying float vGrade;')
+      .replace('#include <color_fragment>', `#include <color_fragment>
+      float rockEdge = max(fwidth(vGrade), 1e-4);
+      diffuseColor.rgb = mix(diffuseColor.rgb, uRock, smoothstep(${ROCK_GRADE.toFixed(4)} - rockEdge, ${ROCK_GRADE.toFixed(4)} + rockEdge, vGrade));`);
+  };
+  material.customProgramCacheKey = () => 'rock-contour';
+  material.needsUpdate = true;
+}
+
+/** The ground colour of a land cell's top, so level dressing beside it can continue the same ground. */
+export function landFaceColour(terrain: VillageTerrain, column: number, row: number, target: THREE.Color): THREE.Color {
+  const stride = terrain.columns + 1, h = terrain.heights;
+  const corners = [h[row * stride + column]!, h[row * stride + column + 1]!, h[(row + 1) * stride + column + 1]!, h[(row + 1) * stride + column]!];
+  return sunny(groundColor(terrain, column, row, corners), target);
 }
 
 /**
@@ -55,7 +96,9 @@ export function villageTerrainGeometry(source: VillageTerrain | VillageTerrainSp
     const corners = [heights[row * stride + column]!, heights[row * stride + column + 1]!, heights[(row + 1) * stride + column + 1]!, heights[(row + 1) * stride + column]!];
     if (cell === 'land') {
       landFaces.push({row,column,start:sink.positions.length/3});
-      const color = faceColor(terrain, column, row, corners);
+      // With a rock contour the shader draws rock where the slope's own grade crosses ROCK_GRADE, so the
+      // cell keeps its ground colour; otherwise a steep cell is rock as a whole.
+      const color = spec.rockContour ? groundColor(terrain, column, row, corners) : faceColor(terrain, column, row, corners);
       const v00 = vertex(column, row), v10 = vertex(column + 1, row), v01 = vertex(column, row + 1), v11 = vertex(column + 1, row + 1);
       if (cellDiagonal(column, row) === 'main') { face(sink, color, v00, v11, v10); face(sink, color, v00, v01, v11); }
       else { face(sink, color, v00, v01, v10); face(sink, color, v10, v01, v11); }
@@ -101,7 +144,26 @@ export function villageTerrainGeometry(source: VillageTerrain | VillageTerrainSp
   for(const rect of result.userData.paintedLandRectangles??[]){replaced.set(rect.sourceStarts[0],rect.triangleCount);for(const at of rect.sourceStarts.slice(1))removed.add(at);}
   const land:number[]=[];let output=0;for(let i=0;i<geometry.getAttribute('position').count;){if(removed.has(i)){i+=6;continue;}const count=replaced.get(i);if(count!==undefined){for(let j=0;j<count;j++)land.push(output++);i+=6;}else{if(landStarts.has(i))land.push(output);output++;i+=3;}}
   if(output*3!==result.getAttribute('position').count)throw new Error('Terrain ownership lineage mismatch');terrainOwnership.set(result,{terrain,land:Object.freeze(land),prefixVertices:output*3});
+  if(spec.rockContour)result.setAttribute('grade',new THREE.Float32BufferAttribute(slopeGrades(result,terrain,land),1));
   if(result!==geometry)geometry.dispose();return result;
+}
+
+/**
+ * Per-vertex grade for every sloped, unpainted land triangle; 0 elsewhere (level or painted land, cliffs).
+ * Each triangle owns its vertices, so a level cell beside a slope stays ground right up to its rim.
+ */
+function slopeGrades(geometry:THREE.BufferGeometry,terrain:VillageTerrain,land:readonly number[]):Float32Array{
+  const p=geometry.getAttribute('position'),out=new Float32Array(p.count);
+  const column=(x:number)=>Math.round((x-terrain.originX)/terrain.cellWidth),row=(z:number)=>Math.round((z-terrain.originZ)/terrain.cellDepth);
+  for(const triangle of land){
+    const ids=[0,1,2].map(j=>triangle*3+j),ys=ids.map(i=>p.getY(i));
+    if(ys.every(y=>y===ys[0]))continue;
+    const cx=ids.reduce((sum,i)=>sum+p.getX(i),0)/3,cz=ids.reduce((sum,i)=>sum+p.getZ(i),0)/3;
+    const c=Math.floor((cx-terrain.originX)/terrain.cellWidth),r=Math.floor((cz-terrain.originZ)/terrain.cellDepth);
+    if(terrain.paint[r*terrain.columns+c])continue;
+    for(const i of ids)out[i]=grade(terrain,column(p.getX(i)),row(p.getZ(i)));
+  }
+  return out;
 }
 
 /** The caller owns the returned mesh's geometry; the material is borrowed. */
