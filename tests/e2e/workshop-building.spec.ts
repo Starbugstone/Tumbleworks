@@ -41,6 +41,7 @@ test('the visible 3D hammer sign responds to the passing marble in both motion m
   for (const reduced of [false, true]) {
     await page.emulateMedia({ reducedMotion: reduced ? 'reduce' : 'no-preference' });
     await page.getByRole('button', { name: 'Watch your machine' }).tap();
+    await expect(page.locator('#scene')).toHaveAttribute('data-world-film', 'ready', { timeout: 30_000 });
     if (reduced) await page.getByRole('button', { name: 'Play film', exact: true }).tap();
     const pass = await page.evaluate(() => ((window as unknown as GameWindow).tumbleworks.app as unknown as { world: FilmWorld }).world.scene.workshopPass);
     const angles: number[] = [];

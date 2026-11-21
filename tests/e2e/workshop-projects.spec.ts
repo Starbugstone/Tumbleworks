@@ -73,10 +73,10 @@ async function settle(page: Page): Promise<void> {
   });
 }
 
-async function leaveGame(page: Page): Promise<void> {
+async function returnToWorkshop(page: Page): Promise<void> {
   await page.locator('#levels-toggle').tap();
   await page.locator('#map-open').tap();
-  await ready(page, 'map');
+  await ready(page, 'workshop');
 }
 
 async function rewardArt(page: Page, id: string): Promise<void> {
@@ -199,13 +199,14 @@ test('old completed projects keep every reward and replay without constructing m
     await expect(card.locator('.wv-workshop-check')).toHaveText('✓');
     await page.locator(`[data-project-village="${project.id}"]`).tap(); await ready(page, 'map');
     expect(await state(page)).toMatchObject({ worldChapter: project.chapter, worldView: 'map' });
+    await expect(page.locator('#scene')).toHaveAttribute('data-world-scene', 'ready', { timeout: 30_000 });
     await rewardArt(page, project.id);
     await expect(page.locator('.map-stop[data-status="built"]')).toHaveCount(0);
     await expect(page.locator('.map-stop:not([aria-disabled="true"])')).toHaveCount(project.chapter === 0 ? 1 : 0);
     await openWorkshop(page);
     await projectCard(page, project.id).tap(); await ready(page, 'game');
     expect(await state(page)).toMatchObject({ source: 'workshop', levelId: project.id });
-    await leaveGame(page); await openWorkshop(page);
+    await returnToWorkshop(page);
   }
   await page.getByRole('button', { name: 'Back to the village' }).tap(); await ready(page, 'map');
   await page.getByRole('button', { name: 'Islands', exact: true }).tap();
