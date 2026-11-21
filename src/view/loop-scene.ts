@@ -75,8 +75,6 @@ interface TruckVisual { readonly group: THREE.Group; readonly blocks: Block[]; r
 /** One load dropping in shoves the lorry about a twentieth of a unit toward its cab; a stream of them holds it there, humming. */
 const RECOIL_KICK = 1.9;
 const SWELL_KICK = 9;
-/** Where a load drops into the tub, measured in from the tailboard. */
-const LANDING_INSET = 0.24;
 
 /** The Loop Sort toy: the belt and the row of docked lorries. Numbers and waiting lorries live in the cards beneath it. */
 export class LoopScene {
@@ -99,7 +97,7 @@ export class LoopScene {
   private readonly symbols = new Map<Color, THREE.CanvasTexture>();
   private readonly sparks: Sparks;
   private yard: ArcadeYard | null = null;
-  private dispatch: THREE.Mesh | null = null;
+  private dispatch: ReturnType<typeof dispatchPlates> | null = null;
   private readonly jamStops: THREE.Mesh[] = [];
   private readonly shake = new Shake();
   private readonly reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -108,8 +106,8 @@ export class LoopScene {
   /** One printed pattern material per colour for every lorry on the level. */
   private readonly decals = new Map<Color, THREE.MeshBasicMaterial>();
   private perUnit = 3;
-  private readonly previous = new Map<number, UnitPose[]>();
-  private readonly current = new Map<number, UnitPose[]>();
+  private previous = new Map<number, UnitPose[]>();
+  private current = new Map<number, UnitPose[]>();
   private framing: { x: number; y: number; z: number }[] = [];
 
   constructor(private readonly stage: Stage) {
@@ -173,8 +171,8 @@ export class LoopScene {
       const mouth = machine.mouthZ(lane), end = ends[lane]!;
       const truck = machine.readTrucks().filter(candidate => candidate.lane === lane).at(-1)!;
       return { x: bay.x, z: (end + mouth)/2, halfWidth: TRUCK.bedWidth*.47, halfDepth: (end-mouth)*.46,
-        color: COLORS[truck.finalColor].hex };
-    }), DECK_TOP+.045);
+        color: truck.finalColor };
+    }), DECK_TOP+.045, this.decals);
     this.level.add(this.dispatch);
     const base = new THREE.Mesh(fuse(parts), bodyPlastic());
     base.castShadow = true;
@@ -308,7 +306,10 @@ export class LoopScene {
 
   /** The level is won: one glitter fountain from each corner of the hull, with the confetti. */
   celebrate(clean = 1): void {
-    if (this.dispatch) this.dispatch.visible = true;
+    if (this.dispatch && this.machine) {
+      this.dispatch.showExcept(new Set(this.machine.readTrucks().filter(truck => truck.retained).map(truck => truck.lane)));
+      this.dispatch.visible = true;
+    }
     if (this.yard) this.sparks.finish(this.yard.corners, clean);
     this.sparks.boost();
   }
@@ -324,9 +325,11 @@ export class LoopScene {
 
   react(events: readonly LoopMachineEvent[]): void {
     if (!this.machine) return;
+    let trucks: ReturnType<LoopMachine['readTrucks']> | undefined;
     for (const event of events) {
       if (event.type !== 'pour' && event.type !== 'absorb' && event.type !== 'complete') continue;
-      const truck = this.machine.readTrucks().find((truck) => truck.lane === event.lane && (event.type === 'pour' ? truck.docked : truck.index === event.truck));
+      trucks ??= this.machine.readTrucks();
+      const truck = trucks.find((truck) => truck.lane === event.lane && (event.type === 'pour' ? truck.docked : truck.index === event.truck));
       if (!truck) continue;
       const visual = this.trucks.get(`${truck.lane}:${truck.index}`);
       if (visual && event.type !== 'absorb') visual.pulse = event.type === 'complete' ? 1 : 0.65;
@@ -334,32 +337,29 @@ export class LoopScene {
         // Contact: the load has dropped into the tub. The lorry is shoved back on its wheels and rolls forward again,
         // and the pattern on the cargo that took it swells; a stream of loads keeps both up until it ends.
         if (visual && !this.reducedMotion) { visual.recoil.kick(RECOIL_KICK * this.weight); visual.swell.kick(SWELL_KICK * this.weight); }
-        const facing = this.machine.facing(truck.lane);
         // Every third load glints where it landed; held fast forward brings them too often for that.
-        if (event.fill % 3 === 0 && this.weight === 1) this.sparks.land({ x: truck.x, y: truck.y + 0.95, z: this.machine.mouthZ(truck.lane) - facing * LANDING_INSET }, 0xffd76a);
+        if (event.fill % 3 === 0 && this.weight === 1) this.sparks.land(this.machine.intakeSeat(truck.lane, truck.index, event.fill), 0xffd76a);
       }
       if (event.type === 'pour') this.sparks.tap({ x: truck.x, y: truck.y + 1, z: truck.z });
       if (event.type === 'complete') {
         const at = { x: truck.x, y: truck.y + 1.1, z: truck.z };
         if (this.sparks.payoff(at, COLORS[event.color].hex) === 2) this.shake.kick();
         // The lorry kicks up dust at its wheels as it pulls away.
-        for (const side of [-1, 1]) this.sparks.burst({ x: truck.x + side * TRUCK.bedWidth * 0.5, y: truck.y + 0.15, z: truck.z + TRUCK.bedLength * 0.3 }, 0xd9cdb8, 10);
+        if (!truck.retained) for (const side of [-1, 1]) this.sparks.burst({ x: truck.x + side * TRUCK.bedWidth * 0.5, y: truck.y + 0.15, z: truck.z + TRUCK.bedLength * 0.3 }, 0xd9cdb8, 10);
       }
     }
   }
 
-  private syncTrucks(snap: boolean): void {
-    if (!this.machine) return;
-    for (const truck of this.machine.readTrucks()) {
+  private syncTrucks(trucks: ReturnType<LoopMachine['readTrucks']>, snap: boolean): void {
+    for (const truck of trucks) {
       const key = `${truck.lane}:${truck.index}`;
       this.previousTrucks.set(key, snap ? truck : this.currentTrucks.get(key) ?? truck);
       this.currentTrucks.set(key, truck);
     }
   }
 
-  private syncCargo(snap: boolean): void {
-    if (!this.machine) return;
-    for (const truck of this.machine.readTrucks()) {
+  private syncCargo(trucks: ReturnType<LoopMachine['readTrucks']>, snap: boolean): void {
+    for (const truck of trucks) {
       const visual = this.trucks.get(`${truck.lane}:${truck.index}`);
       if (!visual) continue;
       const ordered = [...truck.blocks].reverse();
@@ -385,12 +385,15 @@ export class LoopScene {
     if (this.machine?.rules.status === 'jammed') this.jamStops.forEach((stop,lane) => {
       stop.visible = this.machine!.rules.front(lane) !== null;
     });
-    this.syncTrucks(false);
-    this.syncCargo(false);
+    const machine = this.machine;
+    if (!machine) return;
+    const trucks = machine.readTrucks();
+    this.syncTrucks(trucks, false);
+    this.syncCargo(trucks, false);
     this.sparks.step(TICK_SECONDS);
     // A docked lorry holding one colour with room for three units or fewer is about to finish: it gets the steady glow.
     const lit = new Set<number>();
-    for (const truck of this.machine?.readTrucks() ?? []) {
+    for (const truck of trucks) {
       if (!truck.docked || truck.departing || truck.lane >= 8 || truck.blocks.length !== 1) continue;
       const room = truck.capacity - truck.blocks[0]!.units;
       if (room > 0 && room <= 3) { lit.add(truck.lane); this.sparks.halo(truck.lane, { x: truck.x, y: truck.y + 0.5, z: truck.z }); }
@@ -398,27 +401,24 @@ export class LoopScene {
     for (let lane = 0; lane < 8; lane++) if (!lit.has(lane)) this.sparks.halo(lane, null);
     for (const visual of this.trucks.values()) visual.pulse = Math.max(0, visual.pulse - TICK_SECONDS * 4);
 
-    const machine = this.machine;
-    if (!machine) return;
-    this.roster?.sync();
-    for (const [id, poses] of this.current) {
-      const previous = this.previous.get(id);
-      if (!previous) continue;
-      for (let k = 0; k < this.perUnit; k++) Object.assign(previous[k]!, poses[k]);
-      machine.readUnit(id, poses);
-    }
+    this.roster?.sync(trucks);
+    const reusable = this.previous;
+    this.previous = this.current;
+    this.current = reusable;
+    for (const [id, poses] of this.current) machine.readUnit(id, poses);
   }
 
   syncAfterJump(): void {
     if (this.dispatch) this.dispatch.visible = false;
     for (const stop of this.jamStops) stop.visible = false;
     this.sparks.clear();
-    this.syncTrucks(true);
-    this.syncCargo(true);
+    const trucks = this.machine?.readTrucks() ?? [];
+    this.syncTrucks(trucks, true);
+    this.syncCargo(trucks, true);
     for (const visual of this.trucks.values()) { visual.pulse = 0; visual.recoil.reset(); visual.swell.reset(); }
     const machine = this.machine;
     if (!machine) return;
-    this.roster?.sync();
+    this.roster?.sync(trucks);
     for (const [id, poses] of this.current) {
       machine.readUnit(id, poses);
       const previous = this.previous.get(id);

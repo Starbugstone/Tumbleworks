@@ -1,4 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest';
+import { sfx } from '../../src/audio';
 import { App } from '../../src/view/App';
 import { WorldView } from '../../src/view/world';
 
@@ -12,7 +13,7 @@ function clock(playing = true, reduced = false) {
   const world = Object.assign(Object.create(WorldView.prototype), {
     element: { hidden: false }, ownership: { scene: { stepSea: vi.fn() } }, view: 'film', playing, dirty: true,
     filmWait: 'ready',
-    reduced: { matches: reduced }, filmTime: 0, playback: { duration: 40, render },
+    reduced: { matches: reduced }, filmTime: 0, playback: { duration: 40, routeCues: [], render },
     finishFilm: () => { throw new Error('This fixture must remain inside the film'); },
   }) as { filmTime: number; dirty: boolean; advance(seconds: number): boolean };
   const app = Object.assign(Object.create(App.prototype), {
@@ -70,4 +71,17 @@ it('preserves the eight-tick puzzle catch-up limit and the held-speed cadence', 
   Object.assign(app, { speed: App.FASTER_SPEED, accumulator: 0 });
   app.advance(0.2); expect(step).toHaveBeenCalledTimes(15);
   expect(world.advance).not.toHaveBeenCalled(); expect(render).not.toHaveBeenCalled();
+});
+
+it('sounds each crossed route cue once and rings the bell after the shoe seats', () => {
+  const { world } = clock();
+  const beats: string[] = [];
+  const ride = vi.spyOn(sfx,'harbourRouteCue').mockImplementation(cue => { beats.push(cue); });
+  const bell = vi.spyOn(sfx,'harbourBell').mockImplementation(() => { beats.push('bell'); });
+  Object.assign(world,{ playback:{ duration:40, render:vi.fn(), bellStrike:.51,
+    routeCues:[{cue:'cruise',at:.12},{cue:'transfer',at:.19},{cue:'arrival',at:.35}] } });
+  try {
+    for(const dt of [.12,.07,.16,.16,.13]) world.advance(dt);
+    expect(beats).toEqual(['cruise','transfer','arrival','bell']);
+  } finally {ride.mockRestore();bell.mockRestore();}
 });

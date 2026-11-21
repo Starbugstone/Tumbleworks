@@ -182,6 +182,21 @@ fade the outgoing theme before starting the incoming one, so the beds do not sta
 `sfx.boardFastForward(active: boolean): void` follows effective game speed above 1×. It ducks the
 board bed to 35% and clears pending gull calls. Leaving the board clears the ducking state.
 
+### Film contacts and last load
+
+Call `sfx.harbourRouteCue(cue)` once per forward crossing of Little Harbour's authored markers.
+`'cruise'` is a pair of plank and enamel contacts at the first rollers. `'transfer'` is a dry
+latch and low wood body at the slipway. `'arrival'` seats the marble in the terminal shoe before
+the separate `harbourBell()` strike. Skip markers during seeking or skipped playback.
+
+Call `sfx.finalLoad()` once at the shared board finish, in place of `win()`. A lower, rounded
+load contact leads the existing felt win phrase by 180 ms. This payoff still plays when the
+last load completes during fast forward. Normal box and truck completions keep their own cues.
+
+Both hooks use the existing bank, voice limits and mixer. Delayed contacts are scheduled on
+the audio clock and cancel with the rest of the one-shots. The film keeps the same quiet surf
+and gulls. No additional audio is downloaded or decoded.
+
 ## Initial workshop-bank verification — 21 November 2026
 
 - Before audio integration, the new thirteen-buffer and distinct reward/bell regression failed

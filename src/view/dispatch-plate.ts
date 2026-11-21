@@ -1,64 +1,82 @@
 import * as THREE from 'three';
-import { BOX, RACEWAY, type Track } from '../machine/layout';
+import { type Track } from '../machine/layout';
+import { funnelChute } from './funnel-transfer';
+import type { Color } from '../sim/types';
+import { COLORS, decal } from './art';
 import { ARCADE, bodyPlastic, fuse, plate, tinted } from './arcade';
 
-export interface DispatchLane { x: number; z: number; halfWidth: number; halfDepth: number; color: number }
+export interface DispatchLane { x: number; z: number; halfWidth: number; halfDepth: number; color: Color }
 
-/** A finished bay exposes an enamel dispatch plate. A raised ivory tick stays readable on every cargo colour. */
-export function dispatchPlates(lanes: readonly DispatchLane[], top: number): THREE.Mesh {
-  const parts: THREE.BufferGeometry[] = [];
-  for (const lane of lanes) {
-    const { halfWidth: w, halfDepth: d, x, z } = lane;
+class DispatchPlates extends THREE.Group {
+  showExcept(occupied: ReadonlySet<number>): void {
+    this.children.forEach((plate, lane) => { plate.visible = !occupied.has(lane); });
+  }
+}
+
+/** An emptied bay keeps the print of its last shipment beside the winning load. */
+export function dispatchPlates(lanes: readonly DispatchLane[], top: number, prints = new Map<Color, THREE.MeshBasicMaterial>()): DispatchPlates {
+  const group = new DispatchPlates();
+  const enamel = bodyPlastic();
+  for (const { halfWidth: w, halfDepth: d, x, z, color } of lanes) {
     const r = Math.min(w * .67, d * .64);
-    parts.push(plate(w, d, top+.08, .075, .18, .025, ARCADE.trim, z).translate(x,0,0));
-    parts.push(plate(w-.06, d-.06, top+.11, .033, .15, .012, ARCADE.lane, z).translate(x,0,0));
-    const medallion = new THREE.CylinderGeometry(r, r*1.03, .06, 36);
-    parts.push(tinted(medallion.translate(x,top+.14,z),lane.color));
-    parts.push(tinted(new THREE.TorusGeometry(r*.95,.038,5,36).rotateX(-Math.PI/2).translate(x,top+.18,z), ARCADE.rim));
-    const mark = new THREE.Shape();
-    mark.moveTo(-.58,-.03); mark.lineTo(-.19,-.43); mark.lineTo(.64,.40);
-    mark.lineTo(.48,.55); mark.lineTo(-.19,-.13); mark.lineTo(-.43,.12); mark.closePath();
-    const check = new THREE.ExtrudeGeometry(mark,{depth:.02,bevelEnabled:false}).scale(r,r,1).rotateX(-Math.PI/2);
-    parts.push(tinted(check.translate(x,top+.174,z),0xfff4d8));
-    if (d > r * 1.65) for (const sign of [-1,1]) {
-      parts.push(tinted(new THREE.BoxGeometry(w*1.08,.026,.055).translate(x,top+.13,z+sign*(r+d)/2),ARCADE.rim));
-      parts.push(tinted(new THREE.BoxGeometry(w*.72,.026,.035).translate(x,top+.13,z+sign*((r+d)/2+.16)),ARCADE.shell));
+    const medallion = new THREE.CylinderGeometry(r, r * 1.03, .06, 32);
+    const parts = [
+      plate(w, d, .08, .075, .18, .025, ARCADE.trim),
+      plate(w - .06, d - .06, .11, .033, .15, .012, ARCADE.lane),
+      tinted(medallion.translate(0, .14, 0), COLORS[color].hex),
+      tinted(new THREE.TorusGeometry(r * .95, .038, 5, 32).rotateX(-Math.PI / 2).translate(0, .18, 0), ARCADE.rim),
+    ];
+    if (d > r * 1.65) for (const side of [-1, 1]) {
+      parts.push(tinted(new THREE.BoxGeometry(w * 1.08, .026, .055).translate(0, .13, side * (r + d) / 2), ARCADE.rim));
     }
+    const bay = new THREE.Mesh(fuse(parts), enamel);
+    bay.position.set(x, top, z);
+    const print = decal(color, r * 1.64, prints);
+    print.rotation.x = -Math.PI / 2;
+    print.position.y = .178;
+    bay.add(print);
+    group.add(bay);
   }
-  const mesh = new THREE.Mesh(fuse(parts),bodyPlastic());
-  mesh.visible = false; mesh.name = 'completed-dispatch-bays';
-  return mesh;
+  group.visible = false;
+  group.name = 'completed-dispatch-bays';
+  return group;
 }
 
-/** This shutter drops only at a blocked intake; the diagonal ivory flutes read on every cargo colour. */
+/** A high-contrast no-entry sign across a jammed throat leaves the box's cargo pattern exposed. */
 export function jamShutter(x: number, y: number, z: number, width: number): THREE.Mesh {
-  const parts = [plate(width/2,.14,.08,.10,.09,.025,ARCADE.edge)];
-  for (let i = -1; i <= 1; i++) {
-    parts.push(tinted(new THREE.BoxGeometry(width*.14,.19,.028).rotateX(-Math.PI/2).rotateY(.44)
-      .translate(i*width*.22,.102,0),0xffe6b1));
-  }
+  const cream = 0xfff1ce;
+  const radius = Math.min(.48, width * .35);
+  const parts = [
+    plate(width / 2, .10, .12, .12, .075, .022, ARCADE.edge),
+    tinted(new THREE.CylinderGeometry(radius, radius, .09, 8).rotateY(Math.PI / 8).translate(0, .16, 0), cream),
+    tinted(new THREE.CylinderGeometry(radius * .85, radius * .85, .035, 8).rotateY(Math.PI / 8).translate(0, .22, 0), ARCADE.edge),
+    tinted(new THREE.BoxGeometry(radius * 1.14, .026, radius * .32).translate(0, .249, 0), cream),
+  ];
   const mesh = new THREE.Mesh(fuse(parts), bodyPlastic());
-  mesh.name = 'blocked-intake'; mesh.position.set(x,y,z); mesh.visible=false;
+  mesh.name = 'blocked-intake';
+  mesh.position.set(x, y, z);
+  mesh.visible = false;
   return mesh;
 }
 
-
-/** The belt-to-box throat sits below the marble's flight and touches both physical assemblies. */
+/** A dark runway and two cast lips sit on a bracket. Its pitch and endpoints also drive the marble. */
 export function transferRails(track: Pick<Track, 'nearest' | 'point'>, x: number): THREE.BufferGeometry[] {
-  const outlet = track.point(track.nearest(x, RACEWAY.centerZ + RACEWAY.radius).distance);
-  const z = BOX.z - .42;
-  const dx = x - outlet.x, dz = z - outlet.z;
-  const length = Math.hypot(dx, dz);
-  const yaw = Math.atan2(dx, dz);
-  const pieces = [
-    { offset: 0, width: .71, y: -.19, color: ARCADE.lane },
-    { offset: -.36, width: .13, y: -.104, color: ARCADE.shell },
-    { offset: .36, width: .13, y: -.104, color: ARCADE.shell },
+  const { head, nose, length, yaw } = funnelChute(track, x);
+  const centerX = (head.x + nose.x) / 2, centerZ = (head.z + nose.z) / 2;
+  const centerY = (head.y + nose.y) / 2;
+  const pitch = Math.atan2(head.y - nose.y, length), face = Math.hypot(length, head.y - nose.y);
+  // Three dimensional local coordinates keep the running surface and its lips precisely parallel.
+  const strip = (width: number, height: number, side: number, above: number, color: number) => {
+    const part = new THREE.BoxGeometry(width, height, face);
+    part.translate(side, above, 0).rotateX(pitch).rotateY(yaw).translate(centerX, centerY, centerZ);
+    return tinted(part, color);
+  };
+  const bracket = new THREE.BoxGeometry(.32, centerY + .22, Math.max(.10, length * .40));
+  bracket.rotateY(yaw).translate(centerX, (centerY - .22) / 2, centerZ);
+  return [
+    strip(.84, .13, 0, -.065, ARCADE.lane),
+    strip(.095, .19, -.44, .005, ARCADE.shell),
+    strip(.095, .19, .44, .005, ARCADE.shell),
+    tinted(bracket, ARCADE.trim),
   ];
-  return pieces.map(({ offset, width, y, color }) => {
-    const rail = new THREE.BoxGeometry(width, .18, length);
-    rail.rotateY(yaw).translate((outlet.x + x) / 2 + Math.cos(yaw) * offset, y,
-      (outlet.z + z) / 2 - Math.sin(yaw) * offset);
-    return tinted(rail, color);
-  });
 }

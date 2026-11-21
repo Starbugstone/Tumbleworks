@@ -1,93 +1,92 @@
 import * as THREE from 'three';
 import type { Color } from '../sim/types';
-import { crowdMaterial } from '../view/art';
+import { COLORS, crowdMaterial } from '../view/art';
 
-interface Slot { readonly color: Color; readonly index: number }
-
-/** Many plain glossy marbles, one draw per colour; only visible instances reach the GPU. */
+/** All visible marbles share one draw, with the same paint in linear colour space as an individual marble. */
 export class MarbleCrowd {
-  private readonly meshes = new Map<Color, THREE.InstancedMesh>();
-  private readonly slots = new Map<number, Slot>();
-  private readonly written = new Map<Color, number>();
-  private readonly used = new Map<Color, number>();
-  private readonly dummy = new THREE.Object3D();
+  private readonly mesh: THREE.InstancedMesh<THREE.SphereGeometry, THREE.MeshPhysicalMaterial>;
+  private readonly room: Map<Color, number>;
+  private readonly paints = new Map<Color, THREE.Color>();
+  private readonly actors = new Map<number, THREE.Color>();
+  private readonly matrix = new THREE.Matrix4();
+  private readonly position = new THREE.Vector3();
+  private readonly rotation = new THREE.Quaternion();
+  private readonly size = new THREE.Vector3();
   private readonly forward = new THREE.Vector3(0, 0, 1);
   private readonly heading = new THREE.Vector3();
-  private readonly geometry: THREE.SphereGeometry;
+  private written = 0;
 
   constructor(parent: THREE.Object3D, counts: ReadonlyMap<Color, number>, readonly radius: number) {
-    this.geometry = new THREE.SphereGeometry(radius, 16, 12);
+    this.room = new Map(counts);
+    let capacity = 0;
     for (const [color, count] of counts) {
-      if (count === 0) continue;
-      const mesh = new THREE.InstancedMesh(this.geometry, crowdMaterial(color), count);
-      mesh.castShadow = true;
-      mesh.frustumCulled = false;
-      mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-      this.dummy.position.set(0, -100, 0);
-      this.dummy.scale.setScalar(0.0001);
-      this.dummy.updateMatrix();
-      for (let index = 0; index < count; index++) mesh.setMatrixAt(index, this.dummy.matrix);
-      parent.add(mesh);
-      this.meshes.set(color, mesh);
-      this.used.set(color, 0);
+      capacity += count;
+      this.paints.set(color, new THREE.Color(COLORS[color].hex));
     }
+    // Loop traffic is drawn in rows of tiny marbles. Keep the denser sphere on the larger Funnel pieces.
+    const segments = radius <= .17 ? 12 : 16;
+    this.mesh = new THREE.InstancedMesh(new THREE.SphereGeometry(radius, segments, segments * .75), crowdMaterial(), capacity);
+    this.mesh.count = 0;
+    this.mesh.castShadow = true;
+    this.mesh.frustumCulled = false;
+    this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    // Allocate the attribute before the stage precompiles the instanced shader, including for an empty loop.
+    this.mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 3), 3).setUsage(THREE.DynamicDrawUsage);
+    parent.add(this.mesh);
   }
 
   add(id: number, color: Color): void {
-    const mesh = this.meshes.get(color);
-    const index = this.used.get(color) ?? 0;
-    if (!mesh || index >= mesh.instanceMatrix.count) throw new Error(`No room for another ${color} marble`);
-    this.used.set(color, index + 1);
-    this.slots.set(id, { color, index });
+    const remaining = this.room.get(color) ?? 0;
+    const paint = this.paints.get(color);
+    if (!paint || remaining <= 0) throw new Error(`No room for another ${color} marble`);
+    this.room.set(color, remaining - 1);
+    this.actors.set(id, paint);
   }
 
-  /** `tall` draws it flattened or drawn up along its own vertical axis; pass no turn with it, or the squash turns too. */
+  private write(paint: THREE.Color, x: number, y: number, z: number): void {
+    this.matrix.compose(this.position.set(x, y, z), this.rotation, this.size);
+    this.mesh.setMatrixAt(this.written, this.matrix);
+    this.mesh.setColorAt(this.written, paint);
+    this.written++;
+  }
+
   set(id: number, x: number, y: number, z: number, qx: number, qy: number, qz: number, qw: number, scale = 1, tall = scale): void {
-    const slot = this.slots.get(id);
-    const mesh = slot && this.meshes.get(slot.color);
-    if (!slot || !mesh || scale <= 0.001) return;
-    this.dummy.position.set(x, y, z);
-    this.dummy.quaternion.set(qx, qy, qz, qw);
-    this.dummy.scale.set(scale, tall, scale);
-    this.dummy.updateMatrix();
-    const index = this.written.get(slot.color) ?? 0;
-    mesh.setMatrixAt(index, this.dummy.matrix);
-    this.written.set(slot.color, index + 1);
+    if (scale <= .001) return;
+    const paint = this.actors.get(id);
+    if (!paint) return;
+    this.rotation.set(qx, qy, qz, qw);
+    this.size.set(scale, tall, scale);
+    this.write(paint, x, y, z);
   }
 
-  /** A marble in flight, drawn a little long along its travel and a little thin across it. */
-  setStretched(id: number, x: number, y: number, z: number, dx: number, dy: number, dz: number, along = 1.1, across = 0.95): void {
-    const slot = this.slots.get(id);
-    const mesh = slot && this.meshes.get(slot.color);
-    if (!slot || !mesh) return;
-    this.dummy.position.set(x, y, z);
-    this.dummy.quaternion.setFromUnitVectors(this.forward, this.heading.set(dx, dy, dz).normalize());
-    this.dummy.scale.set(across, across, along);
-    this.dummy.updateMatrix();
-    const index = this.written.get(slot.color) ?? 0;
-    mesh.setMatrixAt(index, this.dummy.matrix);
-    this.written.set(slot.color, index + 1);
+  /** Draw a flying marble a little longer along its direction of travel. */
+  setStretched(id: number, x: number, y: number, z: number, dx: number, dy: number, dz: number, along = 1.1, across = .95): void {
+    const paint = this.actors.get(id);
+    if (!paint) return;
+    this.rotation.setFromUnitVectors(this.forward, this.heading.set(dx, dy, dz).normalize());
+    this.size.set(across, across, along);
+    this.write(paint, x, y, z);
   }
 
-  /** Commit one complete frame of poses, packing out hidden marbles without changing actor IDs. */
   commit(): void {
-    for (const [color, mesh] of this.meshes) {
-      mesh.count = this.written.get(color) ?? 0;
-      mesh.instanceMatrix.needsUpdate = true;
+    this.mesh.count = this.written;
+    if (this.written) {
+      for (const attribute of [this.mesh.instanceMatrix, this.mesh.instanceColor!]) {
+        attribute.clearUpdateRanges();
+        attribute.addUpdateRange(0, this.written * attribute.itemSize);
+        attribute.needsUpdate = true;
+      }
     }
-    this.written.clear();
+    this.written = 0;
   }
 
-  get count(): number { return this.slots.size; }
+  get count(): number { return this.actors.size; }
 
   dispose(): void {
-    for (const mesh of this.meshes.values()) {
-      mesh.removeFromParent();
-      (mesh.material as THREE.Material).dispose();
-      mesh.dispose();
-    }
-    this.geometry.dispose();
-    this.meshes.clear();
-    this.slots.clear();
+    this.mesh.removeFromParent();
+    this.mesh.material.dispose();
+    this.mesh.geometry.dispose();
+    this.mesh.dispose();
+    this.actors.clear();
   }
 }

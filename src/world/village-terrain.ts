@@ -92,7 +92,10 @@ export function distanceToPolygon(polygon: readonly TerrainVec2[], x: number, z:
     const [ax, az] = polygon[i]!; const [bx, bz] = polygon[j]!;
     const dx = bx - ax, dz = bz - az, length = dx * dx + dz * dz;
     const t = length > 0 ? Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / length)) : 0;
-    best = Math.min(best, Math.hypot(x - ax - dx * t, z - az - dz * t));
+    const ex = x - ax - dx * t, ez = z - az - dz * t;
+    const axisDistance = Math.max(Math.abs(ex), Math.abs(ez));
+    if (axisDistance >= best) continue;
+    best = Math.min(best, Math.hypot(ex, ez));
   }
   return best;
 }
@@ -188,8 +191,25 @@ export function compileTerrain(spec: VillageTerrainSpec, cells: TerrainVec2 = sp
   const cellWidth = spec.size[0] / columns, cellDepth = spec.size[1] / rows;
   const originX = -spec.size[0] / 2, originZ = -spec.size[1] / 2;
   const heights = new Float32Array((columns + 1) * (rows + 1));
-  for (let row = 0; row <= rows; row++) for (let column = 0; column <= columns; column++) {
-    heights[row * (columns + 1) + column] = terrainFieldHeight(spec, originX + column * cellWidth, originZ + row * cellDepth);
+  const zBand = (points: readonly TerrainVec2[], margin: number) => {
+    let min = Infinity, max = -Infinity;
+    for (const point of points) { min = Math.min(min, point[1]); max = Math.max(max, point[1]); }
+    return { min: min - margin, max: max + margin };
+  };
+  const bands = spec.features.map(feature => {
+    if (feature.kind === 'mound') return { feature, min: feature.centre[1] - feature.radii[1], max: feature.centre[1] + feature.radii[1] };
+    const margin = feature.kind === 'hole' ? spec.beachWidth ?? 0 : 'skirt' in feature ? feature.skirt ?? 0 : 0;
+    return { feature, ...zBand(feature.polygon, Math.max(0, margin)) };
+  });
+  const pads = spec.buildingPads?.map(pad => ({ pad, ...zBand(pad.outline, Math.max(0, pad.apron)) }));
+  for (let row = 0; row <= rows; row++) {
+    const z = originZ + row * cellDepth;
+    // Keep the authored order. A slope, shore or footing outside its influence band cannot change this row.
+    const rowSpec = { ...spec, features: bands.filter(b => b.min <= z && z <= b.max).map(b => b.feature),
+      buildingPads: pads?.filter(b => b.min <= z && z <= b.max).map(b => b.pad) };
+    for (let column = 0; column <= columns; column++) {
+      heights[row * (columns + 1) + column] = terrainFieldHeight(rowSpec, originX + column * cellWidth, z);
+    }
   }
   const kinds: TerrainCell[] = []; const paint = new Uint32Array(columns * rows);
   for (let row = 0; row < rows; row++) for (let column = 0; column < columns; column++) {

@@ -483,11 +483,12 @@ const harbourStreet = [
   piece('crew-blue', [3.4,at(3.65,-7.45),-6.69], 2.7, 1.04),
   piece('crew-gold', [5.91,at(5.91,-6.56),-6.56], -1.7, 1.03),
   piece('fish-stall', [5.15,at(5.15,-6.50),-6.50], -.24, .83),
+  piece('crew-blue', [8.55,at(8.55,3.8),3.8], -1.8, 1.15),
 ];
 // From the travelling camera a tree behind the slipway hid its cables and counterweight.
 const coastalScenery = scenery.map(site => site === surveyedSlipwayTree
   ? piece('tree-a', [9.02, at(9.02, 3.48), 3.48], 0, .8)
-  : site);
+  : site.model==='warehouse' && site.position[0]>0 ? {...site,model:'sail-loft'} : site);
 const workshop = workshopSite({ position: [-7.4, at(-7.4, 4.6), 4.6], scale: 1.1, yaw: 0.3 },
   [-7.6, at(-7.4, 4.6) + 3.3, 4.8], { from: 8, to: 7 });
 const rewards = [
@@ -498,7 +499,7 @@ const rewards = [
 // Half-width, back and front of the kit's load-bearing base, including doorsteps.
 const bases: Record<string, readonly [number, number, number]> = {
   'house-a': [1.05, -.95, 1.25], 'house-b': [.89, -.99, 1.30], warehouse: [1.63, -.98, 1.90],
-  'crew-blue': [.135,-.08,.12], 'crew-gold': [.135,-.08,.12],
+  'sail-loft': [1.45,-.86,.86], 'crew-blue': [.135,-.08,.12], 'crew-gold': [.135,-.08,.12],
   'cottage-clay': [.75,-.59,.59], 'cottage-slate': [.75,-.59,.59], 'fish-stall': [.68,-.4,.4],
   'harbour-beacon': [.86, -.86, .86], 'tree-a': [.30, -.30, .28],
   'board-210': [1.25,-1.0,1.0], 'board-212': [1.05,-1.0,1.0],
@@ -532,7 +533,7 @@ const harbourCoast: VillageTerrainSpec = {
 export const LITTLE_HARBOUR: VillageScenePlan = {
   chapter: 0, construction: 'rise', terrain, cinematicTerrain: harbourCoast, cinematicScenery: [...coastalScenery, ...harbourStreet], scenery,
   // Shot times are unchanged authored metadata; retime against route.duration at the camera stage.
-  plan: { chapter: 0, profile: 'plank', staticSupports:'harbour-static-112', stations: physical, connectors, camera: shots([0, 2.4, 0], [
+  plan: { chapter: 0, profile: 'plank', pierBell: { launchStop: 9, slipwayStop: 2 }, staticSupports:'harbour-static-112', stations: physical, connectors, camera: shots([0, 2.4, 0], [
     { at: 2.6, target: [-3.6, 4.8, 5.0], radius: 22 }, { at: 5.0, target: [-1.3, 4.6, 1.0], radius: 22 },
     { at: 7.6, target: [3.0, 3.8, -0.2], radius: 24 }, { at: 10.45, target: [6.6, 2.8, 0.6], radius: 22 },
     // The bell shot's target moves with the berth; its time, radius and the zoom count are unchanged.

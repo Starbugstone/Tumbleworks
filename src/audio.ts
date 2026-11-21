@@ -17,6 +17,7 @@ const SOUNDS = { tap, release, wood, glass, light, final, complete, truck, harbo
 type Cue = keyof typeof SOUNDS;
 type Timer = ReturnType<typeof setTimeout>;
 type BedTheme = 'coast' | 'inland';
+export type HarbourRouteCue = 'cruise' | 'transfer' | 'arrival';
 type Harbour = {
   theme: BedTheme;
   level: number;
@@ -150,8 +151,9 @@ class Sfx {
     source.onended = () => { this.voices.delete(source); source.disconnect(); envelope.disconnect(); };
   }
 
-  private play(cue: Cue, gain: number, rate = 1, reward = false): void {
-    if (!this.ctx || !this.master || this.muted || this.ctx.state !== 'running') return;
+  private play(cue: Cue, gain: number, rate = 1, reward = false, delay = 0): void {
+    if (!this.ctx || !this.master || this.muted || this.ctx.state !== 'running' ||
+      (typeof document !== 'undefined' && document.hidden)) return;
     // Ordinary cues leave four voices for completion payoffs; a dense pour cannot drown them out.
     if (this.voices.size >= (reward ? 12 : 8)) return;
     const buffer = this.buffers.get(cue);
@@ -163,7 +165,7 @@ class Sfx {
     source.playbackRate.value = rate;
     envelope.gain.value = gain;
     this.track(source, envelope);
-    source.start(this.ctx.currentTime);
+    source.start(this.ctx.currentTime + delay);
   }
 
   /** Undo, restart, navigation and hidden/blurred pages discard all sound tails. */
@@ -312,12 +314,36 @@ class Sfx {
   }
 
   boxFilled(chain: number): void { this.play('truck', 0.7, 2 ** (Math.min(chain, 7) / 12), true); }
+  /** Call once when forward film playback crosses each route marker. */
+  harbourRouteCue(cue: HarbourRouteCue): void {
+    if (this.boardFast) return;
+    switch (cue) {
+      case 'cruise':
+        this.play('wood', 0.22, 0.96);
+        this.play('glass', 0.14, 0.88, false, 0.13);
+        break;
+      case 'transfer':
+        this.play('tap', 0.36, 0.82);
+        this.play('wood', 0.29, 0.74, false, 0.10);
+        break;
+      case 'arrival':
+        this.play('final', 0.57, 0.94, true);
+        this.play('complete', 0.30, 1, true, 0.08);
+        break;
+    }
+  }
   /** Call once at the visible ship-bell strike; loading never queues a late strike. */
   harbourBell(): void { this.play('harbourBell', 0.52, 1, true); }
   blocked(): void { this.play('blocked', 0.4, 0.9); }
   undo(): void { this.play('undo', 0.42); }
   jam(): void { this.cancel(); this.play('jam', 0.65, 0.9, true); }
   win(): void { this.cancel(); this.play('win', 0.95, 1, true); }
+  /** The last load settles before the shared board-win phrase. Use in place of win(). */
+  finalLoad(): void {
+    this.cancel();
+    this.play('final', 0.72, 0.75, true);
+    this.play('win', 0.95, 1, true, 0.18);
+  }
 }
 
 export const sfx = new Sfx();

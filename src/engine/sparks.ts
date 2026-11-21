@@ -13,10 +13,10 @@ const WHITE = 0xfff8e0;
 const enum Kind { Glitter = 0, Glint = 1, Glow = 2, Trail = 3 }
 
 interface Particle {
-  kind: Kind; age: number; life: number;
+  kind: Kind; age: number; life: number; queued: boolean;
   x: number; y: number; z: number; vx: number; vy: number; vz: number;
   /** Glitter that has fallen back to this height is gone, so none of it settles on the piece below. */
-  floor: number; size: number; spin: number; seed: number;
+  floor: number; size: number; spin: number; seed: number; r: number; g: number; b: number;
 }
 
 const VERTEX = /* glsl */`
@@ -79,8 +79,9 @@ export class Sparks {
   heat = 0;
   private readonly mesh: THREE.Mesh;
   private readonly particles: Particle[] = Array.from({ length: CAPACITY }, (_, index) => ({
-    kind: Kind.Glitter, age: 1, life: 0, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, floor: 0, size: 0, spin: 0, seed: index * 2.399,
+    kind: Kind.Glitter, queued: false, age: 1, life: 0, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, floor: 0, size: 0, spin: 0, r: 0, g: 0, b: 0, seed: index * 2.399,
   }));
+  private readonly live: Particle[] = [];
   private readonly color = new THREE.Color();
   private cursor = 0;
   private clock = 0;
@@ -98,8 +99,7 @@ export class Sparks {
     this.geometry.setAttribute('aAt', this.at);
     this.geometry.setAttribute('aLook', this.look);
     this.geometry.setAttribute('aTint', this.tint);
-    this.geometry.instanceCount = CAPACITY + HALOS;
-    for (let i = 0; i < HALOS; i++) this.tint.setXYZ(CAPACITY + i, 1, 0.93, 0.78);
+    this.geometry.instanceCount = 0;
     this.mesh = new THREE.Mesh(this.geometry, new THREE.ShaderMaterial({
       vertexShader: VERTEX, fragmentShader: FRAGMENT, transparent: true, depthWrite: false, toneMapped: false,
       blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
@@ -114,9 +114,19 @@ export class Sparks {
   private spawn(kind: Kind, at: Point3, hex: number, life: number, size: number, delay = 0): Particle {
     const index = this.cursor++ % CAPACITY;
     const particle = this.particles[index]!;
-    Object.assign(particle, { kind, age: -delay, life, x: at.x, y: at.y, z: at.z, vx: 0, vy: 0, vz: 0, floor: -Infinity, size, spin: 0 });
+    if (!particle.queued) {
+      particle.queued = true;
+      this.live.push(particle);
+    }
+    particle.kind = kind;
+    particle.age = -delay;
+    particle.life = life;
+    particle.x = at.x; particle.y = at.y; particle.z = at.z;
+    particle.vx = particle.vy = particle.vz = particle.spin = 0;
+    particle.floor = -Infinity;
+    particle.size = size;
     this.color.setHex(hex);
-    this.tint.setXYZ(index, this.color.r, this.color.g, this.color.b);
+    particle.r = this.color.r; particle.g = this.color.g; particle.b = this.color.b;
     return particle;
   }
 
@@ -202,23 +212,31 @@ export class Sparks {
   /** Two pairs of fans sweep from the ends toward the centre, then their finer sparks hang above the machine. */
   finish(corners: readonly Point3[], share: number): void {
     if (this.reducedMotion || !corners.length) return;
-    const centerX = corners.reduce((sum, p) => sum+p.x, 0)/corners.length;
-    const centerZ = corners.reduce((sum, p) => sum+p.z, 0)/corners.length;
-    corners.forEach((at,index) => {
-      const delay = index % 2 ? .24 : .02;
-      const count = Math.max(16, Math.round(57*share));
-      for (let i=0;i<count;i++) {
-        const fan = i/(count-1), phase = i*2.39996;
-        const lift = .4+.6*((i*19)%37)/36;
-        const start = delay+.20*fan;
-        const color = i%5<2 ? WHITE : i%5<4 ? GOLD : 0xe59b60;
-        const spark = this.spawn(i%6===0 ? Kind.Glint : Kind.Glitter, at, color,
-          .58+.51*lift, this.unit*(i%6===0 ? .19 : .065+.035*lift), start);
-        spark.vx = (centerX-at.x)*(.25+.57*fan) + Math.cos(phase)*1.8;
-        spark.vz = (centerZ-at.z)*(.12+.32*fan) + Math.sin(phase)*1.2;
-        spark.vy = 2.8+4.5*lift;
-        spark.floor = at.y;
-        spark.spin = Math.sin(phase)*2;
+    const centerX = corners.reduce((sum, point) => sum + point.x, 0) / corners.length;
+    const centerZ = corners.reduce((sum, point) => sum + point.z, 0) / corners.length;
+    corners.forEach((at, index) => {
+      const delay = index % 2 ? .20 : 0;
+      const grains = Math.max(15, Math.round(24 * share));
+      // Two curved sprays per corner, each with a bright leading tip and a tapering wake.
+      // Travel is proportional to the actual board width/depth even on a long rack or a wide eight.
+      for (let jet = 0; jet < 2; jet++) {
+        const life = jet ? .77 : .89;
+        const dx = (centerX - at.x) * (jet ? .74 : 1.06);
+        const dz = (centerZ - at.z) * (jet ? .67 : .42);
+        for (let i = 0; i < grains; i++) {
+          const tail = i / (grains - 1);
+          const phase = i * 2.39996 + index;
+          const fleck = this.spawn(i === 0 ? Kind.Glint : Kind.Glitter, at,
+            i % 5 === 0 ? WHITE : jet ? 0xffba75 : GOLD,
+            life - .19 * tail, this.unit * (i === 0 ? .31 : .10 - .037 * tail),
+            delay + jet * .06 + tail * .20);
+          const spread = this.unit * (.07 + .5 * tail);
+          fleck.vx = dx / life + Math.cos(phase) * spread;
+          fleck.vz = dz / life + Math.sin(phase) * spread;
+          fleck.vy = this.unit * (jet ? 2.6 : 3.0) - tail * .8;
+          fleck.spin = .65;
+          fleck.floor = at.y;
+        }
       }
     });
     this.draw();
@@ -250,8 +268,10 @@ export class Sparks {
       fading = true;
     }
     if (!this.alive && !fading && !this.halos.some((halo) => halo.on)) return;
-    for (const p of this.particles) {
-      if (p.age >= p.life) continue;
+    let remaining = 0;
+    for (const p of this.live) {
+      if (p.age >= p.life) { p.queued = false; continue; }
+      this.live[remaining++] = p;
       p.age += seconds;
       if (p.age <= 0) continue;
       p.x += p.vx * seconds;
@@ -263,16 +283,18 @@ export class Sparks {
         if (p.vy < 0 && p.y < p.floor) p.age = p.life;
       }
     }
+    this.live.length = remaining;
     this.draw();
   }
 
   private draw(): void {
     let alive = false;
-    this.particles.forEach((p, index) => {
+    let visible = 0;
+    for (const p of this.live) {
       const t = p.age / p.life;
       // One still waiting for its moment keeps the pool running, unseen.
       if (p.age < 0) alive = true;
-      if (!(t >= 0 && t < 1)) { this.look.setXYZW(index, 0, 0, 0, 0); return; }
+      if (!(t >= 0 && t < 1)) continue;
       alive = true;
       let size = p.size, alpha = 1;
       if (p.kind === Kind.Glitter) {
@@ -290,23 +312,33 @@ export class Sparks {
         size *= 0.6 + 0.4 * t;
         alpha = 0.55 * (1 - t);
       }
+      const index = visible++;
+      this.tint.setXYZ(index, p.r, p.g, p.b);
       this.at.setXYZ(index, p.x, p.y, p.z);
       this.look.setXYZW(index, size, p.spin * p.age + p.seed * (p.kind === Kind.Glint ? 0 : 1), p.kind === Kind.Trail ? Kind.Glitter : p.kind, alpha);
-    });
+    }
     this.alive = alive;
-    let lit = false;
-    this.halos.forEach((halo, i) => {
+    for (const halo of this.halos) {
+      if (!halo.level) continue;
       const eased = halo.level * halo.level * (3 - 2 * halo.level);
-      lit ||= halo.level > 0;
-      this.at.setXYZ(CAPACITY + i, halo.x, halo.y, halo.z);
-      this.look.setXYZW(CAPACITY + i, halo.level > 0 ? this.unit * 2.1 : 0, 0, Kind.Glow, 0.36 * eased);
-    });
-    this.mesh.visible = alive || lit;
-    this.at.needsUpdate = this.look.needsUpdate = this.tint.needsUpdate = true;
+      this.at.setXYZ(visible, halo.x, halo.y, halo.z);
+      this.tint.setXYZ(visible, 1, .93, .78);
+      this.look.setXYZW(visible++, this.unit * 2.1, 0, Kind.Glow, .36 * eased);
+    }
+    this.geometry.instanceCount = visible;
+    this.mesh.visible = visible > 0;
+    if (visible) {
+      for (const attribute of [this.at, this.look, this.tint]) {
+        attribute.clearUpdateRanges();
+        attribute.addUpdateRange(0, visible * attribute.itemSize);
+        attribute.needsUpdate = true;
+      }
+    }
   }
 
   clear(): void {
-    for (const p of this.particles) p.age = p.life = 1;
+    for (const p of this.live) p.queued = false;
+    this.live.length = 0;
     this.streak = 0;
     this.lastPayoff = -Infinity;
     this.last = null;

@@ -357,7 +357,7 @@ export class App {
     window.clearTimeout(this.hintTimer);
     this.setFast(false);
     const transition = Boolean(this.runtime) && (index !== this.boardIndex || source !== this.source || this.screen !== 'game');
-    if (transition) { if (this.screen === 'game') this.runtime.render(0, 0); this.world.cover(); }
+    if (transition && element('boot').hidden) { if (this.screen === 'game') this.runtime.render(0, 0); this.world.cover(); }
     this.world.hide();
     if (source === 'workshop') this.workshopRoute(level.id);
     else if (this.source === 'workshop') this.workshopRoute(null);
@@ -395,8 +395,8 @@ export class App {
     this.showLevels(false);
     this.renderChips();
     this.runtime.resize();
-    this.runtime.render(0, 0);
-    // The first draw compiles the level's shaders; reading time and the clock start once it is on screen.
+    // During boot the first frame draws the selected destination, which may be the village.
+    if (element('boot').hidden) this.runtime.render(0, 0);
     this.lastFrame = performance.now();
     this.instructionTimer = window.setTimeout(() => { element('instruction').hidden = true; }, 6000);
     this.refresh();
@@ -437,9 +437,10 @@ export class App {
     this.card.hidden = true; this.ring.hidden = true; this.setMessage('');
     element('guide').hidden = element('guide-pointer').hidden = element('instruction').hidden = true;
     element('confetti').replaceChildren(); this.showLevels(false);
-    if (this.screen === 'game') this.runtime.render(0, 0);
-    // Boot has not exposed a game frame to preserve in a transition snapshot.
-    if (element('boot').hidden) this.world.cover();
+    if (element('boot').hidden) {
+      if (this.screen === 'game') this.runtime.render(0, 0);
+      this.world.cover();
+    }
     this.accumulator = 0; this.lastFrame = performance.now();
   }
 
@@ -606,7 +607,7 @@ export class App {
       const level = this.levels[this.boardIndex];
       if (!level) return;
       markCompleted(level.id);
-      sfx.win();
+      sfx.finalLoad();
       this.renderChips();
       element('guide').hidden = element('instruction').hidden = true;
       this.runtime.celebrate?.(this.helped ? 0.65 : 1);

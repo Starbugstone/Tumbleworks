@@ -41,14 +41,17 @@ it('keeps the launch hull offshore throughout its trip and returns it to anchor'
 });
 
 it('grounds every Little Harbour building, doorstep and tree across its rendered footprint', async () => {
-  const { Mesh, MeshBasicMaterial, Raycaster, Vector3 } = await import('three');
+  const { Mesh, MeshBasicMaterial, Ray, Vector3 } = await import('three');
   const { WorldKitAssets } = await import('../../src/view/world-kit');
   const { createVillageTerrain } = await import('../../src/view/village-terrain');
   const kit = new WorldKitAssets(true,true), material = new MeshBasicMaterial();
   const { createProjectReward } = await import('../../src/view/project-rewards');
   const { workshopProject } = await import('../../src/world/workshop-projects');
   const ground = createVillageTerrain(LITTLE_HARBOUR.cinematicTerrain!,material,'full',true);
-  const ray = new Raycaster(), pos = new Vector3(), down = new Vector3(0,-1,0);
+  const { footprintIndex } = await import('./footprint-index');
+  const { surfaceTriangles } = await import('./surface-overlap');
+  const groundFaces = footprintIndex(surfaceTriangles(ground, 0));
+  const ray = new Ray(new Vector3(), new Vector3(0,-1,0)), pos = new Vector3(), hit = new Vector3();
   try {
     const sites = [...(LITTLE_HARBOUR.cinematicScenery ?? LITTLE_HARBOUR.scenery),{ ...LITTLE_HARBOUR.workshop.house, model:'house-a' },
       ...LITTLE_HARBOUR.rewards.map(slot => ({...slot, model:slot.project, scale:1}))];
@@ -67,8 +70,11 @@ it('grounds every Little Harbour building, doorstep and tree across its rendered
           pos.fromBufferAttribute(verts,i).applyMatrix4(m.matrixWorld);
           if (pos.y>site.position[1]+.14) continue;
           probes++;
-          ray.set(new Vector3(pos.x,site.position[1]+1,pos.z),down);
-          const height=ray.intersectObject(ground)[0]?.point.y ?? -Infinity;
+          ray.origin.set(pos.x,site.position[1]+1,pos.z);
+          let height = -Infinity;
+          for (const face of groundFaces(ray.origin)) {
+            if (ray.intersectTriangle(face.a, face.b, face.c, true, hit)) height = Math.max(height, hit.y);
+          }
           expect(height,`${site.model} at ${pos.x.toFixed(2)}, ${pos.z.toFixed(2)}`).toBeGreaterThanOrEqual(site.position[1]-.035);
           expect(height,`${site.model} at ${pos.x.toFixed(2)}, ${pos.z.toFixed(2)}`).toBeLessThanOrEqual(site.position[1]+.10);
         }

@@ -32,3 +32,26 @@ it('renders only visible marbles and restores their identities after an empty fr
   crowd.dispose();
   expect(scene.children).toHaveLength(0);
 });
+
+it('packs mixed paint into one draw and preserves each actor’s colour when a hidden actor returns', () => {
+  const scene = new THREE.Scene();
+  const crowd = new MarbleCrowd(scene, new Map([['blue', 1], ['yellow', 1]]), .17);
+  crowd.add(41, 'blue');
+  crowd.add(9, 'yellow');
+  expect(scene.children).toHaveLength(1);
+  const mesh = scene.children[0] as THREE.InstancedMesh;
+  const paint = new THREE.Color();
+  const draw = (id: number) => crowd.set(id, 0, 1, 0, 0, 0, 0, 1);
+  draw(9);
+  crowd.commit();
+  mesh.getColorAt(0, paint);
+  expect(paint.getHex()).toBe(0xffdc52);
+  draw(41);
+  draw(9);
+  crowd.commit();
+  mesh.getColorAt(0, paint);
+  expect(paint.getHex()).toBe(0x2a63e8);
+  mesh.getColorAt(1, paint);
+  expect(paint.getHex()).toBe(0xffdc52);
+  crowd.dispose();
+});

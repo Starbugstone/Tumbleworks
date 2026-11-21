@@ -1,3 +1,4 @@
+import { funnelChute, funnelTransferPose, type FunnelChute } from './funnel-transfer';
 import { dispatchPlates, jamShutter, transferRails } from './dispatch-plate';
 import { beltDeck } from './belt-deck';
 import { BeltSurface } from './belt-surface';
@@ -112,8 +113,6 @@ const BOX_JOSTLE_SECONDS = 0.2;
 /** Where a seated marble's centre rests above its box's base, as the machine places it. */
 const BOX_SEAT_Y = BOX.floorThickness + MARBLE_RADIUS;
 /** A marble kicked off the belt is thrown this much higher than the machine's own arc, late in the flight, so it drops into its pocket from above. */
-const FLIGHT_LOB = 0.55;
-const lob = (flight: number): number => flight <= 0 || flight >= 1 ? 0 : FLIGHT_LOB * Math.sin(Math.PI * flight ** 1.4);
 /** Distance in one tick above which a marble is flying or falling, not riding the belt. */
 const TRAIL_STEP = 0.115;
 const CRATE_SWELL_SECONDS = 0.32;
@@ -184,6 +183,8 @@ export class MachineScene {
   private readonly pocketOffsets = [0, 1, 2].map((slot) => new THREE.Matrix4().makeTranslation((slot - 1) * BOX.slotSpacing, BOX.height - 0.09, 0));
   /** One plastic and one printed pattern per colour, shared by every crate and box of that colour. */
   private readonly paints = new Map<Color, THREE.MeshStandardMaterial>();
+  private boxShells: THREE.InstancedMesh | null = null;
+  private readonly boxTints = new Map<Color, THREE.Color>();
   private crateShell: THREE.BufferGeometry | null = null;
   private readonly decals = new Map<Color, THREE.MeshBasicMaterial>();
   private previousCrates: ReturnType<Machine['readCrates']> = [];
@@ -204,9 +205,11 @@ export class MachineScene {
   private readonly sparks: Sparks;
   private readonly swells = new Map<number, number>();
   private readonly reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  private readonly delivery: MarbleDelivery = { dock: -1, box: -1, slot: 0, fraction: 0, landed: false };
+  private readonly delivery: MarbleDelivery = { dock: -1, box: -1, slot: 0, fraction: 0, landed: false, release: { x: 0, y: 0, z: 0 } };
+  private chutes: FunnelChute[] = [];
+  private readonly deliveryTarget = new THREE.Vector3();
   private yard: ArcadeYard | null = null;
-  private dispatch: THREE.Mesh | null = null;
+  private dispatch: ReturnType<typeof dispatchPlates> | null = null;
   private readonly jamStops: THREE.Mesh[] = [];
   private readonly shake = new Shake();
   /** 1 at the player's own speed, less while fast forward is held: every landing answers that much. */
@@ -280,6 +283,7 @@ export class MachineScene {
     // giving the front of the machine the toothed outline of a loading dock.
     const queues = this.machine!.board.docks;
     const track = this.machine!.track;
+    this.chutes = queues.map((_, i) => funnelChute(track, dockX(i, docks)));
     const samples = Array.from({ length: 64 }, (_, i) => track.point(i * track.length / 64));
     const span = Math.max(...samples.map(p => Math.abs(p.x))) + RACEWAY.channelHalf + .2;
     const back = Math.min(...samples.map(p => p.z)) - RACEWAY.channelHalf;
@@ -297,7 +301,10 @@ export class MachineScene {
     for (let dock = 0; dock < docks; dock++) {
       const endX = dockX(dock, docks);
       parts.push(...transferRails(track, endX));
-      const stop = jamShutter(endX,.032,BOX.z-.73,BOX.halfWidth*1.45);
+      const { head, nose, yaw } = this.chutes[dock]!;
+      const stop = jamShutter((head.x + nose.x) / 2, (head.y + nose.y) / 2 + .10,
+        (head.z + nose.z) / 2, BOX.halfWidth * 1.45);
+      stop.rotation.set(Math.atan(.12), yaw, 0, 'YXZ');
       this.jamStops.push(stop); this.level.add(stop);
       const count = Math.min(BOX.queueVisible, queues[dock]!.length - 1);
       const end = count ? BOX.queueZ + (count - 1) * BOX.queueSpacing + .52 : BOX.z + .62;
@@ -313,8 +320,8 @@ export class MachineScene {
     bakeOcclusion(this.stage.renderer, [body], { minX: -halfWidth - 0.4, maxX: halfWidth + 0.4, minZ: backZ - 0.4, maxZ: frontZ + 0.4 });
     this.dispatch = dispatchPlates(queues.map((queue,i) => ({
       x: dockX(i,docks), z: BOX.z + .3, halfWidth: BOX.halfWidth-.10, halfDepth: .96,
-      color: COLORS[queue.at(-1)!].hex,
-    })), .032);
+      color: queue.at(-1)!,
+    })), .032, this.decals);
     this.level.add(this.dispatch);
     this.yard = new ArcadeYard(this.scene, halfWidth, Math.min(backZ,front-.65), frontZ, -.47);
   }
@@ -394,8 +401,8 @@ export class MachineScene {
     return group;
   }
 
-  private boxGroup(color: Color): BoxVisual {
-    const group = new THREE.Group();
+  /** All boxes have the same mould. Only their transform and paint vary between docks. */
+  private buildBoxShells(count: number): THREE.InstancedMesh {
     const face = new THREE.Shape();
     roundRect(face, BOX.halfWidth - .025, BOX.halfDepth - .025, .18);
     for (const slot of [-1, 0, 1]) {
@@ -406,9 +413,21 @@ export class MachineScene {
     const shell = new THREE.ExtrudeGeometry(face, { depth: BOX.height - .05, bevelEnabled: true,
       bevelThickness: .025, bevelSize: .025, bevelSegments: 2, curveSegments: 8 });
     shell.rotateX(-Math.PI / 2).translate(0, .025, 0);
-    const body = new THREE.Mesh(moulded(shell, .55, 1.12), this.paint(color));
-    body.castShadow = true;
-    group.add(body);
+    const material = shiny(0xffffff);
+    material.vertexColors = true;
+    const shells = new THREE.InstancedMesh(moulded(shell, .55, 1.12), material, count);
+    shells.castShadow = true;
+    shells.frustumCulled = false;
+    shells.count = 0;
+    shells.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    shells.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(count * 3), 3).setUsage(THREE.DynamicDrawUsage);
+    this.level.add(shells);
+    return shells;
+  }
+
+  private boxGroup(color: Color): BoxVisual {
+    const group = new THREE.Group();
+    if (!this.boxTints.has(color)) this.boxTints.set(color, new THREE.Color(COLORS[color].hex));
     const badge = decal(color, 0.44, this.decals);
     badge.position.set(0, BOX.height / 2, BOX.halfDepth + 0.01);
     group.add(badge);
@@ -535,7 +554,9 @@ export class MachineScene {
       this.crates.set(crate.key, group);
       this.level.add(group);
     }
-    for (const box of machine.readBoxes()) {
+    const boxes = machine.readBoxes();
+    this.boxShells = this.buildBoxShells(boxes.length);
+    for (const box of boxes) {
       const visual = this.boxGroup(box.color);
       this.boxes.set(`${box.dock}:${box.index}`, visual);
       this.level.add(visual.group);
@@ -668,6 +689,8 @@ export class MachineScene {
     this.pockets = null;
     this.paints.clear();
     this.crateShell = null;
+    this.boxShells = null;
+    this.boxTints.clear();
     this.decals.clear();
     for (const target of this.hitTargets) {
       this.scene.remove(target);
@@ -690,7 +713,10 @@ export class MachineScene {
 
   /** The level is won: one glitter fountain from each corner of the hull, with the confetti. */
   celebrate(clean = 1): void {
-    if (this.dispatch) this.dispatch.visible = true;
+    if (this.dispatch && this.machine) {
+      this.dispatch.showExcept(new Set(this.machine.readBoxes().filter(box => box.retained).map(box => box.dock)));
+      this.dispatch.visible = true;
+    }
     if (this.yard) this.sparks.finish(this.yard.corners, clean);
     this.sparks.boost();
   }
@@ -785,7 +811,7 @@ export class MachineScene {
       if (moved <= TRAIL_STEP * TRAIL_STEP || moved >= 4 || entry.landed) continue;
       const tint = Number.parseInt(COLORS[machine.marbleColor(id)].light.slice(1), 16);
       // A throw to a box draws a fine tapering streak along its lob, so the marble itself stays the thing that is seen.
-      if (entry.flight > 0) { if (this.weight === 1) this.sparks.trail({ x: entry.current.x, y: entry.current.y + lob(entry.flight), z: entry.current.z }, tint, .075, .125); }
+      if (entry.flight > 0) { if (this.weight === 1) this.sparks.trail(entry.current, tint, .075, .125); }
       else this.sparks.trail(entry.current, tint, .125, .15);
     }
   }
@@ -825,7 +851,14 @@ export class MachineScene {
     if (entry.box) {
       // Remap the drawn flight and resting slot without changing physics or saved replay state.
       const slot = BOX_FILL_ORDER[delivery.slot] ?? delivery.slot;
-      entry.current.x += (slot - delivery.slot) * BOX.slotSpacing * entry.box.machineScale * delivery.fraction;
+      if (delivery.landed) {
+        entry.current.x += (slot - delivery.slot) * BOX.slotSpacing * entry.box.machineScale;
+      } else {
+        const box = this.currentBoxes.find(b => b.dock === delivery.dock && b.index === delivery.box)!;
+        const target = this.deliveryTarget.set(box.x + (slot - 1) * BOX.slotSpacing * box.scale,
+          box.y + (BOX.floorThickness + MARBLE_RADIUS) * box.scale, box.z);
+        funnelTransferPose(this.chutes[delivery.dock]!, delivery.release!, target, delivery.fraction, entry.current);
+      }
     }
   }
 
@@ -885,6 +918,8 @@ export class MachineScene {
       shutter.key.visible = shutter.lift === 0;
     }
     const pockets = this.pockets;
+    const shells = this.boxShells;
+    if (shells) shells.count = 0;
     if (pockets) pockets.on.count = pockets.off.count = 0;
     for (const [index, box] of this.currentBoxes.entries()) {
       const visual = this.boxes.get(`${box.dock}:${box.index}`);
@@ -938,8 +973,13 @@ export class MachineScene {
       visual.group.position.y += visual.offsetY;
       visual.group.rotation.y = visual.spin;
       visual.group.rotation.z = visual.roll;
-      if (!pockets || !box.visible || (preview && !visual.shared)) continue;
+      if (!box.visible) continue;
       visual.group.updateMatrix();
+      if (shells) {
+        shells.setColorAt(shells.count, this.boxTints.get(box.color)!);
+        shells.setMatrixAt(shells.count++, visual.group.matrix);
+      }
+      if (!pockets || (preview && !visual.shared)) continue;
       this.pocketOffsets.forEach((offset, slot) => {
         const mesh = BOX_FILL_ORDER.indexOf(slot) < box.fill ? pockets.on : pockets.off;
         mesh.setMatrixAt(mesh.count++, this.pocketMatrix.multiplyMatrices(visual.group.matrix, offset));
@@ -959,6 +999,7 @@ export class MachineScene {
       mesh.position.set((a.position.x + b.position.x) / 2, (a.position.y + b.position.y) / 2 + 0.02, (a.position.z + b.position.z) / 2);
       mesh.scale.set(Math.abs(a.position.x - b.position.x) + (BOX.halfWidth * 2 + 0.12) * scale, scale, scale);
     }
+    if (shells) shells.instanceColor!.needsUpdate = shells.instanceMatrix.needsUpdate = true;
     if (pockets) pockets.on.instanceMatrix.needsUpdate = pockets.off.instanceMatrix.needsUpdate = true;
     for (const [id, entry] of this.tracked) {
       const { previous: p, current: c, box } = entry;
@@ -981,14 +1022,14 @@ export class MachineScene {
           y = (entry.flightBefore < 1 ? p.y + (rest - p.y) * alpha : rest) + ride;
           entry.seatAge += Math.max(0, seconds);
         } else y += ride + box.bounce;
-      } else if (entry.flight > 0) y += lob(entry.flightBefore + (entry.flight - entry.flightBefore) * alpha);
+      }
       if (entry.landed && box && box.spin) {
         // Cargo rides the turning box about the box's own centre.
         const cos = Math.cos(box.spin), sin = Math.sin(box.spin), rx = x - box.group.position.x, rz = z - box.group.position.z;
         x = box.group.position.x + rx * cos + rz * sin;
         z = box.group.position.z - rx * sin + rz * cos;
       }
-      const vx = c.x - p.x, vy = c.y - p.y + (entry.flight > 0 && !entry.landed ? lob(entry.flight) - lob(entry.flightBefore) : 0), vz = c.z - p.z;
+      const vx = c.x - p.x, vy = c.y - p.y, vz = c.z - p.z;
       // Flying or falling faster than the belt: drawn a little long along its travel, and longer still as it dives at its box.
       if (!this.reducedMotion && !entry.landed && vx * vx + vy * vy + vz * vz > TRAIL_STEP * TRAIL_STEP) this.crowd.setStretched(id, x, y, z, vx, vy, vz, 1.1 + 0.22 * entry.flight, 0.95 - 0.07 * entry.flight);
       else if (wide !== 1 || tall !== 1) this.crowd.set(id, x, y, z, 0, 0, 0, 1, wide, tall);

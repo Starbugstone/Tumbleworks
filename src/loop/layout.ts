@@ -94,6 +94,8 @@ export function bays(lanes: number): Bay[] {
   const spacing = laneSpacing(lanes);
   return Array.from({ length: lanes }, (_, lane) => ({ x: (lane - (lanes - 1) / 2) * spacing }));
 }
+export const TUB = { wall: 0.6, cargo: 0.42, inset: 0.11 } as const;
+
 export const TRUCK = {
   bedWidth: 0.92,
   bedLength: 3.6,

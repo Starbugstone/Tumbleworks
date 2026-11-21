@@ -210,6 +210,7 @@ export class VillageCinematic implements VillageRoute {
     state: "authoring" as const,
     reason: "Cinematic playback has no physical certificate",
   };
+  readonly finale?: VillageRoute['finale'];
   readonly authoredPlan: VillagePlan;
   readonly plan: VillagePlan;
   readonly duration: number;
@@ -593,8 +594,9 @@ export class VillageCinematic implements VillageRoute {
     this.contacts.sort((a, b) => a.start - b.start);
     this.segments.sort((a, b) => a.start - b.start);
     this.boundaries.sort((a, b) => a.start - b.start);
+    if (plan.pierBell) this.finale = { seat: time, strike: time + .24, pullback: time + .94 };
     this.duration = Math.max(
-      time + 1.2,
+      this.finale ? this.finale.pullback + 3.6 : time + 1.2,
       ...[...this.clips.values()].map((c) => c.returnEnd),
     );
     this.plan = {

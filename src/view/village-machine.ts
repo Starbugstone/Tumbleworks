@@ -19,6 +19,7 @@ import {retainerParts} from './retainer-parts';
 import { openGuideGeometry } from './open-lock-parts';
 import { compactCylinderCaps } from './cylinder-caps';
 import { terminalGuideParts, TERMINAL_GUIDE_MARGIN } from './terminal-guide-parts';
+import { PierHammer, pierBellShell, pierHammerGeometry, hammerAngle } from './pier-bell';
 import { carriageGuideParts } from './carriage-guide-parts';
 import { postBraceGeometry, slotLegGeometry, captiveSlotCornerGeometry } from './retained-support';
 import * as THREE from 'three';
@@ -72,6 +73,7 @@ export class VillageMachine {
   readonly program?:VillageProgram;
   get triangles(): number { return this.triangleCount; }
   get movingGroups(): number { return this.movingGroupCount; }
+  private pierHammer?: { mesh: THREE.Mesh; motion: PierHammer };
   private triangleCount = 0;
   private movingGroupCount = 0;
   private pending?: Generator<unknown, void, void>;
@@ -255,6 +257,8 @@ export class VillageMachine {
   bounds(target: THREE.Box3): void { target.copy(this.wholeBounds); }
   apply(seconds: number, _reduced = false): void {
     if (!Number.isFinite(seconds)) throw new Error('Village time must be finite');
+    const finale=this.route.finale;
+    if (finale && this.pierHammer) this.pierHammer.motion.pose(hammerAngle(seconds,finale.seat,finale.strike));
     if(this.axleDraw.size)for(const binding of this.axleDraw.values())binding.apply(seconds);
     for (const mover of this.movers) {
       if(mover.auxiliary==='damper') {
@@ -497,6 +501,7 @@ export class VillageMachine {
       this.box(head,[0,-.485,.65],[.10,.01,.24],0xb5925a);
       for(const side of [-1,1])this.box(head,[0,-.555,.65+side*.11],[.10,.13,.02],0xb5925a);
     }
+    if(this.route.finale) this.buildPierBell(path, fixed, head);
     matrix.decompose(head.position,head.quaternion,head.scale);
     this.movers.push({group:head,station,auxiliary:'damper'});
     const previous=new THREE.Vector3(),point=new THREE.Vector3();
@@ -529,6 +534,22 @@ export class VillageMachine {
       }
       previous.copy(point);
     }
+  }
+  private buildPierBell(path: VillageTerminalPath, fixed: THREE.Group, head: THREE.Group): void {
+    const end = path.startDistance + path.station.terminalCapture!.availableStroke * .55;
+    const compressed = new THREE.Matrix4(); path.headPose(end, compressed);
+    const housing = new THREE.Group(); fixed.add(housing);
+    compressed.decompose(housing.position,housing.quaternion,housing.scale);
+    // The mounting plate grows from the closed end of the berth, leaving the track mouth open.
+    this.box(housing,[-.19,-.49,-.67],[.56,.12,1.20],0x35626a);
+    this.box(housing,[.05,.55,-1.24],[.13,1.98,.14],0x814a33);
+    this.box(housing,[.25,1.60,-1.10],[.58,.12,.40],0x385661);
+    this.mesh(housing,pierBellShell(),0xe6aa43).name='harbour-pier-bell';
+    this.box(head,[0,.01,-.54],[.12,.12,.75],0x3c747c);
+    this.box(head,[-.26,.03,-.93],[.58,.13,.12],0x3c747c);
+    const geometry=pierHammerGeometry();
+    const mesh=this.mesh(head,geometry,0x793e29);mesh.name='harbour-pier-hammer';
+    this.pierHammer={mesh,motion:new PierHammer(mesh)};
   }
   private readonly axleLand?:AxleLand;
   private readonly axleDraw=new Map<number,AxleDrawBinding>();
@@ -662,6 +683,15 @@ export class VillageMachine {
     const points = [-0.8, mechanism.kind === 'receiver' ? 1.15 : 0.8].map(x => villagePort([contact[0] + x, contact[1], contact[2]]));
     const travel = dockingTravel(station);
     const localTravel = travel ? new THREE.Vector3(...travel).transformDirection(mechanismMatrix(mechanism, station.anchor, 1, new THREE.Matrix4()).invert()).toArray() as VillageVec3 : undefined;
+    const slipway = this.route.finale && mechanism.kind === 'translating' && station.stop === this.plan.pierBell?.slipwayStop;
+    if (slipway) {
+      for(const side of [-1,1]) {
+        this.box(group,[contact[0],contact[1]-.31,contact[2]+side*.64],[1.46,.29,.13],0x266f78);
+        for(const x of [-.52,.52]) this.mesh(group,new THREE.CylinderGeometry(.155,.155,.085,10)
+          .rotateX(Math.PI/2).translate(contact[0]+x,contact[1]-.45,contact[2]+side*.72),0xb66b36);
+        this.box(group,[contact[0],contact[1]-.13,contact[2]+side*.64],[1.43,.07,.12],0xf2d59b);
+      }
+    }
     const carrierFloor=this.mesh(group,villageChannelGeometry(points,this.plan.profile,{start:localTravel,end:localTravel},false,undefined,!!this.staticConstruction&&!moving&&(station.stop===0||station.stop===1)),station.color);carrierFloor.name=`village-track-carrier-${station.stop}`;remember('deck',group);if(!moving&&this.plan.stations.some(s=>s.mechanism.kind==='wheelbucket'&&s.mechanism.axleCarry&&station.stop===s.stop+1))this.axleNeighbours.set(station.stop,carrierFloor);
     if(this.staticConstruction&&!moving&&(station.stop===0||station.stop===1))this.staticConstruction.fixedFloor(station,carrierFloor);
     if (mechanism.kind === 'receiver') {
@@ -953,7 +983,9 @@ export class VillageMachine {
     let first=0;let axleBase:number|undefined;const feet: {first:number;count:number;descriptor:NonNullable<ReturnType<typeof terrainFootDescriptor>>}[]=[];
     const supportOps=this.staticConstruction?[]as THREE.Matrix4[]:undefined;
     const axleTracks:{source:THREE.Mesh;first:number;piece:THREE.BufferGeometry;operator:THREE.Matrix4}[]=[];
+    let hammerOffset: number | undefined;
     const pieces = meshes.map(mesh => {
+      if (mesh===this.pierHammer?.mesh) hammerOffset=first;
       if(mesh===this.axleFixedSource?.mesh)axleBase=first;
       const geometry = mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry.clone();
       const count=geometry.getAttribute('position').count,descriptor=terrainFootDescriptor(mesh.geometry);if(descriptor)feet.push({first,count,descriptor});first+=count;
@@ -961,6 +993,7 @@ export class VillageMachine {
     });
     const merged = mergeGeometries(pieces);if(!this.staticConstruction)pieces.forEach(piece=>piece.dispose());
     if(!merged){if(this.staticConstruction)pieces.forEach(p=>p.dispose());throw new Error('Village geometry attributes do not match');}
+    if(hammerOffset!==undefined)this.pierHammer!.motion.bind(merged,hammerOffset);
     const actual=new THREE.Mesh(merged,this.material);
     for(const t of axleTracks)this.axleTrackRanges.set(t.source,{mesh:actual,home:group,first:t.first,count:t.piece.getAttribute('position').count,position:new Float32Array(t.piece.getAttribute('position').array),normal:new Float32Array(t.piece.getAttribute('normal').array),color:new Float32Array(t.piece.getAttribute('color').array),geometry:merged,attributes:['position','normal','color'].map(n=>merged.getAttribute(n)as THREE.BufferAttribute),arrays:['position','normal','color'].map(n=>merged.getAttribute(n).array),versions:['position','normal','color'].map(n=>(merged.getAttribute(n)as THREE.BufferAttribute).version),counts:['position','normal','color'].map(n=>merged.getAttribute(n).count),operator:t.operator.clone()});
     if(this.staticConstruction){group.add(actual);actual.updateWorldMatrix(true,true);let offset=0;for(let i=0;i<meshes.length;i++){const piece=pieces[i]!,count=piece.getAttribute('position').count;this.staticConstruction.native.bind(meshes[i]!,actual,offset,count,piece,supportOps![i]!,group);offset+=count;}pieces.forEach(p=>p.dispose());}

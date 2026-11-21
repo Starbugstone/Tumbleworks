@@ -448,6 +448,9 @@ export class WorldView {
       const strike = this.playback.bellStrike;
       const previous = this.filmTime;
       this.filmTime += seconds;
+      for (const cue of this.playback.routeCues) {
+        if (previous < cue.at && this.filmTime >= cue.at) sfx.harbourRouteCue(cue.cue);
+      }
       if (strike !== undefined && previous < strike && this.filmTime >= strike) sfx.harbourBell();
       if (this.filmTime >= this.playback.duration) {
         // The run came home: paper over the map it returns to. A skipped film ends quietly.

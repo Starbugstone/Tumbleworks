@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { fishStall, harbourCottage, harbourResident, harbourSkiff } from './harbour-craft';
+import { fishStall, harbourCottage, harbourResident, harbourSkiff, sailLoft } from './harbour-craft';
 import kitRaw from '../../assets/world-3d/kit-runtime.json?raw';
 
 export interface AssetMesh {
@@ -106,11 +106,12 @@ export class WorldKitAssets {
   /** Names exported by the village asset kit. */
   get modelNames(): readonly string[] { return [...new Set(kit?.meshes.map(mesh => mesh.model) ?? [])]; }
   model(name: string, material: THREE.Material): THREE.Group {
-    const coastal = name === 'cottage-clay' || name === 'cottage-slate' || name === 'fish-stall' || name === 'crew-gold' || name === 'crew-blue' || (this.fishingBoats && name === 'boat');
+    const coastal = name === 'sail-loft' || name === 'cottage-clay' || name === 'cottage-slate' || name === 'fish-stall' || name === 'crew-gold' || name === 'crew-blue' || (this.fishingBoats && name === 'boat');
     if (coastal) {
       let geometry = this.coastalKit.get(name);
       if (!geometry) {
-        if (name === 'boat') geometry = harbourSkiff();
+        if (name === 'sail-loft') geometry = sailLoft();
+        else if (name === 'boat') geometry = harbourSkiff();
         else if (name === 'fish-stall') geometry = fishStall();
         else if (name.startsWith('crew-')) geometry = harbourResident(name === 'crew-gold');
         else geometry = harbourCottage(name === 'cottage-slate');

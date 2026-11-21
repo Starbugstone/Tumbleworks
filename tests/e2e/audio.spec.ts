@@ -1,22 +1,23 @@
 import { expect, test, type Page } from '@playwright/test';
+import type { HarbourRouteCue } from '../../src/audio';
 import type { App } from '../../src/view/App';
 
 type Sound = typeof import('../../src/audio')['sfx'];
-type AudioWindow = Window & { tumbleworks: { app: App }; observedSound: Pick<Sound, 'win' | 'deliver' | 'boxFilled' | 'harbourBell' | 'harbourAmbience' | 'boardAmbience'> & {
+type AudioWindow = Window & { tumbleworks: { app: App }; observedSound: Pick<Sound, 'finalLoad' | 'deliver' | 'boxFilled' | 'harbourRouteCue' | 'harbourBell' | 'harbourAmbience' | 'boardAmbience'> & {
   buffers: Map<string, AudioBuffer>; voices: Set<AudioScheduledSourceNode>;
   harbour: { surf: AudioBufferSourceNode } | null;
-}; audioCounts: { intake: number; complete: number; fastIntake: number } };
+}; audioCounts: { intake: number; complete: number; fastIntake: number; finalLoad: number } };
 
-async function open(page: Page, level = 'board-31') {
+async function open(page: Page, level = 'board-31', manualClock = true) {
   await page.goto(`/?demo=${level}`);
   await page.waitForFunction(() => Boolean((window as Partial<AudioWindow>).tumbleworks?.app));
-  await page.evaluate(async () => {
+  await page.evaluate(async manualClock => {
     const target = window as unknown as AudioWindow;
-    target.tumbleworks.app.manualClock = true;
+    target.tumbleworks.app.manualClock = manualClock;
     const path = performance.getEntriesByType('resource').map(entry => entry.name).find(name => new URL(name).pathname === '/src/audio.ts');
     if (!path) throw new Error('Running audio module not found');
     target.observedSound = (await import(/* @vite-ignore */ path)).sfx;
-  });
+  }, manualClock);
 }
 async function tapCrate(page: Page) {
   const point = await page.evaluate(() => (window as unknown as AudioWindow).tumbleworks.app.debugTargets()['supply0']!);
@@ -59,7 +60,7 @@ test('real MP3 bank loads once on a gesture, decodes cleanly and follows mute/re
   expect(await page.evaluate(() => (window as unknown as AudioWindow).observedSound.voices.size)).toBe(0);
   await tapCrate(page);
   expect(await page.evaluate(() => (window as unknown as AudioWindow).tumbleworks.app.debugState()['released'])).toEqual([0]);
-  await page.evaluate(() => (window as unknown as AudioWindow).observedSound.win());
+  await page.evaluate(() => (window as unknown as AudioWindow).observedSound.finalLoad());
   await page.getByRole('button', { name: 'Undo', exact: true }).click();
   expect(await page.evaluate(() => (window as unknown as AudioWindow).tumbleworks.app.debugState()['released'])).toEqual([]);
   // Undo cancels the reward; only its new, short detent cue may remain.
@@ -74,12 +75,12 @@ test('real MP3 bank loads once on a gesture, decodes cleanly and follows mute/re
   await page.getByRole('button', { name: 'Sound', exact: true }).click();
   await expect.poll(() => page.evaluate(() => (window as unknown as AudioWindow).observedSound.buffers.size)).toBe(13);
   // Trigger a long enough reward in the running sound system, then check the real cancellation paths.
-  await page.evaluate(() => (window as unknown as AudioWindow).observedSound.win());
+  await page.evaluate(() => (window as unknown as AudioWindow).observedSound.finalLoad());
   await page.getByRole('button', { name: 'Restart', exact: true }).click();
   expect(await page.evaluate(() => (window as unknown as AudioWindow).observedSound.voices.size)).toBe(0);
   expect(await page.evaluate(() => {
     const sound = (window as unknown as AudioWindow).observedSound;
-    sound.win(); window.dispatchEvent(new Event('blur')); return sound.voices.size;
+    sound.finalLoad(); window.dispatchEvent(new Event('blur')); return sound.voices.size;
   })).toBe(0);
   expect(errors).toEqual([]);
 });
@@ -142,11 +143,51 @@ test('corrupt audio never blocks a real pour or replays a delayed cue', async ({
   expect(errors).toEqual([]);
 });
 
+test('Little Harbour plays each route cue once at its forward crossing', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await open(page, 'harbour', false);
+  await expect(page.locator('#scene')).toHaveAttribute('data-world-film', 'ready');
+  await page.evaluate(() => { (window as unknown as AudioWindow).tumbleworks.app.manualClock = true; });
+  await page.getByRole('button', { name: 'Play film', exact: true }).tap();
+  await expect.poll(() => page.evaluate(() => (window as unknown as AudioWindow).observedSound.buffers.size)).toBe(13);
+  const heard = await page.evaluate(() => {
+    const { tumbleworks: { app }, observedSound: sound } = window as unknown as AudioWindow;
+    const world = (app as unknown as { world: {
+      filmTime: number;
+      playback: { routeCues: { at: number; cue: HarbourRouteCue }[]; bellStrike: number };
+    } }).world;
+    const calls: { cue: HarbourRouteCue | 'bell'; time: number; voices: number }[] = [];
+    const route = sound.harbourRouteCue.bind(sound), bell = sound.harbourBell.bind(sound);
+    sound.harbourRouteCue = cue => {
+      const before = sound.voices.size;
+      route(cue);
+      calls.push({ cue, time: world.filmTime, voices: sound.voices.size - before });
+    };
+    sound.harbourBell = () => {
+      const before = sound.voices.size;
+      bell();
+      calls.push({ cue: 'bell', time: world.filmTime, voices: sound.voices.size - before });
+    };
+    const markers = [...world.playback.routeCues.map(cue => cue.at), world.playback.bellStrike];
+    for (const time of markers) {
+      app.advance(time - world.filmTime - .01);
+      app.advance(.02);
+      app.advance(.01);
+    }
+    return { calls, markers };
+  });
+  expect(heard.calls.map(({ cue }) => cue)).toEqual(['cruise', 'transfer', 'arrival', 'bell']);
+  expect(heard.calls.map(({ voices }) => voices)).toEqual([2, 2, 2, 1]);
+  for (const [index, call] of heard.calls.entries()) {
+    expect(call.time).toBeCloseTo(heard.markers[index]! + .01, 4);
+  }
+});
+
 test('held fast forward silences Loop intake in every lane but keeps truck completions', async ({ page }) => {
   await open(page, 'loop-1');
   await page.evaluate(() => {
     const target = window as unknown as AudioWindow;
-    target.audioCounts = { intake: 0, complete: 0, fastIntake: 0 };
+    target.audioCounts = { intake: 0, complete: 0, fastIntake: 0, finalLoad: 0 };
     const sound = target.observedSound;
     const deliver = sound.deliver.bind(sound), complete = sound.boxFilled.bind(sound);
     sound.deliver = slot => {
@@ -155,10 +196,12 @@ test('held fast forward silences Loop intake in every lane but keeps truck compl
       deliver(slot);
     };
     sound.boxFilled = chain => { target.audioCounts.complete++; complete(chain); };
+    const finalLoad = sound.finalLoad.bind(sound);
+    sound.finalLoad = () => { target.audioCounts.finalLoad++; finalLoad(); };
   });
   for (const speed of [1, 5]) {
     await page.getByRole('button', { name: 'Restart', exact: true }).click();
-    await page.evaluate(() => { (window as unknown as AudioWindow).audioCounts = { intake: 0, complete: 0, fastIntake: 0 }; });
+    await page.evaluate(() => { (window as unknown as AudioWindow).audioCounts = { intake: 0, complete: 0, fastIntake: 0, finalLoad: 0 }; });
     for (const lane of [0, 1]) {
       const at = await page.evaluate(id => (window as unknown as AudioWindow).tumbleworks.app.debugTargets()[`lane${id}`]!, lane);
       await page.touchscreen.tap(at.x, at.y);
@@ -175,6 +218,7 @@ test('held fast forward silences Loop intake in every lane but keeps truck compl
     expect(result.status).toBe('won');
     expect(result.busy).toBe(false);
     expect(result.complete).toBe(2);
+    expect(result.finalLoad).toBe(1);
     if (speed === 1) expect(result.intake).toBeGreaterThan(0);
     // Winning automatically releases fast forward; final seating can then sound at normal speed.
     expect(result.fastIntake).toBe(0);

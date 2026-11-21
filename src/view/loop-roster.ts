@@ -32,8 +32,6 @@ const STYLE = `
 .lr-backplate { position: absolute; pointer-events: none; box-sizing: border-box; border-radius: 10px;
   background: #34464c; border: 1px solid #26373c; box-shadow: inset 0 1px 0 #5e6c6c, 0 2px 0 #203038; }
 .lr-tag, .lr-pin { position: absolute; width: 18px; height: 18px; border-radius: 50%; background: ${IVORY}; color: ${INK}; display: grid; place-items: center; font-weight: 600; font-size: 12px; line-height: 1; }
-.lr-backplate, .lr-tag { transition: opacity 0.24s ease; }
-.lr.dispatched .lr-backplate, .lr.dispatched .lr-tag { opacity: 0; }
 .lr-pin { transform: translate(-50%, -50%); box-shadow: 0 1px 3px rgb(0 0 0 / 0.45); }
 .lr-card { position: absolute; display: flex; gap: 3px; padding: 3px 4px 2px 3px; border-radius: 9px; box-sizing: border-box; transition: left 0.24s ease, width 0.24s ease, opacity 0.2s ease; }
 .lr-card.now { background: ${IVORY}; color: ${INK}; box-shadow: 0 3px 0 #b9a98a, 0 5px 8px rgb(0 0 0 / 0.35); }
@@ -138,8 +136,7 @@ export class LoopRoster {
     this.pins.forEach((pin, lane) => { const point = at(lane); pin.style.left = `${point.x}px`; pin.style.top = `${point.y}px`; });
   }
 
-  private readLines(): Lorry[][] {
-    const trucks = this.machine.readTrucks();
+  private readLines(trucks = this.machine.readTrucks()): Lorry[][] {
     return this.machine.board.lanes.map((_, lane) => {
       const front = this.machine.rules.front(lane);
       const inLane = trucks.filter((truck) => truck.lane === lane);
@@ -156,12 +153,18 @@ export class LoopRoster {
     });
   }
 
-  sync(): void {
-    const lines = this.readLines();
+  sync(trucks?: ReturnType<LoopMachine['readTrucks']>): void {
+    const finished = this.machine.rules.status === 'won';
+    if (this.element.hidden !== finished) {
+      this.element.hidden = finished;
+      this.key = '';
+      this.closePeek();
+    }
+    if (finished) return;
+    const lines = this.readLines(trucks);
     const key = JSON.stringify(lines);
     if (key === this.key) return;
     this.key = key;
-    this.element.classList.toggle('dispatched', lines.every(line => line.length === 0));
     const layout = this.layoutNow;
     const live = new Set<string>();
     lines.forEach((line, lane) => {
@@ -286,6 +289,7 @@ export class LoopRoster {
 
   /** What is under a screen point. The peek panel is on top of everything while it is open. */
   pick(x: number, y: number): RosterPick | null {
+    if (this.element.hidden) return null;
     const inside = (element: HTMLElement): boolean => { const r = element.getBoundingClientRect(); return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom; };
     // The panel covers part of the toy: a tap on it only closes it, and must never reach a lorry underneath.
     if (this.peek && inside(this.peek.element)) return { lane: this.peek.lane, kind: 'more' };
@@ -298,6 +302,7 @@ export class LoopRoster {
   }
 
   togglePeek(lane: number): void {
+    if (this.element.hidden) return;
     const open = this.peek?.lane === lane;
     this.closePeek();
     if (!open) this.openPeek(lane, this.readLines()[lane]!);
@@ -330,6 +335,7 @@ export class LoopRoster {
   }
 
   waitingBounds(): { lane: number; slot: number; visible: boolean; left: number; right: number; top: number; bottom: number }[] {
+    if (this.element.hidden) return [];
     const out: { lane: number; slot: number; visible: boolean; left: number; right: number; top: number; bottom: number }[] = [];
     for (const view of this.cards.values()) {
       if (view.element.dataset['kind'] !== 'waiting') continue;
@@ -341,6 +347,7 @@ export class LoopRoster {
 
   /** Every printed number as the browser draws it, for the tests that hold it to a readable size. */
   printedNumbers(): { lane: number; waiting: boolean; font: number; clipped: boolean; text: string }[] {
+    if (this.element.hidden) return [];
     return [...this.cards.values()].flatMap((view) => [...view.numbers.children].map((child) => {
       const number = child as HTMLElement;
       return { lane: Number(view.element.dataset['lane']), waiting: view.element.dataset['kind'] === 'waiting', font: Number.parseFloat(getComputedStyle(number).fontSize), clipped: number.scrollWidth > number.clientWidth + 1, text: number.textContent ?? '' };

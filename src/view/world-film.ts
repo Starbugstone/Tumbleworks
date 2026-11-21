@@ -1,3 +1,4 @@
+import type { HarbourRouteCue } from '../audio';
 import type { Stage } from '../engine/stage';
 import { type WorldSceneOptions, WorldScene } from './world-scene';
 
@@ -8,6 +9,7 @@ import { type WorldSceneOptions, WorldScene } from './world-scene';
 export class WorldFilm {
   readonly duration: number;
   readonly bellStrike: number | undefined;
+  readonly routeCues: readonly { at: number; cue: HarbourRouteCue }[];
   private begun = false;
   private readonly current: WorldScene;
   private readonly ownsCurrent: boolean;
@@ -19,7 +21,14 @@ export class WorldFilm {
     this.ownsCurrent = !current;
     if (this.ownsCurrent) this.current.activateProof();
     this.duration = this.current.machine.route.duration;
-    this.bellStrike = chapter === 0 ? this.current.machine.route.transfers.find(t => t.kind === 'strike')?.start : undefined;
+    const route = this.current.machine.route;
+    this.bellStrike = route.finale?.strike ?? (chapter === 0 ? route.transfers.find(t => t.kind === 'strike')?.start : undefined);
+    const harbour = route.finale && route.authoredPlan.pierBell;
+    this.routeCues = harbour && route.finale ? [
+      { at: route.segments.find(s => s.stop === harbour.launchStop && s.kind === 'connector')!.start, cue:'cruise' },
+      { at: route.contacts.find(c => c.stop === harbour.slipwayStop)!.start, cue:'transfer' },
+      { at: route.finale.seat, cue:'arrival' },
+    ] : [];
     this.resize();
   }
   resize(): void { this.current.resize(); }

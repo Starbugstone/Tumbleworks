@@ -75,9 +75,12 @@ export function hull(halfWidth: number, halfDepth: number, centerZ: number, corn
   ];
 }
 
+const CAUSTIC_SIZE = 128;
+let causticPixels: Uint8Array<ArrayBuffer> | undefined;
+
 /** Cell walls of a wrapped Voronoi pattern: sampled twice against itself it gives the light net on a shallow sea bed. */
-export function causticTexture(): THREE.DataTexture {
-  const SIZE = 128, POINTS = 18;
+function makeCausticPixels() {
+  const SIZE = CAUSTIC_SIZE, POINTS = 18;
   const seeds = Array.from({ length: POINTS }, (_, index) => [(index * 0.618034 + 0.13) % 1 * SIZE, (index * 0.381966 * 3.7 + 0.41) % 1 * SIZE] as const);
   const data = new Uint8Array(SIZE * SIZE * 4);
   for (let y = 0; y < SIZE; y++) for (let x = 0; x < SIZE; x++) {
@@ -92,7 +95,12 @@ export function causticTexture(): THREE.DataTexture {
     const edge = Math.max(0, 1 - (second - first) / 7);
     data.fill(Math.round(edge * edge * 255), (y * SIZE + x) * 4, (y * SIZE + x) * 4 + 4);
   }
-  const map = new THREE.DataTexture(data, SIZE, SIZE, THREE.RGBAFormat);
+  return data;
+}
+
+export function causticTexture(): THREE.DataTexture {
+  causticPixels ??= makeCausticPixels();
+  const map = new THREE.DataTexture(causticPixels.slice(), CAUSTIC_SIZE, CAUSTIC_SIZE, THREE.RGBAFormat);
   map.wrapS = map.wrapT = THREE.RepeatWrapping;
   map.minFilter = THREE.LinearMipmapLinearFilter; map.magFilter = THREE.LinearFilter; map.generateMipmaps = true;
   map.needsUpdate = true;

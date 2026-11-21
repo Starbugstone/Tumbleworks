@@ -92,7 +92,6 @@ export class WorldScene {
   private harbourSeconds = 0;
   get hasVillageLife(): boolean { return this.launch !== undefined; }
   readonly coastalDressing={beachCount:0,palmCount:0};
-  private readonly coastalProtected: THREE.Box3[] = [];
   get orbit(): VillageOrbit { if (!this.mapOrbit) throw new Error('Village is still building'); return this.mapOrbit; }
   private rockerFilmReady=true;
   private readonly hasAxle:boolean;
@@ -117,7 +116,7 @@ export class WorldScene {
   }
   /** The former constructor body, unchanged in order: one bounded step per yield. */
   private *complete(options: WorldSceneOptions): Generator<unknown, void, void> {
-    const chapter = this.chapter;
+    const chapter = this.chapter, coastalProtected: THREE.Box3[] = [];
     if (chapter === 0 && options.motion === 'cinematic') this.scene.background = new THREE.Color(0x8ab3c5);
     const terrain = compileTerrain((options.motion === 'cinematic' && this.scenePlan.cinematicTerrain) || this.scenePlan.terrain);
     yield 'terrain';
@@ -139,13 +138,13 @@ export class WorldScene {
         this.scene.add(model);
         continue;
       }
-      triangleBounds(model,SCENERY_CLEARANCE,this.coastalProtected);
+      triangleBounds(model,SCENERY_CLEARANCE,coastalProtected);
       landscape.add(model);
       yield 'scenery';
     }
     const workshop = this.scenePlan.workshop;
     const house = this.model('house-a'); house.position.fromArray(workshop.house.position);
-    house.rotation.y = workshop.house.yaw; house.scale.setScalar(workshop.house.scale); landscape.add(house); triangleBounds(house,SCENERY_CLEARANCE,this.coastalProtected);
+    house.rotation.y = workshop.house.yaw; house.scale.setScalar(workshop.house.scale); landscape.add(house); triangleBounds(house,SCENERY_CLEARANCE,coastalProtected);
     this.workshopBuilding = new WorkshopBuilding(this.material, workshopSignPlacement(workshop));
     landscape.add(this.workshopBuilding.fixed);
     yield 'workshop';
@@ -164,23 +163,23 @@ export class WorldScene {
     this.scene.add(this.machine.root);
     yield 'scene-root';
     this.machine.root.updateWorldMatrix(true,true);
-    triangleBounds(this.machine.root,MACHINE_CLEARANCE,this.coastalProtected);
+    triangleBounds(this.machine.root,MACHINE_CLEARANCE,coastalProtected);
     // A moving part sweeps through more than its rest pose: keep the shore clear of each one along the film.
     const rest=new Map<THREE.Mesh,THREE.Matrix4>();this.machine.root.traverse(object=>{if(object instanceof THREE.Mesh)rest.set(object,object.matrixWorld.clone());});
     for(let step=1;step<=MOTION_SAMPLES;step++){
       this.machine.apply(this.machine.route.duration*step/MOTION_SAMPLES);this.machine.root.updateMatrixWorld(true);
-      for(const [mesh,matrix] of rest)if(!mesh.matrixWorld.equals(matrix))this.coastalProtected.push(new THREE.Box3().setFromObject(mesh).expandByVector(MACHINE_CLEARANCE));
+      for(const [mesh,matrix] of rest)if(!mesh.matrixWorld.equals(matrix))coastalProtected.push(new THREE.Box3().setFromObject(mesh).expandByVector(MACHINE_CLEARANCE));
     }
     this.machine.apply(0);this.machine.root.updateMatrixWorld(true);
-    for (const slot of this.scenePlan.rewards) this.coastalProtected.push(new THREE.Box3(new THREE.Vector3(...slot.position).addScalar(-3),new THREE.Vector3(...slot.position).addScalar(3)));
+    for (const slot of this.scenePlan.rewards) coastalProtected.push(new THREE.Box3(new THREE.Vector3(...slot.position).addScalar(-3),new THREE.Vector3(...slot.position).addScalar(3)));
     // Construction lays a slab under each station; the shore keeps clear of it too.
-    for (const station of this.plan.stations) { const { x, z, height } = foundationSite(station, terrain); this.coastalProtected.push(new THREE.Box3(new THREE.Vector3(x - FOUNDATION[0] / 2, height, z - FOUNDATION[2] / 2), new THREE.Vector3(x + FOUNDATION[0] / 2, height + FOUNDATION[1], z + FOUNDATION[2] / 2)).expandByVector(SCENERY_CLEARANCE)); }
-    for(let seconds=0;seconds<=this.machine.route.duration;seconds+=.15){const p=new THREE.Vector3();this.machine.sample(seconds,p);this.coastalProtected.push(new THREE.Box3(p.clone().addScalar(-.8),p.clone().addScalar(.8)));}
-    const coast=tropicalCoast(terrain,this.coastalProtected),banks=terrain.spec.beachWidth ? null : riverBanks(drawn,this.coastalProtected);
+    for (const station of this.plan.stations) { const { x, z, height } = foundationSite(station, terrain); coastalProtected.push(new THREE.Box3(new THREE.Vector3(x - FOUNDATION[0] / 2, height, z - FOUNDATION[2] / 2), new THREE.Vector3(x + FOUNDATION[0] / 2, height + FOUNDATION[1], z + FOUNDATION[2] / 2)).expandByVector(SCENERY_CLEARANCE)); }
+    for(let seconds=0;seconds<=this.machine.route.duration;seconds+=.15){const p=new THREE.Vector3();this.machine.sample(seconds,p);coastalProtected.push(new THREE.Box3(p.clone().addScalar(-.8),p.clone().addScalar(.8)));}
+    const coast=tropicalCoast(terrain,coastalProtected),banks=terrain.spec.beachWidth ? null : riverBanks(drawn,coastalProtected);
     const shore=banks?mergeGeometries([coast,banks]):coast;if(banks){coast.dispose();banks.dispose();}
     if(!shore)throw new Error('Shore dressing could not be merged');
     const beach = new THREE.Mesh(shore,this.material); beach.name='village-beach'; beach.receiveShadow=true;
-    const palms=islandPalms(terrain,beach,this.coastalProtected,this.material);
+    const palms=islandPalms(terrain,beach,coastalProtected,this.material);
     const beachCount=(beach.geometry.index?.count??beach.geometry.getAttribute('position').count);
     const palmCount=palms?.geometry.getAttribute('position').count??0;
     const dressingStart=bakedLand.geometry.getAttribute('position').count;
@@ -188,8 +187,9 @@ export class WorldScene {
     bakedLand.geometry.userData['coastalDressing']={first:dressingStart,beachCount,palmCount};Object.assign(this.coastalDressing,{beachCount,palmCount});
     const mapBounds=bakedLand.geometry.boundingBox!.clone();
     if(beach.geometry.getAttribute('position').count)mapBounds.union(new THREE.Box3().setFromObject(beach));
-    const mapPoints:THREE.Vector3[]=[];for(const mesh of [bakedLand,beach]){const p=mesh.geometry.getAttribute('position');for(let i=0;i<p.count;i++)mapPoints.push(new THREE.Vector3().fromBufferAttribute(p,i));}
-    this.mapOrbit=new VillageOrbit(mapBounds,mapPoints);beach.geometry.dispose();palms?.geometry.dispose();
+    // appendWorldGeometry has already included every beach and palm vertex.
+    this.mapOrbit=new VillageOrbit(mapBounds,bakedLand.geometry.getAttribute('position'));
+    beach.geometry.dispose();palms?.geometry.dispose();
     yield 'coast';
     this.filmCamera = new VillageFilmCamera(this.machine, this.machine.route,this.machine.route.mode==='cinematic'?'cargo':'envelope');
     yield 'film-camera';

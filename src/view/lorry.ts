@@ -1,3 +1,4 @@
+import { TUB } from '../loop/layout';
 import * as THREE from 'three';
 import { candy, moulded } from '../engine/candy';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
@@ -29,7 +30,7 @@ export type LorryMaterials = ReturnType<typeof lorryMaterials>;
  * wall and the cab lay real shadows across the bed and, more narrowly, across the load: that is what shows the
  * tub's depth from a camera that looks almost straight down.
  */
-export const TUB = { wall: 0.6, cargo: 0.42, inset: 0.11 } as const;
+export { TUB } from '../loop/layout';
 
 /**
  * One stretch of cargo: a chamfered brick whose length is set by moving its two ends apart, so the chamfers
@@ -84,7 +85,9 @@ export function lorry(target: Color, dimensions: Dimensions, materials: LorryMat
   if (!paint) { paint = candy(new THREE.MeshStandardMaterial({ color: COLORS[target].hex, roughness: 0.45, vertexColors: true })); materials.paints.set(target, paint); }
   const { ivory, rubber, chrome, windowMaterial, lights } = materials;
   const box = (width: number, height: number, depth: number, x: number, y: number, z: number, material: THREE.Material) => {
-    const mesh = new THREE.Mesh(new RoundedBoxGeometry(width, height, depth, 3, Math.min(0.12, height / 3, depth / 3, width / 3)), material);
+    const radius = Math.min(.12, height / 3, depth / 3, width / 3);
+    // At portrait scale the mirrors, lamps and trim bevels cover a fraction of a pixel.
+    const mesh = new THREE.Mesh(new RoundedBoxGeometry(width, height, depth, radius < .045 ? 1 : 2, radius), material);
     mesh.position.set(x, y, z);
     mesh.castShadow = true;
     body.add(mesh);
@@ -129,6 +132,15 @@ export function lorry(target: Color, dimensions: Dimensions, materials: LorryMat
   }
   box(w * 0.94, 0.09, 0.1, 0, 0.24, cabZ - cab / 2, chrome);
   box(w * 0.4, 0.12, 0.035, 0, 0.39, cabZ - cab / 2 - 0.025, rubber);
+  // The open tail has a turned roller and side cheeks: the incoming row crosses this lip into its load.
+  const roller = new THREE.Mesh(new THREE.CylinderGeometry(.065, .065, w * .77, 14).toNonIndexed(), chrome);
+  roller.rotation.z = Math.PI / 2;
+  roller.position.set(0, h + .045, length / 2 + .045);
+  roller.castShadow = true;
+  body.add(roller);
+  for (const side of [-1, 1]) {
+    box(.08, .19, .25, side * (w / 2 - .046), h + .055, length / 2 + .06, rubber);
+  }
   // Static details share a draw per material; the moving wheels are instanced below.
   const batches = new Map<THREE.Material, THREE.BufferGeometry[]>();
   for (const part of [...body.children]) {
@@ -169,7 +181,10 @@ export function lorry(target: Color, dimensions: Dimensions, materials: LorryMat
   tires.castShadow = true;
   body.add(tires, hubs);
   const wheel = new THREE.Object3D();
+  let lastTravel = NaN;
   const setWheelTravel = (distance: number): void => {
+    if (distance === lastTravel) return;
+    lastTravel = distance;
     let index = 0;
     for (const z of [cabZ, -length * 0.27, length * 0.34]) for (const side of [-1, 1]) {
       wheel.position.set(side * (w / 2 + 0.01), 0.2, z);
@@ -213,6 +228,7 @@ export function lorry(target: Color, dimensions: Dimensions, materials: LorryMat
   body.add(unloading);
   const setUnloading = (state: 'pouring' | 'waiting' | null, time: number): void => {
     unloading.visible = state !== null;
+    if (state === null) return;
     pause.visible = state === 'waiting';
     arrows.forEach((arrow, index) => {
       arrow.visible = state === 'pouring';

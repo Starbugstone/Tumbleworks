@@ -1,15 +1,20 @@
 import { BufferGeometry, Float32BufferAttribute, Matrix4, Mesh, type Object3D } from 'three';
 import { nativeTerrainOwnership } from './village-terrain';
 import { terrainHeightAt } from '../world/village-terrain';
-
-interface R { n: bigint; d: bigint }
+import { Z, ONE, add, sub, mul, div as quotient, cmp, q as rational, exact as exactNumber, withExactNumbers, type Q as R } from './support-exact';
 type P = readonly [R,R];
 type V = readonly [number,number,number];
 const abs=(a:bigint)=>a<0n?-a:a;
-function rational(n:bigint,d=1n):R { if(!d)throw Error('Zero terrain-foot denominator');if(d<0n){n=-n;d=-d;}let a=abs(n),b=d;while(b){const t=a%b;a=b;b=t;}return {n:n/(a||1n),d:d/(a||1n)}; }
-const Z=rational(0n),ONE=rational(1n),add=(a:R,b:R)=>rational(a.n*b.d+b.n*a.d,a.d*b.d),neg=(a:R)=>({n:-a.n,d:a.d}),sub=(a:R,b:R)=>add(a,neg(b)),mul=(a:R,b:R)=>rational(a.n*b.n,a.d*b.d),div=(a:R,b:R)=>rational(a.n*b.d,a.d*b.n),sign=(a:R)=>a.n<0n?-1:a.n>0n?1:0,cmp=(a:R,b:R)=>sign(sub(a,b)),num=(a:R)=>Number(a.n)/Number(a.d);
-const bits64=new DataView(new ArrayBuffer(8));
-function exact(v:number):R {if(!Number.isFinite(v))throw Error('Nonfinite terrain-foot coordinate');bits64.setFloat64(0,v);const hi=bits64.getUint32(0),lo=bits64.getUint32(4),e=hi>>>20&2047,m=(BigInt(hi&0xfffff)<<32n)+BigInt(lo)+(e?1n<<52n:0n),p=(e?e-1023:-1022)-52,s=hi>>>31?-1n:1n;return p>=0?rational(s*m*(1n<<BigInt(p))):rational(s*m,1n<<BigInt(-p));}
+const sign = (a: R) => a.n < 0n ? -1 : a.n > 0n ? 1 : 0;
+const num = (a: R) => Number(a.n) / Number(a.d);
+function div(a: R, b: R): R {
+  if (!b.n) throw Error('Zero terrain-foot denominator');
+  return quotient(a, b);
+}
+function exact(value: number): R {
+  if (!Number.isFinite(value)) throw Error('Nonfinite terrain-foot coordinate');
+  return exactNumber(value);
+}
 const point=(x:number,z:number):P=>[exact(x),exact(z)],orient=(a:P,b:P,c:P)=>sub(mul(sub(b[0],a[0]),sub(c[1],a[1])),mul(sub(b[1],a[1]),sub(c[0],a[0]))),key=(p:P)=>p.map(v=>v.n+'/'+v.d).join('|');
 function signedArea(p:readonly P[]):R {let a=Z;for(let i=0;i<p.length;i++){const b=p[(i+1)%p.length]!;a=add(a,sub(mul(p[i]![0],b[1]),mul(p[i]![1],b[0])));}return div(a,rational(2n));}
 const magnitude=(a:R)=>({n:abs(a.n),d:a.d});
@@ -35,11 +40,13 @@ export class TerrainFootGround {
   visibleHome(mesh);this.geometry=mesh.geometry;this.attributes={...mesh.geometry.attributes};const own=nativeTerrainOwnership(mesh),t=own.terrain;
   if(!Number.isInteger(t.columns)||!Number.isInteger(t.rows)||t.columns<1||t.rows<1||t.columns>256||t.rows>256||![t.cellWidth,t.cellDepth].every(v=>v>=2**-8&&v<=8&&Number.isInteger(Math.log2(v)))||![t.originX/t.cellWidth,t.originZ/t.cellDepth].every(Number.isInteger))throw Error('Unsupported terrain-foot grid domain');
   const p=mesh.geometry.getAttribute('position'),land:Land[]=[];
-  for(const id of own.land){const v=[0,1,2].map(j=>[p.getX(id*3+j),p.getY(id*3+j),p.getZ(id*3+j)]as V);for(const q of v)for(const x of q)if(!Number.isFinite(x)||Math.fround(x)!==x||Math.abs(x)>128||(x!==0&&Math.abs(x)<2**-32))throw Error('Unsupported terrain-foot coordinate/exponent domain');
-   const [a,b,c]=v,points=v.map(q=>point(q[0],q[2])),den=orient(points[0]!,points[1]!,points[2]!);if(!sign(den))throw Error('Degenerate native land');
-   const A=div(sub(mul(sub(exact(b![1]),exact(a![1])),sub(points[2]![1],points[0]![1])),mul(sub(exact(c![1]),exact(a![1])),sub(points[1]![1],points[0]![1]))),den),B=div(sub(mul(sub(points[1]![0],points[0]![0]),sub(exact(c![1]),exact(a![1]))),mul(sub(points[2]![0],points[0]![0]),sub(exact(b![1]),exact(a![1])))),den),C=sub(exact(a![1]),add(mul(A,points[0]![0]),mul(B,points[0]![1])));
-   land.push({id,points,coefficients:[A,B,C],plane:[A,B,C].map(q=>q.n+'/'+q.d).join('|'),bounds:[Math.min(...v.map(q=>q[0])),Math.max(...v.map(q=>q[0])),Math.min(...v.map(q=>q[2])),Math.max(...v.map(q=>q[2]))]});
-  }
+  withExactNumbers(() => {
+    for(const id of own.land){const v=[0,1,2].map(j=>[p.getX(id*3+j),p.getY(id*3+j),p.getZ(id*3+j)]as V);for(const q of v)for(const x of q)if(!Number.isFinite(x)||Math.fround(x)!==x||Math.abs(x)>128||(x!==0&&Math.abs(x)<2**-32))throw Error('Unsupported terrain-foot coordinate/exponent domain');
+     const [a,b,c]=v,points=v.map(q=>point(q[0],q[2])),den=orient(points[0]!,points[1]!,points[2]!);if(!sign(den))throw Error('Degenerate native land');
+     const A=div(sub(mul(sub(exact(b![1]),exact(a![1])),sub(points[2]![1],points[0]![1])),mul(sub(exact(c![1]),exact(a![1])),sub(points[1]![1],points[0]![1]))),den),B=div(sub(mul(sub(points[1]![0],points[0]![0]),sub(exact(c![1]),exact(a![1]))),mul(sub(points[2]![0],points[0]![0]),sub(exact(b![1]),exact(a![1])))),den),C=sub(exact(a![1]),add(mul(A,points[0]![0]),mul(B,points[0]![1])));
+     land.push({id,points,coefficients:[A,B,C],plane:[A,B,C].map(q=>q.n+'/'+q.d).join('|'),bounds:[Math.min(...v.map(q=>q[0])),Math.max(...v.map(q=>q[0])),Math.min(...v.map(q=>q[2])),Math.max(...v.map(q=>q[2]))]});
+    }
+  });
   this.land=land;this.fields=[t.columns,t.rows,t.originX,t.originZ,t.cellWidth,t.cellDepth,...t.heights,...t.paint,...t.cells.map(c=>c==='land'?1:c==='water'?2:3)];
  }
  assertCurrent():void {visibleHome(this.mesh);if(this.mesh.geometry!==this.geometry||Object.entries(this.attributes).some(([n,a])=>this.mesh.geometry.getAttribute(n)!==a))throw Error('Replaced terrain-foot ground attribute');const own=nativeTerrainOwnership(this.mesh),t=own.terrain,fields=[t.columns,t.rows,t.originX,t.originZ,t.cellWidth,t.cellDepth,...t.heights,...t.paint,...t.cells.map(c=>c==='land'?1:c==='water'?2:3)];if(fields.length!==this.fields.length||fields.some((v,i)=>!Object.is(v,this.fields[i])))throw Error('Stale terrain-foot ground descriptor');}

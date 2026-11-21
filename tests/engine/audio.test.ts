@@ -126,6 +126,53 @@ it('throttles physical impacts, but does not throttle a final landing', async ()
   contexts[0]!.currentTime += .1; sfx.impact(.8); expect(buffers).toHaveLength(4);
 });
 
+it('schedules distinct film contacts and keeps them silent during fast forward or in a hidden tab', async () => {
+  const page = Object.assign(new EventTarget(), { hidden: false });
+  vi.stubGlobal('document', page);
+  const { sfx } = await import('../../src/audio');
+  sfx.harbourRouteCue('cruise');
+  sfx.unlock(); await loaded();
+  expect(buffers).toHaveLength(0);
+
+  sfx.boardFastForward(true);
+  sfx.harbourRouteCue('transfer');
+  sfx.boardFastForward(false);
+  page.hidden = true;
+  sfx.harbourRouteCue('arrival');
+  expect(buffers).toHaveLength(0);
+
+  page.hidden = false;
+  sfx.harbourRouteCue('cruise');
+  contexts[0]!.currentTime = 11;
+  sfx.harbourRouteCue('transfer');
+  contexts[0]!.currentTime = 17;
+  sfx.harbourRouteCue('arrival');
+  sfx.harbourBell();
+  expect(buffers.map(source => source.start.mock.calls[0]?.[0]))
+    .toEqual([1, 1.13, 11, 11.1, 17, 17.08, 17]);
+  expect(new Set(buffers.map(source => source.buffer)).size).toBe(6);
+  expect(fetchSound).toHaveBeenCalledTimes(13);
+});
+
+it('seats the last load ahead of the win phrase and cancels both voices on mute', async () => {
+  const { sfx } = await import('../../src/audio');
+  sfx.unlock(); await loaded();
+  sfx.boxFilled(0);
+  sfx.boardFastForward(true);
+  sfx.finalLoad();
+  expect(buffers).toHaveLength(3);
+  expect(buffers[0]!.stop).toHaveBeenCalledOnce();
+  expect(buffers[1]!.start).toHaveBeenCalledWith(1);
+  expect(buffers[1]!.playbackRate.value).toBe(0.75);
+  expect(buffers[2]!.start).toHaveBeenCalledWith(1.18);
+  expect(buffers[2]!.buffer).not.toBe(buffers[1]!.buffer);
+  sfx.toggleMute();
+  expect(buffers[1]!.stop).toHaveBeenCalledOnce();
+  expect(buffers[2]!.stop).toHaveBeenCalledOnce();
+  sfx.finalLoad();
+  expect(buffers).toHaveLength(3);
+});
+
 it('contains download/decode failures, stays silent and never retries per cue', async () => {
   fetchSound.mockRejectedValueOnce(new Error('offline'));
   const { sfx } = await import('../../src/audio');

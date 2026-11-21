@@ -54,8 +54,8 @@ function texture(element: HTMLCanvasElement): THREE.CanvasTexture {
  * its palette colour: one clean highlight from the clearcoat, and little of the pale studio mirrored in the body,
  * which bleached yellow towards cream and orange towards peach until the two were hard to tell apart.
  */
-function glossy(color: Color): THREE.MeshPhysicalMaterial {
-  const material = new THREE.MeshPhysicalMaterial({ color: COLORS[color].hex, roughness: .16, metalness: 0, clearcoat: 1, clearcoatRoughness: .055, specularIntensity: .48 });
+function glossy(hex: number): THREE.MeshPhysicalMaterial {
+  const material = new THREE.MeshPhysicalMaterial({ color: hex, roughness: .16, metalness: 0, clearcoat: 1, clearcoatRoughness: .055, specularIntensity: .48 });
   // A long workshop window reflected in the clear shell. The small bright area
   // preserves the colour of the core even in dense, instanced crowds.
   material.onBeforeCompile = shader => {
@@ -74,7 +74,7 @@ function glossy(color: Color): THREE.MeshPhysicalMaterial {
 
 /** The shared marble entity: a plain glossy sphere in its natural colour. */
 export function marbleMaterial(color: Color): THREE.MeshPhysicalMaterial {
-  return glossy(color);
+  return glossy(COLORS[color].hex);
 }
 
 /** Each colour has its own shape, so the machine never relies on hue alone. */
@@ -143,8 +143,8 @@ export function containerSymbolTexture(color: Color): THREE.CanvasTexture {
 }
 
 /** A plain glossy marble in its natural colour, for instanced crowds. Patterns live on the containers. */
-export function crowdMaterial(color: Color): THREE.MeshPhysicalMaterial {
-  return glossy(color);
+export function crowdMaterial(): THREE.MeshPhysicalMaterial {
+  return glossy(0xffffff);
 }
 
 /**

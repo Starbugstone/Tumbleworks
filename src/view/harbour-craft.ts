@@ -101,6 +101,34 @@ export function harbourCottage(reverse: boolean): BufferGeometry {
   return g.finish();
 }
 
+/** The sailmaker's loft has a tide-blue gable, a loading hatch and a projecting hoist over the double doors. */
+export function sailLoft(): BufferGeometry {
+  const g=new PaintedFaces();
+  g.block(0,-.035,0,2.87,.22,1.69,0x857762);
+  g.block(0,.185,0,2.68,1.38,1.53,CREAM);
+  const eave=1.565, ridge=2.22;
+  for(const side of [-1,1]){
+    const z=side*.765;
+    const a:Point=[-1.34,eave,z], b:Point=[1.34,eave,z], c:Point=[0,ridge,z];
+    if(side>0)g.triangle(a,b,c,BLUE);else g.triangle(b,a,c,BLUE);
+    const x=side*1.52;
+    const p:Point=[0,ridge+.025,-.91],q:Point=[0,ridge+.025,.91],r:Point=[x,eave-.04,.91],t:Point=[x,eave-.04,-.91];
+    if(side>0)g.quad(p,q,r,t,0x607481);else g.quad(q,p,t,r,0x526675);
+  }
+  for(const side of [-1,1]){
+    const x=side*.30;
+    g.block(x,.185,.78,.57,.94,.044,BLUE);
+    g.block(side*.98,.58,.78,.39,.44,.045,INK);
+    g.block(side*.98,.78,.82,.41,.035,.045,CREAM);
+    g.block(side*.98,.56,.82,.035,.22,.045,CREAM);
+    g.block(side*.98,.815,.82,.035,.215,.045,CREAM);
+  }
+  g.block(0,1.44,.79,.45,.49,.045,INK);
+  g.block(0,1.94,.83,.11,.10,.67,WOOD);
+  g.block(0,1.34,1.135,.03,.60,.03,INK);
+  return g.finish();
+}
+
 /** A fishmonger's sunshade over a counter. Real struts meet the beam and the folded canvas. */
 export function fishStall(): BufferGeometry {
   const g=new PaintedFaces();

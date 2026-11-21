@@ -39,6 +39,7 @@ export interface VillageMotionTimeline {
   readonly motionStatus:
     | { readonly state: "ready" }
     | { readonly state: "authoring"; readonly reason: string };
+  readonly finale?: { readonly seat: number; readonly strike: number; readonly pullback: number };
   readonly duration: number;
   readonly plan: VillagePlan;
   readonly authoredPlan: VillagePlan;
