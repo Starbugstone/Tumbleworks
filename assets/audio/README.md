@@ -191,7 +191,9 @@ fade the outgoing theme before starting the incoming one, so the beds do not sta
 environmental bed to 35%, lowers the music and clears pending gull calls. Leaving the board
 clears the fast-forward state. Completion and win cues duck the music for their audible duration.
 
-The original scores in `src/audio-music.ts` have four bars with wrapped note tails at the loop seam.
+The original scores in `src/audio-music.ts` have eight bars over two phrases. Each uses a distinct
+chord progression and varies where the felt and mallet notes land. Cadence tails wrap across the
+loop seam. Loops run from 27.84 to 33.92 seconds at the existing music level.
 An on-demand worker synthesizes the score and transfers its PCM without blocking input. An island
 change, mute or hiding the tab discards unfinished work. Scores play through the same master and
 Sound setting as the effects. Only the current score is cached and a same-island handoff reuses it.
