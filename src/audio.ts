@@ -1,3 +1,4 @@
+import { makeMusic, type MusicTheme } from './audio-music';
 import { worldLocation } from './world/locations';
 import { isMuted, setMuted } from './progress';
 import tap from './sounds/tap.mp3?no-inline';
@@ -26,6 +27,12 @@ type Harbour = {
   surf: AudioBufferSourceNode;
   gull: AudioBufferSourceNode | null;
   nextCall: Timer | null;
+  fadeOut: Timer | null;
+};
+type Music = {
+  theme: MusicTheme;
+  source: AudioBufferSourceNode;
+  gain: GainNode;
   fadeOut: Timer | null;
 };
 
@@ -82,10 +89,13 @@ class Sfx {
   private loading: Promise<void> | null = null;
   private readonly buffers = new Map<Cue, AudioBuffer>();
   private readonly voices = new Set<AudioScheduledSourceNode>();
-  private harbourRequested = false;
-  private boardTheme: BedTheme | null = null;
+  private islandTheme: MusicTheme | null = null;
+  private boardTheme: MusicTheme | null = null;
   private boardFast = false;
   private harbour: Harbour | null = null;
+  private music: Music | null = null;
+  private musicBuffer: { theme: MusicTheme; buffer: AudioBuffer } | null = null;
+  private musicDuckUntil = 0;
   private readonly bedBuffers = new Map<BedTheme, AudioBuffer>();
   private gullBuffer: AudioBuffer | null = null;
   private lastImpact = -Infinity;
@@ -108,19 +118,19 @@ class Sfx {
         this.master = this.ctx.createGain();
         this.master.gain.value = 0.8;
         this.master.connect(compressor).connect(this.ctx.destination);
-        this.ctx.onstatechange = () => this.syncHarbour();
+        this.ctx.onstatechange = () => this.syncAmbience();
         if (typeof document !== 'undefined') document.addEventListener('visibilitychange', () => {
-          this.syncHarbour();
-          if (!document.hidden && this.requestedBed && !this.muted && this.ctx?.state === 'suspended') {
-            void this.ctx.resume().then(() => this.syncHarbour(), () => {});
+          this.syncAmbience();
+          if (!document.hidden && this.requestedMusic && !this.muted && this.ctx?.state === 'suspended') {
+            void this.ctx.resume().then(() => this.syncAmbience(), () => {});
           }
         });
       } catch { return; }
     }
     if (this.ctx.state !== 'running' && this.ctx.state !== 'closed') {
-      void this.ctx.resume().then(() => this.syncHarbour(), () => {});
+      void this.ctx.resume().then(() => this.syncAmbience(), () => {});
     }
-    this.syncHarbour();
+    this.syncAmbience();
     const context = this.ctx;
     this.loading ??= Promise.all((Object.keys(SOUNDS) as Cue[]).map(async cue => {
       try {
@@ -142,6 +152,7 @@ class Sfx {
     if (this.muted) {
       this.cancel();
       this.stopHarbour();
+      this.stopMusic();
     } else this.unlock();
     return this.muted;
   }
@@ -167,6 +178,10 @@ class Sfx {
     envelope.gain.value = gain;
     this.track(source, envelope);
     source.start(this.ctx.currentTime + delay);
+    if (reward) {
+      this.musicDuckUntil = Math.max(this.musicDuckUntil, this.ctx.currentTime + delay + buffer.duration / rate);
+      this.syncMusicGain();
+    }
   }
 
   /** Undo, restart, navigation and hidden/blurred pages discard all sound tails. */
@@ -174,29 +189,102 @@ class Sfx {
     for (const voice of this.voices) voice.stop();
     this.voices.clear();
     this.lastImpact = -Infinity;
+    if (this.musicDuckUntil) {
+      this.musicDuckUntil = 0;
+      this.syncMusicGain();
+    }
   }
 
-  /** Set Little Harbour's desired ambience on entry/exit. Playback needs the existing gesture unlock. */
-  harbourAmbience(active: boolean): void {
-    this.harbourRequested = active;
-    this.syncHarbour();
+  /** Select the map/film chapter. Chapter zero also keeps the Little Harbour surf and gulls. */
+  harbourAmbience(active: boolean, chapter = 0): void {
+    this.islandTheme = active ? worldLocation(chapter).kind : null;
+    this.syncAmbience();
   }
 
   /** Chapter is zero-based. Board ambience takes precedence during map/board handoff. */
   boardAmbience(active: boolean, chapter = 0): void {
-    this.boardTheme = active ? (worldLocation(chapter).kind === 'harbour' ? 'coast' : 'inland') : null;
+    this.boardTheme = active ? worldLocation(chapter).kind : null;
     if (!active) this.boardFast = false;
-    this.syncHarbour();
+    this.syncAmbience();
   }
 
   /** Pass the effective fast-forward state, including its automatic resets. */
   boardFastForward(active: boolean): void {
     this.boardFast = active;
-    this.syncHarbour();
+    this.syncAmbience();
   }
 
   private get requestedBed(): BedTheme | null {
-    return this.boardTheme ?? (this.harbourRequested ? 'coast' : null);
+    if (this.boardTheme) return this.boardTheme === 'harbour' ? 'coast' : 'inland';
+    return this.islandTheme === 'harbour' ? 'coast' : null;
+  }
+
+  private get requestedMusic(): MusicTheme | null {
+    return this.boardTheme ?? this.islandTheme;
+  }
+
+  private syncAmbience(): void {
+    this.syncHarbour();
+    this.syncMusic();
+  }
+
+  private syncMusic(): void {
+    const context = this.ctx;
+    if (!context || !this.master || this.muted || context.state !== 'running' ||
+      (typeof document !== 'undefined' && document.hidden)) {
+      this.stopMusic();
+      return;
+    }
+    const music = this.music;
+    const theme = this.requestedMusic;
+    if (!theme || (music && music.theme !== theme)) {
+      if (!music || music.fadeOut !== null) return;
+      music.gain.gain.cancelScheduledValues(context.currentTime);
+      music.gain.gain.setTargetAtTime(0, context.currentTime, .075);
+      music.fadeOut = setTimeout(() => {
+        this.stopMusic();
+        this.syncMusic();
+      }, 450);
+      return;
+    }
+    if (music) {
+      if (music.fadeOut !== null) clearTimeout(music.fadeOut);
+      music.fadeOut = null;
+    } else {
+      const gain = context.createGain();
+      gain.gain.value = 0;
+      gain.connect(this.master);
+      const source = context.createBufferSource();
+      if (this.musicBuffer?.theme !== theme) this.musicBuffer = { theme, buffer: makeMusic(context, theme) };
+      source.buffer = this.musicBuffer.buffer;
+      source.loop = true;
+      source.connect(gain);
+      source.start(context.currentTime);
+      this.music = { theme, source, gain, fadeOut: null };
+    }
+    this.syncMusicGain();
+  }
+
+  private syncMusicGain(): void {
+    const music = this.music;
+    if (!this.ctx || !music || music.fadeOut !== null || this.muted) return;
+    const now = this.ctx.currentTime;
+    const base = this.boardTheme ? (this.boardFast ? .21 : .68) : .78;
+    const ducked = now < this.musicDuckUntil;
+    const gain = music.gain.gain;
+    gain.cancelScheduledValues(now);
+    gain.setTargetAtTime(ducked ? base * .30 : base, now, ducked ? .045 : .20);
+    if (ducked) gain.setTargetAtTime(base, this.musicDuckUntil, .25);
+  }
+
+  private stopMusic(): void {
+    const music = this.music;
+    if (!music) return;
+    this.music = null;
+    if (music.fadeOut !== null) clearTimeout(music.fadeOut);
+    music.source.stop();
+    music.source.disconnect();
+    music.gain.disconnect();
   }
 
   private get gullsWanted(): boolean {

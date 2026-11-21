@@ -6,6 +6,7 @@ type Sound = typeof import('../../src/audio')['sfx'];
 type AudioWindow = Window & { tumbleworks: { app: App }; observedSound: Pick<Sound, 'finalLoad' | 'deliver' | 'boxFilled' | 'harbourRouteCue' | 'harbourBell' | 'harbourAmbience' | 'boardAmbience'> & {
   buffers: Map<string, AudioBuffer>; voices: Set<AudioScheduledSourceNode>;
   harbour: { surf: AudioBufferSourceNode } | null;
+  music: { source: AudioBufferSourceNode; gain: GainNode } | null;
 }; audioCounts: { intake: number; complete: number; fastIntake: number; finalLoad: number } };
 
 async function open(page: Page, level = 'board-31', manualClock = true) {
@@ -44,12 +45,15 @@ test('real MP3 bank loads once on a gesture, decodes cleanly and follows mute/re
     return { cue, channels: buffer.numberOfChannels, duration: buffer.duration, peak, onset: first / buffer.sampleRate };
   }));
   for (const sample of decoded) {
-    expect(sample.channels, sample.cue).toBe(1);
+    expect(sample.channels, sample.cue).toBe(sample.cue === 'win' ? 2 : 1);
     expect(sample.peak, sample.cue).toBeGreaterThan(.005);
     expect(sample.peak, sample.cue).toBeLessThan(.8);
     expect(sample.onset, sample.cue).toBeGreaterThanOrEqual(0);
     expect(sample.onset, sample.cue).toBeLessThan(.035);
-    expect(sample.duration, sample.cue).toBeLessThan(sample.cue === 'win' ? 1.5 : .95);
+    if (sample.cue === 'win') {
+      expect(sample.duration, sample.cue).toBeGreaterThanOrEqual(1.8);
+      expect(sample.duration, sample.cue).toBeLessThan(2.1);
+    } else expect(sample.duration, sample.cue).toBeLessThan(.95);
   }
   expect(decoded.find(sample => sample.cue === 'harbourBell')!.duration).toBeCloseTo(.72, 2);
   expect(await page.evaluate(() => {
@@ -108,8 +112,29 @@ test('harbour ambience starts on gesture, reuses its loop, fades out and follows
   expect(sample.rms).toBeGreaterThan(.015);
   expect(sample.rms).toBeLessThan(.10);
   expect(sample.seam).toBeLessThan(.04);
+  const music = await page.evaluate(async () => {
+    const active = (window as unknown as AudioWindow).observedSound.music;
+    if (!active?.source.buffer) throw new Error('Island music buffer missing');
+    const buffer = active.source.buffer;
+    // Measure one settled cycle at the board gain and the shared master gain.
+    const offline = new OfflineAudioContext(1, 48_000 * buffer.duration, 48_000);
+    const loop = offline.createBufferSource(), gain = offline.createGain();
+    loop.buffer = buffer;
+    gain.gain.value = .68 * .8;
+    loop.connect(gain).connect(offline.destination);
+    loop.start();
+    const samples = (await offline.startRendering()).getChannelData(0);
+    const rms = Math.sqrt(samples.reduce((sum, value) => sum + value * value, 0) / samples.length);
+    const source = buffer.getChannelData(0);
+    return { loop: active.source.loop, rmsDbfs: 20 * Math.log10(rms),
+      seam: Math.abs(source[0]! - source[source.length - 1]!) };
+  });
+  expect(music.loop).toBe(true);
+  expect(music.rmsDbfs).toBeGreaterThanOrEqual(-36);
+  expect(music.seam).toBeLessThan(.003);
   await page.getByRole('button', { name: 'Sound', exact: true }).click();
   expect(await running()).toBe(false);
+  expect(await page.evaluate(() => (window as unknown as AudioWindow).observedSound.music)).toBeNull();
   await page.getByRole('button', { name: 'Sound', exact: true }).click();
   await expect.poll(running).toBe(true);
   expect(await page.evaluate(() => {

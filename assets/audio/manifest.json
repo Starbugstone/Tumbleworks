@@ -7,7 +7,7 @@
     "licence": "CC0-1.0",
     "recipe": "Walnut button: slowed real wood, felt B3 body, 5 ms onset, dry bench",
     "generator": "scripts/generate-sounds.py",
-    "generatorSha256": "29830b9c59deca35f8ae6d9c0f2e3fbaeab465683a802699f163ad1d313c4041",
+    "generatorSha256": "f9274e9eee72c1a6c9a4caef728f7530e298deb459d3cd893cae6cda5850c5d5",
     "recordings": [
       {
         "source": "sources/kenney-impact/impactWood_light_000.ogg",
@@ -19,9 +19,9 @@
     ],
     "sourceSha256": "99c4d943d6de04c5265fd9c1ffea0869f7b996c47739b13c590e4487867283ea",
     "stereo": false,
-    "bitrate": 160000,
-    "encodedSha256": "4e0edb27df0d9471133d0ccec8415e7f16a65475ef15011ad52c7be167f95892",
-    "encodedBytes": 3701
+    "bitrate": 64000,
+    "encodedSha256": "e747beb6530f63e7e6c6b1fb18e5d93dc5706df110fd243e3531effc94dcd3df",
+    "encodedBytes": 1505
   },
   {
     "cue": "release",
@@ -31,7 +31,7 @@
     "licence": "CC0-1.0",
     "recipe": "Arcade crate release: dry latch and a tightening cluster of marble contacts over Earshot wood",
     "generator": "scripts/generate-sounds.py",
-    "generatorSha256": "29830b9c59deca35f8ae6d9c0f2e3fbaeab465683a802699f163ad1d313c4041",
+    "generatorSha256": "f9274e9eee72c1a6c9a4caef728f7530e298deb459d3cd893cae6cda5850c5d5",
     "recordings": [
       {
         "source": "sources/earshot/wood-knock.wav",
@@ -43,9 +43,9 @@
     ],
     "sourceSha256": "e0883e91ba5a5a943a102ef92ec6b7a3e5a5b2778a5a7ad6c45c0eadf65e63d9",
     "stereo": false,
-    "bitrate": 160000,
-    "encodedSha256": "49b97383de1856cc1f5e3f69c2a5166780c5d910798713609ece21c9e0c87ce4",
-    "encodedBytes": 6313
+    "bitrate": 80000,
+    "encodedSha256": "0b749189d080b828de52533cb141da7456fba6d3a58871e894c7a269fc882261",
+    "encodedBytes": 3179
   },
   {
     "cue": "impact-wood",
@@ -55,7 +55,7 @@
     "licence": "CC0-1.0",
     "recipe": "Real maple contact at 0.91x with damped D4 bench resonance",
     "generator": "scripts/generate-sounds.py",
-    "generatorSha256": "29830b9c59deca35f8ae6d9c0f2e3fbaeab465683a802699f163ad1d313c4041",
+    "generatorSha256": "f9274e9eee72c1a6c9a4caef728f7530e298deb459d3cd893cae6cda5850c5d5",
     "recordings": [
       {
         "source": "sources/kenney-impact/impactWood_light_000.ogg",
@@ -67,9 +67,9 @@
     ],
     "sourceSha256": "45595ded0d942178962a523cc9cad23ec2e96b0ea1fcf785982df494e9bd3d2f",
     "stereo": false,
-    "bitrate": 160000,
-    "encodedSha256": "f55c7c75edc7343b95303084076a11dacb27175dd292939c61c638eee9d0f0e4",
-    "encodedBytes": 3701
+    "bitrate": 64000,
+    "encodedSha256": "bb7b4fae096226af696d68ae3f78d22fc832ee6431bc7969bac397e1b25ba9ab",
+    "encodedBytes": 1505
   },
   {
     "cue": "impact-glass",
@@ -79,7 +79,7 @@
     "licence": "CC0-1.0",
     "recipe": "Arcade tube strike: Earshot glass tap over a short, hollow enamel snap",
     "generator": "scripts/generate-sounds.py",
-    "generatorSha256": "29830b9c59deca35f8ae6d9c0f2e3fbaeab465683a802699f163ad1d313c4041",
+    "generatorSha256": "f9274e9eee72c1a6c9a4caef728f7530e298deb459d3cd893cae6cda5850c5d5",
     "recordings": [
       {
         "source": "sources/earshot/glass-tap.wav",
@@ -91,9 +91,9 @@
     ],
     "sourceSha256": "dcc15e62fe2101f6b1ee06de6f1b8a0aeae67035b5b632e201fd4813d1884774",
     "stereo": false,
-    "bitrate": 160000,
-    "encodedSha256": "519bb0bbc4d439135c9ac5efdf11070bb7420d581aafcbaa0ead8c8b30a62cd8",
-    "encodedBytes": 4223
+    "bitrate": 64000,
+    "encodedSha256": "b3abb1305c423845fc23ede8244d9a5ebce2e8484386721629bd4f9270c459cf",
+    "encodedBytes": 1714
   },
   {
     "cue": "landing-light",
@@ -103,7 +103,7 @@
     "licence": "CC0-1.0",
     "recipe": "Arcade marble seat: hard contact over a low damped cup, with Earshot glass and wood",
     "generator": "scripts/generate-sounds.py",
-    "generatorSha256": "29830b9c59deca35f8ae6d9c0f2e3fbaeab465683a802699f163ad1d313c4041",
+    "generatorSha256": "f9274e9eee72c1a6c9a4caef728f7530e298deb459d3cd893cae6cda5850c5d5",
     "recordings": [
       {
         "source": "sources/earshot/glass-tap.wav",
@@ -122,9 +122,9 @@
     ],
     "sourceSha256": "5e86c083b07b382e0dbb73ee5926b4b77187f49540026fc1a362012d97a3c062",
     "stereo": false,
-    "bitrate": 160000,
-    "encodedSha256": "c672d06bb64daa12bb17712af47c3a99738a063675ad7925fbfad659620bfc9f",
-    "encodedBytes": 6835
+    "bitrate": 64000,
+    "encodedSha256": "e78267ac046fde98f1c500ead6af3dad12a5b176790db84396f76dc83c1c764c",
+    "encodedBytes": 2759
   },
   {
     "cue": "landing-final",
@@ -134,7 +134,7 @@
     "licence": "CC0-1.0",
     "recipe": "Full dock settles: D4 wood mass, A4 enamel rim and two quiet real wood contacts",
     "generator": "scripts/generate-sounds.py",
-    "generatorSha256": "29830b9c59deca35f8ae6d9c0f2e3fbaeab465683a802699f163ad1d313c4041",
+    "generatorSha256": "f9274e9eee72c1a6c9a4caef728f7530e298deb459d3cd893cae6cda5850c5d5",
     "recordings": [
       {
         "source": "sources/kenney-impact/impactWood_light_000.ogg",
@@ -146,19 +146,19 @@
     ],
     "sourceSha256": "47ad7988ece14535fe7ecbb038bb41484af6a5bb33fbc0bfda534547c138e6d9",
     "stereo": false,
-    "bitrate": 160000,
-    "encodedSha256": "8a9fb144285f6d4d277766b5102f4a96a0a0621c598d9d37f6081fc831bd9509",
-    "encodedBytes": 8403
+    "bitrate": 64000,
+    "encodedSha256": "30f90889b5658d11248c313f6386d45f00216e5efa9351bdbb36fe66ff63ee21",
+    "encodedBytes": 3386
   },
   {
     "cue": "complete",
     "source": "generated/complete.wav",
-    "creator": "Tumbleworks / CJspellsfish / Earshot",
+    "creator": "Tumbleworks / CJspellsfish / Earshot / Kenney",
     "page": "https://freesound.org/people/CJspellsfish/sounds/668383",
     "licence": "CC0-1.0",
-    "recipe": "Arcade dock payoff: hard seat and an answering D4/A4 felt chord with an Earshot glass accent",
+    "recipe": "Felt dock chord with two CC0 glass strikes opening into an enamel rim",
     "generator": "scripts/generate-sounds.py",
-    "generatorSha256": "29830b9c59deca35f8ae6d9c0f2e3fbaeab465683a802699f163ad1d313c4041",
+    "generatorSha256": "f9274e9eee72c1a6c9a4caef728f7530e298deb459d3cd893cae6cda5850c5d5",
     "recordings": [
       {
         "source": "sources/earshot/glass-tap.wav",
@@ -166,23 +166,37 @@
         "creator": "CJspellsfish / Earshot",
         "page": "https://freesound.org/people/CJspellsfish/sounds/668383",
         "licence": "CC0-1.0"
+      },
+      {
+        "source": "sources/kenney-impact/impactGlass_light_000.ogg",
+        "sourceSha256": "d750cf88097d0c3e69920e6e14496e1444e1a9da01aa4cca8f5ec8cb44c57b4f",
+        "creator": "Kenney",
+        "page": "https://kenney.nl/assets/impact-sounds",
+        "licence": "CC0-1.0"
+      },
+      {
+        "source": "sources/kenney-interface/glass_002.ogg",
+        "sourceSha256": "08e972c73e53c91d6d310e107e80db60edce78ae47225889a028e628a6f3da49",
+        "creator": "Kenney",
+        "page": "https://kenney.nl/assets/interface-sounds",
+        "licence": "CC0-1.0"
       }
     ],
-    "sourceSha256": "b16b97efc55b81dcee2da6b5a6f5d34dc142271b93e251f6337d86666304b76d",
+    "sourceSha256": "4087cc2cd8f60e29f6868e311719d47d66b74850cd548824ac29b1e78bd0f622",
     "stereo": false,
     "bitrate": 160000,
-    "encodedSha256": "795f190908ea7cb2dc3b361a2184c306e969eee9c0a98eeaa4c5e9181bb8bbb5",
+    "encodedSha256": "75776057d9aa14c639279071dbd5d0bc159c882ba286b0f09e38d8360df51a82",
     "encodedBytes": 15195
   },
   {
     "cue": "truck-complete",
     "source": "generated/truck-complete.wav",
-    "creator": "Tumbleworks / CJspellsfish / Earshot / Earshot",
+    "creator": "Tumbleworks / CJspellsfish / Earshot / Earshot / Kenney",
     "page": "https://freesound.org/people/CJspellsfish/sounds/668383",
     "licence": "CC0-1.0",
-    "recipe": "Arcade truck payoff: low chassis thump and dry latch, followed by a warm A3/E4 flourish",
+    "recipe": "Low chassis and warm A3/E4 answer with a CC0 glass latch and recorded confirmation",
     "generator": "scripts/generate-sounds.py",
-    "generatorSha256": "29830b9c59deca35f8ae6d9c0f2e3fbaeab465683a802699f163ad1d313c4041",
+    "generatorSha256": "f9274e9eee72c1a6c9a4caef728f7530e298deb459d3cd893cae6cda5850c5d5",
     "recordings": [
       {
         "source": "sources/earshot/glass-tap.wav",
@@ -197,12 +211,26 @@
         "creator": "Earshot",
         "page": "https://github.com/Leonxlnx/earshot/blob/7a7f7c5c70d4a763a1eca4b3666af7c77e313f97/README.md#licence",
         "licence": "CC0-1.0"
+      },
+      {
+        "source": "sources/kenney-impact/impactGlass_light_000.ogg",
+        "sourceSha256": "d750cf88097d0c3e69920e6e14496e1444e1a9da01aa4cca8f5ec8cb44c57b4f",
+        "creator": "Kenney",
+        "page": "https://kenney.nl/assets/impact-sounds",
+        "licence": "CC0-1.0"
+      },
+      {
+        "source": "sources/kenney-interface/confirmation_004.ogg",
+        "sourceSha256": "568967a3d9f8a8f6af54ea01729c4882284308f2a27d78c07ffd7ee0d6951661",
+        "creator": "Kenney",
+        "page": "https://kenney.nl/assets/interface-sounds",
+        "licence": "CC0-1.0"
       }
     ],
-    "sourceSha256": "c6be8a2527a08a9a40d530ef3ec819ee2f56ebc7fabb3ea0985c89b3cc55ba10",
+    "sourceSha256": "dbfd643bf75df39e7f5d4a4ea78b7f09ba82b48549384d4fc6f13f6e7ca07d7f",
     "stereo": false,
     "bitrate": 160000,
-    "encodedSha256": "1204c3e8fc03119caea76ed99325ded337ad298e6f3f31d39d4a3ce42d6ef09d",
+    "encodedSha256": "1fcc83b639d3e00d188d4b14525bde1fac00ba6a65173cd80a1291f29434d5f9",
     "encodedBytes": 16762
   },
   {
@@ -213,7 +241,7 @@
     "licence": "CC0-1.0",
     "recipe": "Rubber stop: real soft contact with muted B3 wood, no pitch warning",
     "generator": "scripts/generate-sounds.py",
-    "generatorSha256": "29830b9c59deca35f8ae6d9c0f2e3fbaeab465683a802699f163ad1d313c4041",
+    "generatorSha256": "f9274e9eee72c1a6c9a4caef728f7530e298deb459d3cd893cae6cda5850c5d5",
     "recordings": [
       {
         "source": "sources/kenney-impact/impactSoft_medium_000.ogg",
@@ -225,9 +253,9 @@
     ],
     "sourceSha256": "b44b92bd391f96dd67af95abab9e6de825fdfad300c0713759ce41b181e2ed8a",
     "stereo": false,
-    "bitrate": 160000,
-    "encodedSha256": "8ca7e7dec42f12e8cfd7034ff7ceb078145ed06f641e8918a479a7cb2f9e1fd1",
-    "encodedBytes": 4746
+    "bitrate": 64000,
+    "encodedSha256": "dfafd399882831a048e6e9b40cc3a5ffff930822add10c5f287813523bb3e896",
+    "encodedBytes": 1923
   },
   {
     "cue": "undo",
@@ -237,7 +265,7 @@
     "licence": "CC0-1.0",
     "recipe": "Wooden detent return: E4-D4 soft double contact at 0/75 ms, no reverse",
     "generator": "scripts/generate-sounds.py",
-    "generatorSha256": "29830b9c59deca35f8ae6d9c0f2e3fbaeab465683a802699f163ad1d313c4041",
+    "generatorSha256": "f9274e9eee72c1a6c9a4caef728f7530e298deb459d3cd893cae6cda5850c5d5",
     "recordings": [
       {
         "source": "sources/kenney-impact/impactWood_light_000.ogg",
@@ -249,9 +277,9 @@
     ],
     "sourceSha256": "618e7654d7b512abfb50387601cd3e7eea4f9e8cfff441d019ab255ef414123d",
     "stereo": false,
-    "bitrate": 160000,
-    "encodedSha256": "fe67dd71dcb774ef8f4d9a81604f367f325f951b7946d44311a238c79e1c7ce1",
-    "encodedBytes": 7358
+    "bitrate": 80000,
+    "encodedSha256": "c0cdb7c7f5f411071a47e041932999b2a3fa46eeb304532a9dd94cb328627195",
+    "encodedBytes": 3701
   },
   {
     "cue": "jam",
@@ -261,7 +289,7 @@
     "licence": "CC0-1.0",
     "recipe": "Stopped mechanism: B3/A3 damped bodies at 0/135 ms with a dry wood stop",
     "generator": "scripts/generate-sounds.py",
-    "generatorSha256": "29830b9c59deca35f8ae6d9c0f2e3fbaeab465683a802699f163ad1d313c4041",
+    "generatorSha256": "f9274e9eee72c1a6c9a4caef728f7530e298deb459d3cd893cae6cda5850c5d5",
     "recordings": [
       {
         "source": "sources/kenney-impact/impactWood_light_000.ogg",
@@ -273,9 +301,9 @@
     ],
     "sourceSha256": "549b66858497a650b12cf81d19056105399744aa62b9aec35ecb5c82b581ec97",
     "stereo": false,
-    "bitrate": 160000,
-    "encodedSha256": "92e51c9976f59422aa376e312d575a81cbb13eadaac45df1a5c69985644dab90",
-    "encodedBytes": 11015
+    "bitrate": 64000,
+    "encodedSha256": "fba197aaaf8d54b01742eb3d4a8bffe2e5dae15599619a94cf6fd4a73ab220a7",
+    "encodedBytes": 4431
   },
   {
     "cue": "win",
@@ -283,9 +311,9 @@
     "creator": "Tumbleworks / Kenney",
     "page": "https://kenney.nl/assets/impact-sounds",
     "licence": "CC0-1.0",
-    "recipe": "Workshop win: four rising felt strikes and a full D-major chord with a long resonant body",
+    "recipe": "Stereo D-major felt phrase and long resonant chord with panned CC0 glass and confirmation recordings",
     "generator": "scripts/generate-sounds.py",
-    "generatorSha256": "29830b9c59deca35f8ae6d9c0f2e3fbaeab465683a802699f163ad1d313c4041",
+    "generatorSha256": "f9274e9eee72c1a6c9a4caef728f7530e298deb459d3cd893cae6cda5850c5d5",
     "recordings": [
       {
         "source": "sources/kenney-impact/impactWood_light_000.ogg",
@@ -293,13 +321,27 @@
         "creator": "Kenney",
         "page": "https://kenney.nl/assets/impact-sounds",
         "licence": "CC0-1.0"
+      },
+      {
+        "source": "sources/kenney-interface/glass_002.ogg",
+        "sourceSha256": "08e972c73e53c91d6d310e107e80db60edce78ae47225889a028e628a6f3da49",
+        "creator": "Kenney",
+        "page": "https://kenney.nl/assets/interface-sounds",
+        "licence": "CC0-1.0"
+      },
+      {
+        "source": "sources/kenney-interface/confirmation_004.ogg",
+        "sourceSha256": "568967a3d9f8a8f6af54ea01729c4882284308f2a27d78c07ffd7ee0d6951661",
+        "creator": "Kenney",
+        "page": "https://kenney.nl/assets/interface-sounds",
+        "licence": "CC0-1.0"
       }
     ],
-    "sourceSha256": "8a4b1dd7475b3a3bc0bf3cb35a40ccf094e2db84065cbaf3f77e00d81b922db2",
-    "stereo": false,
-    "bitrate": 160000,
-    "encodedSha256": "7ccd3390cab9d793e25f7cee9ab0d5d29fc87fcf7b210c6ff3ae7d886c47138b",
-    "encodedBytes": 28778
+    "sourceSha256": "538a49bfc058ce328f4e0a109c166ce101d7bcdc5fc9d723f56ad329ccfcc945",
+    "stereo": true,
+    "bitrate": 192000,
+    "encodedSha256": "819996b14cac69c1c1648245390f30124f28a0d391c89a6b46130a0449c2a4b6",
+    "encodedBytes": 48944
   },
   {
     "cue": "harbour-bell",
@@ -309,7 +351,7 @@
     "licence": "CC0-1.0",
     "recipe": "Little Harbour ship bell: F4 brass modes 1/1.49/2.01/2.74/4.05, felt striker and wooden mount, 720 ms",
     "generator": "scripts/generate-sounds.py",
-    "generatorSha256": "29830b9c59deca35f8ae6d9c0f2e3fbaeab465683a802699f163ad1d313c4041",
+    "generatorSha256": "f9274e9eee72c1a6c9a4caef728f7530e298deb459d3cd893cae6cda5850c5d5",
     "recordings": [
       {
         "source": "sources/kenney-impact/impactSoft_medium_000.ogg",
@@ -328,8 +370,8 @@
     ],
     "sourceSha256": "b5f10daadb65dbaa0c5e57ad2dc7bf5e9a1d9afa6270c23fd77babf26b3b8bc5",
     "stereo": false,
-    "bitrate": 160000,
-    "encodedSha256": "df8ecb5d4e51a4386d39f6710dfb1fbaa33e57b9d5050a456547d5a09be30d31",
-    "encodedBytes": 15717
+    "bitrate": 64000,
+    "encodedSha256": "4bfefdc8ba9f9ce67896829b36d11417e97aaceb04a5706b5ad7999a6484dbfa",
+    "encodedBytes": 6312
   }
 ]

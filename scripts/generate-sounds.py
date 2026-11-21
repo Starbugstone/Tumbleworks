@@ -23,6 +23,9 @@ GENERATED = ROOT / 'assets/audio/generated'
 RECORDINGS = {
     'wood': 'sources/kenney-impact/impactWood_light_000.ogg',
     'soft': 'sources/kenney-impact/impactSoft_medium_000.ogg',
+    'glass-strike': 'sources/kenney-impact/impactGlass_light_000.ogg',
+    'bright-glass': 'sources/kenney-interface/glass_002.ogg',
+    'confirmation': 'sources/kenney-interface/confirmation_004.ogg',
     'earshot-glass': 'sources/earshot/glass-tap.wav',
     'earshot-wood': 'sources/earshot/wood-knock.wav',
 }
@@ -33,20 +36,21 @@ RECIPES = {
     'impact-glass': 'Arcade tube strike: Earshot glass tap over a short, hollow enamel snap',
     'landing-light': 'Arcade marble seat: hard contact over a low damped cup, with Earshot glass and wood',
     'landing-final': 'Full dock settles: D4 wood mass, A4 enamel rim and two quiet real wood contacts',
-    'complete': 'Arcade dock payoff: hard seat and an answering D4/A4 felt chord with an Earshot glass accent',
-    'truck-complete': 'Arcade truck payoff: low chassis thump and dry latch, followed by a warm A3/E4 flourish',
+    'complete': 'Felt dock chord with two CC0 glass strikes opening into an enamel rim',
+    'truck-complete': 'Low chassis and warm A3/E4 answer with a CC0 glass latch and recorded confirmation',
     'blocked': 'Rubber stop: real soft contact with muted B3 wood, no pitch warning',
     'undo': 'Wooden detent return: E4-D4 soft double contact at 0/75 ms, no reverse',
     'jam': 'Stopped mechanism: B3/A3 damped bodies at 0/135 ms with a dry wood stop',
-    'win': 'Workshop win: four rising felt strikes and a full D-major chord with a long resonant body',
+    'win': 'Stereo D-major felt phrase and long resonant chord with panned CC0 glass and confirmation recordings',
     'harbour-bell': 'Little Harbour ship bell: F4 brass modes 1/1.49/2.01/2.74/4.05, felt striker and wooden mount, 720 ms',
 }
-DURATIONS = dict(zip(RECIPES, (.12, .239, .12, .156, .282, .36, .68, .77, .18, .29, .48, 1.38, .72)))
+DURATIONS = dict(zip(RECIPES, (.12, .239, .12, .156, .282, .36, .68, .77, .18, .29, .48, 1.96, .72)))
 RECIPE_RECORDINGS = {
     'tap': ('wood',), 'release': ('earshot-wood',), 'impact-wood': ('wood',),
     'impact-glass': ('earshot-glass',), 'landing-light': ('earshot-glass', 'earshot-wood'), 'landing-final': ('wood',),
-    'complete': ('earshot-glass',), 'truck-complete': ('earshot-glass', 'earshot-wood'), 'blocked': ('soft',),
-    'undo': ('wood',), 'jam': ('wood',), 'win': ('wood',), 'harbour-bell': ('soft', 'wood'),
+    'complete': ('earshot-glass', 'glass-strike', 'bright-glass'),
+    'truck-complete': ('earshot-glass', 'earshot-wood', 'glass-strike', 'confirmation'), 'blocked': ('soft',),
+    'undo': ('wood',), 'jam': ('wood',), 'win': ('wood', 'bright-glass', 'confirmation'), 'harbour-bell': ('soft', 'wood'),
 }
 # Surface modes share a bench-sized room; none uses a high bare bell or swept noise.
 SURFACES = {
@@ -151,12 +155,12 @@ def finish(samples):
     return [x * gain for x in samples]
 
 
-def write_wave(path, samples):
-    pcm = array('h', (round(x * 32767) for x in samples))
+def write_wave(path, *channels):
+    pcm = array('h', (round(x * 32767) for frame in zip(*channels) for x in frame))
     if sys.byteorder != 'little':
         pcm.byteswap()
     with wave.open(str(path), 'wb') as output:
-        output.setparams((1, 2, RATE, 0, 'NONE', 'not compressed'))
+        output.setparams((len(channels), 2, RATE, 0, 'NONE', 'not compressed'))
         output.writeframes(pcm.tobytes())
 
 
@@ -270,6 +274,38 @@ def arcade_cues():
             for cue, (cutoff, layers) in cues.items()}
 
 
+def recorded_upper(kind, duration, speed):
+    samples = recording(kind, duration, speed, 7800)
+    # A Butterworth stage isolates the recorded rim/confirmation from the felt body.
+    angle = 2 * math.pi * 1950 / RATE
+    cosine, alpha = math.cos(angle), math.sin(angle) / math.sqrt(2)
+    a1, a2 = -2 * cosine / (1 + alpha), (1 - alpha) / (1 + alpha)
+    b = (1 + cosine) / (2 * (1 + alpha))
+    for _ in range(2):
+        x1 = x2 = y1 = y2 = 0
+        for i, x in enumerate(samples):
+            y = b * (x - 2 * x1 + x2) - a1 * y1 - a2 * y2
+            samples[i] = y
+            x1, x2, y1, y2 = x, x1, y, y1
+    drive = 1.2 / max(map(abs, samples))
+    samples = [math.tanh(x * drive) for x in samples]
+    samples = fade(samples, .004, .03)
+    gain = .16 / math.sqrt(sum(x * x for x in samples) / len(samples))
+    return [x * gain for x in samples]
+
+
+def reward_mix(body, accents, stereo=False):
+    channels = (body.copy(), body.copy()) if stereo else (body.copy(),)
+    for at, level, pan, layer in accents:
+        add(channels[0], layer, at, level * (1 - pan))
+        if stereo:
+            add(channels[1], layer, at, level * (1 + pan))
+    peak = max(max(map(abs, channel)) for channel in channels)
+    rms = math.sqrt(sum(sum(x * x for x in channel) for channel in channels) / (len(body) * len(channels)))
+    gain = min(10 ** (-22 / 20) / rms, .63 / peak)
+    return tuple([x * gain for x in channel] for channel in channels)
+
+
 def generate():
     bank = {cue: [0.0] * round(seconds * RATE) for cue, seconds in DURATIONS.items()}
     add(bank['tap'], recording('wood', .12, .73, 1450), gain=.75)
@@ -288,13 +324,13 @@ def generate():
     for i, hz in enumerate((246.94, 220)):
         add(bank['jam'], body(hz, .32, 'felt', 160 + i), .135 * i, .7 - .12 * i)
     add(bank['jam'], recording('wood', .14, .68, 1000), gain=.4)
-    for i, hz in enumerate((293.66, 369.99, 440, 587.33)):
-        add(bank['win'], body(hz, .40, 'felt', 170 + i), .084 * i, .62 + .04 * i)
-        add(bank['win'], recording('wood', .10, .8 + i * .06, 1300), .084 * i, .09)
-    win_chord = knock(.97, [(293.66, .55, .23), (369.99, .48, .20), (440, .67, .21),
-                           (587.33, .33, .19), (739.99, .20, .13), (1174.66, .11, .09)], 178, .026)
-    add(bank['win'], win_chord, .33, .60)
-    add(bank['win'], body(293.66, .45, 'enamel', 190), .33, .14)
+    for i, (at, hz) in enumerate(((0, 293.66), (.13, 440), (.26, 369.99), (.41, 587.33))):
+        add(bank['win'], body(hz, .47, 'felt', 170 + i), at, .62 + .04 * i)
+        add(bank['win'], recording('wood', .10, .8 + i * .06, 1300), at, .09)
+    win_chord = knock(1.51, [(293.66, .55, .36), (369.99, .48, .33), (440, .67, .31),
+                           (587.33, .33, .27), (739.99, .20, .18), (1174.66, .11, .11)], 178, .026)
+    add(bank['win'], win_chord, .46, .68)
+    add(bank['win'], body(293.66, .50, 'enamel', 190), .46, .14)
     add(bank['harbour-bell'], body(349.23, .72, 'brass', 200), gain=.75)
     add(bank['harbour-bell'], recording('soft', .10, .8, 1100), gain=.12)
     add(bank['harbour-bell'], recording('wood', .12, .72, 1300), gain=.055)
@@ -302,10 +338,20 @@ def generate():
     dependencies = {name: hashlib.sha256((ROOT / 'assets/audio' / path).read_bytes()).hexdigest()
                     for name, path in RECORDINGS.items()}
     arcade = arcade_cues()
+    glass_strike = recorded_upper('glass-strike', .14, .93)
+    bright_glass = recorded_upper('bright-glass', .19, .86)
+    confirmation = recorded_upper('confirmation', .23, .92)
+    accents = {
+        'complete': [(0, .48, 0, glass_strike), (.083, .34, 0, bright_glass)],
+        'truck-complete': [(.034, .51, 0, glass_strike), (.138, .34, 0, confirmation)],
+        'win': [(.04, .38, -.37, bright_glass), (.23, .46, .40, bright_glass),
+                (.43, .55, .25, confirmation), (.64, .36, -.41, confirmation)],
+    }
     for cue, samples in bank.items():
         rendered = arcade[cue] if cue in arcade else finish(room(samples, .4 if cue in ('win', 'harbour-bell') else .14))
-        write_wave(GENERATED / f'{cue}.wav', rendered)
-    provenance = {'suite': 'compact-workshop-arcade-v3', 'generator': 'scripts/generate-sounds.py',
+        channels = reward_mix(rendered, accents[cue], cue == 'win') if cue in accents else (rendered,)
+        write_wave(GENERATED / f'{cue}.wav', *channels)
+    provenance = {'suite': 'campaign-workshop-arcade-v4', 'generator': 'scripts/generate-sounds.py',
                   'generatorSha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
                   'recordings': {RECORDINGS[name]: digest for name, digest in dependencies.items()},
                   'earshot': {
@@ -340,8 +386,11 @@ def measure(samples):
     dominant = max(range(len(power)), key=power.__getitem__)
     peak = max(map(abs, samples))
     rms = math.sqrt(sum(x * x for x in samples) / len(samples))
+    high_band = sum(p for i, p in enumerate(power) if i * RATE / size >= 2000) / max(energy, 1e-20)
     return {'durationSeconds': round(len(samples) / RATE, 4), 'peakDbfs': round(20 * math.log10(max(peak, 1e-12)), 2),
             'rmsDbfs': round(20 * math.log10(max(rms, 1e-12)), 2),
+            'above2kRelativeDb': round(10 * math.log10(max(high_band, 1e-24)), 2),
+            'above2kRmsDbfs': round(20 * math.log10(max(rms * math.sqrt(high_band), 1e-12)), 2),
             'spectralCentroidHz': round(sum(i * RATE / size * p for i, p in enumerate(power)) / max(energy, 1e-20)),
             'energyBelow1587Hz': round(sum(p for i, p in enumerate(power) if i * RATE / size < 1587) / max(energy, 1e-20), 4),
             'phoneBodyEnergy': round(sum(p for i, p in enumerate(power) if 300 <= i * RATE / size <= 900) / max(energy, 1e-20), 4),

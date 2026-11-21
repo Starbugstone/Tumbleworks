@@ -5,6 +5,7 @@ class Param {
   value = 0;
   setValueAtTime = vi.fn();
   setTargetAtTime = vi.fn();
+  cancelScheduledValues = vi.fn();
   exponentialRampToValueAtTime = vi.fn();
 }
 class Node {
@@ -31,6 +32,8 @@ class Source extends Node {
   onended: (() => void) | null = null;
 }
 const buffers: Source[] = [], oscillators: Source[] = [], contexts: Context[] = [];
+const coastalSounds = () => buffers.filter(source => !source.loop || source.loopStart > 0);
+const musicLoops = () => buffers.filter(source => source.loop && source.loopStart === 0);
 const compressors: Node[] = [];
 class Context {
   currentTime = 1;
@@ -243,8 +246,8 @@ it('fades one harbour loop after unlock and reuses it during rapid exit and re-e
   expect(fetchSound).not.toHaveBeenCalled();
   sfx.unlock();
   sfx.harbourAmbience(true);
-  expect(buffers).toHaveLength(1);
-  const surf = buffers[0]!;
+  expect(coastalSounds()).toHaveLength(1);
+  const surf = coastalSounds()[0]!;
   expect(surf.loop).toBe(true);
   expect(surf.start).toHaveBeenCalledTimes(1);
   expect(surf.envelope!.gain.setTargetAtTime.mock.calls[0]?.[0]).toBeGreaterThan(0);
@@ -256,7 +259,7 @@ it('fades one harbour loop after unlock and reuses it during rapid exit and re-e
   sfx.harbourAmbience(true);
   vi.advanceTimersByTime(600);
   expect(surf.stop).not.toHaveBeenCalled();
-  expect(buffers).toHaveLength(1);
+  expect(coastalSounds()).toHaveLength(1);
   sfx.harbourAmbience(false);
   vi.advanceTimersByTime(600);
   expect(surf.stop).toHaveBeenCalledTimes(1);
@@ -274,32 +277,36 @@ it('stops harbour and scheduled gulls while muted or hidden and restores only an
   sfx.harbourAmbience(true);
   sfx.unlock();
   vi.advanceTimersByTime(6500);
-  expect(buffers.map(source => source.loop)).toEqual([true, false]);
-  const [surf, gull] = buffers;
+  expect(coastalSounds().map(source => source.loop)).toEqual([true, false]);
+  const [surf, gull] = coastalSounds();
   vi.advanceTimersByTime(30000);
-  expect(buffers).toHaveLength(2);
+  expect(coastalSounds()).toHaveLength(2);
   gull!.onended?.();
   expect(vi.getTimerCount()).toBe(1);
 
   page.hidden = true;
   page.dispatchEvent(new Event('visibilitychange'));
   expect(surf!.stop).toHaveBeenCalledTimes(1);
+  expect(musicLoops()[0]!.stop).toHaveBeenCalledTimes(1);
   expect(vi.getTimerCount()).toBe(0);
   vi.advanceTimersByTime(30000);
-  expect(buffers).toHaveLength(2);
+  expect(coastalSounds()).toHaveLength(2);
+  expect(musicLoops()).toHaveLength(1);
   page.hidden = false;
   page.dispatchEvent(new Event('visibilitychange'));
-  expect(buffers).toHaveLength(3);
-  expect(buffers[2]!.buffer).toBe(surf!.buffer);
+  expect(coastalSounds()).toHaveLength(3);
+  expect(coastalSounds()[2]!.buffer).toBe(surf!.buffer);
   vi.advanceTimersByTime(6500);
-  expect(buffers).toHaveLength(4);
+  expect(coastalSounds()).toHaveLength(4);
   sfx.toggleMute();
-  expect(buffers[2]!.stop).toHaveBeenCalledTimes(1);
-  expect(buffers[3]!.stop).toHaveBeenCalledTimes(1);
+  expect(coastalSounds()[2]!.stop).toHaveBeenCalledTimes(1);
+  expect(coastalSounds()[3]!.stop).toHaveBeenCalledTimes(1);
+  expect(musicLoops()[1]!.stop).toHaveBeenCalledTimes(1);
   expect(vi.getTimerCount()).toBe(0);
   sfx.harbourAmbience(false);
   sfx.toggleMute();
-  expect(buffers).toHaveLength(4);
+  expect(coastalSounds()).toHaveLength(4);
+  expect(musicLoops()).toHaveLength(2);
   expect(vi.getTimerCount()).toBe(0);
 });
 
@@ -311,31 +318,75 @@ it.each([0, themes.length])('hands off one board bed and ducks it during fast fo
   sfx.boardAmbience(true, chapter);
   expect(contexts).toHaveLength(0);
   sfx.unlock();
-  expect(buffers).toHaveLength(1);
-  const coast = buffers[0]!;
+  expect(coastalSounds()).toHaveLength(1);
+  const coast = coastalSounds()[0]!;
   expect(coast.envelope!.gain.setTargetAtTime).toHaveBeenLastCalledWith(.15, 1, .16);
   sfx.boardFastForward(true);
   expect(coast.envelope!.gain.setTargetAtTime.mock.lastCall?.[0]).toBeCloseTo(.0525);
   vi.advanceTimersByTime(30_000);
-  expect(buffers).toHaveLength(1);
+  expect(coastalSounds()).toHaveLength(1);
 
   sfx.boardFastForward(false);
   expect(coast.envelope!.gain.setTargetAtTime).toHaveBeenLastCalledWith(.15, 1, .16);
   sfx.boardAmbience(true, 2);
-  expect(buffers).toHaveLength(1);
+  expect(coastalSounds()).toHaveLength(1);
   vi.advanceTimersByTime(540);
   expect(coast.stop).toHaveBeenCalledOnce();
-  const inland = buffers[1]!;
+  const inland = coastalSounds()[1]!;
   expect(inland.buffer).not.toBe(coast.buffer);
   expect(inland.envelope!.gain.setTargetAtTime).toHaveBeenLastCalledWith(.13, 1, .16);
   vi.advanceTimersByTime(30_000);
-  expect(buffers).toHaveLength(2);
+  expect(coastalSounds()).toHaveLength(2);
   sfx.boardAmbience(false);
   vi.advanceTimersByTime(540);
   expect(inland.stop).toHaveBeenCalledOnce();
-  expect(buffers[2]!.buffer).toBe(coast.buffer);
-  expect(buffers[2]!.envelope!.gain.setTargetAtTime).toHaveBeenLastCalledWith(.22, 1, .16);
+  expect(coastalSounds()[2]!.buffer).toBe(coast.buffer);
+  expect(coastalSounds()[2]!.envelope!.gain.setTargetAtTime).toHaveBeenLastCalledWith(.22, 1, .16);
   sfx.harbourAmbience(false);
   vi.advanceTimersByTime(540);
   expect(vi.getTimerCount()).toBe(0);
+});
+
+it('switches island scores without layering them, and keeps one score in a same-island handoff', async () => {
+  vi.useFakeTimers();
+  const { sfx } = await import('../../src/audio');
+  sfx.harbourAmbience(true, 2);
+  expect(buffers).toHaveLength(0);
+  sfx.unlock();
+  const [mill] = musicLoops();
+  expect(coastalSounds()).toHaveLength(0);
+  sfx.boardAmbience(true, 2);
+  expect(musicLoops()).toHaveLength(1);
+  sfx.harbourAmbience(false);
+  sfx.boardAmbience(true, 3);
+  expect(musicLoops()).toHaveLength(1);
+  vi.advanceTimersByTime(450);
+  expect(mill!.stop).toHaveBeenCalledOnce();
+  const clock = musicLoops()[1]!;
+  expect(clock.buffer).not.toBe(mill!.buffer);
+  sfx.boardAmbience(false);
+  vi.advanceTimersByTime(450);
+  expect(clock.stop).toHaveBeenCalledOnce();
+  vi.advanceTimersByTime(90);
+  expect(vi.getTimerCount()).toBe(0);
+});
+
+it('ducks music under rewards without shortening an overlapping reward or cancelling fast-forward attenuation', async () => {
+  const { sfx } = await import('../../src/audio');
+  sfx.boardAmbience(true, 2);
+  sfx.unlock(); await loaded();
+  const gain = musicLoops()[0]!.envelope!.gain;
+  expect(gain.setTargetAtTime).toHaveBeenLastCalledWith(.68, 1, .20);
+  sfx.finalLoad();
+  expect(gain.setTargetAtTime).toHaveBeenLastCalledWith(.68, 1.48, .25);
+  contexts[0]!.currentTime = 1.02;
+  sfx.boxFilled(0);
+  expect(gain.setTargetAtTime).toHaveBeenLastCalledWith(.68, 1.48, .25);
+  sfx.boardFastForward(true);
+  expect(gain.setTargetAtTime).toHaveBeenNthCalledWith(gain.setTargetAtTime.mock.calls.length - 1, .21 * .30, 1.02, .045);
+  expect(gain.setTargetAtTime).toHaveBeenLastCalledWith(.21, 1.48, .25);
+  sfx.cancel();
+  expect(gain.setTargetAtTime).toHaveBeenLastCalledWith(.21, 1.02, .20);
+  sfx.toggleMute();
+  expect(musicLoops()[0]!.stop).toHaveBeenCalledOnce();
 });

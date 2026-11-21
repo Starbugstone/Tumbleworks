@@ -1,10 +1,13 @@
 {
-  "suite": "compact-workshop-arcade-v3",
+  "suite": "campaign-workshop-arcade-v4",
   "generator": "scripts/generate-sounds.py",
-  "generatorSha256": "29830b9c59deca35f8ae6d9c0f2e3fbaeab465683a802699f163ad1d313c4041",
+  "generatorSha256": "f9274e9eee72c1a6c9a4caef728f7530e298deb459d3cd893cae6cda5850c5d5",
   "recordings": {
     "sources/kenney-impact/impactWood_light_000.ogg": "eb45e35b4bed784d3f120de4afec4b0d6ac09d9e143cce8cfcb7d739e1b1f3c3",
     "sources/kenney-impact/impactSoft_medium_000.ogg": "7d3ba0bb5e60a11b5d3e558c141303dcf494256675fbf753c0d252d2cf0481e3",
+    "sources/kenney-impact/impactGlass_light_000.ogg": "d750cf88097d0c3e69920e6e14496e1444e1a9da01aa4cca8f5ec8cb44c57b4f",
+    "sources/kenney-interface/glass_002.ogg": "08e972c73e53c91d6d310e107e80db60edce78ae47225889a028e628a6f3da49",
+    "sources/kenney-interface/confirmation_004.ogg": "568967a3d9f8a8f6af54ea01729c4882284308f2a27d78c07ffd7ee0d6951661",
     "sources/earshot/glass-tap.wav": "22bcd37f0857cea0701254e57893c161189a1d463d00ae8b0ab37593f104987e",
     "sources/earshot/wood-knock.wav": "164c60f3404edfe3ef6fa0c840ae3e50db6f683c83ad66c93474413b6c221655"
   },
@@ -31,12 +34,12 @@
     "impact-glass": "Arcade tube strike: Earshot glass tap over a short, hollow enamel snap",
     "landing-light": "Arcade marble seat: hard contact over a low damped cup, with Earshot glass and wood",
     "landing-final": "Full dock settles: D4 wood mass, A4 enamel rim and two quiet real wood contacts",
-    "complete": "Arcade dock payoff: hard seat and an answering D4/A4 felt chord with an Earshot glass accent",
-    "truck-complete": "Arcade truck payoff: low chassis thump and dry latch, followed by a warm A3/E4 flourish",
+    "complete": "Felt dock chord with two CC0 glass strikes opening into an enamel rim",
+    "truck-complete": "Low chassis and warm A3/E4 answer with a CC0 glass latch and recorded confirmation",
     "blocked": "Rubber stop: real soft contact with muted B3 wood, no pitch warning",
     "undo": "Wooden detent return: E4-D4 soft double contact at 0/75 ms, no reverse",
     "jam": "Stopped mechanism: B3/A3 damped bodies at 0/135 ms with a dry wood stop",
-    "win": "Workshop win: four rising felt strikes and a full D-major chord with a long resonant body",
+    "win": "Stereo D-major felt phrase and long resonant chord with panned CC0 glass and confirmation recordings",
     "harbour-bell": "Little Harbour ship bell: F4 brass modes 1/1.49/2.01/2.74/4.05, felt striker and wooden mount, 720 ms"
   },
   "durations": {
@@ -51,7 +54,7 @@
     "blocked": 0.18,
     "undo": 0.29,
     "jam": 0.48,
-    "win": 1.38,
+    "win": 1.96,
     "harbour-bell": 0.72
   },
   "surfaces": {

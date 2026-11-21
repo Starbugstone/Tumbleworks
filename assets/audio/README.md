@@ -1,8 +1,8 @@
-# Compact Workshop demo sound suite
+# Tumbleworks campaign sound suite
 
-This bank belongs to the dedicated `demo/compact-workshop` checkout. Five arcade cues use short,
-close strikes over wooden and enamel bodies. Muted controls and the warmer win cue give the
-harder arrivals room to stand out. The Little Harbour bell has its own one-shot cue.
+Short, dry workshop contacts leave space for the brighter recorded glass accents on box, truck
+and win cues. A stereo felt phrase marks the last load, and each island has its own quiet
+four-bar score. The Little Harbour bell has its own one-shot cue.
 
 The owner wanted harder impacts after auditioning the warm workshop bank. The arcade layer puts
 more of the hit near contact at the existing cue level. The puzzle cues avoid air swishes,
@@ -10,9 +10,10 @@ reversed audio and piercing bell tones. The player still hears the established p
 
 ## Files and provenance
 
-- `src/sounds/*.mp3`: thirteen mono 160 kb/s MP3 player files, imported with Vite `?no-inline`.
-- `assets/audio/generated/*.wav`: deterministic 44.1 kHz mono 16-bit PCM masters.
-- `assets/audio/generated/provenance.json`: suite ID `compact-workshop-arcade-v3`, fixed-seed policy,
+- `src/sounds/*.mp3`: twelve mono MP3s and one stereo win, imported with Vite `?no-inline`.
+  Routine files use 64 or 80 kb/s, box and truck use 160 kb/s, and win uses 192 kb/s.
+- `assets/audio/generated/*.wav`: deterministic 44.1 kHz 16-bit PCM masters.
+- `assets/audio/generated/provenance.json`: suite ID `campaign-workshop-arcade-v4`, fixed-seed policy,
   generator hash, recording hashes, durations, recipes and surface-mode definitions.
 - `assets/audio/manifest.json`: exact recording inputs per cue, creators, CC0 notices, source and
   generator hashes, bitrate, and encoded hashes/bytes.
@@ -22,8 +23,10 @@ reversed audio and piercing bell tones. The player still hears the established p
 
 The contact recordings are **Kenney Impact Sounds 1.0**, CC0 1.0:
 <https://kenney.nl/assets/impact-sounds>. The original notice remains in
-`sources/kenney-impact/License.txt`. This suite uses the tracked light wood and medium soft
-recordings. The two Earshot renders are stored in `sources/earshot/` alongside the Kenney sources.
+`sources/kenney-impact/License.txt`. This suite uses the tracked light wood, glass and medium soft
+recordings. Completion and win also use Kenney's CC0 [Interface Sounds](https://kenney.nl/assets/interface-sounds)
+`glass_002` and `confirmation_004`, with their notice in `sources/kenney-interface/License.txt`.
+The two Earshot renders are stored in `sources/earshot/` alongside the Kenney sources.
 They were rendered from commit `7a7f7c5c70d4a763a1eca4b3666af7c77e313f97` with seed 42.
 
 - `glass-tap.wav` uses Earshot `glass/tap` in mono. Its source is CJspellsfish’s CC0
@@ -58,7 +61,9 @@ The arcade release starts with a dry latch and closes the spacing between marble
 The glass strike uses a short hollow snap, while seating leads with a hard contact and
 decays into the cup body. Truck completion adds a low chassis hit, a latch and an answering A3/E4 flourish. Dock completion
 pairs a hard seat with a D4/A4 felt chord. A full win rises through four felt strikes to a longer
-D-major resolution.
+D-major resolution. Glass strikes and confirmation excerpts are shaped into an upper register
+over the warm body. The win pans the recorded accents on either side of the centred phrase, which
+retains its harmony and recorded accents when folded to mono.
 
 Surface resonances use three slightly detuned modes (−0.25%, centre, +0.25%, weights 0.22/0.56/0.22)
 per partial, plus small seeded pitch/velocity variation. High notes and upper partials decay faster.
@@ -85,23 +90,23 @@ Values below are actual FFmpeg-decoded MP3 duration, RMS dBFS and power-weighted
 
 | Cue | Recipe | Seconds | RMS dBFS | Centroid Hz | Bytes |
 | --- | --- | ---: | ---: | ---: | ---: |
-| tap | Walnut button: slowed real wood, felt B3 body, 5 ms onset, dry bench | 0.120 | -22.45 | 299 | 3,701 |
-| release | Arcade crate release: dry latch and a tightening cluster of marble contacts over Earshot wood | 0.239 | -22.45 | 663 | 6,313 |
-| impact-wood | Real maple contact at 0.91x with damped D4 bench resonance | 0.120 | -22.45 | 349 | 3,701 |
-| impact-glass | Arcade tube strike: Earshot glass tap over a short, hollow enamel snap | 0.156 | -22.45 | 985 | 4,223 |
-| landing-light | Arcade marble seat: hard contact over a low damped cup, with Earshot glass and wood | 0.282 | -22.45 | 525 | 6,835 |
-| landing-final | Full dock settles: D4 wood mass, A4 enamel rim and two quiet real wood contacts | 0.360 | -22.45 | 380 | 8,403 |
-| complete | Arcade dock payoff: hard seat and an answering D4/A4 felt chord with an Earshot glass accent | 0.680 | -22.45 | 401 | 15,195 |
-| truck-complete | Arcade truck payoff: low chassis thump and dry latch, followed by a warm A3/E4 flourish | 0.770 | -22.44 | 341 | 16,762 |
-| blocked | Rubber stop: real soft contact with muted B3 wood, no pitch warning | 0.180 | -22.45 | 206 | 4,746 |
-| undo | Wooden detent return: E4-D4 soft double contact at 0/75 ms, no reverse | 0.290 | -22.45 | 389 | 7,358 |
-| jam | Stopped mechanism: B3/A3 damped bodies at 0/135 ms with a dry wood stop | 0.480 | -22.45 | 315 | 11,015 |
-| win | Workshop win: four rising felt strikes and a full D-major chord with a long resonant body | 1.380 | -22.45 | 480 | 28,778 |
-| harbour-bell | Little Harbour ship bell: F4 brass modes 1/1.49/2.01/2.74/4.05, felt striker and wooden mount, 720 ms | 0.720 | -22.45 | 375 | 15,717 |
+| tap | Walnut button: slowed real wood, felt B3 body, 5 ms onset, dry bench | 0.120 | -22.44 | 299 | 1,505 |
+| release | Arcade crate release: dry latch and a tightening cluster of marble contacts over Earshot wood | 0.239 | -22.44 | 663 | 3,179 |
+| impact-wood | Real maple contact at 0.91x with damped D4 bench resonance | 0.120 | -22.46 | 349 | 1,505 |
+| impact-glass | Arcade tube strike: Earshot glass tap over a short, hollow enamel snap | 0.156 | -22.52 | 983 | 1,714 |
+| landing-light | Arcade marble seat: hard contact over a low damped cup, with Earshot glass and wood | 0.282 | -22.44 | 526 | 2,759 |
+| landing-final | Full dock settles: D4 wood mass, A4 enamel rim and two quiet real wood contacts | 0.360 | -22.45 | 380 | 3,386 |
+| complete | Felt dock chord with two CC0 glass strikes opening into an enamel rim | 0.680 | -24.02 | 737 | 15,195 |
+| truck-complete | Low chassis and warm A3/E4 answer with a CC0 glass latch and recorded confirmation | 0.770 | -22.45 | 762 | 16,762 |
+| blocked | Rubber stop: real soft contact with muted B3 wood, no pitch warning | 0.180 | -22.45 | 206 | 1,923 |
+| undo | Wooden detent return: E4-D4 soft double contact at 0/75 ms, no reverse | 0.290 | -22.45 | 389 | 3,701 |
+| jam | Stopped mechanism: B3/A3 damped bodies at 0/135 ms with a dry wood stop | 0.480 | -22.45 | 315 | 4,431 |
+| win | Stereo D-major felt phrase and long resonant chord with panned CC0 glass and confirmation recordings | 1.960 | -22.39 | 732 | 48,944 |
+| harbour-bell | Little Harbour ship bell: F4 brass modes 1/1.49/2.01/2.74/4.05, felt striker and wooden mount, 720 ms | 0.720 | -22.45 | 375 | 6,312 |
 
-Total player audio is **132,747 / 150,000 bytes**. The
-procedural harbour ambience adds no audio downloads. At the existing +4-semitone pitch ceiling,
-landing-light retains **99.22%** of its source-band energy below 2 kHz.
+Total player audio is **111,316 / 150,000 bytes**. The
+procedural surf, gulls and scores add no audio file downloads. At the existing +4-semitone pitch
+ceiling, landing-light retains **99.25%** of its source-band energy below 2 kHz.
 Encoded cues remain part of the first-download budget even when fetched after a gesture.
 
 Metrics integrate Hann-windowed 4096-point FFT power with 50% overlap. The dominant-partial guard
@@ -109,7 +114,10 @@ covers ±2 bins around the strongest bin. Centroid and energy fractions are tech
 not perceptual brightness or loudness. Preparation verifies both source and decoded signals:
 −29…−19 dBFS RMS, peak below −2 dBFS, strongest partial below 94%, first-ms peak below .07,
 endpoint step below .002 and onset before 35 ms. Additional warmth, 250–350 ms seat and 200–300 ms
-tumble checks run in preparation and the pinned asset tests. The self-test rejects pure tones,
+tumble checks run in preparation and the pinned asset tests. The separate `review` readings use
+FFmpeg `volumedetect` before and after two cascaded `highpass=f=2000` filters over the entire decoded
+file, including its tail. Each rewritten reward measures at least −40 dBFS after the filters and has
+a delta of at least −18 dB. The self-test rejects pure tones,
 stepped attacks and a bright long bell, while accepting the damped replacement body.
 
 ## Runtime mapping and integration handoff
@@ -158,11 +166,11 @@ belongs to the trigger owner and is not claimed as verified by these audio tests
 
 ### Ambience hook
 
-`sfx.harbourAmbience(active: boolean): void` takes the desired Little Harbour state. Call
-`true` on entry and `false` on exit or teardown from a single view owner. Calls are idempotent
-and can precede unlock. The existing `sfx.unlock()` gesture enables a quiet surf loop and sparse
-gull calls. Exiting fades the two out. Muting or hiding the tab stops the loop, call and timers
-immediately. Showing the tab or unmuting restores them with a fade if Harbour is still active.
+`sfx.harbourAmbience(active: boolean, chapter = 0): void` selects the zero-based map or film island.
+Call `true` on entry and `false` on exit or teardown from a single view owner. Calls are idempotent
+and can precede unlock. The existing `sfx.unlock()` gesture enables the island score, with quiet
+surf and sparse gull calls in Little Harbour. Exiting fades the bed out. Muting or hiding the tab
+stops loops, calls and timers immediately. Showing the tab or unmuting restores an active bed.
 `sfx.cancel()` clears gameplay one-shots, including the bell. It leaves the requested ambience
 state to the view owner.
 
@@ -180,7 +188,12 @@ ambience, sharing its decode-free buffers, gesture unlock, mute and visibility b
 fade the outgoing theme before starting the incoming one, so the beds do not stack.
 
 `sfx.boardFastForward(active: boolean): void` follows effective game speed above 1×. It ducks the
-board bed to 35% and clears pending gull calls. Leaving the board clears the ducking state.
+environmental bed to 35%, lowers the music and clears pending gull calls. Leaving the board
+clears the fast-forward state. Completion and win cues duck the music for their audible duration.
+
+The original scores in `src/audio-music.ts` have four bars with wrapped note tails at the loop seam.
+They play through the same master and Sound setting as the effects. Only the current score is
+cached and a same-island map, film or board handoff reuses it.
 
 ### Film contacts and last load
 
@@ -190,7 +203,7 @@ latch and low wood body at the slipway. `'arrival'` seats the marble in the term
 the separate `harbourBell()` strike. Skip markers during seeking or skipped playback.
 
 Call `sfx.finalLoad()` once at the shared board finish, in place of `win()`. A lower, rounded
-load contact leads the existing felt win phrase by 180 ms. This payoff still plays when the
+load contact leads the 1.96-second stereo win phrase by 180 ms. This payoff still plays when the
 last load completes during fast forward. Normal box and truck completions keep their own cues.
 
 Both hooks use the existing bank, voice limits and mixer. Delayed contacts are scheduled on
