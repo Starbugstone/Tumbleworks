@@ -126,3 +126,27 @@ test('cold and warm demo navigation shares a document and returns to its island'
   expect(await page.evaluate(() => performance.timeOrigin)).toBe(origin);
   expect(errors).toEqual([]);
 });
+
+test('the warm demo launcher opens the Little Harbour film after Tube Sort', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/demo.html');
+  const origin = await page.evaluate(() => performance.timeOrigin);
+  await page.getByRole('link', { name: 'Tube Sort', exact: true }).tap();
+  await expect(page.locator('#boot')).toBeHidden({ timeout: 60_000 });
+  await expect(page.locator('#level-name')).toContainText('Tube Sort');
+  await page.locator('#levels-toggle').tap();
+  await expect(page.locator('#levels')).toBeVisible();
+  await page.getByRole('button', { name: 'Back to demos', exact: true }).tap();
+  await expect(page).toHaveURL(/\/demo\.html$/);
+
+  await page.getByRole('link', { name: 'Little Harbour', exact: true }).tap();
+  await expect(page).toHaveURL(/\?demo=village&island=little-harbour$/);
+  await expect(page.locator('body')).toHaveAttribute('data-screen', 'film');
+  await expect(page.locator('#scene')).toHaveAttribute('data-world-film', 'ready', { timeout: 120_000 });
+  await expect(page.locator('#scene')).toHaveAttribute('data-world-playback', 'realtime-3d');
+  await expect(page.getByRole('button', { name: 'Play film' })).toBeVisible();
+  expect(await page.evaluate(() => performance.timeOrigin)).toBe(origin);
+  expect(errors).toEqual([]);
+});
