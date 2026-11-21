@@ -65,10 +65,10 @@ async function movingFilm(page: Page, baselineEntities: number, fixedCamera = fa
 }
 
 const state = (page: Page) => page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.debugState());
-async function ready(page: Page): Promise<void> {
+async function ready(page: Page, screen: 'map' | 'game' = 'map'): Promise<void> {
   await expect(page.locator('#boot')).toBeHidden({ timeout: 120_000 });
   await page.waitForFunction(() => Boolean((window as unknown as Partial<GameWindow>).tumbleworks?.app));
-  await expect(page.locator('canvas[data-world-scene="ready"]')).toBeVisible({ timeout: 120_000 });
+  if (screen === 'map') await expect(page.locator('canvas[data-world-scene="ready"]')).toBeVisible({ timeout: 120_000 });
   await expect(page.locator('#journey-transition')).toBeHidden();
 }
 async function primaryFits(page: Page): Promise<void> {
@@ -245,20 +245,22 @@ test('Workshop deep links and the village Back button keep reloads in the chosen
   await page.addInitScript(completed => {
     if (!localStorage.getItem('tumbleworks.progress.v1')) localStorage.setItem('tumbleworks.progress.v1', JSON.stringify({ completed, muted: true }));
   }, milestone);
-  await page.goto('/?workshop=board-212'); await ready(page);
+  await page.goto('/?workshop=board-212'); await ready(page, 'game');
   expect(await state(page)).toMatchObject({ screen: 'game', source: 'workshop', levelId: 'board-212' });
   await page.locator('#levels-toggle').click(); await page.locator('#map-open').click();
   expect(new URL(page.url()).searchParams.has('workshop')).toBe(false);
-  await page.locator('#world-workshop').click();
+  await expect(page.locator('body')).toHaveAttribute('data-screen', 'workshop');
   await page.getByRole('button', { name: 'Back to the village' }).click();
-  await expect(page.locator('body')).toHaveAttribute('data-screen', 'map');
+  await ready(page);
   await page.locator('.map-stop[data-round="0"]').tap();
+  await ready(page, 'game');
+  expect(await state(page)).toMatchObject({ screen: 'game', source: 'campaign' });
   await page.reload(); await ready(page);
   expect(await state(page)).toMatchObject({ screen: 'map', source: 'campaign', levelIndex: milestone.length });
   await page.locator('#world-workshop').click();
   await page.locator('.wv-experiment[data-workshop="board-212"]').tap();
   expect(new URL(page.url()).searchParams.get('workshop')).toBe('board-212');
-  await page.reload(); await ready(page);
+  await page.reload(); await ready(page, 'game');
   expect(await state(page)).toMatchObject({ screen: 'game', source: 'workshop', levelId: 'board-212' });
 });
 
