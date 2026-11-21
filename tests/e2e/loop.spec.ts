@@ -1,6 +1,7 @@
 import { PHONE, DESKTOP } from '../fixtures/viewports';
 import { expect, test } from '@playwright/test';
 import { CAMPAIGN } from '../../src/campaign';
+import { LEVELS_PER_STOP, STOPS_PER_CHAPTER } from '../../src/world/progression';
 import { LOOP_BOARDS } from '../../src/loop/boards';
 import { placeLane, rosterLayout } from '../../src/loop/roster-layout';
 import { LOOP_JAMS, LOOP_WITNESSES } from '../witnesses';
@@ -65,6 +66,7 @@ const foldedAt = (board: (typeof LOOP_BOARDS)[number], width: number, height: nu
   return lines.map((line) => { const from = placeLane(line, layout).foldedFrom; return from === null ? 0 : line.length - from; });
 };
 /** The Loop Sort levels in the campaign; a level outside it has no chip to open. */
+const CHAPTER_LEVELS = LEVELS_PER_STOP * STOPS_PER_CHAPTER;
 const CAMPAIGN_LOOPS = LOOP_BOARDS.filter((board) => loopIndex(board.id) >= 0);
 interface QueueBound { lane: number; slot: number; visible: boolean; left: number; right: number; top: number; bottom: number }
 interface LoadState { shares: { color: string; percent: number }[]; freePercent: number }
@@ -78,58 +80,61 @@ const openLevel = async (page: import('@playwright/test').Page, index: number) =
   await page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.advance(1 / 60));
 };
 
-test('at the player\'s phone size every number on every lorry on every level is readable and nothing clips', async ({ page }) => {
-  test.setTimeout(300_000);
-  await openGame(page);
-  await page.setViewportSize(PHONE);
-  for (const board of CAMPAIGN_LOOPS) {
-    await openLevel(page, loopIndex(board.id));
-    const seen = await page.evaluate(() => { const state = (window as unknown as GameWindow).tumbleworks.app.debugState() as unknown as { printedNumbers: { font: number; clipped: boolean; text: string; lane: number }[]; dockedCardHeight: number }; return { numbers: state.printedNumbers, height: state.dockedCardHeight, words: [...document.querySelectorAll('.lr')].map((el) => el.textContent ?? '').join('').replace(/[0-9%+\s]/g, '') }; });
-    // Lorries folded behind the +n tile print their numbers when the tile opens, not on the cards.
-    const folded = foldedAt(board, 375, 690);
-    const stretches = board.lanes.reduce((sum, line, lane) => sum + line.slice(0, line.length - folded[lane]!).reduce((inner, truck) => inner + truck.segments.length, 0), 0);
-    expect(seen.numbers.length, board.id).toBeGreaterThanOrEqual(stretches);
-    expect(seen.words, `${board.id} prints no words`).toBe('');
-    expect(seen.height, board.id).toBeGreaterThanOrEqual(40);
-    for (const number of seen.numbers) {
-      expect(number.font, `${board.id} lane ${number.lane} ${number.text}`).toBeGreaterThanOrEqual(11);
-      expect(number.clipped, `${board.id} lane ${number.lane} ${number.text}`).toBe(false);
-    }
+async function checkPhoneNumbers(page: import('@playwright/test').Page, board: (typeof LOOP_BOARDS)[number]) {
+  const seen = await page.evaluate(() => { const state = (window as unknown as GameWindow).tumbleworks.app.debugState() as unknown as { printedNumbers: { font: number; clipped: boolean; text: string; lane: number }[]; dockedCardHeight: number }; return { numbers: state.printedNumbers, height: state.dockedCardHeight, words: [...document.querySelectorAll('.lr')].map((el) => el.textContent ?? '').join('').replace(/[0-9%+\s]/g, '') }; });
+  // Lorries folded behind the +n tile print their numbers when the tile opens, not on the cards.
+  const folded = foldedAt(board, 375, 690);
+  const stretches = board.lanes.reduce((sum, line, lane) => sum + line.slice(0, line.length - folded[lane]!).reduce((inner, truck) => inner + truck.segments.length, 0), 0);
+  expect(seen.numbers.length, board.id).toBeGreaterThanOrEqual(stretches);
+  expect(seen.words, `${board.id} prints no words`).toBe('');
+  expect(seen.height, board.id).toBeGreaterThanOrEqual(40);
+  for (const number of seen.numbers) {
+    expect(number.font, `${board.id} lane ${number.lane} ${number.text}`).toBeGreaterThanOrEqual(11);
+    expect(number.clipped, `${board.id} lane ${number.lane} ${number.text}`).toBe(false);
   }
-});
+}
 
-test('every Loop Sort level keeps its lorry cards on screen and clear of the controls', async ({ page }) => {
-  test.setTimeout(900_000);
-  const errors: string[] = [];
-  page.on('pageerror', (error) => errors.push(error.message));
-  await openGame(page);
-  for (const viewport of [PHONE, DESKTOP]) {
-    await page.setViewportSize(viewport);
-    for (const board of CAMPAIGN_LOOPS) {
+// Each island visits its registered trucks through the real picker. Reuse the loaded truck and
+// its roster when measuring the second viewport: a layout check does not need a second machine.
+for (const chapter of new Set(CAMPAIGN_LOOPS.map(board => Math.floor(loopIndex(board.id) / CHAPTER_LEVELS)))) {
+  test(`Loop Sort island ${chapter + 1} keeps every roster number readable and its cards clear of the controls`, async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await openGame(page);
+    for (const board of CAMPAIGN_LOOPS.filter(board => Math.floor(loopIndex(board.id) / CHAPTER_LEVELS) === chapter)) {
+      await page.setViewportSize(PHONE);
       await openLevel(page, loopIndex(board.id));
-      const seen = await page.evaluate(() => {
-        const app = (window as unknown as GameWindow).tumbleworks.app;
-        const state = app.debugState() as { queues: unknown[][]; queueBounds: QueueBound[] };
-        const rect = (id: string) => document.getElementById(id)!.getBoundingClientRect();
-        const folded = [...document.querySelectorAll('.lr-fold:not([hidden])')].reduce((sum, tile) => sum + Number((tile.textContent ?? '+0').slice(1)), 0);
-        return { queues: state.queues.map((line) => line.length), bounds: state.queueBounds, folded, top: rect('levels-toggle').bottom, bottom: rect('restart').top };
-      });
-      const where = `${board.id} at ${viewport.width}x${viewport.height}`;
-      expect(seen.queues, where).toEqual(board.lanes.map((line) => line.length - 1));
-      expect(seen.bounds.length + seen.folded, where).toBe(board.lanes.reduce((sum, line) => sum + line.length - 1, 0));
-      if (viewport.width === 375) expect(seen.folded, where).toBe(foldedAt(board, 375, 690).reduce((sum, count) => sum + count, 0));
-      for (const bound of seen.bounds) {
-        const name = `${where}, lane ${bound.lane} place ${bound.slot}`;
-        expect(bound.visible, name).toBe(true);
-        expect(bound.left, name).toBeGreaterThanOrEqual(0);
-        expect(bound.right, name).toBeLessThanOrEqual(viewport.width);
-        expect(bound.top, name).toBeGreaterThanOrEqual(seen.top);
-        expect(bound.bottom, name).toBeLessThanOrEqual(seen.bottom);
+      await checkPhoneNumbers(page, board);
+      for (const viewport of [PHONE, DESKTOP]) {
+        if (viewport === DESKTOP) {
+          await page.setViewportSize(viewport);
+          // Let the real resize handler lay out the existing roster before reading its DOM bounds.
+          await page.evaluate(() => new Promise<void>(done => requestAnimationFrame(() => requestAnimationFrame(() => done()))));
+        }
+        const seen = await page.evaluate(() => {
+          const app = (window as unknown as GameWindow).tumbleworks.app;
+          const state = app.debugState() as { queues: unknown[][]; queueBounds: QueueBound[] };
+          const rect = (id: string) => document.getElementById(id)!.getBoundingClientRect();
+          const folded = [...document.querySelectorAll('.lr-fold:not([hidden])')].reduce((sum, tile) => sum + Number((tile.textContent ?? '+0').slice(1)), 0);
+          return { queues: state.queues.map((line) => line.length), bounds: state.queueBounds, folded, top: rect('levels-toggle').bottom, bottom: rect('restart').top };
+        });
+        const where = `${board.id} at ${viewport.width}x${viewport.height}`;
+        expect(seen.queues, where).toEqual(board.lanes.map((line) => line.length - 1));
+        expect(seen.bounds.length + seen.folded, where).toBe(board.lanes.reduce((sum, line) => sum + line.length - 1, 0));
+        if (viewport.width === 375) expect(seen.folded, where).toBe(foldedAt(board, 375, 690).reduce((sum, count) => sum + count, 0));
+        for (const bound of seen.bounds) {
+          const name = `${where}, lane ${bound.lane} place ${bound.slot}`;
+          expect(bound.visible, name).toBe(true);
+          expect(bound.left, name).toBeGreaterThanOrEqual(0);
+          expect(bound.right, name).toBeLessThanOrEqual(viewport.width);
+          expect(bound.top, name).toBeGreaterThanOrEqual(seen.top);
+          expect(bound.bottom, name).toBeLessThanOrEqual(seen.bottom);
+        }
       }
     }
-  }
-  expect(errors).toEqual([]);
-});
+    expect(errors).toEqual([]);
+  });
+}
 
 test('a level with queued lorries shows what is coming and how full each lorry is, through real taps, undo and a language change', async ({ page }) => {
   test.setTimeout(180_000);
