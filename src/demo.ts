@@ -30,6 +30,6 @@ export function returnToDemoMenu(): void {
 }
 
 export function saveKey(key: string): string {
-  const session = typeof document !== 'undefined' && document.documentElement.dataset.demoSession === 'true';
+  const session = typeof document !== 'undefined' && document.documentElement?.dataset.demoSession === 'true';
   return demoEntry || session ? key + '.demo' : key;
 }
