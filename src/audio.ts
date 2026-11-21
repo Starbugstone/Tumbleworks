@@ -1,3 +1,4 @@
+import { worldLocation } from './world/locations';
 import { isMuted, setMuted } from './progress';
 import tap from './sounds/tap.mp3?no-inline';
 import release from './sounds/release.mp3?no-inline';
@@ -183,7 +184,7 @@ class Sfx {
 
   /** Chapter is zero-based. Board ambience takes precedence during map/board handoff. */
   boardAmbience(active: boolean, chapter = 0): void {
-    this.boardTheme = active ? (chapter === 0 ? 'coast' : 'inland') : null;
+    this.boardTheme = active ? (worldLocation(chapter).kind === 'harbour' ? 'coast' : 'inland') : null;
     if (!active) this.boardFast = false;
     this.syncHarbour();
   }

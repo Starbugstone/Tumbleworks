@@ -1,3 +1,4 @@
+import themes from '../../src/world/village-themes.json' with { type: 'json' };
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 class Param {
@@ -302,12 +303,12 @@ it('stops harbour and scheduled gulls while muted or hidden and restores only an
   expect(vi.getTimerCount()).toBe(0);
 });
 
-it('hands off a single board bed and ducks it during fast forward', async () => {
+it.each([0, themes.length])('hands off one board bed and ducks it during fast forward in chapter %i', async chapter => {
   vi.useFakeTimers();
   vi.spyOn(Math, 'random').mockReturnValue(0);
   const { sfx } = await import('../../src/audio');
   sfx.harbourAmbience(true);
-  sfx.boardAmbience(true, 0);
+  sfx.boardAmbience(true, chapter);
   expect(contexts).toHaveLength(0);
   sfx.unlock();
   expect(buffers).toHaveLength(1);
