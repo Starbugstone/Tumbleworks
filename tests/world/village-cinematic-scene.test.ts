@@ -49,7 +49,13 @@ it('keeps the old Cloud Bridge fold and Clockmakers brace as collision regressio
  try{const faces=surfaceTriangles(mesh);expect(trackCrossings(faces,faces).length).toBeGreaterThan(0);expect(exposedOverlaps(faces).length).toBeGreaterThan(0);}finally{geometry.dispose();}
  const side=vi.spyOn(VillageCinematic.prototype,'retainedSide').mockReturnValue(-1);let f:ReturnType<typeof cinematicWorld>;
  try{f=cinematicWorld(3,true);}finally{side.mockRestore();}
- try{f.machine.apply(0);const all=surfaceTriangles(f.world.scene),tracks=all.filter(s=>s.mesh.name==='village-track-connector-2-1');expect(trackCrossings(tracks,all).some(p=>p.solid==='village-2-fork-bearing')).toBe(true);}finally{f.dispose();}
+ try{
+  f.machine.apply(0);
+  const connector=f.world.scene.getObjectByName('village-track-connector-2-1');
+  const bearing=f.world.scene.getObjectByName('village-2-fork-bearing');
+  if (!(connector instanceof Mesh) || !(bearing instanceof Mesh)) throw new Error('The posed connector and its fork bearing must be rendered meshes');
+  expect(trackCrossings(surfaceTriangles(connector),surfaceTriangles(bearing)).length).toBeGreaterThan(0);
+ }finally{f.dispose();}
 });
 
 it('rejects a striker that remains across the marble after impact',()=>{
