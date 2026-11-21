@@ -1,3 +1,4 @@
+import { WinWave } from './win-wave';
 import { dispatchPlates, jamShutter } from './dispatch-plate';
 import { beltDeck } from './belt-deck';
 import { BeltSurface } from './belt-surface';
@@ -101,6 +102,8 @@ export class LoopScene {
   private readonly jamStops: THREE.Mesh[] = [];
   private readonly shake = new Shake();
   private readonly reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  restingWin = false;
+  private readonly wave = new WinWave();
   /** 1 at the player's own speed, less while fast forward is held: every landing answers that much. */
   private weight = 1;
   /** One printed pattern material per colour for every lorry on the level. */
@@ -304,14 +307,27 @@ export class LoopScene {
     this.belt = null;
   }
 
-  /** The level is won: one glitter fountain from each corner of the hull, with the confetti. */
-  celebrate(clean = 1): void {
-    if (this.dispatch && this.machine) {
-      this.dispatch.showExcept(new Set(this.machine.readTrucks().filter(truck => truck.retained).map(truck => truck.lane)));
-      this.dispatch.visible = true;
+  celebrate(share = 1): void {
+    if (!this.yard || !this.machine || !this.dispatch) return;
+    const occupied = new Set(this.machine.readTrucks().filter(piece => piece.retained).map(piece => piece.lane));
+    this.dispatch.celebrate(occupied, this.wave, this.yard.corners, this.camera, this.sparks, share, this.reducedMotion);
+  }
+
+  advanceCelebration(seconds: number): void {
+    if (this.wave.active) {
+      this.wave.step(seconds, this.sparks);
+      this.dispatch?.pulse(this.wave);
+      this.dispatch?.children.forEach((_, lane) => this.roster?.bow(lane, this.wave.pulse(lane)));
     }
-    if (this.yard) this.sparks.finish(this.yard.corners, clean);
-    this.sparks.boost();
+    this.sparks.step(seconds);
+  }
+
+  finishCelebration(): void {
+    this.restingWin = true;
+    this.wave.clear();
+    this.dispatch?.pulse(this.wave);
+    this.dispatch?.children.forEach((_, lane) => this.roster?.bow(lane, 0));
+    this.sparks.clear();
   }
 
   dispose(): void {
@@ -342,6 +358,7 @@ export class LoopScene {
       }
       if (event.type === 'pour') this.sparks.tap({ x: truck.x, y: truck.y + 1, z: truck.z });
       if (event.type === 'complete') {
+        this.wave.last = event.lane;
         const at = { x: truck.x, y: truck.y + 1.1, z: truck.z };
         if (this.sparks.payoff(at, COLORS[event.color].hex) === 2) this.shake.kick();
         // The lorry kicks up dust at its wheels as it pulls away.
@@ -390,7 +407,7 @@ export class LoopScene {
     const trucks = machine.readTrucks();
     this.syncTrucks(trucks, false);
     this.syncCargo(trucks, false);
-    this.sparks.step(TICK_SECONDS);
+    if (!this.dispatch?.visible) this.sparks.step(TICK_SECONDS);
     // A docked lorry holding one colour with room for three units or fewer is about to finish: it gets the steady glow.
     const lit = new Set<number>();
     for (const truck of trucks) {
@@ -409,9 +426,10 @@ export class LoopScene {
   }
 
   syncAfterJump(): void {
+    this.finishCelebration();
+    this.restingWin = false;
     if (this.dispatch) this.dispatch.visible = false;
     for (const stop of this.jamStops) stop.visible = false;
-    this.sparks.clear();
     const trucks = this.machine?.readTrucks() ?? [];
     this.syncTrucks(trucks, true);
     this.syncCargo(trucks, true);
@@ -481,6 +499,7 @@ export class LoopScene {
       // Pushed toward its cab by what drops in at the tailboard; it overshoots forward once as it rolls back.
       const recoil = visual.recoil.step(step), swell = Math.max(-0.12, visual.swell.step(step));
       visual.group.position.set(truck.x, y + Math.sin(visual.pulse * Math.PI) * 0.1, z - facing * recoil);
+      if (truck.retained) visual.group.position.y += this.wave.pulse(truck.lane) * .65;
       visual.group.scale.setScalar(scale);
       // A pour rocks the lorry on its wheels: about three degrees, one damped swing.
       visual.group.rotation.z = this.reducedMotion ? 0 : Math.sin(visual.pulse * Math.PI * 3) * 0.052 * Math.min(1, visual.pulse * visual.pulse * 2.4);

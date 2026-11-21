@@ -65,6 +65,9 @@ export interface GameRuntime {
   pace?(speed: number): void;
   /** The level has just been won: the board's own send-off, if it has one. */
   celebrate?(clean?: number): void;
+  /** Presentation seconds, independent of the number of physics ticks due. */
+  advanceCelebration?(seconds: number): void;
+  finishCelebration?(): void;
   resize(): void;
   targets(): Record<string, ScreenPoint>;
   inspect(): Record<string, unknown>;

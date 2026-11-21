@@ -10,12 +10,14 @@ const STREAK_GAIN = [1, 1.4, 1.8] as const;
 const GOLD = 0xffd76a;
 const WHITE = 0xfff8e0;
 
-const enum Kind { Glitter = 0, Glint = 1, Glow = 2, Trail = 3 }
+const enum Kind { Glitter = 0, Glint = 1, Glow = 2, Trail = 3, Comet = 4 }
 
 interface Particle {
   kind: Kind; age: number; life: number; queued: boolean;
   x: number; y: number; z: number; vx: number; vy: number; vz: number;
   /** Glitter that has fallen back to this height is gone, so none of it settles on the piece below. */
+  acceleration?: THREE.Vector3;
+  headingX?: number; headingY?: number; fall?: number;
   floor: number; size: number; spin: number; seed: number; r: number; g: number; b: number;
 }
 
@@ -35,7 +37,7 @@ void main() {
   at.xy += mat2(c, -s, s, c) * position.xy * aLook.x;
   gl_Position = projectionMatrix * at;
   // Glitter and glints stay in front of the piece that threw them; the glow sits behind it.
-  if (aLook.z < 1.5) gl_Position.z -= 0.004 * gl_Position.w;
+  if (aLook.z < 1.5 || aLook.z > 3.5) gl_Position.z -= 0.004 * gl_Position.w;
 }`;
 
 const FRAGMENT = /* glsl */`
@@ -53,6 +55,13 @@ void main() {
     // A four-point glint: two thin rays and a hot core, added to what is behind it.
     float rays = max(exp(-a.y * 16.0) * (1.0 - a.x), exp(-a.x * 16.0) * (1.0 - a.y));
     shape = clamp(rays + exp(-d * d * 22.0), 0.0, 1.0) * step(d, 1.0); cover = 0.0;
+  } else if (vKind.x > 3.5) {
+    // A pearl head flows into a taper of fine light along its own direction of travel.
+    float width = mix(.035, .17, smoothstep(-1.0, .60, vAcross.y));
+    float body = exp(-pow(vAcross.x / width, 2.0)) * smoothstep(-1.0,.65,vAcross.y);
+    float head = length(vec2(vAcross.x, vAcross.y - .62));
+    shape = max(body * (1.0 - smoothstep(.60,.86,vAcross.y)), 1.0 - smoothstep(.07,.25,head));
+    cover = 0.72;
   } else {
     float soft = max(0.0, 1.0 - d);
     shape = soft * soft; cover = 0.0;
@@ -123,6 +132,7 @@ export class Sparks {
     particle.life = life;
     particle.x = at.x; particle.y = at.y; particle.z = at.z;
     particle.vx = particle.vy = particle.vz = particle.spin = 0;
+    particle.acceleration = undefined;
     particle.floor = -Infinity;
     particle.size = size;
     this.color.setHex(hex);
@@ -209,33 +219,36 @@ export class Sparks {
     return this.streak;
   }
 
-  /** Two pairs of fans sweep from the ends toward the centre, then their finer sparks hang above the machine. */
-  finish(corners: readonly Point3[], share: number): void {
-    if (this.reducedMotion || !corners.length) return;
-    const centerX = corners.reduce((sum, point) => sum + point.x, 0) / corners.length;
-    const centerZ = corners.reduce((sum, point) => sum + point.z, 0) / corners.length;
-    corners.forEach((at, index) => {
-      const delay = index % 2 ? .20 : 0;
-      const grains = Math.max(15, Math.round(24 * share));
-      // Two curved sprays per corner, each with a bright leading tip and a tapering wake.
-      // Travel is proportional to the actual board width/depth even on a long rack or a wide eight.
+  /** Project the rise at each hull corner so its fountain reads consistently across board shapes. */
+  finish(corners: readonly Point3[], share: number, camera: THREE.Camera, width: number, height: number): void {
+    if (this.reducedMotion) return;
+    const projected = corners.map(at => new THREE.Vector3(at.x, at.y, at.z).project(camera));
+    // Near corners have room for tall jets. Lead with both flanks while the last load is still in sight.
+    projected.sort((a,b) => a.y - b.y || a.x - b.x);
+    projected.forEach((point, corner) => {
+      const x = (point.x + 1) * width / 2, y = (1 - point.y) * height / 2;
+      const at = point.clone().unproject(camera);
+      const pixel = new THREE.Vector3(point.x, point.y + 2 / height, point.z).unproject(camera).sub(at);
+      const side = new THREE.Vector3(point.x + 2 / width, point.y, point.z).unproject(camera).sub(at);
+      const heightPx = Math.max(0, Math.min(height * .20 * share, y - 57));
+      const grains = Math.round(23 * share);
       for (let jet = 0; jet < 2; jet++) {
-        const life = jet ? .77 : .89;
-        const dx = (centerX - at.x) * (jet ? .74 : 1.06);
-        const dz = (centerZ - at.z) * (jet ? .67 : .42);
         for (let i = 0; i < grains; i++) {
-          const tail = i / (grains - 1);
-          const phase = i * 2.39996 + index;
-          const fleck = this.spawn(i === 0 ? Kind.Glint : Kind.Glitter, at,
-            i % 5 === 0 ? WHITE : jet ? 0xffba75 : GOLD,
-            life - .19 * tail, this.unit * (i === 0 ? .31 : .10 - .037 * tail),
-            delay + jet * .06 + tail * .20);
-          const spread = this.unit * (.07 + .5 * tail);
-          fleck.vx = dx / life + Math.cos(phase) * spread;
-          fleck.vz = dz / life + Math.sin(phase) * spread;
-          fleck.vy = this.unit * (jet ? 2.6 : 3.0) - tail * .8;
-          fleck.spin = .65;
-          fleck.floor = at.y;
+          const tail = i / (grains - 1), phase = i * 2.4 + corner;
+          const rise = heightPx * (1 - jet * .22 - tail * .26);
+          const span = (width * .5 - x) * (.67 + jet * .28 + Math.cos(phase) * tail * .20);
+          const life = .70 + jet * .06;
+          const delay = .04 + corner * .097 + jet * .045 + tail * .25;
+          const kind = i % 4 === 0 ? Kind.Comet : i % 7 === 0 ? Kind.Glint : Kind.Glitter;
+          const grain = this.spawn(kind, at,
+            i % 5 === 0 ? WHITE : jet ? 0xffb06a : GOLD, life * (.82 + .10 * tail),
+            pixel.length() * (kind === Kind.Comet ? 29 - tail * 9 : kind === Kind.Glint ? 12 : 5.2 - tail * 1.6), delay);
+          const velocity = pixel.clone().multiplyScalar(4 * rise / life).addScaledVector(side, span / life);
+          grain.vx = velocity.x; grain.vy = velocity.y; grain.vz = velocity.z;
+          grain.headingX = span / life;
+          grain.headingY = 4 * rise / life;
+          grain.fall = -8 * rise / (life * life);
+          grain.acceleration = pixel.clone().multiplyScalar(grain.fall);
         }
       }
     });
@@ -250,9 +263,6 @@ export class Sparks {
     if (at) { halo.x = at.x; halo.y = at.y; halo.z = at.z; }
     if (this.reducedMotion && halo.level !== (halo.on ? 1 : 0)) { halo.level = halo.on ? 1 : 0; this.draw(); }
   }
-
-  /** The win: the belt takes one bright lap. */
-  boost(): void { if (!this.reducedMotion) this.heat = 1; }
 
   get active(): boolean { return this.alive || this.heat > 0 || this.halos.some((halo) => halo.level !== (halo.on ? 1 : 0)); }
 
@@ -274,10 +284,19 @@ export class Sparks {
       this.live[remaining++] = p;
       p.age += seconds;
       if (p.age <= 0) continue;
-      p.x += p.vx * seconds;
-      p.y += p.vy * seconds;
-      p.z += p.vz * seconds;
-      if (p.kind === Kind.Glitter) {
+      const travel = Math.min(seconds, p.age);
+      p.x += p.vx * travel;
+      p.y += p.vy * travel;
+      p.z += p.vz * travel;
+      if (p.acceleration) {
+        const halfSquare = .5 * travel * travel;
+        p.x += p.acceleration.x * halfSquare;
+        p.y += p.acceleration.y * halfSquare;
+        p.z += p.acceleration.z * halfSquare;
+        p.vx += p.acceleration.x * travel;
+        p.vy += p.acceleration.y * travel;
+        p.vz += p.acceleration.z * travel;
+      } else if (p.kind === Kind.Glitter) {
         // Dust, not gravel: it hangs and drifts down.
         p.vy -= 7 * seconds;
         if (p.vy < 0 && p.y < p.floor) p.age = p.life;
@@ -297,10 +316,15 @@ export class Sparks {
       if (!(t >= 0 && t < 1)) continue;
       alive = true;
       let size = p.size, alpha = 1;
+      let angle = p.spin * p.age + p.seed * (p.kind === Kind.Glint ? 0 : 1);
       if (p.kind === Kind.Glitter) {
         // Flecks twinkle as they turn, and thin out as they fall.
-        alpha = (0.5 + 0.5 * Math.sin(p.age * 30 + p.seed * 3)) * Math.min(1, (1 - t) * 3);
+        alpha = (p.acceleration ? .9 : 0.5 + 0.5 * Math.sin(p.age * 30 + p.seed * 3)) * Math.min(1, (1 - t) * 3);
         size *= 0.6 + 0.4 * (1 - t);
+      } else if (p.kind === Kind.Comet) {
+        angle = Math.atan2(p.headingX!, p.headingY! + p.fall! * p.age);
+        size *= 1 - .42 * t;
+        alpha = Math.min(1, (1 - t) * 4);
       } else if (p.kind === Kind.Trail) {
         size *= 1 - t * 0.7;
         alpha = 0.8 * (1 - t);
@@ -315,7 +339,7 @@ export class Sparks {
       const index = visible++;
       this.tint.setXYZ(index, p.r, p.g, p.b);
       this.at.setXYZ(index, p.x, p.y, p.z);
-      this.look.setXYZW(index, size, p.spin * p.age + p.seed * (p.kind === Kind.Glint ? 0 : 1), p.kind === Kind.Trail ? Kind.Glitter : p.kind, alpha);
+      this.look.setXYZW(index, size, angle, p.kind === Kind.Trail ? Kind.Glitter : p.kind, alpha);
     }
     this.alive = alive;
     for (const halo of this.halos) {

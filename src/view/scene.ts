@@ -1,3 +1,4 @@
+import { WinWave } from './win-wave';
 import { funnelChute, funnelTransferPose, type FunnelChute } from './funnel-transfer';
 import { dispatchPlates, jamShutter, transferRails } from './dispatch-plate';
 import { beltDeck } from './belt-deck';
@@ -212,6 +213,8 @@ export class MachineScene {
   private dispatch: ReturnType<typeof dispatchPlates> | null = null;
   private readonly jamStops: THREE.Mesh[] = [];
   private readonly shake = new Shake();
+  restingWin = false;
+  private readonly wave = new WinWave();
   /** 1 at the player's own speed, less while fast forward is held: every landing answers that much. */
   private weight = 1;
   private readonly seated = { lift: 0, wide: 1, tall: 1 };
@@ -711,14 +714,25 @@ export class MachineScene {
     this.belt = null;
   }
 
-  /** The level is won: one glitter fountain from each corner of the hull, with the confetti. */
-  celebrate(clean = 1): void {
-    if (this.dispatch && this.machine) {
-      this.dispatch.showExcept(new Set(this.machine.readBoxes().filter(box => box.retained).map(box => box.dock)));
-      this.dispatch.visible = true;
+  celebrate(share = 1): void {
+    if (!this.yard || !this.machine || !this.dispatch) return;
+    const occupied = new Set(this.machine.readBoxes().filter(piece => piece.retained).map(piece => piece.dock));
+    this.dispatch.celebrate(occupied, this.wave, this.yard.corners, this.camera, this.sparks, share, this.reducedMotion);
+  }
+
+  advanceCelebration(seconds: number): void {
+    if (this.wave.active) {
+      this.wave.step(seconds, this.sparks);
+      this.dispatch?.pulse(this.wave);
     }
-    if (this.yard) this.sparks.finish(this.yard.corners, clean);
-    this.sparks.boost();
+    this.sparks.step(seconds);
+  }
+
+  finishCelebration(): void {
+    this.restingWin = true;
+    this.wave.clear();
+    this.dispatch?.pulse(this.wave);
+    this.sparks.clear();
   }
 
   dispose(): void {
@@ -758,6 +772,7 @@ export class MachineScene {
         }
       }
       if (event.type !== 'captured' || event.fill !== this.machine.board.boxSize) continue;
+      this.wave.last = event.dock;
       const box = this.machine.readBoxes().find(box => box.dock === event.dock && box.index === event.box);
       if (!box) continue;
       const visual = this.boxes.get(`${box.dock}:${box.index}`);
@@ -776,7 +791,7 @@ export class MachineScene {
   }
 
   afterTick(): void {
-    this.sparks.step(FIXED_SECONDS);
+    if (!this.dispatch?.visible) this.sparks.step(FIXED_SECONDS);
 
     const machine = this.machine;
     if (!machine) return;
@@ -818,9 +833,10 @@ export class MachineScene {
 
   /** Undo and restart jump the world, so blending across the jump would look wrong. */
   syncAfterJump(): void {
+    this.finishCelebration();
+    this.restingWin = false;
     if (this.dispatch) this.dispatch.visible = false;
     for (const stop of this.jamStops) stop.visible = false;
-    this.sparks.clear();
     this.swells.clear();
     for (const box of this.boxes.values()) { box.shakeAge = BOX_SHAKE_SECONDS; box.hopAge = BOX_HOP_SECONDS; box.jostleAge = BOX_JOSTLE_SECONDS; box.dip.reset(); box.rock.reset(); box.offsetX = box.offsetY = box.roll = box.bounce = 0; }
     for (const entry of this.tracked.values()) { entry.seatAge = SEAT_SECONDS; entry.flight = entry.flightBefore = 0; }
@@ -970,6 +986,7 @@ export class MachineScene {
         if (!this.reducedMotion && !visual.shared) { const turn = Math.min(1, Math.max(0, (departure - 0.08) / 0.34)); visual.spin = Math.PI * 2 * turn * turn * (3 - 2 * turn); }
       }
       visual.group.position.x += visual.offsetX;
+      if (box.retained) visual.offsetY += this.wave.pulse(box.dock) * .65;
       visual.group.position.y += visual.offsetY;
       visual.group.rotation.y = visual.spin;
       visual.group.rotation.z = visual.roll;

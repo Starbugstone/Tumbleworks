@@ -1,3 +1,6 @@
+import type { Sparks } from '../engine/sparks';
+import type { Point3 } from '../engine/physics';
+import type { WinWave } from './win-wave';
 import * as THREE from 'three';
 import { type Track } from '../machine/layout';
 import { funnelChute } from './funnel-transfer';
@@ -8,8 +11,24 @@ import { ARCADE, bodyPlastic, fuse, plate, tinted } from './arcade';
 export interface DispatchLane { x: number; z: number; halfWidth: number; halfDepth: number; color: Color }
 
 class DispatchPlates extends THREE.Group {
-  showExcept(occupied: ReadonlySet<number>): void {
-    this.children.forEach((plate, lane) => { plate.visible = !occupied.has(lane); });
+  pulse(wave: WinWave): void {
+    this.children.forEach((plate, lane) => {
+      const bow = wave.pulse(lane);
+      plate.position.y = plate.userData['top'] + bow * .60;
+      plate.scale.setScalar(wave.progress(lane) * (1 + bow * .07));
+    });
+  }
+
+  celebrate(occupied: ReadonlySet<number>, wave: WinWave, corners: readonly Point3[], camera: THREE.Camera, sparks: Sparks, share: number, still: boolean): void {
+    this.visible = true;
+    const pieces = this.children.map((plate, index) => {
+      plate.visible = !occupied.has(index);
+      const at = plate.position.clone();
+      at.y += .65;
+      return { index, at, tint: Number(plate.userData['tint']) };
+    });
+    wave.start(pieces, corners, camera, sparks, share, still);
+    this.pulse(wave);
   }
 }
 
@@ -31,6 +50,8 @@ export function dispatchPlates(lanes: readonly DispatchLane[], top: number, prin
     }
     const bay = new THREE.Mesh(fuse(parts), enamel);
     bay.position.set(x, top, z);
+    bay.userData['top'] = top;
+    bay.userData['tint'] = COLORS[color].hex;
     const print = decal(color, r * 1.64, prints);
     print.rotation.x = -Math.PI / 2;
     print.position.y = .178;

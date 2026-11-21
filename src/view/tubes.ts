@@ -1,3 +1,4 @@
+import { WinWave } from './win-wave';
 import * as THREE from 'three';
 import { jamShutter } from './dispatch-plate';
 import { RIM_CLEARANCE } from '../engine/rack-flight';
@@ -41,8 +42,8 @@ export class TubeView extends BoardView {
   private readonly cups = new Map<number, { parts: { mesh: THREE.Object3D; y: number }[]; lid: THREE.Mesh; height: number; progress: number; spent: boolean }>();
   private readonly reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   private readonly pulses: number[] = [];
-  /** Seconds until each tube's rim joins the win wave; 0 when none is due. */
-  private readonly waves: number[] = [];
+  private celebrating = false;
+  private readonly wave = new WinWave();
   /** Finished tubes whose whole column is hopping once, together, so no marble meets its neighbour. */
   private hops: { tube: number; age: number }[] = [];
   /** Each tube's column of marbles is one spring: a landing presses it together. */
@@ -243,7 +244,8 @@ export class TubeView extends BoardView {
     this.cancelMotion();
     this.sparks.clear();
     this.pulses.fill(0);
-    this.waves.fill(0);
+    this.celebrating = false;
+    this.wave.clear();
     this.hops = [];
     this.arrivals.clear();
     this.flights.clear();
@@ -402,7 +404,7 @@ export class TubeView extends BoardView {
 
   /** Nothing on the board would move if it were drawn again. */
   get still(): boolean {
-    return this.lift.every((amount, i) => amount === this.targetLift(i)) && !this.busy && !this.sparks.active && !this.shake.active && !this.hops.length && this.presses.every((press) => press.resting) && this.waves.every((wait) => wait <= 0) && this.pulses.every((pulse) => pulse === 0) && this.plaques.every((plaque) => plaque.pulse === 0)
+    return this.lift.every((amount, i) => amount === this.targetLift(i)) && !this.busy && !this.sparks.active && !this.shake.active && !this.hops.length && this.presses.every((press) => press.resting) && !this.wave.active && this.pulses.every((pulse) => pulse === 0) && this.plaques.every((plaque) => plaque.pulse === 0)
       && [...this.caps.values()].every((cap) => cap.progress === (cap.open ? 1 : 0))
       && [...this.cups.values()].every((cup) => cup.progress === (cup.spent ? 1 : 0));
   }
@@ -414,11 +416,6 @@ export class TubeView extends BoardView {
   override step(): void {
     super.step();
     if (this.weight === 1) for (const at of this.flying) this.sparks.trail(at, 0xffe2ab, .065, .105);
-    this.waves.forEach((wait, index) => {
-      if (wait <= 0) return;
-      this.waves[index] = wait - FIXED_SECONDS;
-      if (this.waves[index]! <= 0) this.pulses[index] = 1;
-    });
     const lifts = new Map<number, number>();
     this.hops = this.hops.filter((hop) => {
       hop.age += FIXED_SECONDS;
@@ -430,17 +427,18 @@ export class TubeView extends BoardView {
       // Marbles rest on one another, so pressing each one flatter lowers every marble above it by what lies beneath.
       const tall = 1 + Math.max(-0.16, Math.min(0.1, press.step(FIXED_SECONDS)));
       const lift = lifts.get(tube);
+      const bow = this.wave.pulse(tube);
       const target = this.targetLift(tube), previous = this.lift[tube]!;
       const offset = this.reducedMotion || Math.abs(target-previous)<.004 ? target : previous + (target-previous)*.30;
       this.lift[tube] = offset;
-      const moving = tall !== 1 || lift !== undefined || offset !== 0 || previous !== offset;
+      const moving = bow > 0 || tall !== 1 || lift !== undefined || offset !== 0 || previous !== offset;
       if (!moving && !this.pressed[tube]) return;
       this.pressed[tube] = moving;
       (this.identities[tube] ?? []).forEach((id, slot) => {
-        if (!this.dragging.includes(id)) this.squeeze(id, (lift ?? 0) + (slot >= this.groupStart[tube]! ? offset : 0) - (2 * slot + 1) * RADIUS * (1 - tall), tall);
+        if (!this.dragging.includes(id)) this.squeeze(id, bow * .55 + (lift ?? 0) + (slot >= this.groupStart[tube]! ? offset : 0) - (2 * slot + 1) * RADIUS * (1 - tall), tall);
       });
     });
-    this.sparks.step(FIXED_SECONDS);
+    if (!this.celebrating) this.sparks.step(FIXED_SECONDS);
     // The water drifts only on ticks the board is already moving for.
     this.yard.step(FIXED_SECONDS);
     this.commitmentPose(FIXED_SECONDS);
@@ -448,7 +446,7 @@ export class TubeView extends BoardView {
       const pulse = Math.max(0, (this.pulses[index] ?? 0) - FIXED_SECONDS * 3);
       this.pulses[index] = pulse;
       if (!this.cups.has(index)) rim.position.y = this.rimHeight[index]! + this.lift[index]! * .20;
-      rim.scale.setScalar(1 + Math.sin(pulse * Math.PI) * .14 + this.lift[index]! * .075);
+      rim.scale.setScalar(1 + Math.sin(pulse * Math.PI) * .14 + this.lift[index]! * .075 + this.wave.pulse(index) * .085);
     });
     for (const plaque of this.plaques) {
       plaque.pulse = Math.max(0, plaque.pulse - FIXED_SECONDS / 0.45);
@@ -480,17 +478,29 @@ export class TubeView extends BoardView {
     // Held fast forward keeps the payoff and drops the small glint.
     if (this.weight === 1) this.sparks.land({ ...at, y: at.y + 0.3 }, COLORS[arrival.color].hex);
     if (!arrival.completed) return;
+    this.wave.last = tube;
     this.landings.push('complete');
     const top = this.position(tube, tubeContainer(this.definition, tube).capacity - 1);
     if (this.sparks.payoff({ ...top, y: top.y + 0.5 }, COLORS[arrival.color].hex) === 2 && this.weight === 1) this.shake.kick();
     if (!this.reducedMotion) this.hops.push({ tube, age: 0 });
   }
 
-  /** The level is won: one glitter fountain from each corner of the hull, with the confetti. */
   celebrate(clean = 1): void {
-    this.sparks.finish(this.yard.corners, clean);
-    // The tubes that are left take a bow one after another, left to right.
-    if (!this.reducedMotion) this.pulses.forEach((_, index) => { this.waves[index] = 0.02 + index * 0.06; });
+    this.celebrating = true;
+    const pieces = this.identities.flatMap((ids, index) => ids.length ? [{
+      index, at: this.position(index, ids.length - 1), tint: Number(this.rims[index]!.userData['restColor']),
+    }] : []);
+    this.wave.start(pieces, this.yard.corners, this.camera, this.sparks, clean, this.reducedMotion);
+  }
+
+  advanceCelebration(seconds: number): void {
+    this.wave.step(seconds, this.sparks);
+    this.sparks.step(seconds);
+  }
+
+  finishCelebration(): void {
+    this.wave.clear();
+    this.sparks.clear();
   }
 
   override dispose(): void {

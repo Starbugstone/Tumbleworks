@@ -52,6 +52,10 @@ const STYLE = `
 .lr-number.free { opacity: 0.75; }
 .lr-state { position: absolute; right: 7px; top: 6px; width: 12px; height: 12px; }
 .lr-fold { position: absolute; display: grid; place-items: center; border-radius: 9px; background: rgb(8 18 34 / 0.62); color: #eef2f5; font-weight: 600; font-size: 12px; transition: left 0.24s ease; }
+.lr-delivered { position:absolute; box-sizing:border-box; border-radius:7px; border:1px solid #756e5d; background:#26383e; display:flex; align-items:center; justify-content:space-around; }
+.lr-delivered::before { content:''; position:absolute; inset:50% 5% auto; border-top:2px solid #aa8a57; }
+.lr-medal { position:relative; display:grid; place-items:center; border-radius:50%; border:2px solid #ecce91; box-sizing:border-box; color:#fff6db; box-shadow:0 2px 1px #122630; }
+.lr-medal img { width:74%; height:74%; }
 .lr-peek { position: absolute; display: flex; flex-direction: column; gap: 4px; padding: 6px; border-radius: 11px; background: #0d1b2e; box-shadow: 0 4px 14px rgb(0 0 0 / 0.5); }
 .lr-peek .lr-card { position: relative; }
 .lr-latch { position:absolute; right:5px; top:12px; width:20px; height:21px; border-radius:3px; background:#fff7e5; border:2px solid #20363b; box-sizing:border-box; }
@@ -81,6 +85,7 @@ export class LoopRoster {
   private readonly style = document.createElement('style');
   private readonly cards = new Map<string, CardView>();
   private readonly tags: HTMLElement[] = [];
+  private readonly deliveries: HTMLElement[] = [];
   private readonly folds: HTMLElement[] = [];
   private readonly pins: HTMLElement[] = [];
   private readonly levelLines: number[][];
@@ -155,12 +160,11 @@ export class LoopRoster {
 
   sync(trucks?: ReturnType<LoopMachine['readTrucks']>): void {
     const finished = this.machine.rules.status === 'won';
-    if (this.element.hidden !== finished) {
-      this.element.hidden = finished;
-      this.key = '';
-      this.closePeek();
+    if (finished) {
+      if (this.key !== 'delivered') this.showDeliveries();
+      return;
     }
-    if (finished) return;
+    if (this.deliveries.length) this.clearDeliveries();
     const lines = this.readLines(trucks);
     const key = JSON.stringify(lines);
     if (key === this.key) return;
@@ -192,6 +196,53 @@ export class LoopRoster {
       window.setTimeout(() => view.element.remove(), 260);
     }
     if (this.peek) { const lane = this.peek.lane; this.closePeek(); if (placeLane(lines[lane]!.map((lorry) => lorry.stretches.length), layout).foldedFrom !== null) this.openPeek(lane, lines[lane]!); }
+  }
+
+  private clearDeliveries(): void {
+    for (const row of this.deliveries) row.remove();
+    this.deliveries.length = 0;
+  }
+
+  private showDeliveries(): void {
+    this.key = 'delivered';
+    this.closePeek();
+    this.clearDeliveries();
+    this.element.querySelectorAll('.lr-card').forEach(card => card.remove());
+    this.cards.clear();
+    const { panel, rowHeight, cardsWidth } = this.layoutNow;
+    const size = Math.min(36, rowHeight - 8);
+    const slots = Math.max(1, Math.floor(cardsWidth / (size + 6)));
+    this.machine.board.lanes.forEach((line, lane) => {
+      this.folds[lane]!.hidden = true;
+      const y = panel.y + lane * (rowHeight + ROSTER.rowGap);
+      Object.assign(this.tags[lane]!.style, { left: `${panel.x + ROSTER.margin - 3}px`, top: `${y + (rowHeight - 18) / 2}px` });
+      const row = document.createElement('div');
+      row.className = 'lr-delivered';
+      Object.assign(row.style, { left: `${panel.x + ROSTER.margin + ROSTER.tag}px`, top: `${y + 2}px`, width: `${cardsWidth}px`, height: `${rowHeight - 4}px` });
+      line.slice(0, slots).forEach((truck, index) => {
+        const medal = document.createElement('span');
+        medal.className = 'lr-medal';
+        medal.style.width = medal.style.height = `${size}px`;
+        const color = truck.segments.at(-1)!.color;
+        const folded = index === slots - 1 && line.length > slots;
+        medal.style.background = folded ? INK : COLORS[color].base;
+        if (folded) medal.textContent = `+${line.length - index}`;
+        else {
+          const print = document.createElement('img');
+          print.alt = '';
+          print.src = pattern(color, cargoInk(color));
+          medal.append(print);
+        }
+        row.append(medal);
+      });
+      this.element.append(row);
+      this.deliveries.push(row);
+    });
+  }
+
+  bow(lane: number, strength: number): void {
+    const row = this.deliveries[lane];
+    if (row) row.style.transform = strength > 0 ? `translateY(${-3 * strength}px)` : '';
   }
 
   private placeCards(lane: number, line: readonly Lorry[], placed: LanePlacement, y: number, live: Set<string>): void {
@@ -289,7 +340,7 @@ export class LoopRoster {
 
   /** What is under a screen point. The peek panel is on top of everything while it is open. */
   pick(x: number, y: number): RosterPick | null {
-    if (this.element.hidden) return null;
+    if (this.machine.rules.status === 'won') return null;
     const inside = (element: HTMLElement): boolean => { const r = element.getBoundingClientRect(); return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom; };
     // The panel covers part of the toy: a tap on it only closes it, and must never reach a lorry underneath.
     if (this.peek && inside(this.peek.element)) return { lane: this.peek.lane, kind: 'more' };
@@ -302,7 +353,7 @@ export class LoopRoster {
   }
 
   togglePeek(lane: number): void {
-    if (this.element.hidden) return;
+    if (this.machine.rules.status === 'won') return;
     const open = this.peek?.lane === lane;
     this.closePeek();
     if (!open) this.openPeek(lane, this.readLines()[lane]!);
@@ -335,7 +386,7 @@ export class LoopRoster {
   }
 
   waitingBounds(): { lane: number; slot: number; visible: boolean; left: number; right: number; top: number; bottom: number }[] {
-    if (this.element.hidden) return [];
+    if (this.machine.rules.status === 'won') return [];
     const out: { lane: number; slot: number; visible: boolean; left: number; right: number; top: number; bottom: number }[] = [];
     for (const view of this.cards.values()) {
       if (view.element.dataset['kind'] !== 'waiting') continue;
@@ -347,7 +398,7 @@ export class LoopRoster {
 
   /** Every printed number as the browser draws it, for the tests that hold it to a readable size. */
   printedNumbers(): { lane: number; waiting: boolean; font: number; clipped: boolean; text: string }[] {
-    if (this.element.hidden) return [];
+    if (this.machine.rules.status === 'won') return [];
     return [...this.cards.values()].flatMap((view) => [...view.numbers.children].map((child) => {
       const number = child as HTMLElement;
       return { lane: Number(view.element.dataset['lane']), waiting: view.element.dataset['kind'] === 'waiting', font: Number.parseFloat(getComputedStyle(number).fontSize), clipped: number.scrollWidth > number.clientWidth + 1, text: number.textContent ?? '' };

@@ -168,6 +168,22 @@ test('three actual games construct one stop and require a new map touch', async 
   await expect(page.locator('#journey-transition')).toBeHidden();
   await page.evaluate(() => { (window as unknown as GameWindow).tumbleworks.app.manualClock = true; });
   for (let index = 0; index < 3; index++) {
+    if (index === 2) await page.evaluate(() => {
+      // The final phrase outlasts the win footer delay. Observe actual Web Audio sources across map entry.
+      const voices: { stopped: boolean; ended: boolean }[] = [];
+      Object.assign(window, { finalPhrases: voices });
+      const start = AudioBufferSourceNode.prototype.start;
+      AudioBufferSourceNode.prototype.start = function (...args) {
+        if (this.buffer && !this.loop && this.buffer.duration > 1.2) {
+          const phrase = { stopped: false, ended: false };
+          voices.push(phrase);
+          this.addEventListener('ended', () => { phrase.ended = true; }, { once: true });
+          const stop = this.stop.bind(this);
+          this.stop = when => { phrase.stopped = true; stop(when); };
+        }
+        start.apply(this, args);
+      };
+    });
     await solve(page, index);
     if (index < 2) {
       const next = page.getByRole('button', { name: 'Play next level', exact: true });
@@ -180,6 +196,9 @@ test('three actual games construct one stop and require a new map touch', async 
   await expect(page.locator('.map-stop[data-round="0"]')).toHaveAttribute('data-status', 'built');
   await expect(page.locator('.map-stop[data-round="1"]')).toBeEnabled();
   expect((await state(page)).levelIndex).toBe(2);
+  await expect.poll(() => page.evaluate(() => (window as Window & {
+    finalPhrases?: { stopped: boolean; ended: boolean }[];
+  }).finalPhrases)).toEqual([{ stopped: false, ended: true }]);
   await expect(page.locator('#journey-transition')).toBeHidden();
   await page.screenshot({ path: 'output/current/review-fixes/navigation/first-stop-built.png' });
   const completed = await page.evaluate(() => JSON.parse(localStorage.getItem('tumbleworks.progress.v1')!).completed);

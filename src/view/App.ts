@@ -59,6 +59,7 @@ export class App {
   private redraw = true;
   private ending: 'none' | 'won' | 'jammed' = 'none';
   private messageTimer = 0;
+  private quietWin = false;
   private winTimer = 0;
   private hintTimer = 0;
   private instructionTimer = 0;
@@ -181,7 +182,7 @@ export class App {
     canvas.addEventListener('pointerup', () => {
       if (this.ending !== 'won' || !this.card.hidden || this.screen !== 'game') return;
       window.clearTimeout(this.winTimer);
-      this.finishWin();
+      this.finishWin('skip');
     });
     this.bindFastForward();
     const toggle = button('levels-toggle');
@@ -380,6 +381,7 @@ export class App {
     this.accumulator = 0;
     this.lastFrame = performance.now();
     this.ending = 'none';
+    this.quietWin = false;
     this.chain = 0;
     this.previewKey = '';
     this.targetKey = '';
@@ -431,8 +433,10 @@ export class App {
     return nextInStop(stop, this.boardIndex, new Set(completedLevels()), this.activeStop?.replay ?? false);
   }
 
-  private leaveBoard(): void {
-    this.pointer.cancel(); this.setFast(false); sfx.cancel(); sfx.boardAmbience(false);
+  private leaveBoard(preserveFinalLoad = false): void {
+    this.pointer.cancel(); this.setFast(false);
+    if (!preserveFinalLoad) sfx.cancel();
+    sfx.boardAmbience(false);
     window.clearTimeout(this.winTimer); window.clearTimeout(this.hintTimer); window.clearTimeout(this.instructionTimer);
     this.card.hidden = true; this.ring.hidden = true; this.setMessage('');
     element('guide').hidden = element('guide-pointer').hidden = element('instruction').hidden = true;
@@ -444,9 +448,9 @@ export class App {
     this.accumulator = 0; this.lastFrame = performance.now();
   }
 
-  private showMap(chapter?: number, construct = false, earnedFilm = false): void {
+  private showMap(chapter?: number, construct = false, earnedFilm = false, preserveFinalLoad = false): void {
     this.workshopRoute(null);
-    this.leaveBoard();
+    this.leaveBoard(preserveFinalLoad);
     const progress = this.worldProgress();
     const current = chapter ?? Math.floor(Math.min(progress.frontier, Math.max(0, progress.stops.length - 1)) / 10);
     this.world.show(progress, current, construct);
@@ -503,6 +507,7 @@ export class App {
   advance(seconds: number, draw = true): boolean {
     if (this.screen !== 'game') return draw && this.world.advance(this.screen === 'film' ? seconds : Math.min(seconds, 0.05));
     const wasStill = this.runtime.still === true;
+    if (this.ending === 'won' && this.card.hidden) this.runtime.advanceCelebration?.(seconds);
     this.accumulator += Math.min(seconds * this.speed, 0.25);
     const limit = 8 * this.speed;
     let steps = 0;
@@ -591,6 +596,7 @@ export class App {
     window.clearTimeout(this.winTimer);
     sfx.undo();
     this.ending = 'none';
+    this.quietWin = false;
     this.chain = 0;
     this.card.hidden = true;
     this.ring.hidden = true;
@@ -610,19 +616,24 @@ export class App {
       sfx.finalLoad();
       this.renderChips();
       element('guide').hidden = element('instruction').hidden = true;
-      this.runtime.celebrate?.(this.helped ? 0.65 : 1);
-      this.winTimer = window.setTimeout(() => this.finishWin(), 1250);
+      this.runtime.celebrate?.(this.quietWin || this.speed > 1 ? .45 : this.helped ? .65 : 1);
+      this.winTimer = window.setTimeout(() => this.finishWin('timeout'), 1250);
     } else {
       sfx.jam();
       this.endingCard();
     }
   }
 
-  private finishWin(): void {
+  private finishWin(reason: 'timeout' | 'skip'): void {
     if (this.screen !== 'game' || this.runtime.status !== 'won') return;
+    this.runtime.finishCelebration?.();
+    this.redraw = true;
     if (!demoEntry && this.source === 'campaign' && this.nextRoundLevel() === null) {
-      this.showMap(Math.floor(this.boardIndex / CHAPTER_LEVELS), true, true);
-    } else this.endingCard();
+      this.showMap(Math.floor(this.boardIndex / CHAPTER_LEVELS), true, true, reason === 'timeout');
+    } else {
+      if (reason === 'skip') sfx.cancel();
+      this.endingCard();
+    }
   }
 
   private refresh(): void {
@@ -638,6 +649,7 @@ export class App {
     button('hint').disabled = this.runtime.status !== 'playing';
     const ended = this.runtime.status !== 'playing';
     for (const { element: fast } of this.fastButtons) fast.disabled = ended;
+    if (this.runtime.status === 'won' && this.speed > 1) this.quietWin = true;
     if (ended) this.setFast(false);
     const key = this.runtime.preview.join(',');
     if (key !== this.previewKey) {
