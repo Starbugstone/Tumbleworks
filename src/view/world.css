@@ -2,7 +2,7 @@
 #world button { pointer-events: auto; font: inherit; cursor: pointer; }
 #world button:focus-visible { outline: 3px solid #fff3c5; outline-offset: 5px; }
 .wv-heading { position: absolute; top: max(61px, calc(env(safe-area-inset-top) + 55px)); left: 15px; right: 15px; text-align: center; text-shadow: 0 2px 8px #102b3b; }
-.wv-heading h1 { margin: 0; font-family: Georgia,serif; font-size: clamp(23px, 5.6vw, 30px); font-weight: 600; letter-spacing: -.025em; }
+.wv-heading h1 { margin: 0; font-family: Fredoka,system-ui,sans-serif; font-size: clamp(23px, 5.6vw, 30px); font-weight: 600; letter-spacing: -.025em; }
 .wv-heading p { margin: 3px 0 0; font-size: 13px; color: #c9dcd2; }
 /* Each station has a full circular touch area. The small enamel face leaves the machine visible around it. */
 #world .map-stop {
@@ -14,7 +14,7 @@
   position: relative; display: grid; place-items: center; width: 37px; height: 37px;
   border: 2px solid #ffebbc; border-radius: 50%; background: #f4c775; color: #233e43;
   box-shadow: 0 2px 0 #9c7145, 0 3px 5px #15383c70;
-  padding-bottom: 5px; font: 700 18px/1 system-ui;
+  padding-bottom: 5px; font: 600 18px/1 Fredoka,system-ui,sans-serif;
 }
 .map-stop[data-status='locked'] .wv-stop-face {
   width: 24px; height: 24px; padding: 0; border: 1px solid #d7c6a6;
@@ -68,7 +68,7 @@
 .wv-project-group { display: grid; gap: 5px; scroll-margin-top: 8px; }
 .wv-project-group h2 {
   margin: 2px 0; padding: 4px 0 5px; border-bottom: 1px solid #bbab8e;
-  color: #244145; font: 650 20px/1.1 Georgia,serif;
+  color: #244145; font: 600 20px/1.1 Fredoka,system-ui,sans-serif;
 }
 .wv-project { position: relative; }
 #world .wv-experiment {
@@ -80,9 +80,9 @@
 .wv-project-reward { width: 58px; height: 58px; grid-column: 1; grid-row: 1; object-fit: contain; }
 .wv-project-cue { width: 42px; height: 42px; grid-column: 3; grid-row: 1; object-fit: contain; border-radius: 3px; background: #234145; border: 1px solid #334e50; }
 .wv-project-copy { grid-column: 2; grid-row: 1; min-width: 0; }
-.wv-project-copy strong { display: block; font: 650 16px/1.1 Georgia,serif; }
+.wv-project-copy strong { display: block; font: 600 16px/1.1 Fredoka,system-ui,sans-serif; }
 .wv-project-copy > span { display: block; margin: 2px 0; font-size: 13px; color: #4f6260; }
-.wv-project-status { display: flex; gap: 5px; align-items: center; font: 550 14px/1.15 system-ui; color: #3b5353; }
+.wv-project-status { display: flex; gap: 5px; align-items: center; font: 500 14px/1.15 Fredoka,system-ui,sans-serif; color: #3b5353; }
 .wv-project-status .wv-lock { width: 10px; height: 8px; margin-top: 2px; }
 .wv-project-status .wv-lock::before { width: 7px; bottom: 6px; left: 1.5px; }
 #world .wv-experiment[aria-disabled='true'] { background: #ece1ca; }
@@ -100,7 +100,7 @@
   background: #f8e9cb; color: #203f43; border: 1px solid #a58b66; border-bottom-width: 3px;
   box-shadow: 0 2px 5px #123d465c;
 }
-.wv-location strong { font: 650 14px/1.08 Georgia,serif; }
+.wv-location strong { font: 650 14px/1.08 Fredoka,system-ui,sans-serif; }
 .wv-location .wv-lock { margin: 2px 0 0; }
 .wv-location[aria-current='location'] { outline: 2px solid #f8ce88; outline-offset: 2px; }
 #world .wv-location[aria-disabled='true'] { background: #234448; color: #f2e8d5; border-color: #6a827c; }
