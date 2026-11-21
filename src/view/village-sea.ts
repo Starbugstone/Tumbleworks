@@ -2,7 +2,31 @@ import * as THREE from 'three';
 import { DEEP_SEA } from '../engine/stage';
 import { sunny } from './village-terrain';
 import { causticTexture } from './arcade';
-import { distanceToPolygon, pointInPolygon, terrainHeightAt, type VillageTerrain } from '../world/village-terrain';
+import { terrainHeightAt, type TerrainVec2, type VillageTerrain } from '../world/village-terrain';
+
+/** Bake a scanline in world coordinates. Negative distances are on the land side of the polygon. */
+function shoreRow(polygon: readonly TerrainVec2[], xs: Float64Array, z: number, out: Float64Array): void {
+  out.fill(Infinity);
+  const crossings: number[] = [];
+  for (let i = 0, previous = polygon.length - 1; i < polygon.length; previous = i++) {
+    const [ax, az] = polygon[i]!, [bx, bz] = polygon[previous]!;
+    const dx = bx - ax, dz = bz - az, lengthSquared = dx * dx + dz * dz;
+    const fromZ = z - az;
+    if ((az > z) !== (bz > z)) crossings.push(ax + dx * fromZ / dz);
+    for (let column = 0; column < xs.length; column++) {
+      const fromX = xs[column]! - ax;
+      const t = lengthSquared ? Math.max(0, Math.min(1, (fromX * dx + fromZ * dz) / lengthSquared)) : 0;
+      const xGap = fromX - dx * t, zGap = fromZ - dz * t;
+      out[column] = Math.min(out[column]!, xGap * xGap + zGap * zGap);
+    }
+  }
+  crossings.sort((a, b) => a - b);
+  let crossed = 0;
+  for (let column = 0; column < xs.length; column++) {
+    while (crossed < crossings.length && xs[column]! >= crossings[crossed]!) crossed++;
+    out[column] = Math.sqrt(out[column]!) * (crossed % 2 ? -1 : 1);
+  }
+}
 
 /** One opaque surface continues through the harbour. The shore field is baked once, never evaluated per frame. */
 export function villageSea(level: number, shore: number, terrain?: VillageTerrain, wake?: THREE.Vector4): THREE.Mesh {
@@ -11,24 +35,30 @@ export function villageSea(level: number, shore: number, terrain?: VillageTerrai
   const sea = new THREE.Mesh(geometry,material);sea.name='village-sea';sea.position.y=level;
   if (!terrain) { material.color.set(DEEP_SEA); return sea; }
   const size=wake ? 256 : 128, span=Math.max(...terrain.spec.size)+32, data=new Uint8Array(size*size*4);
-  for(let z=0;z<size;z++)for(let x=0;x<size;x++){
-    const wx=((x+.5)/size-.5)*span,wz=((z+.5)/size-.5)*span;
-    const inside=pointInPolygon(terrain.spec.outline,wx,wz);
-    let distance=inside?0:Math.max(0,distanceToPolygon(terrain.spec.outline,wx,wz)-2.6);
-    if(inside)for(const f of terrain.spec.features)if(f.kind==='hole'&&pointInPolygon(f.polygon,wx,wz))distance=Math.min(4,distanceToPolygon(f.polygon,wx,wz));
-    const i=(z*size+x)*4;
-    if (wake) {
-      // Signed shoreline distance keeps foam parallel to the winding coves.
-      distance = distanceToPolygon(terrain.spec.outline,wx,wz) * (inside ? -1 : 1);
-      for (const f of terrain.spec.features) if (f.kind === 'hole') {
-        const d = distanceToPolygon(f.polygon,wx,wz);
-        distance = Math.max(distance,pointInPolygon(f.polygon,wx,wz) ? d : -d);
+  const coordinates = Float64Array.from({ length: size }, (_, i) => ((i + .5) / size - .5) * span);
+  const coast = new Float64Array(size);
+  const inlets = terrain.spec.features.flatMap(f => f.kind === 'hole' ? [{ polygon: f.polygon, row: new Float64Array(size) }] : []);
+  for (let z = 0; z < size; z++) {
+    const wz = coordinates[z]!;
+    shoreRow(terrain.spec.outline, coordinates, wz, coast);
+    for (const inlet of inlets) shoreRow(inlet.polygon, coordinates, wz, inlet.row);
+    for (let x = 0; x < size; x++) {
+      const i = (z * size + x) * 4;
+      let distance = coast[x]!;
+      if (wake) {
+        for (const inlet of inlets) distance = Math.max(distance, -inlet.row[x]!);
+        distance = Math.max(0, distance + 1.15);
+        const bed = terrainHeightAt(terrain, coordinates[x]!, wz);
+        data[i + 1] = bed === undefined ? 255 : Math.round(255 * THREE.MathUtils.clamp((level - bed) / .28, 0, 1));
+      } else if (distance < 0) {
+        distance = 0;
+        for (const inlet of inlets) if (inlet.row[x]! < 0) distance = Math.min(4, -inlet.row[x]!);
+      } else {
+        distance = Math.max(0, distance - 2.6);
       }
-      const bed = terrainHeightAt(terrain, wx, wz);
-      data[i+1] = bed === undefined ? 255 : Math.round(255 * THREE.MathUtils.clamp((level - bed) / .28, 0, 1));
-      distance = Math.max(0,distance + 1.15);
+      data[i] = Math.min(255, Math.round(distance / 18 * 255));
+      data[i + 3] = 255;
     }
-    data[i]=Math.min(255,Math.round(distance/18*255));data[i+3]=255;
   }
   const field=new THREE.DataTexture(data,size,size,THREE.RGBAFormat);field.minFilter=field.magFilter=THREE.LinearFilter;field.needsUpdate=true;
   const caustic=causticTexture(),time={value:0};
