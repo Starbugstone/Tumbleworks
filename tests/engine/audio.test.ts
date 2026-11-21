@@ -31,6 +31,14 @@ class Source extends Node {
   stop = vi.fn();
   onended: (() => void) | null = null;
 }
+class MusicWorker {
+  onmessage: ((event: { data: { rate: number; samples: Float32Array<ArrayBuffer> } }) => void) | null = null;
+  postMessage = vi.fn();
+  terminate = vi.fn();
+  constructor() { workers.push(this); }
+  complete() { this.onmessage?.({ data: { rate: 12000, samples: new Float32Array([0, .03, 0]) } }); }
+}
+const workers: MusicWorker[] = [];
 const buffers: Source[] = [], oscillators: Source[] = [], contexts: Context[] = [];
 const coastalSounds = () => buffers.filter(source => !source.loop || source.loopStart > 0);
 const musicLoops = () => buffers.filter(source => source.loop && source.loopStart === 0);
@@ -47,7 +55,7 @@ class Context {
   createBufferSource() { const source = new Source(); buffers.push(source); return source; }
   createBuffer(_channels: number, length: number, rate: number) {
     const samples = new Float32Array(length);
-    return { duration: length / rate, getChannelData: () => samples };
+    return { duration: length / rate, getChannelData: () => samples, copyToChannel: (source: Float32Array) => samples.set(source) };
   }
   decodeAudioData = vi.fn(async (bytes: ArrayBuffer) => ({ duration: .3, bytes }));
 }
@@ -55,8 +63,10 @@ const fetchSound = vi.fn(async () => ({ ok: true, arrayBuffer: async () => new A
 const loaded = async () => { await vi.waitFor(() => expect(contexts[0]?.decodeAudioData).toHaveBeenCalledTimes(13)); await new Promise(resolve => setTimeout(resolve, 0)); };
 beforeEach(() => {
   buffers.length = oscillators.length = contexts.length = compressors.length = 0;
+  workers.length = 0;
   fetchSound.mockClear(); vi.resetModules();
   vi.stubGlobal('AudioContext', Context); vi.stubGlobal('fetch', fetchSound);
+  vi.stubGlobal('Worker', MusicWorker);
 });
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
@@ -276,6 +286,7 @@ it('stops harbour and scheduled gulls while muted or hidden and restores only an
   const { sfx } = await import('../../src/audio');
   sfx.harbourAmbience(true);
   sfx.unlock();
+  workers[0]!.complete();
   vi.advanceTimersByTime(6500);
   expect(coastalSounds().map(source => source.loop)).toEqual([true, false]);
   const [surf, gull] = coastalSounds();
@@ -353,6 +364,8 @@ it('switches island scores without layering them, and keeps one score in a same-
   sfx.harbourAmbience(true, 2);
   expect(buffers).toHaveLength(0);
   sfx.unlock();
+  expect(workers[0]!.postMessage).toHaveBeenCalledWith('mill');
+  workers[0]!.complete();
   const [mill] = musicLoops();
   expect(coastalSounds()).toHaveLength(0);
   sfx.boardAmbience(true, 2);
@@ -362,6 +375,7 @@ it('switches island scores without layering them, and keeps one score in a same-
   expect(musicLoops()).toHaveLength(1);
   vi.advanceTimersByTime(450);
   expect(mill!.stop).toHaveBeenCalledOnce();
+  workers[1]!.complete();
   const clock = musicLoops()[1]!;
   expect(clock.buffer).not.toBe(mill!.buffer);
   sfx.boardAmbience(false);
@@ -375,6 +389,7 @@ it('ducks music under rewards without shortening an overlapping reward or cancel
   const { sfx } = await import('../../src/audio');
   sfx.boardAmbience(true, 2);
   sfx.unlock(); await loaded();
+  workers[0]!.complete();
   const gain = musicLoops()[0]!.envelope!.gain;
   expect(gain.setTargetAtTime).toHaveBeenLastCalledWith(.68, 1, .20);
   sfx.finalLoad();
@@ -389,4 +404,41 @@ it('ducks music under rewards without shortening an overlapping reward or cancel
   expect(gain.setTargetAtTime).toHaveBeenLastCalledWith(.21, 1.02, .20);
   sfx.toggleMute();
   expect(musicLoops()[0]!.stop).toHaveBeenCalledOnce();
+});
+
+it('starts synthesis off the gesture path and drops obsolete results across chapter, mute and visibility changes', async () => {
+  const page = Object.assign(new EventTarget(), { hidden: false });
+  vi.stubGlobal('document', page);
+  const { sfx } = await import('../../src/audio');
+  sfx.harbourAmbience(true, 1);
+  expect(workers).toHaveLength(0);
+  sfx.unlock(); sfx.unlock();
+  expect(workers).toHaveLength(1);
+  expect(musicLoops()).toHaveLength(0);
+
+  sfx.harbourAmbience(true, 4);
+  expect(workers[0]!.terminate).toHaveBeenCalledOnce();
+  workers[0]!.complete();
+  expect(musicLoops()).toHaveLength(0);
+
+  sfx.toggleMute();
+  expect(workers[1]!.terminate).toHaveBeenCalledOnce();
+  workers[1]!.complete();
+  expect(musicLoops()).toHaveLength(0);
+  sfx.toggleMute();
+  page.hidden = true;
+  page.dispatchEvent(new Event('visibilitychange'));
+  expect(workers[2]!.terminate).toHaveBeenCalledOnce();
+  workers[2]!.complete();
+  expect(musicLoops()).toHaveLength(0);
+
+  page.hidden = false;
+  page.dispatchEvent(new Event('visibilitychange'));
+  expect(workers[3]!.postMessage).toHaveBeenCalledWith('bridge');
+  workers[3]!.complete();
+  expect(musicLoops()).toHaveLength(1);
+  expect(workers[3]!.terminate).toHaveBeenCalledOnce();
+  sfx.boardAmbience(true, 4);
+  expect(musicLoops()).toHaveLength(1);
+  expect(workers).toHaveLength(4);
 });

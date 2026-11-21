@@ -1,4 +1,4 @@
-import { makeMusic, type MusicTheme } from './audio-music';
+import type { MusicPcm, MusicTheme } from './audio-music';
 import { worldLocation } from './world/locations';
 import { isMuted, setMuted } from './progress';
 import tap from './sounds/tap.mp3?no-inline';
@@ -95,6 +95,8 @@ class Sfx {
   private harbour: Harbour | null = null;
   private music: Music | null = null;
   private musicBuffer: { theme: MusicTheme; buffer: AudioBuffer } | null = null;
+  private musicLoad: { theme: MusicTheme; worker: Worker } | null = null;
+  private musicUnavailable = false;
   private musicDuckUntil = 0;
   private readonly bedBuffers = new Map<BedTheme, AudioBuffer>();
   private gullBuffer: AudioBuffer | null = null;
@@ -237,6 +239,7 @@ class Sfx {
     }
     const music = this.music;
     const theme = this.requestedMusic;
+    if (this.musicLoad?.theme !== theme) this.stopMusicLoad();
     if (!theme || (music && music.theme !== theme)) {
       if (!music || music.fadeOut !== null) return;
       music.gain.gain.cancelScheduledValues(context.currentTime);
@@ -250,19 +253,53 @@ class Sfx {
     if (music) {
       if (music.fadeOut !== null) clearTimeout(music.fadeOut);
       music.fadeOut = null;
-    } else {
+    } else if (this.musicBuffer?.theme === theme) {
       const gain = context.createGain();
       gain.gain.value = 0;
       gain.connect(this.master);
       const source = context.createBufferSource();
-      if (this.musicBuffer?.theme !== theme) this.musicBuffer = { theme, buffer: makeMusic(context, theme) };
       source.buffer = this.musicBuffer.buffer;
       source.loop = true;
       source.connect(gain);
       source.start(context.currentTime);
       this.music = { theme, source, gain, fadeOut: null };
+    } else {
+      this.loadMusic(context, theme);
+      return;
     }
     this.syncMusicGain();
+  }
+
+  private loadMusic(context: AudioContext, theme: MusicTheme): void {
+    if (this.musicLoad || this.musicUnavailable || typeof Worker === 'undefined') return;
+    try {
+      const worker = new Worker(new URL('./audio-music.worker.ts', import.meta.url), { type: 'module' });
+      this.musicLoad = { theme, worker };
+      worker.onmessage = ({ data }: MessageEvent<MusicPcm>) => {
+        if (this.musicLoad?.worker !== worker) return;
+        this.stopMusicLoad();
+        if (this.requestedMusic !== theme || this.muted || context.state !== 'running' ||
+          (typeof document !== 'undefined' && document.hidden)) return;
+        const buffer = context.createBuffer(1, data.samples.length, data.rate);
+        buffer.copyToChannel(data.samples, 0);
+        this.musicBuffer = { theme, buffer };
+        this.syncMusic();
+      };
+      worker.onerror = () => {
+        if (this.musicLoad?.worker !== worker) return;
+        this.stopMusicLoad();
+        this.musicUnavailable = true;
+      };
+      worker.postMessage(theme);
+    } catch {
+      this.stopMusicLoad();
+      this.musicUnavailable = true;
+    }
+  }
+
+  private stopMusicLoad(): void {
+    this.musicLoad?.worker.terminate();
+    this.musicLoad = null;
   }
 
   private syncMusicGain(): void {
@@ -278,6 +315,7 @@ class Sfx {
   }
 
   private stopMusic(): void {
+    this.stopMusicLoad();
     const music = this.music;
     if (!music) return;
     this.music = null;

@@ -192,8 +192,9 @@ environmental bed to 35%, lowers the music and clears pending gull calls. Leavin
 clears the fast-forward state. Completion and win cues duck the music for their audible duration.
 
 The original scores in `src/audio-music.ts` have four bars with wrapped note tails at the loop seam.
-They play through the same master and Sound setting as the effects. Only the current score is
-cached and a same-island map, film or board handoff reuses it.
+An on-demand worker synthesizes the score and transfers its PCM without blocking input. An island
+change, mute or hiding the tab discards unfinished work. Scores play through the same master and
+Sound setting as the effects. Only the current score is cached and a same-island handoff reuses it.
 
 ### Film contacts and last load
 

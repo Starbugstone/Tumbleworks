@@ -11,7 +11,9 @@ type AudioWindow = Window & { tumbleworks: { app: App }; observedSound: Pick<Sou
 
 async function open(page: Page, level = 'board-31', manualClock = true) {
   await page.goto(`/?demo=${level}`);
-  await page.waitForFunction(() => Boolean((window as Partial<AudioWindow>).tumbleworks?.app));
+  await page.waitForFunction(() => Boolean((window as Partial<AudioWindow>).tumbleworks?.app)
+    && document.getElementById('boot')?.hidden
+    && document.getElementById('journey-transition')?.hidden);
   await page.evaluate(async manualClock => {
     const target = window as unknown as AudioWindow;
     target.tumbleworks.app.manualClock = manualClock;
@@ -22,6 +24,7 @@ async function open(page: Page, level = 'board-31', manualClock = true) {
 }
 async function tapCrate(page: Page) {
   const point = await page.evaluate(() => (window as unknown as AudioWindow).tumbleworks.app.debugTargets()['supply0']!);
+  await expect.poll(() => page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.id, point)).toBe('scene');
   await page.touchscreen.tap(point.x, point.y);
 }
 
@@ -112,6 +115,7 @@ test('harbour ambience starts on gesture, reuses its loop, fades out and follows
   expect(sample.rms).toBeGreaterThan(.015);
   expect(sample.rms).toBeLessThan(.10);
   expect(sample.seam).toBeLessThan(.04);
+  await expect.poll(() => page.evaluate(() => Boolean((window as unknown as AudioWindow).observedSound.music))).toBe(true);
   const music = await page.evaluate(async () => {
     const active = (window as unknown as AudioWindow).observedSound.music;
     if (!active?.source.buffer) throw new Error('Island music buffer missing');

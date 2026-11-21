@@ -1,6 +1,7 @@
 import type { WorldLocation } from './world/locations';
 
 export type MusicTheme = WorldLocation['kind'];
+export type MusicPcm = { rate: number; samples: Float32Array<ArrayBuffer> };
 
 type Bar = readonly [bass: number, inner: number, top: number, answer: number];
 type Score = { readonly beat: number; readonly bars: readonly [Bar, Bar, Bar, Bar] };
@@ -34,10 +35,9 @@ function note(samples: Float32Array, at: number, midi: number, seconds: number, 
   }
 }
 
-export function makeMusic(context: AudioContext, theme: MusicTheme): AudioBuffer {
+export function makeMusic(theme: MusicTheme): MusicPcm {
   const { beat, bars } = SCORES[theme];
-  const buffer = context.createBuffer(1, Math.round(bars.length * 4 * beat * SAMPLE_RATE), SAMPLE_RATE);
-  const samples = buffer.getChannelData(0);
+  const samples = new Float32Array(Math.round(bars.length * 4 * beat * SAMPLE_RATE));
   for (const [bar, [bass, inner, top, answer]] of bars.entries()) {
     const start = bar * 4 * beat;
     note(samples, start, bass, beat * 3.25, .78);
@@ -50,5 +50,5 @@ export function makeMusic(context: AudioContext, theme: MusicTheme): AudioBuffer
   const energy = samples.reduce((sum, sample) => sum + sample * sample, 0);
   const gain = LOOP_RMS / Math.sqrt(energy / samples.length);
   for (let i = 0; i < samples.length; i++) samples[i] = samples[i]! * gain;
-  return buffer;
+  return { rate: SAMPLE_RATE, samples };
 }
