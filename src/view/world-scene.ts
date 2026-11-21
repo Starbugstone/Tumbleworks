@@ -19,6 +19,7 @@ import { VillageFilmCamera } from './village-film-camera';
 import { WorldKitAssets } from './world-kit';
 import { createVillageTerrain, rockContour, sunny } from './village-terrain';
 import { VillageOrbit } from './village-orbit';
+import { separateMapPins } from './map-pins';
 import { tropicalCoast, islandPalms, riverBanks, triangleBounds } from './tropical-island';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { villageSea, advanceVillageSea } from './village-sea';
@@ -318,7 +319,10 @@ export class WorldScene {
     return points.map(point => { const at = point.clone().project(this.camera);
       return { x: rect.left + (at.x + 1) * rect.width / 2, y: rect.top + (1 - at.y) * rect.height / 2 }; });
   }
-  targets(): readonly ScreenPoint[] { return this.project(this.badges); }
+  targets(): readonly ScreenPoint[] {
+    const { width, height } = this.stage.rect;
+    return separateMapPins(this.project(this.badges), width, height);
+  }
   groundTargets(): readonly ScreenPoint[] { return this.project(this.anchors); }
   workshopTargets(): { badge: ScreenPoint; door: ScreenPoint } {
     const site = this.scenePlan.workshop;

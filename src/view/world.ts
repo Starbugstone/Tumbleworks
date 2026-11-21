@@ -1,6 +1,5 @@
 import { demoFilmChapter, returnToDemoMenu } from '../demo';
 import * as THREE from 'three';
-import { separateMapPins } from './map-pins';
 import { confetti } from './confetti';
 import { DEEP_SEA } from '../engine/stage';
 import type { Stage } from '../engine/stage';
@@ -423,9 +422,8 @@ export class WorldView {
   hide(): void { sfx.harbourAmbience(false); this.releaseBuildCover(); this.stopFilm(); this.ownership.leave('hidden'); this.disposeValley(); this.gesture = null; this.clearMapPointers(); this.element.hidden = true; }
   resize(): void { this.scene?.resize(); this.valley?.resize(); this.playback?.resize(); if (this.view === 'overview') this.valleyLabels(); else this.positions(); this.dirty = true; }
   private positions(): void {
-    const badges = this.scene?.targets() ?? [];
+    const pins = this.scene?.targets() ?? [];
     const width = this.stage.canvas.clientWidth, height = this.stage.canvas.clientHeight;
-    const pins = separateMapPins(badges, width, height);
     pins.forEach((point, index) => {
       const button = this.nodes.children.item(index);
       if (!(button instanceof HTMLElement)) return;
