@@ -47,6 +47,19 @@ import {writeFileSync} from 'node:fs';
 import {VILLAGE_SCENE_PLANS} from '../../../../src/world/village-plans';
 import {VillageProgram,validateVillagePlan} from '../../../../src/world/village-program';
 import {VillageCinematic} from '../../../../src/world/village-cinematic';
+import {Vector3} from 'three';
+// Intervals of at least 50 ms where the marble's world speed, sampled at 120 Hz, falls
+// below 5% of the film's median. Each is labelled with the overlapping contact stops.
+function marbleStops(route:{duration:number;contacts:readonly {stop:number;start:number;end:number}[];sample(t:number,p:Vector3):void},kinds:Record<number,string>){
+ const dt=1/120,a=new Vector3(),b=new Vector3(),speeds:number[]=[];
+ for(let t=0;t+dt<=route.duration;t+=dt){route.sample(t,a);route.sample(t+dt,b);speeds.push(a.distanceTo(b)/dt);}
+ const slow=.05*[...speeds].sort((x,y)=>x-y)[speeds.length>>1]!,found=[];let first=-1;
+ for(let i=0;i<=speeds.length;i++){const low=i<speeds.length&&speeds[i]!<slow;if(low&&first<0)first=i;if(low||first<0)continue;
+  const start=first*dt,end=i*dt;first=-1;if(end-start<.05)continue;
+  const stops=route.contacts.filter(c=>c.start-.05<=end&&c.end+.05>=start).map(c=>`${c.stop}:${kinds[c.stop]}`);
+  found.push({start:+start.toFixed(2),end:+end.toFixed(2),seconds:+(end-start).toFixed(2),stops,edge:start===0?'start':i===speeds.length?'end':null});}
+ return found;
+}
 it('reports the explicitly selected village motion model',()=>{
  const chapter=CHAPTER;
  const selected=VILLAGE_SCENE_PLANS.filter(s=>chapter===null||s.chapter===chapter);
@@ -57,10 +70,12 @@ it('reports the explicitly selected village motion model',()=>{
    rejection:physical?.admissibility?{...physical.admissibility,message:physical.admissibility.message}:null,
    stationKinds:scene.plan.stations.map(s=>({stop:s.stop,kind:s.mechanism.kind})),
    ledgerStops:[...new Set(ledger.map(row=>row.stop))],
-   contacts:route.contacts,transfers:route.transfers,physicalLedger:ledger};
+   contacts:route.contacts,transfers:route.transfers,physicalLedger:ledger,
+   marbleStops:marbleStops(route,Object.fromEntries(scene.plan.stations.map(s=>[s.stop,s.mechanism.kind])))};
  });
  writeFileSync(REPORT,JSON.stringify({scope:'Explicit cinematic playback or requested physical research compilation only. Not clearance, browser, comfort, performance or release acceptance.',rows},null,2),{flag:'wx'});
- for(const row of rows)console.log(JSON.stringify({chapter:row.chapter,status:row.status,duration:row.duration}));
+ for(const row of rows){console.log(JSON.stringify({chapter:row.chapter,status:row.status,duration:row.duration}));
+  for(const stop of row.marbleStops.filter(s=>!s.edge))console.log(`  marble stops ${stop.seconds}s at ${stop.start}s near ${stop.stops.join(', ')||'no contact'}`);}
  if(REQUIRE)expect(rows.filter(row=>row.status.state!=='ready').map(row=>({chapter:row.chapter,status:row.status,rejection:row.rejection})),
   'Physical compilation is incomplete').toEqual([]);
 });

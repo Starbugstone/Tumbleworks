@@ -16,6 +16,10 @@ python3 .agents/skills/tumbleworks-village-authoring/scripts/village_check.py te
 ```
 
 `status` reports registered cinematic plans, duration, contacts and transfers.
+It also prints every interval of at least 50 ms where the marble's world speed,
+sampled at 120 Hz, falls below 5% of the film's median, with the overlapping stop
+and mechanism kind. The opening release and final rest are kept in `status.json`
+as `edge` entries and not printed.
 `--require-physical` explicitly selects offline mechanical research and makes
 physical authoring fail. That research result does not gate shipping films. Unknown chapters
 fail. This is compilation only, never final acceptance.
