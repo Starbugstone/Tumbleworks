@@ -76,6 +76,10 @@ test('native touch orbits from a marker, pinches, pans, cancels and resets witho
 test('all six islands and earned buildings render through an orbit sweep',async({page}, testInfo)=>{
   test.setTimeout(360_000);
   const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
+  // Three.js reports failed GPU programs through the console. A map may still draw its sea and pins.
+  page.on('console', message => {
+    if (message.type() === 'error' && message.text().includes('THREE.WebGLProgram')) errors.push(message.text());
+  });
   await page.addInitScript(completed=>localStorage.setItem('tumbleworks.progress.v1',JSON.stringify({completed,muted:true})),[...CAMPAIGN.map(l=>l.id),...WORKSHOP_PROJECTS.map(p=>p.id)]);
   await page.goto('/?fx=0');await ready(page);
   for(let chapter=5;chapter>=0;chapter--){
