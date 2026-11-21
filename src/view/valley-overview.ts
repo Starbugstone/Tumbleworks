@@ -31,7 +31,6 @@ export interface ValleyTarget extends ScreenPoint {
 interface Village {
   readonly chapter: number;
   readonly anchor: THREE.Vector3;
-  readonly label: THREE.Vector3;
   readonly group: THREE.Group;
   readonly coast: THREE.Vector3[];
   readonly hitbox: THREE.Box3;
@@ -156,14 +155,15 @@ export class ValleyOverview {
         village.add(reward);
       }
       const bounds = new THREE.Box3().setFromObject(village), center = bounds.getCenter(new THREE.Vector3());
-      const scale = 8.05 / Math.max(source.terrain.size[0], source.terrain.size[1]);
-      village.scale.setScalar(scale); village.position.set(-center.x * scale, -bounds.min.y * scale + .55, -center.z * scale - .8);
+      // Leave a full-height name plaque in the channel between successive island rows.
+      const scale = 7 / Math.max(source.terrain.size[0], source.terrain.size[1]);
+      village.scale.setScalar(scale); village.position.set(-center.x * scale, -bounds.min.y * scale + .55, -center.z * scale - 1.35);
       village.updateMatrix();
       const coast = (ground.geometry.userData.shore as THREE.Vector3[]).map(p => p.clone().applyMatrix4(village.matrix));
       group.add(village); bakeWorldGroup(group, material);
       ground.geometry.dispose(); signature?.dispose();for(const foot of feet)foot.dispose();
       this.scene.add(group);
-      this.villages.push({ chapter: chapter.index, anchor: new THREE.Vector3(), label: new THREE.Vector3(),
+      this.villages.push({ chapter: chapter.index, anchor: new THREE.Vector3(),
         group, coast, hitbox: new THREE.Box3(), material });
     }
     this.update(progress);
@@ -224,7 +224,7 @@ export class ValleyOverview {
       const place = this.layout.villages.find(place => place.chapter === village.chapter);
       village.group.visible = place !== undefined;
       if (!place) continue;
-      village.anchor.fromArray(place.position); village.label.fromArray(place.label);
+      village.anchor.fromArray(place.position);
       village.group.position.copy(village.anchor);
       village.group.updateWorldMatrix(true, true);
       village.hitbox.setFromObject(village.group).expandByVector(new THREE.Vector3(0.25, 0.25, 0.25));
@@ -264,10 +264,20 @@ export class ValleyOverview {
   targets(): readonly ValleyTarget[] {
     const rect = this.stage.rect;
     return this.villages.filter(village => village.group.visible).map(village => {
-      const at = village.label.clone().project(this.camera);
-      return { chapter: village.chapter, width: this.layout.labelWidth,
-        x: rect.left + (at.x + 1) / 2 * rect.width,
-        y: rect.top + (1 - at.y) / 2 * rect.height };
+      const point = new THREE.Vector3();
+      let left = Infinity, right = -Infinity, bottom = -Infinity;
+      for (const vertex of village.coast) {
+        point.copy(vertex).applyMatrix4(village.group.matrixWorld).project(this.camera);
+        const x = (point.x + 1) * rect.width / 2;
+        left = Math.min(x, left);
+        right = Math.max(x, right);
+        bottom = Math.max(bottom, (1 - point.y) * rect.height / 2);
+      }
+      const width = this.layout.labelWidth;
+      const columnLeft = (village.chapter % 2) * rect.width / 2;
+      const x = THREE.MathUtils.clamp((left + right) / 2, columnLeft + 8 + width / 2,
+        columnLeft + rect.width / 2 - 8 - width / 2);
+      return { chapter: village.chapter, width, x: rect.left + x, y: rect.top + bottom + 4 + 22 };
     });
   }
 

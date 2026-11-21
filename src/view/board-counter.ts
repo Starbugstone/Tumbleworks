@@ -114,21 +114,25 @@ export function boardCounter(halfWidth: number, back: number, front: number, top
   }
   const surround = new THREE.CanvasTexture(image);
   surround.colorSpace = THREE.SRGBColorSpace;
-  const material = new THREE.MeshStandardMaterial({ map: counterMap(backdrop.finish), roughness: .84 });
+  // The matte stock needs diffuse lighting and contact shadows across its bevels.
+  const material = new THREE.MeshLambertMaterial({ map: counterMap(backdrop.finish) });
+  material.defines = backdrop.kind === 'water' ? { COASTAL_SURROUND: 1 } : {};
   material.onBeforeCompile = shader => {
     shader.uniforms['outsideMap'] = {value: surround};
     shader.uniforms['counterTime'] = time;
-    shader.uniforms['coastal'] = { value: backdrop.kind === 'water' ? 1 : 0 };
     shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nattribute float countertop; varying float onCounter;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nonCounter=countertop;');
-    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying float onCounter; uniform sampler2D outsideMap; uniform float counterTime; uniform float coastal;')
+    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying float onCounter; uniform sampler2D outsideMap; uniform float counterTime;')
       .replace('#include <map_fragment>', `if (onCounter > .5) {
         diffuseColor *= texture2D(map, vMapUv);
       } else {
+        diffuseColor.rgb = texture2D(outsideMap, vMapUv).rgb;
+        #ifdef COASTAL_SURROUND
         vec2 p = vMapUv * 72.;
         float swell = sin(p.y * 3.1 + p.x * 1.5 + sin(p.x * 1.2 + counterTime * .28) + counterTime * .51);
         float crest = smoothstep(.84, 1., swell) * smoothstep(.12, .91, sin(p.x * 2.3 - p.y + counterTime * .25));
-        diffuseColor.rgb = texture2D(outsideMap, vMapUv).rgb + coastal * vec3(.036,.065,.059) * crest;
+        diffuseColor.rgb += vec3(.036,.065,.059) * crest;
+        #endif
       }`)
       .replace('#include <opaque_fragment>', 'if (onCounter < .5) outgoingLight = diffuseColor.rgb;\n#include <opaque_fragment>');
   };

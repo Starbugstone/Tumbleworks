@@ -462,6 +462,7 @@ const connectors = [
   // The splice pile's foot crosses the cut floor's edge at x 8.5 (Harbour102).
   connect(boom, chute, 0.15, 0.15, [0, 0], { supports: [[8.4, BELL_Y - 0.4, BERTH_Z]], terrainFeet: [0], steps: 16 }),
 ];
+const surveyedSlipwayTree = piece('tree-a', [6, at(6, 4.8), 4.8], 0, .8);
 const scenery = [
   piece('warehouse', [-4.5, at(-4.5, -9.5), -9.5], 0, 1.0), piece('harbour-beacon', [1.5, at(1.5, -10.0), -10.0], 0.1, 1.0),
   piece('warehouse', [6.8, at(6.8, -9.0), -9.0], -0.1, 0.95),
@@ -469,7 +470,7 @@ const scenery = [
   // Moored at z 10 (Harbour94). Its packed hull did not cross the chute at the old z 10.9
   // either (harbour-live94 feet-boat3), so no old-mooring collision is claimed.
   piece('boat', [9.6, -0.25, 10.0], Math.PI / 2, 1.0), piece('boat', [-0.3, -0.25, 12.0], -0.4, 1.1),
-  piece('tree-a', [-9.2, at(-9.2, 1.0), 1.0], 0, 0.85), piece('tree-a', [6.0, at(6.0, 4.8), 4.8], 0, 0.8),
+  piece('tree-a', [-9.2, at(-9.2, 1.0), 1.0], 0, 0.85), surveyedSlipwayTree,
   piece('tree-a', [-1.5, at(-1.5, -8.0), -8.0], 0, 0.75), piece('tree-a', [9.8, at(9.8, 1.5), 1.5], 0, 0.8),
 ];
 // The upper fishing street stays behind the relay throughout its travelling shot.
@@ -483,6 +484,10 @@ const harbourStreet = [
   piece('crew-gold', [5.91,at(5.91,-6.56),-6.56], -1.7, 1.03),
   piece('fish-stall', [5.15,at(5.15,-6.50),-6.50], -.24, .83),
 ];
+// From the travelling camera a tree behind the slipway hid its cables and counterweight.
+const coastalScenery = scenery.map(site => site === surveyedSlipwayTree
+  ? piece('tree-a', [9.02, at(9.02, 3.48), 3.48], 0, .8)
+  : site);
 const workshop = workshopSite({ position: [-7.4, at(-7.4, 4.6), 4.6], scale: 1.1, yaw: 0.3 },
   [-7.6, at(-7.4, 4.6) + 3.3, 4.8], { from: 8, to: 7 });
 const rewards = [
@@ -513,7 +518,7 @@ function buildingPad(site: VillageSceneryPiece) {
 const harbourCoast: VillageTerrainSpec = {
   ...terrain,
   beachWidth: 2.45,
-  buildingPads: [...scenery.filter(site=>site.model in bases), { ...workshop.house, model: 'house-a' },
+  buildingPads: [...coastalScenery.filter(site=>site.model in bases), { ...workshop.house, model: 'house-a' },
     ...rewards.map(site=>({ ...site, model:site.project, scale:1 })), ...harbourStreet].map(buildingPad),
   outline: [[-10,-9],[-9.5,-12],[-7.8,-13.6],[-4.2,-14.2],[-1.5,-13.8],[1.8,-14.7],[5.3,-14.4],[8.3,-13.1],[10.6,-10.8],[11,-7.7],[10.6,-5.3],[11.6,-2.3],[11.4,1.4],[10.6,4.7],[11.25,7.4],[10.9,11.7],[10.4,13.6],[9.45,13.55],[8.65,13.68],[7.86,14.04],[7.16,14.66],[6.43,15.25],[5.75,15.48],[5.05,15.35],[4.40,14.98],[3.71,14.30],[3.02,13.94],[2.36,13.31],[1.88,12.98],[.96,14.07],[-1,14.7],[-4.3,15.7],[-5.75,15.82],[-6.62,15.99],[-7.52,15.98],[-8.25,15.8],[-10.95,14.65],[-11.65,12.3],[-11.25,9.8],[-11.35,7.5],[-11.55,4.6],[-10.9,2.3],[-11.6,-.7],[-11.4,-4.1],[-11.15,-7.5]],
   features: [
@@ -525,7 +530,7 @@ const harbourCoast: VillageTerrainSpec = {
   ],
 };
 export const LITTLE_HARBOUR: VillageScenePlan = {
-  chapter: 0, construction: 'rise', terrain, cinematicTerrain: harbourCoast, cinematicScenery: harbourStreet, scenery,
+  chapter: 0, construction: 'rise', terrain, cinematicTerrain: harbourCoast, cinematicScenery: [...coastalScenery, ...harbourStreet], scenery,
   // Shot times are unchanged authored metadata; retime against route.duration at the camera stage.
   plan: { chapter: 0, profile: 'plank', staticSupports:'harbour-static-112', stations: physical, connectors, camera: shots([0, 2.4, 0], [
     { at: 2.6, target: [-3.6, 4.8, 5.0], radius: 22 }, { at: 5.0, target: [-1.3, 4.6, 1.0], radius: 22 },

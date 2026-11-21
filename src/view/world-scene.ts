@@ -128,7 +128,8 @@ export class WorldScene {
     const ground = createVillageTerrain(drawn, this.material, 'full', true); landscape.add(ground);
     this.detachedGround = ground.geometry;
     yield 'ground';
-    for (const piece of [...this.scenePlan.scenery, ...(options.motion === 'cinematic' ? this.scenePlan.cinematicScenery ?? [] : [])]) {
+    const scenery = options.motion === 'cinematic' ? this.scenePlan.cinematicScenery ?? this.scenePlan.scenery : this.scenePlan.scenery;
+    for (const piece of scenery) {
       const model = this.model(piece.model);
       model.position.fromArray(piece.position); model.rotation.y = piece.yaw; model.scale.setScalar(piece.scale);
       if (terrain.spec.beachWidth && piece.model === 'boat' && piece.position[0] < 1) {

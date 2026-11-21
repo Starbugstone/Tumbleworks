@@ -29,7 +29,11 @@ const cargoEdge = (color: Color): string => color === 'white' ? `inset 0 0 0 1px
 
 const STYLE = `
 .lr { position: fixed; inset: 0; pointer-events: none; font-family: Fredoka, "Trebuchet MS", sans-serif; }
+.lr-backplate { position: absolute; pointer-events: none; box-sizing: border-box; border-radius: 10px;
+  background: #34464c; border: 1px solid #26373c; box-shadow: inset 0 1px 0 #5e6c6c, 0 2px 0 #203038; }
 .lr-tag, .lr-pin { position: absolute; width: 18px; height: 18px; border-radius: 50%; background: ${IVORY}; color: ${INK}; display: grid; place-items: center; font-weight: 600; font-size: 12px; line-height: 1; }
+.lr-backplate, .lr-tag { transition: opacity 0.24s ease; }
+.lr.dispatched .lr-backplate, .lr.dispatched .lr-tag { opacity: 0; }
 .lr-pin { transform: translate(-50%, -50%); box-shadow: 0 1px 3px rgb(0 0 0 / 0.45); }
 .lr-card { position: absolute; display: flex; gap: 3px; padding: 3px 4px 2px 3px; border-radius: 9px; box-sizing: border-box; transition: left 0.24s ease, width 0.24s ease, opacity 0.2s ease; }
 .lr-card.now { background: ${IVORY}; color: ${INK}; box-shadow: 0 3px 0 #b9a98a, 0 5px 8px rgb(0 0 0 / 0.35); }
@@ -59,7 +63,7 @@ const STYLE = `
 .lr-link { position:absolute; right:5px; bottom:4px; height:16px; padding:0 3px; box-sizing:border-box; border-radius:3px; background:#20243a; color:#fff7e5; display:flex; align-items:center; gap:2px; }
 .lr-link svg { width:10px; height:10px; }
 .lr-link b { font-size:11px; font-weight:600; line-height:16px; }
-@media (prefers-reduced-motion: reduce) { .lr-card, .lr-fill, .lr-number, .lr-fold { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .lr-backplate, .lr-tag, .lr-card, .lr-fill, .lr-number, .lr-fold { transition: none; } }
 `;
 
 /** Two interlocking links, ivory on the dark chip: readable by shape in grayscale. */
@@ -75,6 +79,7 @@ const PAUSE = 'data:image/svg+xml,' + encodeURIComponent(`<svg xmlns="http://www
 /** The lorry cards under the toy: one row per lane, each lorry a card heading left with the next one following it. */
 export class LoopRoster {
   private readonly element = document.createElement('div');
+  private readonly backplate = document.createElement('div');
   private readonly style = document.createElement('style');
   private readonly cards = new Map<string, CardView>();
   private readonly tags: HTMLElement[] = [];
@@ -88,6 +93,8 @@ export class LoopRoster {
   constructor(private readonly machine: LoopMachine) {
     this.element.className = 'lr';
     this.element.setAttribute('aria-hidden', 'true');
+    this.backplate.className = 'lr-backplate';
+    this.element.append(this.backplate);
     this.style.textContent = STYLE;
     document.head.append(this.style);
     document.body.insertBefore(this.element, document.getElementById('hud'));
@@ -111,6 +118,12 @@ export class LoopRoster {
   /** Sizes everything for the viewport and answers with the rectangle the toy may fill. */
   layout(width: number, height: number): Rect {
     this.layoutNow = rosterLayout(this.levelLines, width, height, this.hasRuleChips);
+    const { panel } = this.layoutNow;
+    const lip = ROSTER.seam / 2;
+    Object.assign(this.backplate.style, {
+      left: `${panel.x + 2}px`, top: `${panel.y - lip}px`,
+      width: `${panel.width - 4}px`, height: `${panel.height + 2 * lip}px`,
+    });
     this.key = '';
     this.closePeek();
     this.sync();
@@ -148,6 +161,7 @@ export class LoopRoster {
     const key = JSON.stringify(lines);
     if (key === this.key) return;
     this.key = key;
+    this.element.classList.toggle('dispatched', lines.every(line => line.length === 0));
     const layout = this.layoutNow;
     const live = new Set<string>();
     lines.forEach((line, lane) => {

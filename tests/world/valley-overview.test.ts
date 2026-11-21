@@ -60,6 +60,39 @@ describe('the 3D valley overview', () => {
     });
   }
 
+  it('places each phone plaque below its shoreline and clears every other miniature', () => {
+    const width = 375, height = 690;
+    const { stage } = rig(width, height);
+    const overview = new ValleyOverview(stage, progress(6), assets());
+    try {
+      const targets = overview.targets();
+      const silhouettes = targets.map(({ chapter }) => {
+        const island = overview.scene.getObjectByName(`valley-village-${chapter}`)!;
+        const bounds = new THREE.Box2();
+        const vertex = new THREE.Vector3(), screen = new THREE.Vector2();
+        island.traverse(object => {
+          if (!(object instanceof THREE.Mesh)) return;
+          const positions = object.geometry.getAttribute('position');
+          for (let i = 0; i < positions.count; i++) {
+            vertex.fromBufferAttribute(positions, i).applyMatrix4(object.matrixWorld).project(overview.camera);
+            bounds.expandByPoint(screen.set((vertex.x + 1) * width / 2, (1 - vertex.y) * height / 2));
+          }
+        });
+        return bounds;
+      });
+      for (const target of targets) {
+        const left = target.x - target.width / 2, top = target.y - 22;
+        const column = target.chapter % 2, columnLeft = column * width / 2;
+        expect(left).toBeGreaterThanOrEqual(columnLeft + 8);
+        expect(left + target.width).toBeLessThanOrEqual(columnLeft + width / 2 - 8);
+        expect(top - silhouettes[target.chapter]!.max.y).toBeGreaterThanOrEqual(3.9);
+        const plaque = new THREE.Box2(new THREE.Vector2(left, top), new THREE.Vector2(left + target.width, top + 44));
+        plaque.expandByScalar(3); // Keep the keyline clear even on the selected island.
+        for (const land of silhouettes) expect(plaque.intersectsBox(land)).toBe(false);
+      }
+    } finally { overview.dispose(); }
+  });
+
   it('rejects an unauthored chapter instead of recycling an existing miniature', () => {
     const { stage } = rig(375, 690);
     const source = assets();
