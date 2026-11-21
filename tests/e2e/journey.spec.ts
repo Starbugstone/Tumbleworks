@@ -129,8 +129,7 @@ test('a completed forty-round save continues into the new campaign', async ({ pa
   expect(chips).toHaveLength(3);
   await expect(page.locator('.chip.completed')).toHaveCount(0);
   const savedCompleted = await page.evaluate(() => JSON.parse(localStorage.getItem('tumbleworks.progress.v1')!).completed);
-  expect(savedCompleted).toEqual(expect.arrayContaining(CAMPAIGN.slice(0, 120).map(level => level.id)));
-  expect(savedCompleted).toHaveLength(120);
+  expect(savedCompleted).toEqual([...new Set(completed)]);
 });
 
 test.describe('the whole campaign completes through real touch input', () => {
