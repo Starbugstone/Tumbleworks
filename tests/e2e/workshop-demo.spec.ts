@@ -1,14 +1,33 @@
 import { expect, test } from '@playwright/test';
 import { TUBE_BOARDS } from '../../src/puzzles/levels';
-import { PLAY_ORDER } from '../../src/campaign';
+import { CAMPAIGN, PLAY_ORDER } from '../../src/campaign';
+import { worldProgress } from '../../src/world/progression';
 
 test.use({ viewport: { width: 375, height: 690 }, deviceScaleFactor: 1 });
 
 test('the Wi-Fi demo opens the registered boards and keeps a win in the demo save', async ({ page }) => {
-  const original = JSON.stringify({ current: 'board-1', completed: [], muted: true });
-  await page.addInitScript(value => {
-    if (localStorage.getItem('tumbleworks.progress.v1') === null) localStorage.setItem('tumbleworks.progress.v1', value);
+  const completed = CAMPAIGN.slice(0,45).map(level => level.id);
+  const chapter = worldProgress(CAMPAIGN, new Set(completed)).chapters[0]!;
+  const original = {
+    'tumbleworks.progress.v1': JSON.stringify({ completed, muted: true, current: CAMPAIGN[45]!.id }),
+    'tumbleworks.preferences.v1': JSON.stringify({ locale: 'fr', guides: ['tube-1'] }),
+    'tumbleworks.valley.v1': JSON.stringify({ seen: [chapter.key], chapter: 1 }),
+  };
+  await page.addInitScript(values => {
+    if (sessionStorage.getItem('fixture-seeded')) return;
+    for (const [key,value] of Object.entries(values)) localStorage.setItem(key,value);
+    sessionStorage.setItem('fixture-seeded','true');
   }, original);
+  const openCampaign = async () => {
+    await page.goto('/');
+    await expect(page.locator('#boot')).toBeHidden({ timeout: 120_000 });
+    await expect(page.locator('html')).toHaveAttribute('lang', 'fr');
+    await expect(page.locator('html')).toHaveAttribute('data-village', 'glasshouse-gardens');
+    await expect(page.locator('body')).toHaveAttribute('data-screen', 'map');
+    const actual = await page.evaluate(keys => Object.fromEntries(keys.map(key => [key,localStorage.getItem(key)])), Object.keys(original));
+    expect(actual).toEqual(original);
+  };
+  await openCampaign();
   await page.goto('/demo.html');
   await page.getByRole('link', { name: 'All levels' }).tap();
   const levels = Object.values(PLAY_ORDER).flat().length;
@@ -31,10 +50,10 @@ test('the Wi-Fi demo opens the registered boards and keeps a win in the demo sav
     }
   }
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('tumbleworks.progress.v1.demo') ?? '{}').completed), { timeout: 30_000 }).toContain('tube-1');
-  expect(await page.evaluate(() => localStorage.getItem('tumbleworks.progress.v1'))).toBe(original);
   await page.getByRole('button', { name: 'Back to demos' }).tap();
   await page.waitForURL('**/demo.html', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('link', { name: 'Little Harbour' })).toBeVisible();
+  await openCampaign();
 });
 
 for (const finish of [0, 1]) test(`Little Harbour draws its buildings in the film and map with fx=${finish}`, async ({ page }) => {
