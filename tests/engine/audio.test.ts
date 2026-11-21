@@ -254,3 +254,40 @@ it('stops harbour and scheduled gulls while muted or hidden and restores only an
   expect(buffers).toHaveLength(4);
   expect(vi.getTimerCount()).toBe(0);
 });
+
+it('hands off a single board bed and ducks it during fast forward', async () => {
+  vi.useFakeTimers();
+  vi.spyOn(Math, 'random').mockReturnValue(0);
+  const { sfx } = await import('../../src/audio');
+  sfx.harbourAmbience(true);
+  sfx.boardAmbience(true, 0);
+  expect(contexts).toHaveLength(0);
+  sfx.unlock();
+  expect(buffers).toHaveLength(1);
+  const coast = buffers[0]!;
+  expect(coast.envelope!.gain.setTargetAtTime).toHaveBeenLastCalledWith(.15, 1, .16);
+  sfx.boardFastForward(true);
+  expect(coast.envelope!.gain.setTargetAtTime.mock.lastCall?.[0]).toBeCloseTo(.0525);
+  vi.advanceTimersByTime(30_000);
+  expect(buffers).toHaveLength(1);
+
+  sfx.boardFastForward(false);
+  expect(coast.envelope!.gain.setTargetAtTime).toHaveBeenLastCalledWith(.15, 1, .16);
+  sfx.boardAmbience(true, 2);
+  expect(buffers).toHaveLength(1);
+  vi.advanceTimersByTime(540);
+  expect(coast.stop).toHaveBeenCalledOnce();
+  const inland = buffers[1]!;
+  expect(inland.buffer).not.toBe(coast.buffer);
+  expect(inland.envelope!.gain.setTargetAtTime).toHaveBeenLastCalledWith(.13, 1, .16);
+  vi.advanceTimersByTime(30_000);
+  expect(buffers).toHaveLength(2);
+  sfx.boardAmbience(false);
+  vi.advanceTimersByTime(540);
+  expect(inland.stop).toHaveBeenCalledOnce();
+  expect(buffers[2]!.buffer).toBe(coast.buffer);
+  expect(buffers[2]!.envelope!.gain.setTargetAtTime).toHaveBeenLastCalledWith(.22, 1, .16);
+  sfx.harbourAmbience(false);
+  vi.advanceTimersByTime(540);
+  expect(vi.getTimerCount()).toBe(0);
+});

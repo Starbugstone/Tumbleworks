@@ -21,7 +21,6 @@ interface Pose extends Orientation {
 }
 
 const RATE = 30;
-const CARGO_MARGIN = 2.5;
 const REST_ELEVATION = 50 * Math.PI / 180;
 const FOLLOW_ELEVATION = 40 * Math.PI / 180;
 const VERTICAL_TAN = Math.tan(34 * Math.PI / 360);
@@ -65,9 +64,11 @@ export class VillageFilmCamera {
   private logRestDistance = 0;
   private logFollowDistance = 0;
   private aspect = 0;
+  private readonly cargoMargin: number;
 
   constructor(machine: VillageCameraMachine, timeline: VillageCameraTimeline,
     private readonly framing:'envelope'|'cargo'='envelope') {
+    this.cargoMargin = framing === 'cargo' && timeline.plan.chapter === 0 ? 1.85 : 2.5;
     this.shots = villageFilmShots(timeline);
     this.duration = timeline.duration;
     this.entrySeconds = Math.min(4, this.duration / 3);
@@ -207,7 +208,7 @@ export class VillageFilmCamera {
       const point=this.route[at]!;this.fittingWindow.expandByPoint(point);
       distance = this.fitPoint(pose,point,distance);
     }
-    this.fittingWindow.expandByScalar(CARGO_MARGIN);
+    this.fittingWindow.expandByScalar(this.cargoMargin);
     for (const contact of this.contacts) if (time >= contact.start - 0.9 && time <= contact.end + 0.6) {
       if(this.framing==='envelope')distance = this.fit(pose,contact.points,distance);
       else {

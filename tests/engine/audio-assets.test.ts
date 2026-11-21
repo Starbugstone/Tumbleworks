@@ -91,3 +91,22 @@ it('ships the workshop latch and ship bell as separate low-register rewards', ()
     expect(metrics.spectralCentroidHz, name).toBeLessThan(1500);
   }
 });
+
+it('gives completion rewards audible tails after ordinary contacts have ended', () => {
+  const recoveries = [
+    ['complete', .65, .33, .5, -40],
+    ['truck-complete', .74, .33, .5, -40],
+    ['win', 1.3, .8, 1.05, -43],
+  ] as const;
+  for (const [cue, duration, from, to, minRms] of recoveries) {
+    const item = manifest.find(entry => entry.cue === cue)!;
+    expect(measurements.find(entry => entry.cue === cue)!.decoded.durationSeconds).toBeGreaterThanOrEqual(duration);
+    const wav = audioFile(item.source);
+    const rate = wav.readUInt32LE(24);
+    const offset = wav.indexOf(Buffer.from('data')) + 8;
+    const first = Math.round(from * rate), last = Math.round(to * rate);
+    let energy = 0;
+    for (let i = first; i < last; i++) energy += (wav.readInt16LE(offset + i * 2) / 32768) ** 2;
+    expect(10 * Math.log10(energy / (last - first)), cue).toBeGreaterThan(minRms);
+  }
+});

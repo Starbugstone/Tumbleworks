@@ -71,10 +71,13 @@ export function rockContour(material: THREE.Material, rock: THREE.Color, harbour
     moor.wrapS = moor.wrapT = THREE.RepeatWrapping;
     moor.colorSpace = THREE.SRGBColorSpace;
     material.addEventListener('dispose', () => moor.dispose());
+    const cargo = new THREE.Vector3(0,-100,0);
+    material.userData.filmCargo = cargo;
     const contour = material.onBeforeCompile;
     material.onBeforeCompile = (shader, renderer) => {
       contour.call(material, shader, renderer);
       shader.uniforms.uMoor = { value: moor };
+      shader.uniforms.uFilmCargo = { value: cargo };
       shader.uniforms.uGrass = { value: harbourGrass };
       shader.uniforms.uStrand = { value: sunny(0xe4c899, new THREE.Color()) };
       shader.uniforms.uQuayA = { value: sunny(0xcfc4a2, new THREE.Color()) };
@@ -83,7 +86,7 @@ export function rockContour(material: THREE.Material, rock: THREE.Color, harbour
         .replace('#include <begin_vertex>', '#include <begin_vertex>\nvHarbour = (modelMatrix * vec4(position, 1.0)).xyz;');
       shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>
         uniform sampler2D uMoor;
-        uniform vec3 uGrass, uStrand, uQuayA, uQuayB;
+        uniform vec3 uGrass, uStrand, uQuayA, uQuayB, uFilmCargo;
         varying vec3 vHarbour;`)
         .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
           vec2 shoreXZ=vHarbour.xz;
@@ -92,7 +95,9 @@ export function rockContour(material: THREE.Material, rock: THREE.Color, harbour
           // The Blender kit uses distinct paints for slate and fired-clay roofs.
           bool tile = distance(vColor.rgb,vec3(.57758,.14126,.06848)) < .003 ||
                       distance(vColor.rgb,vec3(.37626,.07619,.04374)) < .007 ||
-                      distance(vColor.rgb,vec3(.06663,.13563,.18782)) < .007;
+                      distance(vColor.rgb,vec3(.06663,.13563,.18782)) < .007 ||
+                      distance(vColor.rgb,vec3(.42327,.06663,.03071)) < .008 ||
+                      distance(vColor.rgb,vec3(.03071,.09990,.13563)) < .008;
           if (tile) {
             vec2 uv=vec2(shoreXZ.x*3.6+shoreXZ.y*.3,(vHarbour.y+shoreXZ.y*.16)*6.);
             uv.x += .5*mod(floor(uv.y),2.);
@@ -106,23 +111,42 @@ export function rockContour(material: THREE.Material, rock: THREE.Color, harbour
             diffuseColor.rgb *= .74+1.12*leaves;
           }
           if (ground < .007) {
-            vec3 print=texture2D(uMoor,shoreXZ*.115 + vec2(.17,.33)).rgb;
-            float grain=dot(print,vec3(.25,.59,.16));
-            float dune=smoothstep(.23,.94,vHarbour.y+(grain-.27)*.46);
-            vec3 turf=print*vec3(.72,1.12,1.02)+vec3(.045,.085,.049);
-            vec3 sand=mix(vec3(.37,.32,.22),vec3(.77,.64,.43),smoothstep(-.12,.32,vHarbour.y));
-            sand*=.85+.48*grain;
-            float scree=smoothstep(.46,1.35,vGrade+(grain-.25)*.76);
-            vec3 shale=mix(vec3(.23,.265,.258),vec3(.51,.48,.40),clamp(grain*2.,0.,1.));
-            diffuseColor.rgb=mix(mix(sand,turf,dune),shale,scree*dune);
-            float walk=min(max(abs(shoreXZ.y+8.1+.41*sin(shoreXZ.x*.48))-.34,abs(shoreXZ.x)-8.15),
-                           max(abs(shoreXZ.x+7.25+.55*sin(shoreXZ.y*.39))-.27,abs(shoreXZ.y-1.7)-10.));
-            diffuseColor.rgb=mix(diffuseColor.rgb,sand*.88,(1.-smoothstep(-.11,.12,walk+(grain-.25)*.28))*dune);
+            // Meadow and shale use their own grain directions. Vertical faces have a true elevation coordinate.
+            vec2 rockUv=vec2(dot(shoreXZ,vec2(.73,.67)),vHarbour.y);
+            float broad=texture2D(uMoor,shoreXZ*.094+vec2(.17,.33)).g;
+            float grass=texture2D(uMoor,mat2(.75,.66,-.66,.75)*shoreXZ*.83).g;
+            float rockGrain=texture2D(uMoor,rockUv*vec2(.34,.69)).g;
+            float beach=smoothstep(.10,.96,vHarbour.y+broad*.22);
+            vec3 turf=mix(vec3(.12,.224,.102),vec3(.32,.37,.15),clamp(.21+broad*.95,0.,1.));
+            turf*=.81+.45*smoothstep(.035,.42,grass);
+            vec3 sand=mix(vec3(.36,.313,.217),vec3(.71,.57,.35),smoothstep(-.16,.55,vHarbour.y));
+            sand*=.90+.18*broad;
+            float phase=vHarbour.y*1.53+shoreXZ.x*.18+shoreXZ.y*.11+rockGrain*1.14
+                        +.51*sin(shoreXZ.y*.77+shoreXZ.x*.48+vHarbour.y*.62);
+            float ledge=abs(fract(phase)-.52);
+            float seam=1.-smoothstep(.035,.10+fwidth(phase),ledge);
+            vec3 shale=mix(vec3(.20,.244,.235),vec3(.40,.366,.263),smoothstep(.1,.54,rockGrain));
+            shale*=.97+.065*fract(phase)-.15*seam*smoothstep(.07,.42,broad+.6*rockGrain);
+            float scree=smoothstep(.46,1.29,vGrade+(broad-.20)*.43);
+            diffuseColor.rgb=mix(mix(sand,turf,beach),shale,scree*beach);
+            float walk=min(max(abs(shoreXZ.y+8.1+.41*sin(shoreXZ.x*.48))-.36,abs(shoreXZ.x)-8.15),
+                           max(abs(shoreXZ.x+7.25+.55*sin(shoreXZ.y*.39))-.29,abs(shoreXZ.y-1.7)-10.));
+            vec2 pave=shoreXZ*vec2(2.55,3.3);
+            pave.x+=.50*mod(floor(pave.y),2.);
+            vec2 joints=abs(fract(pave)-.5),px=max(fwidth(pave),.002);
+            float mortar=max(smoothstep(.44-px.x,.50,joints.x),smoothstep(.44-px.y,.50,joints.y));
+            vec3 path=mix(vec3(.54,.439,.30),vec3(.35,.31,.23),mortar)*(.97+.10*broad);
+            diffuseColor.rgb=mix(diffuseColor.rgb,path,(1.-smoothstep(-.06,.08,walk+(grass-.2)*.1))*beach);
           }`)
         .replace('#include <opaque_fragment>', `
+          // A rolling sphere casts a close contact shadow directly onto the moving channel.
+          vec3 toRuby = vHarbour - uFilmCargo;
+          float contact = (1.-smoothstep(.05,.47,length(toRuby.xz+vec2(.04,-.03))))
+                          *smoothstep(.08,.20,-toRuby.y)*(1.-smoothstep(.34,.54,-toRuby.y));
+          outgoingLight *= 1.-.37*contact;
           // Lantern glass is self-lit even with the sun behind the tower.
-          if (length(vHarbour.xz-vec2(1.5,-10.)) < .50 && vHarbour.y > 7.075 && vHarbour.y < 7.59) {
-            outgoingLight += vec3(1.45,.68,.13) * smoothstep(.06,.31,vColor.r);
+          if (length(vHarbour.xz-vec2(1.5,-10.)) < .57 && vHarbour.y > 7.075 && vHarbour.y < 7.59) {
+            outgoingLight += vec3(2.7,1.34,.31) * (.35+.65*smoothstep(.05,.3,vColor.r));
           }
           #include <opaque_fragment>`);
     };

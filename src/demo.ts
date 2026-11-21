@@ -1,18 +1,35 @@
 import themes from './world/village-themes.json' with { type: 'json' };
 
-/** A phone demo opens registered boards directly and keeps its own save. */
-export const demoEntry = typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('demo');
+function query() {
+  return new URLSearchParams(typeof location === 'undefined' ? '' : location.search);
+}
+export let demoEntry = query().get('demo');
+let requestedIsland = query().get('island');
+function filmChapter() {
+  if (demoEntry === 'harbour') return 0;
+  return demoEntry === 'village' ? themes.findIndex(theme => theme.id === (requestedIsland ?? themes[0]!.id)) : -1;
+}
+export let demoFilmChapter = filmChapter();
 
-// The original harbour link remains valid. New film cards use the theme's stable island ID.
-const requestedIsland = typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('island');
-export const demoFilmChapter = demoEntry === 'harbour' ? 0 : demoEntry === 'village'
-  ? themes.findIndex(theme => theme.id === (requestedIsland ?? themes[0]!.id)) : -1;
+export function readDemoRoute(): void {
+  demoEntry = query().get('demo');
+  requestedIsland = query().get('island');
+  demoFilmChapter = filmChapter();
+}
 
-export function demoMenuUrl(): string {
-  const island = themes.find(theme => theme.id === requestedIsland)?.id;
-  return island && island !== themes[0]!.id ? './demo.html?island=' + encodeURIComponent(island) : './demo.html';
+export function returnToDemoMenu(): void {
+  const island = themes.find(theme => theme.id === requestedIsland);
+  const menu = island && island !== themes[0] ? './demo.html?island=' + encodeURIComponent(island.id) : './demo.html';
+  if (history.state?.fromDemoMenu) {
+    history.go(history.state.overlay ? -2 : -1);
+    return;
+  }
+  if (history.state?.overlay) history.replaceState(null, '', menu);
+  else history.pushState(null, '', menu);
+  window.dispatchEvent(new Event('demo-route'));
 }
 
 export function saveKey(key: string): string {
-  return demoEntry ? key + '.demo' : key;
+  const session = typeof document !== 'undefined' && document.documentElement.dataset.demoSession === 'true';
+  return demoEntry || session ? key + '.demo' : key;
 }

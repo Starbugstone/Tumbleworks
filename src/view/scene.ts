@@ -1,3 +1,4 @@
+import { dispatchPlates, jamShutter, transferRails } from './dispatch-plate';
 import { beltDeck } from './belt-deck';
 import { BeltSurface } from './belt-surface';
 import * as THREE from 'three';
@@ -100,8 +101,10 @@ const BOX_FILL_ORDER: readonly number[] = [0, 2, 1];
 const BOX_SHAKE_SECONDS = 0.24;
 /** A box hops once as it rolls up to its dock; a crate swells once as it becomes the one to tap. */
 const BOX_HOP_SECONDS = 0.3;
-/** A landing drives the box down on its spring: about an eighth of a unit at the deepest, one overshoot, then rest. */
+/** A landing drives the box down on its spring: a little under a tenth of a unit, one overshoot, then rest. */
 const BOX_DIP_KICK = 5.6;
+/** The deepest a box sinks, however many marbles land on it together. */
+const BOX_DIP_DEPTH = 0.1;
 /** The box rocks toward the pocket that was hit, about five degrees, and rocks back. */
 const BOX_ROCK_KICK = 3.6;
 /** Marbles already seated hop a moment after the blow reaches them. */
@@ -203,6 +206,8 @@ export class MachineScene {
   private readonly reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   private readonly delivery: MarbleDelivery = { dock: -1, box: -1, slot: 0, fraction: 0, landed: false };
   private yard: ArcadeYard | null = null;
+  private dispatch: THREE.Mesh | null = null;
+  private readonly jamStops: THREE.Mesh[] = [];
   private readonly shake = new Shake();
   /** 1 at the player's own speed, less while fast forward is held: every landing answers that much. */
   private weight = 1;
@@ -281,9 +286,19 @@ export class MachineScene {
     const nose = Math.max(...samples.map(p => p.z)) + RACEWAY.channelHalf;
     const axle = (back + nose) / 2;
     parts.push(plate(span + .07, (nose - back) / 2 + .13, -.035, .44, Math.min(span, (nose - back) / 2) * .83, .08, ARCADE.shell, axle));
+    // The feed tower is bolted to two bearers extending into the belt chassis.
+    box(half * 2 + 1.24, .47, .92, .09, ARCADE.trim, 0, -.24, front - .25);
+    for (const sign of [-1,1]) {
+      const run = axle - front;
+      box(.26, .30, run + .58, .075, ARCADE.trim, sign * Math.min(half*.78, span*.69), -.25, (axle+front)/2);
+    }
     box(2 * Math.abs(dockX(0, docks)) + 2 * BOX.halfWidth, .32, .38, .12, ARCADE.trim, 0, -.25, BOX.z);
     box(.88, .42, BOX.z - axle, .1, ARCADE.trim, 0, -.29, (BOX.z + axle) / 2);
     for (let dock = 0; dock < docks; dock++) {
+      const endX = dockX(dock, docks);
+      parts.push(...transferRails(track, endX));
+      const stop = jamShutter(endX,.032,BOX.z-.73,BOX.halfWidth*1.45);
+      this.jamStops.push(stop); this.level.add(stop);
       const count = Math.min(BOX.queueVisible, queues[dock]!.length - 1);
       const end = count ? BOX.queueZ + (count - 1) * BOX.queueSpacing + .52 : BOX.z + .62;
       const start = BOX.z - .69;
@@ -296,7 +311,12 @@ export class MachineScene {
     body.receiveShadow = true;
     this.level.add(body);
     bakeOcclusion(this.stage.renderer, [body], { minX: -halfWidth - 0.4, maxX: halfWidth + 0.4, minZ: backZ - 0.4, maxZ: frontZ + 0.4 });
-    this.yard = new ArcadeYard(this.scene, halfWidth, backZ, frontZ, false);
+    this.dispatch = dispatchPlates(queues.map((queue,i) => ({
+      x: dockX(i,docks), z: BOX.z + .3, halfWidth: BOX.halfWidth-.10, halfDepth: .96,
+      color: COLORS[queue.at(-1)!].hex,
+    })), .032);
+    this.level.add(this.dispatch);
+    this.yard = new ArcadeYard(this.scene, halfWidth, Math.min(backZ,front-.65), frontZ, -.47);
   }
 
   private buildFunnel(columns: number): void {
@@ -633,6 +653,7 @@ export class MachineScene {
   }
 
   private clearLevel(): void {
+    this.jamStops.length = 0;
     this.yard?.dispose();
     this.yard = null;
     this.crowd?.dispose();
@@ -669,7 +690,8 @@ export class MachineScene {
 
   /** The level is won: one glitter fountain from each corner of the hull, with the confetti. */
   celebrate(clean = 1): void {
-    (this.yard?.corners ?? []).forEach((corner, index) => this.sparks.fountain(corner, index * 0.15, clean));
+    if (this.dispatch) this.dispatch.visible = true;
+    if (this.yard) this.sparks.finish(this.yard.corners, clean);
     this.sparks.boost();
   }
 
@@ -732,6 +754,9 @@ export class MachineScene {
 
     const machine = this.machine;
     if (!machine) return;
+    if (machine.rules.status === 'jammed') this.jamStops.forEach((stop,dock) => {
+      stop.visible = machine.rules.dockColor(dock) !== null || !machine.rules.dockOpen(dock);
+    });
     this.previousCrates = this.currentCrates;
     this.currentCrates = machine.readCrates();
     if (!this.reducedMotion) for (const [index, crate] of this.currentCrates.entries()) {
@@ -760,13 +785,15 @@ export class MachineScene {
       if (moved <= TRAIL_STEP * TRAIL_STEP || moved >= 4 || entry.landed) continue;
       const tint = Number.parseInt(COLORS[machine.marbleColor(id)].light.slice(1), 16);
       // A throw to a box draws a fine tapering streak along its lob, so the marble itself stays the thing that is seen.
-      if (entry.flight > 0) { if (this.weight === 1) this.sparks.trail({ x: entry.current.x, y: entry.current.y + lob(entry.flight), z: entry.current.z }, tint, 0.11, 0.2); }
-      else this.sparks.trail(entry.current, tint);
+      if (entry.flight > 0) { if (this.weight === 1) this.sparks.trail({ x: entry.current.x, y: entry.current.y + lob(entry.flight), z: entry.current.z }, tint, .075, .125); }
+      else this.sparks.trail(entry.current, tint, .125, .15);
     }
   }
 
   /** Undo and restart jump the world, so blending across the jump would look wrong. */
   syncAfterJump(): void {
+    if (this.dispatch) this.dispatch.visible = false;
+    for (const stop of this.jamStops) stop.visible = false;
     this.sparks.clear();
     this.swells.clear();
     for (const box of this.boxes.values()) { box.shakeAge = BOX_SHAKE_SECONDS; box.hopAge = BOX_HOP_SECONDS; box.jostleAge = BOX_JOSTLE_SECONDS; box.dip.reset(); box.rock.reset(); box.offsetX = box.offsetY = box.roll = box.bounce = 0; }
@@ -887,7 +914,9 @@ export class MachineScene {
       // Where a seated marble rests in this box before any of the box's own motion is added.
       visual.seatY = visual.group.position.y + BOX_SEAT_Y * scale;
       // The box gives under a landing on its spring and rocks toward the pocket that was hit; both overshoot once and rest.
-      visual.offsetY += visual.dip.step(Math.max(0, seconds));
+      // Two marbles a few frames apart press it further, but it bottoms out softly: never deeper than the well allows.
+      const dip = visual.dip.step(Math.max(0, seconds));
+      visual.offsetY += dip < 0 ? -BOX_DIP_DEPTH * Math.tanh(-dip / BOX_DIP_DEPTH) : dip;
       visual.roll = visual.rock.step(Math.max(0, seconds));
       // The marbles already seated hop in their pockets a moment after the blow.
       visual.jostleAge = Math.min(BOX_JOSTLE_SECONDS, visual.jostleAge + Math.max(0, seconds));

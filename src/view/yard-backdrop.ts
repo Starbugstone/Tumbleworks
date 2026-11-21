@@ -1,14 +1,11 @@
 import * as THREE from 'three';
+import themes from '../world/village-themes.json' with { type: 'json' };
+import type { CounterFinish } from './board-counter';
 import { worldLocation } from '../world/locations';
 import { VILLAGE_SCENE_PLANS } from '../world/village-plans';
 import { distanceToPolygon, pointInPolygon, terrainFieldHeight, type VillageTerrainSpec } from '../world/village-terrain';
 
-/**
- * What lies under a puzzle board: the ground or the water of the village the player is working in. A board in
- * Little Harbour floats on its harbour water; a board in an inland village stands over that village's own land,
- * painted from the same terrain the village is built on, in the same palette. It is a quiet cloth under the toy:
- * soft, mid-dark and never lighter than the cargo that is seen against it.
- */
+/** The worktop takes its finish from the current village, with that village's water or terrain beyond the edge. */
 let village: number | null = null;
 
 /** The village whose boards are being played, by chapter (`boardChapter` resolves it); null for a board that belongs to none. */
@@ -92,6 +89,7 @@ function paintLand(spec: VillageTerrainSpec, focus: readonly [number, number], t
 export interface BoardBackdrop {
   /** Water drifts and laps the hull; land lies still. */
   readonly kind: 'water' | 'land';
+  readonly finish: CounterFinish;
   /** Paints the land into a square canvas that covers `span` board units, centred under the board. */
   readonly paint?: (ctx: CanvasRenderingContext2D, size: number, span: number) => void;
 }
@@ -115,12 +113,13 @@ function paintMeadow(turf: number): HTMLCanvasElement {
 
 /** The backdrop for the board being built now. Harbour villages give water; every other kind gives its land. */
 export function boardBackdrop(): BoardBackdrop {
-  if (village === null) return { kind: 'water' };
+  const finish = themes[(village ?? 0) % themes.length]!.counter as CounterFinish;
+  if (village === null) return { kind: 'water', finish };
   const chapter = village, theme = worldLocation(chapter);
-  if (theme.kind === 'harbour') return { kind: 'water' };
+  if (theme.kind === 'harbour') return { kind: 'water', finish };
   const plan = VILLAGE_SCENE_PLANS.find((candidate) => candidate.chapter === chapter);
   return {
-    kind: 'land',
+    kind: 'land', finish,
     paint: (ctx, size, span) => {
       let land = painted.get(chapter);
       if (!land) painted.set(chapter, land = plan ? paintLand(plan.cinematicTerrain ?? plan.terrain, theme.backdropFocus, theme.terrain) : paintMeadow(theme.terrain));

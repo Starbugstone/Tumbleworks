@@ -41,6 +41,8 @@ export interface VillageScenePlan {
   /** Scenic terrain for the shipping map and film when the research machine retains its surveyed ground. */
   readonly cinematicTerrain?: VillageTerrainSpec;
   /** Houses, trees, warehouses, boats: fixed dressing baked with the terrain. */
+  /** Additional scenery on the shipping cinematic terrain. */
+  readonly cinematicScenery?: readonly VillageSceneryPiece[];
   readonly scenery: readonly VillageSceneryPiece[];
   readonly workshop: WorkshopSite;
   readonly rewards: readonly VillageRewardSlot[];

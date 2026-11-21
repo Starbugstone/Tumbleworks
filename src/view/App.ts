@@ -1,9 +1,7 @@
-import { prepareLagoon } from './arcade';
 import { setBoardVillage } from './yard-backdrop';
 import { boardChapter } from '../world/board-village';
-import { demoEntry, demoFilmChapter, demoMenuUrl } from '../demo';
+import { demoEntry, demoFilmChapter, readDemoRoute, returnToDemoMenu } from '../demo';
 import { sfx } from '../audio';
-import { confetti } from './confetti';
 import { CAMPAIGN, TRY_LEVEL } from '../campaign';
 import { canEnterProject, workshopProject } from '../world/workshop-projects';
 import type { Feedback, GameLevel, GameRuntime, GameServices, ScreenPoint } from '../engine/contracts';
@@ -87,6 +85,8 @@ export class App {
   private readonly pointer: BoardPointer;
   private readonly world: WorldView;
   private screen: 'game' | 'map' | 'film' | 'workshop' = 'game';
+  private demoMenuOpen = false;
+  private restoringOverlay = false;
   private source: 'campaign' | 'workshop' = 'campaign';
   private activeStop: { index: number; replay: boolean } | null = null;
 
@@ -105,6 +105,7 @@ export class App {
     this.pointer = new BoardPointer(canvas, {
       unlock: () => sfx.unlock(),
       pick: (point) => this.screen === 'game' ? this.runtime.pick(point.x, point.y) : null,
+      press: target => { if (this.screen === 'game') this.runtime.press?.(target); },
       tap: (target) => this.activate(target),
       start: (target, point) => {
         const started = this.screen === 'game' && (this.runtime.drag?.start(target, point) ?? false);
@@ -117,6 +118,7 @@ export class App {
     });
     this.world = new WorldView(this.stage, {
       screen: mode => {
+        sfx.boardAmbience(false);
         this.pointer.cancel(); this.setFast(false);
         this.screen = mode === 'overview' ? 'map' : mode;
         document.body.dataset['screen'] = this.screen;
@@ -128,9 +130,7 @@ export class App {
         element('load').classList.remove('full', 'jammed');
         element('scene').setAttribute('aria-label', mode === 'film' ? t('Completed marble machine', 'Machine à billes terminée') : t('Village construction map', 'Carte de construction du village'));
         if (this.screen === 'map') {
-          const progress = this.worldProgress();
-          element('level-name').textContent = t('Valley map', 'Carte de la vallée');
-          element('load').textContent = `${progress.stops.filter(stop => stop.status === 'built').length}/${progress.stops.length}`;
+          element('level-name').textContent = t('Levels', 'Niveaux');
         }
       },
       enter: index => this.startStop(index),
@@ -147,7 +147,7 @@ export class App {
     });
     button('map-open').addEventListener('click', () => {
       sfx.unlock();
-      if (demoEntry) location.assign(demoMenuUrl());
+      if (demoEntry) returnToDemoMenu();
       else if (this.source === 'workshop' && this.screen === 'game') this.showWorkshop();
       else this.showMap(this.menuStop()?.chapter, false, true);
     });
@@ -161,18 +161,36 @@ export class App {
     button('card-action').addEventListener('click', () => {
       sfx.unlock();
       if (this.runtime.status === 'won') {
-        if (demoEntry) { location.assign(demoMenuUrl()); return; }
+        if (demoEntry) { returnToDemoMenu(); return; }
         if (this.source === 'workshop') this.showWorkshop();
         else {
           const next = this.nextRoundLevel();
           if (next === null) this.showMap(); else this.loadBoard(next);
         }
       }
-      else this.card.hidden = true;
+      else {
+        if (demoEntry && history.state?.overlay === 'result') history.back();
+        this.undo();
+      }
+    });
+    button('card-restart').addEventListener('click', () => {
+      sfx.unlock();
+      if (demoEntry && history.state?.overlay === 'result') history.back();
+      this.loadBoard(this.boardIndex);
+    });
+    canvas.addEventListener('pointerup', () => {
+      if (this.ending !== 'won' || !this.card.hidden || this.screen !== 'game') return;
+      window.clearTimeout(this.winTimer);
+      this.finishWin();
     });
     this.bindFastForward();
     const toggle = button('levels-toggle');
-    toggle.addEventListener('click', () => { sfx.unlock(); this.showLevels(element('levels').hidden !== false); });
+    toggle.addEventListener('click', () => {
+      sfx.unlock();
+      const open = element('levels').hidden !== false;
+      if (open && demoEntry && !history.state?.overlay) history.pushState({ ...history.state, overlay: 'levels' }, '');
+      this.showLevels(open);
+    });
     const mute = button('mute');
     mute.classList.toggle('muted', sfx.isMuted);
     mute.addEventListener('click', () => {
@@ -264,6 +282,7 @@ export class App {
     const playing = this.screen === 'game' && Boolean(this.runtime) && this.runtime.status === 'playing';
     if (!playing) this.heldSpeeds.clear();
     this.speed = Math.max(1, ...this.heldSpeeds.values());
+    sfx.boardFastForward(this.speed > 1);
     if (this.runtime) this.runtime.pace?.(this.speed);
     for (const { speed, element: fast } of this.fastButtons) {
       const active = this.speed === speed;
@@ -273,7 +292,7 @@ export class App {
   }
 
   static async start(canvas: HTMLCanvasElement, workshopLevels: readonly GameLevel[] = []): Promise<App> {
-    await Promise.all([physics.init(), prepareLagoon()]);
+    await physics.init();
     const app = new App(canvas, workshopLevels);
     const saved = currentLevel();
     const tried = CAMPAIGN.findIndex((level) => level.id === (demoEntry ?? TRY_LEVEL));
@@ -300,6 +319,34 @@ export class App {
     return app;
   }
 
+  restoreDemoOverlay(overlay: unknown): void {
+    this.restoringOverlay = true;
+    this.showLevels(overlay === 'levels');
+    if (overlay === 'result' && this.ending !== 'none') this.endingCard();
+    else this.card.hidden = true;
+    this.restoringOverlay = false;
+  }
+
+  pauseForDemos(): void {
+    this.leaveBoard();
+    this.world.hide();
+    this.demoMenuOpen = true;
+  }
+
+  openDemoRoute(): void {
+    readDemoRoute();
+    this.demoMenuOpen = false;
+    this.activeStop = null;
+    const index = CAMPAIGN.findIndex(level => level.id === demoEntry);
+    if (demoFilmChapter >= 0 && demoFilmChapter < this.worldProgress().chapters.length) {
+      this.showMap(demoFilmChapter);
+      this.world.playFilm(demoFilmChapter);
+    } else {
+      this.loadBoard(Math.max(0, index), 'campaign');
+      if (demoEntry === 'levels') this.showLevels(true);
+    }
+  }
+
   private loadBoard(index: number, source = this.source): void {
     this.pointer.cancel();
     const level = (source === 'workshop' ? this.workshopLevels : CAMPAIGN)[index];
@@ -321,6 +368,7 @@ export class App {
     // The board stands in its own village: a campaign level in the chapter it belongs to, a Workshop project in the village it builds for.
     const chapter = boardChapter(source,index,level.id);
     setBoardVillage(chapter);
+    sfx.boardAmbience(true, chapter ?? 0);
     if (chapter !== null) showVillageTheme(chapter);
     this.runtime = level.create(this.services);
     this.runtime.pace?.(this.speed);
@@ -364,6 +412,7 @@ export class App {
     sfx.unlock(); this.activeStop = { index, replay: entry.replay };
     if (!entry.replay && this.source === 'campaign' && entry.index === this.boardIndex && this.runtime.game.actions.length > 0) {
       this.world.cover(); this.world.hide();
+      sfx.boardAmbience(true, stop.chapter);
       this.screen = 'game'; document.body.dataset['screen'] = 'game';
       this.accumulator = 0; this.redraw = true;
       this.localize(); this.runtime.resize(); this.runtime.render(0, 0);
@@ -383,7 +432,7 @@ export class App {
   }
 
   private leaveBoard(): void {
-    this.pointer.cancel(); this.setFast(false); sfx.cancel();
+    this.pointer.cancel(); this.setFast(false); sfx.cancel(); sfx.boardAmbience(false);
     window.clearTimeout(this.winTimer); window.clearTimeout(this.hintTimer); window.clearTimeout(this.instructionTimer);
     this.card.hidden = true; this.ring.hidden = true; this.setMessage('');
     element('guide').hidden = element('guide-pointer').hidden = element('instruction').hidden = true;
@@ -400,8 +449,7 @@ export class App {
     const progress = this.worldProgress();
     const current = chapter ?? Math.floor(Math.min(progress.frontier, Math.max(0, progress.stops.length - 1)) / 10);
     this.world.show(progress, current, construct);
-    element('level-name').textContent = t('Valley map', 'Carte de la vallée');
-    element('load').textContent = `${progress.stops.filter(stop => stop.status === 'built').length}/${progress.stops.length}`;
+    element('level-name').textContent = t('Levels', 'Niveaux');
     if (earnedFilm) {
       const pending = progress.chapters.find(item => item.complete && !filmSeen(item.key));
       if (pending) this.world.playFilm(pending.index, true);
@@ -412,8 +460,7 @@ export class App {
   private showWorkshop(focusId?: string): void {
     this.workshopRoute(null);
     this.leaveBoard(); this.world.workshop(this.workshopLevels, this.worldProgress(), focusId);
-    element('level-name').textContent = t('Workshop', 'Atelier');
-    element('load').textContent = `${this.workshopLevels.filter(level => isCompleted(level.id)).length}/${this.workshopLevels.length}`;
+    element('level-name').textContent = t('Levels', 'Niveaux');
     this.world.reveal();
   }
 
@@ -428,7 +475,7 @@ export class App {
     if (!frameDue(now, this.lastFrame)) return;
     const seconds = Math.min(Math.max((now - this.lastFrame) / 1000, 0), 0.25);
     this.lastFrame = now;
-    if (!this.manualClock && !document.hidden) {
+    if (!this.manualClock && !this.demoMenuOpen && !document.hidden) {
       const drawn = this.advance(seconds);
       if (this.onFirstScreen && (this.screen === 'game' || this.screen === 'workshop' ||
           (this.screen === 'film' ? ['ready','unavailable'].includes(this.stage.canvas.dataset.worldFilm ?? '') :
@@ -561,18 +608,20 @@ export class App {
       markCompleted(level.id);
       sfx.win();
       this.renderChips();
-      this.confetti();
+      element('guide').hidden = element('instruction').hidden = true;
       this.runtime.celebrate?.(this.helped ? 0.65 : 1);
-      this.winTimer = window.setTimeout(() => {
-        if (this.screen !== 'game' || this.runtime.status !== 'won') return;
-        if (!demoEntry && this.source === 'campaign' && this.nextRoundLevel() === null) {
-          this.showMap(Math.floor(this.boardIndex / CHAPTER_LEVELS), true, true);
-        } else this.endingCard();
-      }, 400);
+      this.winTimer = window.setTimeout(() => this.finishWin(), 1250);
     } else {
       sfx.jam();
       this.endingCard();
     }
+  }
+
+  private finishWin(): void {
+    if (this.screen !== 'game' || this.runtime.status !== 'won') return;
+    if (!demoEntry && this.source === 'campaign' && this.nextRoundLevel() === null) {
+      this.showMap(Math.floor(this.boardIndex / CHAPTER_LEVELS), true, true);
+    } else this.endingCard();
   }
 
   private refresh(): void {
@@ -633,7 +682,7 @@ export class App {
   }
 
   private refreshGuide(targets: Record<string, ScreenPoint>): void {
-    const step = this.guiding ? this.runtime.guide?.() : undefined;
+    const step = this.screen === 'game' && this.guiding ? this.runtime.guide?.() : undefined;
     const panel = element('guide');
     const pointer = element('guide-pointer');
     if (!step) {
@@ -658,9 +707,10 @@ export class App {
     })) element(id).setAttribute('aria-label', label);
     element('language-label').textContent = t('Language', 'Langue');
     for (const language of ['en', 'fr'] as const) button(`language-${language}`).setAttribute('aria-pressed', String(locale() === language));
-    button('guide-skip').textContent = t('Skip guide', 'Passer le guide');
+    button('guide-skip').setAttribute('aria-label', t('Skip guide', 'Passer le guide'));
+    element('skip-label').textContent = t('Skip guide', 'Passer le guide');
     element('levels').setAttribute('aria-label', t('Levels', 'Niveaux'));
-    button('levels-toggle').setAttribute('aria-label', t('Open level menu', 'Ouvrir le menu des niveaux'));
+    button('levels-toggle').setAttribute('aria-label', t('Levels', 'Niveaux'));
     button('menu-close').setAttribute('aria-label', t('Close menu', 'Fermer le menu'));
     button('menu-settings').setAttribute('aria-label', t('Settings and help', 'Réglages et aide'));
     button('menu-back').setAttribute('aria-label', t('Back to levels', 'Retour aux niveaux'));
@@ -668,17 +718,23 @@ export class App {
     element('help-label').textContent = t('How to play', 'Comment jouer');
     button('guide-replay').textContent = t('Restart with guide', 'Recommencer avec le guide');
     button('guide-replay').hidden = !this.runtime.guideId;
+    button('copy-replay').hidden = !import.meta.env.DEV || !new URLSearchParams(location.search).has('diagnostics');
     button('copy-replay').textContent = t('Copy this game for a bug report', 'Copier cette partie pour signaler un bug');
     element('guide-pointer-label').textContent = t('Tap here', 'Touchez ici');
     element('patterns').replaceChildren(...PALETTE.map((color) => {
       const item = document.createElement('span');
       const icon = document.createElement('canvas');
       icon.width = icon.height = 64;
-      icon.style.width = icon.style.height = '16px';
+      icon.style.width = icon.style.height = '24px';
       icon.style.verticalAlign = 'middle';
       icon.setAttribute('aria-hidden', 'true');
       const context = icon.getContext('2d');
-      if (context) { context.fillStyle = '#202335'; drawSymbol(context, color, 32, 32, 26); }
+      if (context) {
+        context.fillStyle = COLORS[color].base;
+        context.fillRect(0, 0, 64, 64);
+        context.fillStyle = cargoInk(color);
+        drawSymbol(context, color, 32, 32, 19);
+      }
       item.append(icon, ` ${colorName(color)}`);
       item.setAttribute('role', 'img');
       item.setAttribute('aria-label', `${patternName(color)} = ${colorName(color)}`);
@@ -686,30 +742,37 @@ export class App {
     }));
     const level = this.levels[this.boardIndex];
     if (!level) return;
-    element('level-name').textContent = `${this.boardIndex + 1} / ${this.levels.length} · ${level.name}`;
+    element('level-name').textContent = `${this.boardIndex + 1} · ${level.name}`;
     element('level-title').textContent = `${level.title} · ${difficultyName(level.difficulty)}`;
     element('level-help').textContent = level.instructions;
-    element('instruction').textContent = level.instructions;
+    element('instruction').textContent = this.runtime.guide?.().prompt ?? t('Follow the hand', 'Suivez la main');
     this.renderChips();
   }
 
   private endingCard(): void {
-    if (demoEntry && this.runtime.status === 'won') {
-      this.showCard(t('Nicely sorted!', 'Bien trié !'), this.levels[this.boardIndex]!.title, t('Back to demos', 'Retour aux démos'), 'win');
+    if (this.runtime.status === 'jammed') {
+      this.showCard(this.runtime.jamSummary ?? t('No moves left', 'Aucun coup possible'), this.runtime.jamReason, t('Undo', 'Annuler'), 'jam');
       return;
     }
-    if (this.source === 'workshop' && this.runtime.status === 'won') {
-      const project = workshopProject(this.levels[this.boardIndex]!.id);
-      this.showCard(project?.title ?? t('Nicely sorted!', 'Bien trié !'), t('Your village addition is ready.', 'Votre nouvelle construction est prête.'), t('Back to workshop', 'Retour à l’atelier'), 'win');
-      return;
+    const project = this.source === 'workshop' ? workshopProject(this.levels[this.boardIndex]!.id) : undefined;
+    const stop = this.worldProgress().stops[Math.floor(this.boardIndex / 3)];
+    const island = worldLocation(project?.chapter ?? stop?.chapter ?? 0);
+    const progress = project ? island.name : t(`${island.name} · Stop ${(stop?.local ?? 0) + 1}`, `${island.name} · Étape ${(stop?.local ?? 0) + 1}`);
+    const action = demoEntry ? t('Back to demos', 'Retour aux démos') : project
+      ? t('Back to workshop', 'Retour à l’atelier') : t('Play next level', 'Jouer au niveau suivant');
+    this.showCard(t('Nicely sorted!', 'Bien trié !'), progress, action, 'win');
+    const pips = element('stop-progress');
+    pips.hidden = !!project;
+    if (!project && stop) {
+      pips.replaceChildren(...stop.levels.map(level => {
+        const pip = document.createElement('span');
+        pip.textContent = isCompleted(level.id) ? '✓' : '○';
+        return pip;
+      }));
+      pips.setAttribute('role', 'img');
+      pips.removeAttribute('aria-hidden');
+      pips.setAttribute('aria-label', t(`${stop.completed} of 3 puzzles complete`, `${stop.completed} jeux terminés sur 3`));
     }
-    const index = this.nextRoundLevel();
-    const next = index === null ? undefined : CAMPAIGN[index];
-    if (this.runtime.status === 'won') this.showCard(
-      next ? t('Nicely sorted!', 'Bien trié !') : t('Workshop complete!', 'Atelier terminé !'),
-      next ? t(`Up next: ${next.name}.`, `À suivre : ${next.name}.`) : t('Every puzzle sorted. Pick a level above to play again.', 'Tous les puzzles sont triés. Choisissez un niveau pour rejouer.'),
-      next ? t('Next level', 'Niveau suivant') : t('Play again', 'Rejouer'), 'win');
-    else this.showCard(t('A little tangled!', 'Ça coince !'), this.runtime.jamReason, t('Keep looking', 'Continuer à chercher'), 'jam');
   }
 
   replay(): ReplayLog {
@@ -733,6 +796,7 @@ export class App {
 
   private showLevels(open: boolean): void {
     const wasOpen = !element('levels').hidden;
+    if (!open && wasOpen && demoEntry && !this.restoringOverlay && history.state?.overlay === 'levels') history.back();
     if (open) {
       this.pointer.cancel();
       this.setFast(false);
@@ -841,13 +905,17 @@ export class App {
     if (hold) this.messageTimer = window.setTimeout(() => this.setMessage(''), hold);
   }
   private showCard(title: string, text: string, action: string, kind: 'win' | 'jam'): void {
+    element('guide').hidden = element('instruction').hidden = true;
+    element('stop-progress').hidden = true;
+    button('card-restart').hidden = kind !== 'jam';
+    button('card-restart').textContent = t('Restart', 'Recommencer');
     element('card-title').textContent = title;
     element('card-body').textContent = text;
     button('card-action').textContent = action;
     this.card.dataset['kind'] = kind;
+    if (this.card.hidden && demoEntry && !this.restoringOverlay && !history.state?.overlay) history.pushState({ ...history.state, overlay: 'result' }, '');
     this.card.hidden = false;
   }
-  private confetti(): void { confetti(element('confetti')); }
   private key(event: KeyboardEvent): void {
     if (!element('levels').hidden) {
       if (event.key === 'Escape') { event.preventDefault(); this.showLevels(false); }
@@ -859,7 +927,7 @@ export class App {
       }
       return;
     }
-    if (this.screen !== 'game') return;
+    if (this.demoMenuOpen || this.screen !== 'game') return;
     if (event.ctrlKey || event.metaKey || event.altKey) return;
     if (event.target instanceof HTMLButtonElement && (event.key === 'Enter' || event.key === ' ')) return;
     if (event.key === 'u') this.undo();

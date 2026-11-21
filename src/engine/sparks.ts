@@ -188,24 +188,39 @@ export class Sparks {
     const glints = Math.round(12 * gain);
     for (let i = 0; i < glints; i++) {
       const angle = i / glints * Math.PI * 2 + 0.5;
-      const reach = unit * (0.3 + (i % 4) * 0.2);
+      const reach = unit * (0.36 + (i % 4) * 0.34);
       const glint = this.spawn(Kind.Glint, { x: at.x + Math.cos(angle) * reach, y: at.y + unit * 0.12 + Math.abs(Math.sin(angle)) * reach * 0.7, z: at.z + Math.sin(angle) * reach * 0.35 },
         i % 3 === 0 ? GOLD : WHITE, 0.34, unit * (0.2 + (i % 3) * 0.07), i * 0.05);
       glint.spin = i % 2 ? 1.6 : -1.6;
       glint.vy = 0.5;
     }
-    this.glitter(at, color, Math.round(90 * gain), 4.7 * (1 + this.streak * 0.15), 2.6, 1.15, 0.055);
+    this.glitter(at, color, Math.round(66 * gain), 5.6 * (1 + this.streak * .15), 3.8, 1.12, .075);
     this.draw();
     return this.streak;
   }
 
-  /** One fountain for the end of a level, fired with the confetti. */
-  fountain(at: Point3, delay = 0, share = 1, color = GOLD): void {
-    if (this.reducedMotion) return;
-    const from = this.cursor;
-    this.glitter(at, color, Math.round(44 * share), 6.6, 1.6, 1.3, 0.06);
-    for (let i = from; i < this.cursor; i++) this.particles[i % CAPACITY]!.age = -delay;
-    this.spawn(Kind.Glint, { x: at.x, y: at.y + this.unit * 0.3, z: at.z }, WHITE, 0.5, this.unit * 0.35, delay).spin = 1.6;
+  /** Two pairs of fans sweep from the ends toward the centre, then their finer sparks hang above the machine. */
+  finish(corners: readonly Point3[], share: number): void {
+    if (this.reducedMotion || !corners.length) return;
+    const centerX = corners.reduce((sum, p) => sum+p.x, 0)/corners.length;
+    const centerZ = corners.reduce((sum, p) => sum+p.z, 0)/corners.length;
+    corners.forEach((at,index) => {
+      const delay = index % 2 ? .24 : .02;
+      const count = Math.max(16, Math.round(57*share));
+      for (let i=0;i<count;i++) {
+        const fan = i/(count-1), phase = i*2.39996;
+        const lift = .4+.6*((i*19)%37)/36;
+        const start = delay+.20*fan;
+        const color = i%5<2 ? WHITE : i%5<4 ? GOLD : 0xe59b60;
+        const spark = this.spawn(i%6===0 ? Kind.Glint : Kind.Glitter, at, color,
+          .58+.51*lift, this.unit*(i%6===0 ? .19 : .065+.035*lift), start);
+        spark.vx = (centerX-at.x)*(.25+.57*fan) + Math.cos(phase)*1.8;
+        spark.vz = (centerZ-at.z)*(.12+.32*fan) + Math.sin(phase)*1.2;
+        spark.vy = 2.8+4.5*lift;
+        spark.floor = at.y;
+        spark.spin = Math.sin(phase)*2;
+      }
+    });
     this.draw();
   }
 

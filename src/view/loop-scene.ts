@@ -1,3 +1,4 @@
+import { dispatchPlates, jamShutter } from './dispatch-plate';
 import { beltDeck } from './belt-deck';
 import { BeltSurface } from './belt-surface';
 import * as THREE from 'three';
@@ -98,6 +99,8 @@ export class LoopScene {
   private readonly symbols = new Map<Color, THREE.CanvasTexture>();
   private readonly sparks: Sparks;
   private yard: ArcadeYard | null = null;
+  private dispatch: THREE.Mesh | null = null;
+  private readonly jamStops: THREE.Mesh[] = [];
   private readonly shake = new Shake();
   private readonly reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   /** 1 at the player's own speed, less while fast forward is held: every landing answers that much. */
@@ -152,9 +155,11 @@ export class LoopScene {
     const part = (width: number, height: number, depth: number, radius: number, hex: number, x: number, y: number, z: number): void => {
       parts.push(tinted(new RoundedBoxGeometry(width, height, depth, 3, Math.min(radius, height / 2)).translate(x, y, z), hex));
     };
-    this.yard = new ArcadeYard(this.scene, halfWidth, back, edge, false);
+    this.yard = new ArcadeYard(this.scene, halfWidth, back, edge, eight ? -.61 : .006);
     machine.bays.forEach((bay, lane) => {
       const mouth = machine.mouthZ(lane);
+      const stop = jamShutter(bay.x,DECK_TOP+.66,mouth-.12,TRUCK.bedWidth*.93);
+      this.jamStops.push(stop); this.level.add(stop);
       const end = ends[lane]!;
       if (eight) {
         // An eight has no plateau: its columns stand on raised strips running from its near edge.
@@ -164,6 +169,13 @@ export class LoopScene {
       part(TRUCK.bedWidth + 0.12, 0.04, end - mouth + 0.2, 0.02, PLATFORM, bay.x, DECK_TOP + 0.015, (end + mouth - 0.2) / 2);
       part(TRUCK.bedWidth * 0.86, 0.05, 0.16, 0.02, ARCADE.gold, bay.x, DECK_TOP + 0.03, mouth - 0.3);
     });
+    this.dispatch = dispatchPlates(machine.bays.map((bay,lane) => {
+      const mouth = machine.mouthZ(lane), end = ends[lane]!;
+      const truck = machine.readTrucks().filter(candidate => candidate.lane === lane).at(-1)!;
+      return { x: bay.x, z: (end + mouth)/2, halfWidth: TRUCK.bedWidth*.47, halfDepth: (end-mouth)*.46,
+        color: COLORS[truck.finalColor].hex };
+    }), DECK_TOP+.045);
+    this.level.add(this.dispatch);
     const base = new THREE.Mesh(fuse(parts), bodyPlastic());
     base.castShadow = true;
     base.receiveShadow = true;
@@ -260,6 +272,7 @@ export class LoopScene {
 
   private clearLevel(): void {
     this.decals.clear();
+    this.jamStops.length = 0;
     this.yard?.dispose();
     this.yard = null;
     this.crowd?.dispose();
@@ -295,7 +308,8 @@ export class LoopScene {
 
   /** The level is won: one glitter fountain from each corner of the hull, with the confetti. */
   celebrate(clean = 1): void {
-    (this.yard?.corners ?? []).forEach((corner, index) => this.sparks.fountain(corner, index * 0.15, clean));
+    if (this.dispatch) this.dispatch.visible = true;
+    if (this.yard) this.sparks.finish(this.yard.corners, clean);
     this.sparks.boost();
   }
 
@@ -368,6 +382,9 @@ export class LoopScene {
   }
 
   afterTick(): void {
+    if (this.machine?.rules.status === 'jammed') this.jamStops.forEach((stop,lane) => {
+      stop.visible = this.machine!.rules.front(lane) !== null;
+    });
     this.syncTrucks(false);
     this.syncCargo(false);
     this.sparks.step(TICK_SECONDS);
@@ -393,6 +410,8 @@ export class LoopScene {
   }
 
   syncAfterJump(): void {
+    if (this.dispatch) this.dispatch.visible = false;
+    for (const stop of this.jamStops) stop.visible = false;
     this.sparks.clear();
     this.syncTrucks(true);
     this.syncCargo(true);

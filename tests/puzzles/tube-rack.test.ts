@@ -28,18 +28,19 @@ it('centres each authored row; the camera, touch and tracks share stable indices
 });
 
 it('clears rims with the entire airborne marble on diagonal moves across the middle tube', async () => {
-  const { rackFlightAcross, rackFlightHeight } = await import('../../src/engine/rack-flight');
+  const { rackFlightAcross, rackFlightY, RIM_CLEARANCE } = await import('../../src/engine/rack-flight');
   const rack = tubeRack(TUBE_BOARDS.find(board => board.id === 'tube-41')!);
   const from = rack.places[0]!, to = rack.places[4]!, middle = rack.places[2]!;
   const rim = .9 + 4 * 1.02;
   const radius = .49 * 1.18;
-  for (const fromY of [1.25, 4.31]) for (const toY of [1.25, 4.31]) {
-    const control = rackFlightHeight(fromY, toY, rim + .9);
+  for (const fromY of [1.25, 4.31, 4.31 + .79]) for (const toY of [1.25, 4.31]) {
+    const clearance = rim + RIM_CLEARANCE;
     for (let step = 1; step < 200; step++) {
-      const u = step / 200, v = 1 - u, across = rackFlightAcross(u);
+      const u = step / 200, across = rackFlightAcross(u);
       if (across === 0 || across === 1) continue;
       const x = from.x + (to.x - from.x) * across, z = from.z + (to.z - from.z) * across;
-      const y = v ** 3 * fromY + 3 * v * u * control + u ** 3 * toY;
+      const y = rackFlightY(fromY, toY, clearance, u);
+      expect(y).toBeLessThanOrEqual(clearance + .121);
       for (const at of [from, middle, to]) {
         if (Math.hypot(x - at.x, z - at.z) <= .74 + radius) expect(y - radius).toBeGreaterThan(rim + .07);
       }

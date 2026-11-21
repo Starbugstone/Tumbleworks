@@ -10,7 +10,7 @@ const LEVEL = 'board-47';
 
 test('a game played by touch and copied from the picker replays to the same physics', async ({ page }) => {
   test.setTimeout(180_000);
-  await page.goto('/');
+  await page.goto('/?diagnostics=1');
   await page.waitForFunction(() => Boolean((window as never as { tumbleworks?: unknown }).tumbleworks), undefined, { timeout: 60_000 });
   await chooseLevel(page, CAMPAIGN.findIndex((level) => level.id === LEVEL));
 

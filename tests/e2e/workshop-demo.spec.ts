@@ -43,6 +43,7 @@ for (const finish of [0, 1]) test(`Little Harbour draws its buildings in the fil
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/?demo=harbour&fx=' + finish);
+  await expect(page.locator('#boot')).toBeHidden({ timeout: 120_000 });
   await expect(page.locator('#scene')).toHaveAttribute('data-world-film','ready',{timeout:120_000});
   for (const screen of ['film','map']) {
     if (screen === 'map') await page.locator('#film-skip').tap();
@@ -94,7 +95,34 @@ test('the staggered five-tube rack accepts a cross-row drag and its complete sol
       await page.touchscreen.tap(x, y);
     }
   }
-  await expect.poll(() => page.evaluate(() =>
+  await expect(page.locator('#load')).toHaveText(/4\s*\/\s*4/);
+  await expect(page.locator('#card[data-kind="win"]')).toBeVisible({ timeout: 60_000 });
+  expect(await page.evaluate(() =>
     JSON.parse(localStorage.getItem('tumbleworks.progress.v1.demo') ?? '{}').completed
   )).toContain('tube-41');
+});
+
+test('cold and warm demo navigation shares a document and returns to its island', async ({ page }) => {
+  const errors: string[] = [];
+  const downloaded: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('request', request => downloaded.push(request.url()));
+  await page.goto('/demo.html');
+  const tube = page.getByRole('link', { name: 'Tube Sort', exact: true });
+  await expect(tube).toBeVisible();
+  const origin = await page.evaluate(() => performance.timeOrigin);
+  expect(downloaded.some(url => /(?:three\.js|rapier|\/src\/main\.ts|\/assets\/main-[\w-]+\.js)/.test(url))).toBe(false);
+  await tube.tap();
+  await expect(page.locator('#boot')).toBeHidden({ timeout: 60_000 });
+  await expect(page.locator('#level-name')).toContainText('Tube Sort');
+  await page.locator('#levels-toggle').tap();
+  await page.goBack();
+  await expect(page.locator('#levels')).toBeHidden();
+  await expect(page.locator('#level-name')).toContainText('Tube Sort');
+  await page.goBack();
+  await expect(tube).toBeVisible();
+  await page.getByRole('link', { name: 'Funnel Sort', exact: true }).tap();
+  await expect(page.locator('#level-name')).toContainText('Funnel Sort');
+  expect(await page.evaluate(() => performance.timeOrigin)).toBe(origin);
+  expect(errors).toEqual([]);
 });

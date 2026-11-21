@@ -46,6 +46,13 @@ export class TubeRuntime implements GameRuntime {
     },
   };
 
+  press(target: string | null): void {
+    if (this.dragFrom !== null) return;
+    const index = this.index(target);
+    const legal = index !== null && this.status === 'playing' && this.rules.state.tubes[index]?.length && !this.sourceBlocked(index);
+    this.view.select(this.selected ?? (legal ? index : -1));
+  }
+
   private index(target: string | null): number | null {
     if (target === null || !/^tube\d+$/.test(target)) return null;
     const index = Number(target.slice(4));
@@ -68,6 +75,7 @@ export class TubeRuntime implements GameRuntime {
   }
   readonly preview = [];
   readonly previewLabel = '';
+  get jamSummary() { return t('No matching tube has room', 'Aucun tube compatible'); }
   get jamReason() { return t('No top marble can move. Undo a move to make room, or restart this board.', 'Aucune bille du haut ne peut bouger. Annulez un déplacement ou recommencez.'); }
 
   activate(target: string): readonly Feedback[] {
@@ -151,7 +159,7 @@ export class TubeRuntime implements GameRuntime {
   guide() {
     if (this.rules.state.moves > 0) return { done: true, text: t('That whole group moved together. Fill each tube with one colour.', 'Tout le groupe s’est déplacé. Remplissez chaque tube d’une seule couleur.') };
     if (this.selected === 0) return { target: 'tube3', text: t('Now tap this empty tube to move the blue diamond group.', 'Touchez ce tube vide pour déplacer le groupe bleu à losange.') };
-    return { target: 'tube0', text: t('Tap this tube to select its top group. Dragging works too.', 'Touchez ce tube pour sélectionner le groupe du haut. Vous pouvez aussi le faire glisser.') };
+    return { prompt: t('Tap the tube', 'Touchez le tube'), target: 'tube0', text: t('Tap this tube to select its top group. Dragging works too.', 'Touchez ce tube pour sélectionner le groupe du haut. Vous pouvez aussi le faire glisser.') };
   }
   inspect() { return { ...this.rules.snapshot(), selected: this.selected }; }
   dispose() { this.view.dispose(); }

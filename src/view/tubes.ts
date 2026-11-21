@@ -1,8 +1,9 @@
 import * as THREE from 'three';
+import { jamShutter } from './dispatch-plate';
+import { RIM_CLEARANCE } from '../engine/rack-flight';
 import { bakeOcclusion } from '../engine/candy';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { Sparks } from '../engine/sparks';
-import { rackFlightHeight } from '../engine/rack-flight';
 import { Spring } from '../engine/arrival';
 import { workshopGlass } from '../engine/glass';
 import { COLORS, containerSymbolTexture } from './art';
@@ -24,13 +25,14 @@ const STEP = 1.02;
 /** The marbles of a group leave this many seconds apart, the top one first. */
 const GROUP_STAGGER = 0.045;
 /** A landing presses the whole column together by about a tenth of each marble's height; it springs back taller once and rests. */
-const PRESS_KICK = 4.2;
+const PRESS_KICK = 6.5;
 const HOP_SECONDS = 0.3;
 /** What a tube shows when marbles reach it: `seat` for the first to touch down, `complete` when the last one finishes the tube. */
 export type TubeLanding = 'seat' | 'complete';
 
 export class TubeView extends BoardView {
   private readonly selectors: THREE.Mesh[] = [];
+  private readonly jamStops: THREE.Mesh[] = [];
   private readonly lights: THREE.Mesh[] = [];
   private readonly rims: THREE.Mesh[] = [];
   private readonly badges: THREE.Mesh[][] = [];
@@ -49,7 +51,7 @@ export class TubeView extends BoardView {
   /** Groups still in the air: how many of each have yet to touch down, and what the last one sets off. */
   private readonly arrivals = new Map<number, { left: number; readonly count: number; readonly completed: boolean; readonly color: Color }>();
   /** How each marble of the group now moving flies: when it leaves, what it has to clear and whether it rebounds. */
-  private readonly flights = new Map<string, { delay: number; clear: number; bounce: number }>();
+  private readonly flights = new Map<string, { delay: number; duration?: number; clear: number; bounce: number }>();
   private landings: TubeLanding[] = [];
   /** Home plaques name the colour a taller or shorter home is for; each pulses when that colour fills the wrong tube. */
   private readonly plaques: { group: THREE.Group; color: Color; pulse: number }[] = [];
@@ -57,11 +59,15 @@ export class TubeView extends BoardView {
   private readonly yard: ArcadeYard;
   private readonly rack: ReturnType<typeof tubeRack>;
   private selected = -1;
+  private readonly lift: number[] = [];
+  private readonly groupStart: number[] = [];
+  private readonly rimHeight: number[] = [];
   private identities: string[][] = [];
   private nextIdentity = 0;
   private dragging: string[] = [];
   private dragOrigin = new THREE.Vector3();
   private dragStart: THREE.Vector3[] = [];
+  private dragClearance = 0;
   private readonly dragPlane = new THREE.Plane();
   private readonly dragRay = new THREE.Raycaster();
 
@@ -73,7 +79,7 @@ export class TubeView extends BoardView {
       new THREE.MeshBasicMaterial({ map: containerSymbolTexture(color), transparent: true, depthWrite: false, toneMapped: false }));
     this.rack = tubeRack(definition);
     const { halfWidth, back, front } = this.rack;
-    // Individual enamel shoes leave open space between the tube rows.
+    // Enamel shoes sit on the quay. Row ties and one central keel join them into the authored rack.
     const parts = definition.tubes.flatMap((_, index) => {
       const at = this.position(index, 0);
       const wide = tubeContainer(definition, index).role === 'cup';
@@ -88,14 +94,33 @@ export class TubeView extends BoardView {
         tinted(railFoot.translate(at.x+railX,.39,at.z), ARCADE.edge),
       ];
     });
+    const rows = new Map<number, number[]>();
+    for (const { x, z } of this.rack.places) {
+      const row = rows.get(z) ?? [];
+      row.push(x);
+      rows.set(z, row);
+    }
+    for (const [z, xs] of rows) {
+      if (xs.length < 2) continue;
+      const left = Math.min(...xs), right = Math.max(...xs), mid = (left + right) / 2;
+      parts.push(tinted(new RoundedBoxGeometry(right-left,.25,.38,2,.065).translate(mid,.31,z), ARCADE.deck));
+      parts.push(tinted(new RoundedBoxGeometry(right-left,.045,.135,2,.02).translate(mid,.444,z), ARCADE.trim));
+    }
+    const rowCenters = [...rows.keys()];
+    if (rowCenters.length > 1) {
+      const rear = Math.min(...rowCenters), nose = Math.max(...rowCenters);
+      parts.push(tinted(new RoundedBoxGeometry(.34,.19,nose-rear,2,.055)
+        .translate(0,.277,(rear+nose)/2), ARCADE.deck));
+      parts.push(tinted(new RoundedBoxGeometry(.12,.026,nose-rear,2,.012)
+        .translate(0,.382,(rear+nose)/2), ARCADE.trim));
+    }
     const plinth = new THREE.Mesh(fuse(parts), bodyPlastic());
     plinth.castShadow = true;
     plinth.receiveShadow = true;
     this.board.add(plinth);
     bakeOcclusion(services.stage.renderer, [plinth], { minX: -halfWidth - .5, maxX: halfWidth + .5, minZ: back - .4, maxZ: front + .4 });
-    // The scene owns the lagoon and disposes of it with everything else.
-    this.yard = new ArcadeYard(this.scene, halfWidth, back, front, false);
-    this.yard.group.position.y = 1.34;
+    // The scene owns the worktop and the landscape beyond it.
+    this.yard = new ArcadeYard(this.scene, halfWidth, back, front, .185);
     const glass = workshopGlass(new THREE.MeshStandardMaterial({ color: 0xe4f5ff, transparent: true,
       opacity: 0.2, roughness: 0.08, depthWrite: false, envMapIntensity: 1.5 }));
     const plaques = homePlaques(definition);
@@ -122,12 +147,16 @@ export class TubeView extends BoardView {
       rim.position.set(at.x, 0.7 + height, at.z);
       this.board.add(rim);
       this.rims.push(rim);
+      this.rimHeight.push(rim.position.y);
+      this.lift.push(0);
       this.pulses.push(0);
       this.presses.push(new Spring(6, 0.34));
       this.pressed.push(false);
       const base = new THREE.Mesh(new THREE.CylinderGeometry(isCup ? 1.01 : 0.85, isCup ? 1.09 : 0.92, 0.25, 32), toyMaterial(ARCADE.deck));
       base.position.set(at.x, 0.64, at.z);
       this.selectors.push(base);
+      const stop = jamShutter(at.x,.51,at.z+.82,1.24);
+      this.jamStops.push(stop); this.board.add(stop);
       this.board.add(base);
       const light = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 8), toyMaterial(0x938976));
       light.position.set(at.x, 0.67, at.z + .81);
@@ -218,6 +247,7 @@ export class TubeView extends BoardView {
     this.hops = [];
     this.arrivals.clear();
     this.flights.clear();
+    this.lift.fill(0);
     this.landings = [];
     this.presses.forEach((press, index) => { press.reset(); this.pressed[index] = false; });
     for (const plaque of this.plaques) { plaque.pulse = 0; plaque.group.scale.setScalar(1); }
@@ -246,6 +276,10 @@ export class TubeView extends BoardView {
       return id === undefined ? [] : [{ id, color, radius: RADIUS, at: this.position(index, slot), ...this.flights.get(id) }];
     })), animate);
     state.tubes.forEach((tube, index) => {
+      let first = tube.length;
+      while (first > 0 && tube[first-1] === tube.at(-1)) first--;
+      this.groupStart[index] = first;
+      this.jamStops[index]!.visible = state.status === 'jammed' && !!tube.length;
       const at = this.position(index, 1.5);
       const hit = new THREE.Mesh(new THREE.BoxGeometry(tubeContainer(this.definition, index).role === 'cup' ? 2.3 : 1.9, tubeContainer(this.definition, index).capacity * STEP + 1.2, 1.9), new THREE.MeshBasicMaterial({ visible: false }));
       hit.position.set(at.x, 0.7 + tubeContainer(this.definition, index).capacity * STEP / 2, at.z);
@@ -258,7 +292,7 @@ export class TubeView extends BoardView {
       });
       const rim = this.rims[index];
       if (rim?.material instanceof THREE.MeshStandardMaterial) {
-        rim.material.color.setHex(tube.at(-1) ? COLORS[tube.at(-1)!].hex : 0xe7f4f2);
+        rim.userData['restColor'] = tube.at(-1) ? COLORS[tube.at(-1)!].hex : 0xe7f4f2;
       }
       const complete = completedTube(this.definition, state, index);
       const light = this.lights[index];
@@ -278,11 +312,16 @@ export class TubeView extends BoardView {
 
   select(index: number): void {
     this.selected = index;
+    this.rims.forEach((rim, slot) => {
+      if (rim.material instanceof THREE.MeshStandardMaterial) {
+        rim.material.color.setHex(slot === index ? 0xe0bb78 : rim.userData['restColor'] ?? 0xe7f4f2);
+      }
+    });
     this.selectors.forEach((mesh, i) => {
-      mesh.scale.setScalar(i === index ? 1.12 : 1);
+      mesh.scale.setScalar(1);
       if (mesh.material instanceof THREE.MeshStandardMaterial) {
-        mesh.material.color.setHex(i === index ? ARCADE.gold : ARCADE.deck);
-        mesh.material.emissive.setHex(i === index ? 0x6c2109 : 0);
+        mesh.material.color.setHex(ARCADE.deck);
+        mesh.material.emissive.setHex(i === index ? 0x18120c : 0);
       }
     });
   }
@@ -305,6 +344,8 @@ export class TubeView extends BoardView {
       const at = this.marblePosition(id);
       return new THREE.Vector3(at?.x, at?.y, at?.z);
     });
+    this.dragClearance = Math.max(...this.rims.map(rim => rim.position.y + .9),
+      ...this.plaques.map(plaque => plaque.group.position.y + 1.2));
     const anchor = this.dragStart.at(-1) ?? new THREE.Vector3();
     this.dragPlane.setFromNormalAndCoplanarPoint(this.camera.getWorldDirection(new THREE.Vector3()), anchor);
     this.dragOrigin = this.pointOnPlane(point);
@@ -313,6 +354,13 @@ export class TubeView extends BoardView {
 
   moveDrag(point: ScreenPoint, highlight: number): void {
     const offset = this.pointOnPlane(point).sub(this.dragOrigin);
+    // Pull the group along its sightline until its lowest marble clears the rack. Its projection
+    // stays underneath the finger while it passes over full tubes, rails and home plaques.
+    const low = this.dragStart[0]?.clone().add(offset);
+    if (low && low.y < this.dragClearance) {
+      const towardEye = this.camera.position.clone().sub(low);
+      offset.addScaledVector(towardEye, (this.dragClearance - low.y) / towardEye.y);
+    }
     this.dragging.forEach((id, index) => {
       const start = this.dragStart[index];
       if (start) this.placeMarble(id, start.clone().add(offset));
@@ -354,14 +402,18 @@ export class TubeView extends BoardView {
 
   /** Nothing on the board would move if it were drawn again. */
   get still(): boolean {
-    return !this.busy && !this.sparks.active && !this.shake.active && !this.hops.length && this.presses.every((press) => press.resting) && this.waves.every((wait) => wait <= 0) && this.pulses.every((pulse) => pulse === 0) && this.plaques.every((plaque) => plaque.pulse === 0)
+    return this.lift.every((amount, i) => amount === this.targetLift(i)) && !this.busy && !this.sparks.active && !this.shake.active && !this.hops.length && this.presses.every((press) => press.resting) && this.waves.every((wait) => wait <= 0) && this.pulses.every((pulse) => pulse === 0) && this.plaques.every((plaque) => plaque.pulse === 0)
       && [...this.caps.values()].every((cap) => cap.progress === (cap.open ? 1 : 0))
       && [...this.cups.values()].every((cup) => cup.progress === (cup.spent ? 1 : 0));
   }
 
+  private targetLift(index: number): number {
+    return this.selected === index && !this.dragging.length && this.identities[index]?.length ? .79 : 0;
+  }
+
   override step(): void {
     super.step();
-    if (this.weight === 1) for (const at of this.flying) this.sparks.trail(at, 0xfff1c9, 0.13, 0.2);
+    if (this.weight === 1) for (const at of this.flying) this.sparks.trail(at, 0xffe2ab, .065, .105);
     this.waves.forEach((wait, index) => {
       if (wait <= 0) return;
       this.waves[index] = wait - FIXED_SECONDS;
@@ -378,11 +430,14 @@ export class TubeView extends BoardView {
       // Marbles rest on one another, so pressing each one flatter lowers every marble above it by what lies beneath.
       const tall = 1 + Math.max(-0.16, Math.min(0.1, press.step(FIXED_SECONDS)));
       const lift = lifts.get(tube);
-      const moving = tall !== 1 || lift !== undefined;
+      const target = this.targetLift(tube), previous = this.lift[tube]!;
+      const offset = this.reducedMotion || Math.abs(target-previous)<.004 ? target : previous + (target-previous)*.30;
+      this.lift[tube] = offset;
+      const moving = tall !== 1 || lift !== undefined || offset !== 0 || previous !== offset;
       if (!moving && !this.pressed[tube]) return;
       this.pressed[tube] = moving;
       (this.identities[tube] ?? []).forEach((id, slot) => {
-        if (!this.dragging.includes(id)) this.squeeze(id, (lift ?? 0) - (2 * slot + 1) * RADIUS * (1 - tall), tall);
+        if (!this.dragging.includes(id)) this.squeeze(id, (lift ?? 0) + (slot >= this.groupStart[tube]! ? offset : 0) - (2 * slot + 1) * RADIUS * (1 - tall), tall);
       });
     });
     this.sparks.step(FIXED_SECONDS);
@@ -392,7 +447,8 @@ export class TubeView extends BoardView {
     this.rims.forEach((rim, index) => {
       const pulse = Math.max(0, (this.pulses[index] ?? 0) - FIXED_SECONDS * 3);
       this.pulses[index] = pulse;
-      rim.scale.setScalar(1 + Math.sin(pulse * Math.PI) * 0.14 + (this.selected === index ? 0.06 : 0));
+      if (!this.cups.has(index)) rim.position.y = this.rimHeight[index]! + this.lift[index]! * .20;
+      rim.scale.setScalar(1 + Math.sin(pulse * Math.PI) * .14 + this.lift[index]! * .075);
     });
     for (const plaque of this.plaques) {
       plaque.pulse = Math.max(0, plaque.pulse - FIXED_SECONDS / 0.45);
@@ -432,7 +488,7 @@ export class TubeView extends BoardView {
 
   /** The level is won: one glitter fountain from each corner of the hull, with the confetti. */
   celebrate(clean = 1): void {
-    this.yard.corners.forEach((corner, index) => this.sparks.fountain({ ...corner, y: corner.y + 0.55 }, index * 0.15, clean));
+    this.sparks.finish(this.yard.corners, clean);
     // The tubes that are left take a bow one after another, left to right.
     if (!this.reducedMotion) this.pulses.forEach((_, index) => { this.waves[index] = 0.02 + index * 0.06; });
   }
@@ -454,7 +510,6 @@ export class TubeView extends BoardView {
     // A group is one colour, so which marble takes which place is free: the top one leaves first and lands deepest,
     // and no marble has to pass through another on the way out or on the way in.
     moved.reverse();
-    const base = this.identities[result.to]?.length ?? 0;
     this.identities[result.to]?.push(...moved);
     const source = this.rack.places[result.from]!, destination = this.rack.places[result.to]!;
     const dx = destination.x - source.x, dz = destination.z - source.z;
@@ -463,7 +518,7 @@ export class TubeView extends BoardView {
       // Include the rim, the right-hand pattern rail, and the marble's stretched radius.
       const t = Math.min(1, Math.max(0, ((at.x - source.x) * dx + (at.z - source.z) * dz) / (dx * dx + dz * dz)));
       if (Math.hypot(source.x + dx * t - at.x, source.z + dz * t - at.z) > 2.25) continue;
-      clearance = Math.max(clearance, this.rims[i]!.position.y + .9);
+      clearance = Math.max(clearance, this.rims[i]!.position.y + RIM_CLEARANCE);
       for (const plaque of this.plaques) {
         if (plaque.group.position.z === at.z && Math.abs(plaque.group.position.x - at.x) < 1.5) {
           clearance = Math.max(clearance, plaque.group.position.y + 1.2);
@@ -471,10 +526,10 @@ export class TubeView extends BoardView {
       }
     }
     moved.forEach((id, order) => {
-      const from = this.marblePosition(id), to = this.position(result.to, base + order);
-      const clear = rackFlightHeight(from?.y ?? to.y, to.y, clearance);
-      this.flights.set(id, { delay: order * GROUP_STAGGER, clear, bounce: order === moved.length - 1 ? 1 : 0 });
+      this.flights.set(id, { delay: order * GROUP_STAGGER, ...(origins?.length ? { duration: .185 } : {}),
+        clear: clearance, bounce: order === moved.length - 1 ? 1 : 0 });
     });
+    this.lift[result.from] = 0;
     this.layout(state, true);
     this.flights.clear();
     this.arrivals.delete(result.from);

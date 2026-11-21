@@ -1,4 +1,4 @@
-import { demoFilmChapter, demoMenuUrl } from '../demo';
+import { demoFilmChapter, returnToDemoMenu } from '../demo';
 import * as THREE from 'three';
 import { separateMapPins } from './map-pins';
 import { confetti } from './confetti';
@@ -7,7 +7,7 @@ import type { Stage } from '../engine/stage';
 import type { GameLevel } from '../engine/contracts';
 import { t } from '../i18n';
 import { worldLocation } from '../world/locations';
-import type { WorldProgress } from '../world/progression';
+import type { WorldChapter, WorldProgress } from '../world/progression';
 import { WorldScene } from './world-scene';
 import { WorldFilm } from './world-film';
 import { SceneBuild } from './scene-build';
@@ -33,12 +33,22 @@ const makeButton = (text: string, action: () => void, className = ''): HTMLButto
   button.className = className; button.addEventListener('click', action); return button;
 };
 
+function lockIcon(): HTMLElement {
+  const icon = document.createElement('i');
+  icon.className = 'wv-lock'; icon.setAttribute('aria-hidden', 'true');
+  return icon;
+}
+
+function constructionCaption(chapter: WorldChapter): string {
+  const built = chapter.stops.filter(stop => stop.status === 'built').length;
+  return t(`${built} of ${chapter.stops.length} stops built`, `Étapes construites · ${built}/${chapter.stops.length}`);
+}
+
 /** Map controls live in the DOM; its miniature shares the game's renderer and rests between interactions. */
 export class WorldView {
   readonly element = document.createElement('section');
   private readonly heading = document.createElement('header');
   private readonly nodes = document.createElement('nav');
-  private readonly workshopMarker = document.createElement('button');
   private readonly footer = document.createElement('footer');
   private readonly panel = document.createElement('div');
   private readonly filmControls = document.createElement('div');
@@ -72,6 +82,7 @@ export class WorldView {
   private readonly viewControls = document.createElement('div');
   private readonly resetView = makeButton('↺', () => { this.scene?.resetView();this.mapChanged(); }, 'wv-reset-view');
   private filmIndex = 0;
+  private lockTimer = 0;
   private transitionTimer = 0;
   private transitionFrame = 0;
   private earnedFilm = false;
@@ -87,11 +98,7 @@ export class WorldView {
     this.filmNote.className = 'wv-film-status'; this.filmNote.setAttribute('role', 'status');
     this.blankScene.background = new THREE.Color(DEEP_SEA);
     this.ownership = new VillageOwnership(chapter => new SceneBuild(chapter, this.stage, {motion:'cinematic'}), () => this.built(), false);
-    this.workshopMarker.type = 'button'; this.workshopMarker.className = 'map-workshop'; this.workshopMarker.hidden = true;
-    this.workshopMarker.dataset['worldWorkshop'] = '';
-    this.workshopMarker.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="currentColor" transform="rotate(-35 12 12)"><rect x="5" y="3" width="14" height="6" rx="1.2"/><rect x="10" y="8" width="4" height="13" rx="1.1"/></g></svg><i class="map-stem" aria-hidden="true"></i>';
-    this.workshopMarker.addEventListener('click', () => this.actions.workshop());
-    this.element.append(this.heading, this.nodes, this.workshopMarker, this.panel, this.footer, this.filmControls);
+    this.element.append(this.heading, this.nodes, this.panel, this.footer, this.filmControls);
     document.getElementById('hud')!.prepend(this.element);
     this.curtain.id = 'journey-transition'; this.curtain.hidden = true; this.curtain.setAttribute('aria-hidden', 'true'); document.body.append(this.curtain);
     this.viewControls.className='wv-view-controls';this.resetView.setAttribute('aria-label',t('Reset village view','Recentrer le village'));this.viewControls.append(this.resetView);this.element.append(this.viewControls);
@@ -107,8 +114,8 @@ export class WorldView {
     this.chapter = Math.max(0, Math.min(chapter, progress.chapters.length - 1));
     this.view = 'map'; this.element.hidden = false;this.viewControls.hidden=false;this.resetView.hidden=!this.scene?.orbit.changed; this.panel.hidden = true;
     this.resetView.setAttribute('aria-label',t('Reset village view','Recentrer le village'));
-    this.workshopMarker.hidden = false; this.workshopMarker.setAttribute('aria-label', t('Workshop', 'Atelier'));
-    this.workshopMarker.querySelector('.wv-project-notice')?.remove(); this.workshopMarker.removeAttribute('aria-description');
+    window.clearTimeout(this.lockTimer);
+    this.footer.classList.remove('wv-workshop-footer');
     sfx.harbourAmbience(this.chapter === 0);
     this.actions.screen(this.view);
     this.heading.hidden = this.nodes.hidden = this.footer.hidden = false;
@@ -121,21 +128,28 @@ export class WorldView {
     this.stage.canvas.dataset['worldScene'] = this.scene ? 'ready' : 'building';
     if (!current) return;
     const location = worldLocation(this.chapter);
-    const done = current.stops.filter(stop => stop.status === 'built').length;
     const title = document.createElement('h1'); title.textContent = location.name;
-    const subtitle = document.createElement('p'); subtitle.textContent = this.scene ? `${location.creation} · ${done}/${current.stops.length}` : t('Getting the village ready…', 'Préparation du village…');
+    const subtitle = document.createElement('p'); subtitle.textContent = this.scene ? constructionCaption(current) : t('Getting the village ready…', 'Préparation du village…');
     if (!this.scene) subtitle.setAttribute('role', 'status');
     this.heading.replaceChildren(title, subtitle);
     this.nodes.replaceChildren(...current.stops.map(stop => {
-      const button = makeButton(stop.status === 'built' ? '•' : String(stop.local + 1), () => this.actions.enter(stop.index), 'map-stop');
+      const button = makeButton('', () => {
+        if (stop.status === 'locked') {
+          this.explainLockedStop(button, current);
+        } else {
+          this.actions.enter(stop.index);
+        }
+      }, 'map-stop');
       button.dataset['round'] = String(stop.index); button.dataset['status'] = stop.status;
-      button.disabled = stop.status === 'locked';
+      button.setAttribute('aria-disabled', String(stop.status === 'locked'));
+      const face = document.createElement('span'); face.className = 'wv-stop-face'; face.setAttribute('aria-hidden', 'true');
+      if (stop.status === 'locked') face.append(lockIcon());
+      else face.textContent = stop.status === 'built' ? '✓' : String(stop.local + 1);
       button.setAttribute('aria-label', t(`Construction stop ${stop.index + 1}, ${stop.completed} of 3 puzzles completed${stop.status === 'locked' ? ', locked' : ''}`, `Étape de construction ${stop.index + 1}, ${stop.completed} puzzles sur 3 terminés${stop.status === 'locked' ? ', verrouillée' : ''}`));
       button.setAttribute('aria-current', stop.index === progress.frontier ? 'step' : 'false');
       const dots = document.createElement('span'); dots.className = 'map-dots'; dots.setAttribute('aria-hidden', 'true');
       for (let i = 0; i < 3; i++) { const dot = document.createElement('i'); dot.classList.toggle('done', i < stop.completed); dots.append(dot); }
-      const stem = document.createElement('i'); stem.className = 'map-stem'; stem.setAttribute('aria-hidden', 'true');
-      button.append(stem, dots); return button;
+      face.append(dots); button.append(face); return button;
     }));
     const primary = document.createElement('div'); primary.className = 'wv-primary';
     const hasNext = progress.frontier < progress.stops.length;
@@ -150,27 +164,48 @@ export class WorldView {
     previous.setAttribute('aria-label', t('Previous location', 'Lieu précédent')); previous.disabled = this.chapter === 0;
     const next = makeButton('›', () => this.show(progress, this.chapter + 1), 'wv-arrow');
     next.setAttribute('aria-label', t('Next location', 'Lieu suivant')); next.disabled = !progress.chapters[this.chapter + 1]?.available;
-    const atelier = makeButton(t('Workshop', 'Atelier'), () => this.actions.workshop(), 'wv-soft'); atelier.id = 'world-workshop';
+    const atelier = makeButton(t('Workshop', 'Atelier'), () => this.actions.workshop(), 'wv-soft');
+    atelier.id = 'world-workshop';
+    atelier.dataset['worldWorkshop'] = '';
     const completed = new Set(completedLevels());
     const available = WORKSHOP_PROJECTS.filter(project => projectState(project, progress, completed).status === 'available');
     if (!this.projectNoticeInitialized) { available.forEach(project => this.seenProjects.add(project.id)); this.projectNoticeInitialized = true; }
     if (available.some(project => !this.seenProjects.has(project.id))) {
-      for (const entry of [atelier, this.workshopMarker]) {
-        const dot = document.createElement('i'); dot.className = 'wv-project-notice'; dot.setAttribute('aria-hidden', 'true'); entry.append(dot);
-        entry.setAttribute('aria-description', t('A new village project is available.', 'Un nouveau projet de village est disponible.'));
-      }
+      const dot = document.createElement('i'); dot.className = 'wv-project-notice'; dot.setAttribute('aria-hidden', 'true');
+      atelier.append(dot); atelier.setAttribute('aria-description', t('A new village project is available.', 'Un nouveau projet de village est disponible.'));
     }
-    nav.append(previous, makeButton(t('The valley', 'La vallée'), () => this.overview(), 'wv-soft'), atelier, next);
+    if (!previous.disabled) nav.append(previous);
+    nav.append(makeButton(t('Islands', 'Îles'), () => this.overview(), 'wv-soft'), atelier);
+    if (!next.disabled) nav.append(next);
     if (demoFilmChapter >= 0) {
-      const back = makeButton(t('Back to demos', 'Retour aux démos'), () => window.location.assign(demoMenuUrl()), 'wv-soft');
+      const back = makeButton(t('Back to demos', 'Retour aux démos'), returnToDemoMenu, 'wv-soft');
       const replay = makeButton(t('Replay film', 'Revoir le film'), () => this.playFilm(this.chapter), 'wv-film-button');
       primary.replaceChildren(back, replay);
       this.footer.replaceChildren(primary);
     } else this.footer.replaceChildren(primary, nav);
-    this.nodes.hidden = this.workshopMarker.hidden = !this.scene;
+    this.nodes.hidden = !this.scene;
     this.resetView.hidden=!this.scene?.orbit.changed;this.positions(); this.dirty = true;
     if (this.scene) this.scene.draw(); else this.drawBlank();
   }
+  private explainLockedStop(button: HTMLButtonElement, chapter: WorldChapter): void {
+    const next = this.progress?.stops[this.progress.frontier];
+    const caption = this.heading.querySelector('p');
+    if (!next || !caption) return;
+    sfx.unlock(); sfx.blocked();
+    window.clearTimeout(this.lockTimer);
+    for (const pin of this.nodes.querySelectorAll('.wv-locked-tap')) pin.classList.remove('wv-locked-tap');
+    const playable = this.nodes.querySelector('[aria-current="step"]');
+    button.classList.add('wv-locked-tap'); playable?.classList.add('wv-next-stop');
+    caption.setAttribute('role', 'status');
+    caption.textContent = next.chapter === chapter.index
+      ? t(`Build stop ${next.local + 1} first`, `Construisez d’abord l’étape ${next.local + 1}`)
+      : t(`Continue at ${worldLocation(next.chapter).name}`, `Continuez à ${worldLocation(next.chapter).name}`);
+    this.lockTimer = window.setTimeout(() => {
+      button.classList.remove('wv-locked-tap'); playable?.classList.remove('wv-next-stop');
+      caption.textContent = constructionCaption(chapter);
+    }, 1500);
+  }
+
   /** A build settled: the map scene a film also borrows. Called before its proof is activated. */
   private built(): void {
     if (this.element.hidden) return;
@@ -183,8 +218,8 @@ export class WorldView {
       return;
     }
     scene.resize(); scene.update(current, this.pendingConstruct);scene.inspect();
-    if (subtitle) { subtitle.removeAttribute('role'); subtitle.textContent = `${worldLocation(this.chapter).creation} · ${current.stops.filter(stop => stop.status === 'built').length}/${current.stops.length}`; }
-    this.nodes.hidden = this.workshopMarker.hidden = false; this.stage.canvas.dataset['worldScene'] = 'ready';
+    if (subtitle) { subtitle.removeAttribute('role'); subtitle.textContent = constructionCaption(current); }
+    this.nodes.hidden = false; this.stage.canvas.dataset['worldScene'] = 'ready';
     this.resetView.hidden=!scene.orbit.changed;this.positions(); this.dirty = true; scene.draw(); this.releaseBuildCover(); this.reveal();
   }
   private drawBlank(): void { this.stage.draw(this.blankScene, this.blankCamera); }
@@ -194,11 +229,10 @@ export class WorldView {
     if (!this.progress) return;
     this.clearMapPointers();this.viewControls.hidden=true;this.releaseBuildCover(); this.ownership.leave('overview');
     this.view = 'overview'; this.nodes.hidden = this.footer.hidden = true; this.panel.hidden = false;
-    this.workshopMarker.hidden = true;
     sfx.harbourAmbience(false);
     this.actions.screen(this.view);
-    const title = document.createElement('h1'); title.textContent = t('The Valley Run', 'La grande traversée');
-    const sub = document.createElement('p'); sub.textContent = t('One valley. One wonderfully unlikely machine.', 'Une vallée. Une machine merveilleusement improbable.');
+    const title = document.createElement('h1'); title.textContent = t('Islands', 'Îles');
+    const sub = document.createElement('p'); sub.setAttribute('role', 'status');
     this.heading.replaceChildren(title, sub);
     const back = makeButton(t('‹ Back to the village', '‹ Retour au village'), () => this.show(this.progress!, this.chapter), 'wv-soft');
     this.disposeValley(); this.valleyAssets = new WorldKitAssets();
@@ -212,16 +246,20 @@ export class WorldView {
   private valleyLabels(): void {
     if (!this.progress || !this.valley) return;
     this.panel.querySelector('.wv-locations')?.remove();
-    const list = document.createElement('nav'); list.className = 'wv-locations'; list.setAttribute('aria-label', t('Valley locations', 'Lieux de la vallée'));
+    const list = document.createElement('nav'); list.className = 'wv-locations'; list.setAttribute('aria-label', t('Islands', 'Îles'));
     for (const target of this.valley.targets()) {
       const chapter = this.progress.chapters[target.chapter]!;
       const item = makeButton('', () => this.enterVillage(chapter.index), 'wv-location');
       item.dataset['chapter'] = String(chapter.index); item.setAttribute('aria-disabled', String(!chapter.available));
       item.setAttribute('aria-current', chapter.index === this.chapter ? 'location' : 'false');
       item.style.cssText = `left:${target.x}px;top:${target.y}px;width:${target.width}px`;
-      const name = document.createElement('strong'); name.textContent = `${chapter.complete ? '✓ ' : ''}${worldLocation(chapter.index).name}`;
-      const count = document.createElement('small'); count.textContent = `${chapter.stops.filter(stop => stop.status === 'built').length}/${chapter.stops.length}`;
-      item.append(name, count); list.append(item);
+      const name = document.createElement('strong'); name.textContent = worldLocation(chapter.index).name;
+      if (!chapter.available) item.prepend(lockIcon());
+      else if (chapter.complete) {
+        const tick = document.createElement('i'); tick.className = 'wv-island-check'; tick.textContent = '✓'; tick.setAttribute('aria-hidden', 'true'); item.append(tick);
+      }
+      item.append(name); item.setAttribute('aria-label', `${name.textContent}, ${chapter.available ? constructionCaption(chapter) : t('locked', 'verrouillée')}`);
+      list.append(item);
       item.addEventListener('keydown', event => {
         if (event.key === 'Escape') { event.preventDefault(); this.show(this.progress!, this.chapter); return; }
         const delta = ({ ArrowLeft: -1, ArrowRight: 1, ArrowUp: -2, ArrowDown: 2 } as Record<string, number>)[event.key];
@@ -238,7 +276,7 @@ export class WorldView {
     sfx.unlock();
     if (chapter.available) { this.show(this.progress!, index); return; }
     sfx.blocked();
-    this.heading.querySelector('p')!.textContent = t(`Finish ${worldLocation(Math.max(0, index - 1)).name} to open this village.`, `Terminez ${worldLocation(Math.max(0, index - 1)).name} pour ouvrir ce village.`);
+    this.heading.querySelector('p')!.textContent = t(`Finish ${worldLocation(Math.max(0, index - 1)).name} to open this island.`, `Terminez ${worldLocation(Math.max(0, index - 1)).name} pour ouvrir cette île.`);
   }
   private disposeValley(): void { this.valley?.dispose(); this.valley = null; this.valleyAssets = null; }
 
@@ -248,13 +286,11 @@ export class WorldView {
     if (!this.scene) this.chapter = Math.max(0, Math.min(Math.floor(Math.min(progress.frontier, Math.max(0, progress.stops.length - 1)) / 10), progress.chapters.length - 1));
     this.progress = progress;
     this.stopFilm(); this.view = 'workshop'; this.element.hidden = false;
-    this.workshopMarker.hidden = true;
     sfx.harbourAmbience(false);
     this.actions.screen(this.view);
-    this.heading.hidden = false; this.nodes.hidden = this.footer.hidden = true; this.panel.hidden = false;
+    this.heading.hidden = false; this.nodes.hidden = this.viewControls.hidden = true; this.footer.hidden = this.panel.hidden = false;
     const title = document.createElement('h1'); title.textContent = t('The Workshop', 'L’atelier');
-    const sub = document.createElement('p'); sub.textContent = t('Optional projects for your villages.', 'Des projets facultatifs pour vos villages.');
-    this.heading.replaceChildren(title, sub);
+    this.heading.replaceChildren(title);
     const back = makeButton(t('‹ Back to the village', '‹ Retour au village'), () => this.actions.map(), 'wv-soft');
     const list = document.createElement('nav'); list.className = 'wv-experiments';
     list.setAttribute('aria-label', t('Workshop puzzles', 'Puzzles de l’atelier'));
@@ -281,10 +317,14 @@ export class WorldView {
         const copy = document.createElement('span'); copy.className = 'wv-project-copy';
         const name = document.createElement('strong'); name.textContent = project.title;
         const game = document.createElement('span'); game.textContent = level.name;
-        const status = document.createElement('small'); status.className = 'wv-project-status'; status.textContent = `${state.status === 'completed' ? '✓' : '⚑'} ${state.label}`;
+        const status = document.createElement('small'); status.className = 'wv-project-status';
+        if (state.status === 'locked') {
+          status.append(lockIcon(), t(`${state.built}/${state.required} stops built`, `${state.built}/${state.required} étapes construites`));
+          item.setAttribute('aria-label', `${project.title}, ${state.label}`);
+        } else status.textContent = state.status === 'completed' ? t('Built', 'Construit') : t('Ready to build', 'À construire');
         copy.append(name, game, status); item.append(art, copy); article.append(item);
         if (state.status === 'completed') {
-          const check = document.createElement('b'); check.className = 'wv-workshop-check'; check.textContent = '✓'; check.setAttribute('aria-hidden', 'true'); item.append(check);
+          const check = document.createElement('b'); check.className = 'wv-workshop-check'; check.textContent = '✓'; check.setAttribute('aria-hidden', 'true'); status.prepend(check);
           item.setAttribute('aria-label', `${project.title}, ${t('completed', 'terminé')}`);
           const visit = makeButton(t('View village', 'Voir le village'), () => this.actions.projectVillage(project.chapter), 'wv-project-visit'); visit.dataset['projectVillage'] = project.id; article.append(visit);
         }
@@ -292,9 +332,11 @@ export class WorldView {
       }
       list.append(group);
     }
-    this.panel.replaceChildren(back, list); this.dirty = true; if (!this.scene) this.drawBlank();
+    this.footer.classList.add('wv-workshop-footer');
+    this.footer.replaceChildren(back); this.panel.replaceChildren(list); this.panel.scrollTop = 0;
+    this.dirty = true; if (!this.scene) this.drawBlank();
     if (focusId) this.panel.querySelector<HTMLButtonElement>(`[data-workshop="${focusId}"]`)?.focus({ preventScroll: false });
-    else this.panel.querySelector<HTMLElement>(`.wv-project-group[data-chapter="${this.chapter}"]`)?.scrollIntoView({ block: 'start' });
+    else if (this.chapter > 0) this.panel.querySelector<HTMLElement>(`.wv-project-group[data-chapter="${this.chapter}"]`)?.scrollIntoView({ block: 'start' });
   }
 
   playFilm(chapter: number, earned = false): void {
@@ -303,7 +345,6 @@ export class WorldView {
     this.releaseBuildCover();
     if (!this.progress?.chapters[chapter]?.complete) return;
     this.stopFilm(); this.view = 'film'; this.filmIndex = chapter; this.element.hidden = false;
-    this.workshopMarker.hidden = true;
     this.earnedFilm = earned;
     sfx.harbourAmbience(this.filmIndex === 0);
     this.actions.screen(this.view);
@@ -382,27 +423,15 @@ export class WorldView {
   hide(): void { sfx.harbourAmbience(false); this.releaseBuildCover(); this.stopFilm(); this.ownership.leave('hidden'); this.disposeValley(); this.gesture = null; this.clearMapPointers(); this.element.hidden = true; }
   resize(): void { this.scene?.resize(); this.valley?.resize(); this.playback?.resize(); if (this.view === 'overview') this.valleyLabels(); else this.positions(); this.dirty = true; }
   private positions(): void {
-    const workshop=this.scene?.workshopTargets(),badges=this.scene?.targets()??[];
-    const pins=separateMapPins([...(workshop?[workshop.badge]:[]),...badges],this.stage.canvas.clientWidth,this.stage.canvas.clientHeight);
-    badges.forEach((raw, index) => {
-      const point=pins[index+1]??raw;
+    const badges = this.scene?.targets() ?? [];
+    const width = this.stage.canvas.clientWidth, height = this.stage.canvas.clientHeight;
+    const pins = separateMapPins(badges, width, height);
+    pins.forEach((point, index) => {
       const button = this.nodes.children.item(index);
-      if (button instanceof HTMLElement) {
-        button.hidden=point.x<16||point.x>this.stage.canvas.clientWidth-16||point.y<112||point.y>this.stage.canvas.clientHeight-145;
-        button.style.left = `${point.x}px`; button.style.top = `${point.y}px`;
-        const ground = this.scene!.groundTargets()[index]!;
-        const stem = button.querySelector<HTMLElement>('.map-stem');
-        if (stem) { stem.style.width = `${Math.hypot(ground.x - point.x, ground.y - point.y)}px`; stem.style.transform = `rotate(${Math.atan2(ground.y - point.y, ground.x - point.x)}rad)`; }
-      }
+      if (!(button instanceof HTMLElement)) return;
+      button.hidden = point.x < 22 || point.x > width - 22 || point.y < 115 || point.y > height - 145;
+      button.style.left = `${point.x}px`; button.style.top = `${point.y}px`;
     });
-    if (workshop) {
-      workshop.badge=pins[0]??workshop.badge;
-      this.workshopMarker.hidden=this.view!=='map'||workshop.badge.x<22||workshop.badge.x>this.stage.canvas.clientWidth-22||workshop.badge.y<120||workshop.badge.y>this.stage.canvas.clientHeight-150;
-      this.workshopMarker.style.left = `${workshop.badge.x}px`; this.workshopMarker.style.top = `${workshop.badge.y}px`;
-      const stem = this.workshopMarker.querySelector<HTMLElement>('.map-stem')!;
-      stem.style.width = `${Math.hypot(workshop.door.x - workshop.badge.x, workshop.door.y - workshop.badge.y)}px`;
-      stem.style.transform = `rotate(${Math.atan2(workshop.door.y - workshop.badge.y, workshop.door.x - workshop.badge.x)}rad)`;
-    }
   }
   advance(seconds: number): boolean {
     if (this.element.hidden) return false;
@@ -475,7 +504,7 @@ export class WorldView {
   }
   private bindWorldPointer(): void {
     const canvas = this.stage.canvas;
-    const mapTarget=(target:EventTarget|null):boolean=>target===canvas||target instanceof Element&&!!target.closest('.map-stop,.map-workshop');
+    const mapTarget=(target:EventTarget|null):boolean=>target===canvas||target instanceof Element&&!!target.closest('.map-stop');
     document.addEventListener('pointerdown',event=>{
       if(this.element.hidden||this.view!=='map'||!this.scene||!this.curtain.hidden||!mapTarget(event.target)||event.button!==0)return;
       if(!this.mapPointers.size){this.suppressMapClick=false;this.mapMoved=false;}

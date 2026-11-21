@@ -1,5 +1,6 @@
 import{certifyRockerScene}from'./gravity-rocker-native';
 import{bindNativeTerrain}from'./village-terrain';
+import { buildTimber } from './harbour-craft';
 import * as THREE from 'three';
 import { HarbourLaunch } from './harbour-life';
 import type { Stage } from '../engine/stage';
@@ -100,7 +101,7 @@ export class WorldScene {
   get constructionProgress(): number { return this.growth; }
 
   constructor(private readonly stage: Stage, readonly chapter: number, options: WorldSceneOptions = {}, mode?: typeof STAGED) {
-    this.assets = new WorldKitAssets(true, chapter === 0);
+    this.assets = new WorldKitAssets(true, chapter === 0, chapter === 0 && options.motion === 'cinematic');
     this.scenePlan = villageScenePlan(chapter);
     this.hasAxle=this.scenePlan.plan.stations.some(s=>s.mechanism.kind==='wheelbucket'&&s.mechanism.axleCarry);
     this.scene = stage.createScene('village');
@@ -127,7 +128,7 @@ export class WorldScene {
     const ground = createVillageTerrain(drawn, this.material, 'full', true); landscape.add(ground);
     this.detachedGround = ground.geometry;
     yield 'ground';
-    for (const piece of this.scenePlan.scenery) {
+    for (const piece of [...this.scenePlan.scenery, ...(options.motion === 'cinematic' ? this.scenePlan.cinematicScenery ?? [] : [])]) {
       const model = this.model(piece.model);
       model.position.fromArray(piece.position); model.rotation.y = piece.yaw; model.scale.setScalar(piece.scale);
       if (terrain.spec.beachWidth && piece.model === 'boat' && piece.position[0] < 1) {
@@ -213,11 +214,17 @@ export class WorldScene {
       local.add(this.machine.groups[stop]!); build.add(local); this.machine.root.add(build); this.builds.push(build);
       const foundation = new THREE.Group(); foundation.name = `village-foundation-${stop}`;
       const { x, z, height } = foundationSite(station, terrain);
-      const geometry = new THREE.BoxGeometry(FOUNDATION[0], FOUNDATION[1], FOUNDATION[2]); geometry.deleteAttribute('uv');
-      const color = new THREE.Color(0xb9b49a), colors = new Float32Array(geometry.getAttribute('position').count * 3);
-      for (let index = 0; index < colors.length; index += 3) color.toArray(colors, index);
-      geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-      foundation.add(new THREE.Mesh(geometry, this.material)); foundation.position.set(x, height + 0.06, z);
+      if (chapter === 0 && options.motion === 'cinematic') {
+        foundation.add(new THREE.Mesh(buildTimber(), this.material));
+        foundation.position.set(x,height,z);
+        foundation.rotation.y = (stop % 3 - 1) * .18;
+      } else {
+        const geometry = new THREE.BoxGeometry(FOUNDATION[0], FOUNDATION[1], FOUNDATION[2]); geometry.deleteAttribute('uv');
+        const color = new THREE.Color(0xb9b49a), colors = new Float32Array(geometry.getAttribute('position').count * 3);
+        for (let index = 0; index < colors.length; index += 3) color.toArray(colors, index);
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        foundation.add(new THREE.Mesh(geometry, this.material)); foundation.position.set(x, height + 0.06, z);
+      }
       foundation.visible = false; this.foundations.push(foundation); this.scene.add(foundation);
     }
     yield 'foundations';
@@ -365,16 +372,17 @@ export class WorldScene {
     if (!this.marble) { this.marble = this.stage.marbles.create('red', VILLAGE_RADIUS); this.marble.mesh.castShadow = false; }
     const marble = this.marble.mesh; if (!marble.parent) this.scene.add(marble);
     this.machine.apply(seconds, !cameraMotion); this.machine.sample(seconds, marble.position);
+    this.material.userData.filmCargo?.copy(marble.position);
     this.machine.marbleOrientation(seconds, marble.quaternion);
     this.workshopBuilding.apply(seconds, this.workshopPass, !cameraMotion);
     this.filmCamera.apply(this.camera, seconds, cameraMotion);
-    // The film is a miniature: sharp where the marble is, soft in front of it and beyond.
+    // Keep the working harbour and the action in the same sharp plane.
     const reach = this.camera.position.distanceTo(marble.position);
-    this.scene.userData['focus'] = { near: reach - 5, far: reach + 5, falloff: 16 };
+    this.scene.userData['focus'] = { near: 0, far: reach + 22, falloff: 35 };
     this.draw();
   }
   draw(): void { this.stage.draw(this.scene, this.camera); }
-  stopFilm(): void { this.filmStarted=false;if (this.marble) this.stage.marbles.release(this.marble); this.marble = null; }
+  stopFilm(): void { this.material.userData.filmCargo?.set(0,-100,0); this.filmStarted=false;if (this.marble) this.stage.marbles.release(this.marble); this.marble = null; }
   dispose(): void {
     if (this.disposed) return; this.disposed = true;
     this.constructed=false;this.stopFilm(); this.workshopBuilding?.dispose(); this.sceneMachine?.dispose(); this.detachedGround?.dispose();this.detachedBaked?.dispose();

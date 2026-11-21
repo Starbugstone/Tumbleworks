@@ -7,7 +7,7 @@
     "licence": "CC0-1.0",
     "recipe": "Walnut button: slowed real wood, felt B3 body, 5 ms onset, dry bench",
     "generator": "scripts/generate-sounds.py",
-    "generatorSha256": "3819eec8ede5dbb9c49e13819d6175dfc1d29496b18c5132107c2ba9ec3f7f8d",
+    "generatorSha256": "29830b9c59deca35f8ae6d9c0f2e3fbaeab465683a802699f163ad1d313c4041",
     "recordings": [
       {
         "source": "sources/kenney-impact/impactWood_light_000.ogg",
@@ -31,7 +31,7 @@
     "licence": "CC0-1.0",
     "recipe": "Arcade crate release: dry latch and a tightening cluster of marble contacts over Earshot wood",
     "generator": "scripts/generate-sounds.py",
-    "generatorSha256": "3819eec8ede5dbb9c49e13819d6175dfc1d29496b18c5132107c2ba9ec3f7f8d",
+    "generatorSha256": "29830b9c59deca35f8ae6d9c0f2e3fbaeab465683a802699f163ad1d313c4041",
     "recordings": [
       {
         "source": "sources/earshot/wood-knock.wav",
@@ -55,7 +55,7 @@
     "licence": "CC0-1.0",
     "recipe": "Real maple contact at 0.91x with damped D4 bench resonance",
     "generator": "scripts/generate-sounds.py",
-    "generatorSha256": "3819eec8ede5dbb9c49e13819d6175dfc1d29496b18c5132107c2ba9ec3f7f8d",
+    "generatorSha256": "29830b9c59deca35f8ae6d9c0f2e3fbaeab465683a802699f163ad1d313c4041",
     "recordings": [
       {
         "source": "sources/kenney-impact/impactWood_light_000.ogg",
@@ -79,7 +79,7 @@
     "licence": "CC0-1.0",
     "recipe": "Arcade tube strike: Earshot glass tap over a short, hollow enamel snap",
     "generator": "scripts/generate-sounds.py",
-    "generatorSha256": "3819eec8ede5dbb9c49e13819d6175dfc1d29496b18c5132107c2ba9ec3f7f8d",
+    "generatorSha256": "29830b9c59deca35f8ae6d9c0f2e3fbaeab465683a802699f163ad1d313c4041",
     "recordings": [
       {
         "source": "sources/earshot/glass-tap.wav",
@@ -103,7 +103,7 @@
     "licence": "CC0-1.0",
     "recipe": "Arcade marble seat: hard contact over a low damped cup, with Earshot glass and wood",
     "generator": "scripts/generate-sounds.py",
-    "generatorSha256": "3819eec8ede5dbb9c49e13819d6175dfc1d29496b18c5132107c2ba9ec3f7f8d",
+    "generatorSha256": "29830b9c59deca35f8ae6d9c0f2e3fbaeab465683a802699f163ad1d313c4041",
     "recordings": [
       {
         "source": "sources/earshot/glass-tap.wav",
@@ -134,7 +134,7 @@
     "licence": "CC0-1.0",
     "recipe": "Full dock settles: D4 wood mass, A4 enamel rim and two quiet real wood contacts",
     "generator": "scripts/generate-sounds.py",
-    "generatorSha256": "3819eec8ede5dbb9c49e13819d6175dfc1d29496b18c5132107c2ba9ec3f7f8d",
+    "generatorSha256": "29830b9c59deca35f8ae6d9c0f2e3fbaeab465683a802699f163ad1d313c4041",
     "recordings": [
       {
         "source": "sources/kenney-impact/impactWood_light_000.ogg",
@@ -156,9 +156,9 @@
     "creator": "Tumbleworks / CJspellsfish / Earshot",
     "page": "https://freesound.org/people/CJspellsfish/sounds/668383",
     "licence": "CC0-1.0",
-    "recipe": "Arcade dock payoff: hard seat, latch and a short low chord with an Earshot glass accent",
+    "recipe": "Arcade dock payoff: hard seat and an answering D4/A4 felt chord with an Earshot glass accent",
     "generator": "scripts/generate-sounds.py",
-    "generatorSha256": "3819eec8ede5dbb9c49e13819d6175dfc1d29496b18c5132107c2ba9ec3f7f8d",
+    "generatorSha256": "29830b9c59deca35f8ae6d9c0f2e3fbaeab465683a802699f163ad1d313c4041",
     "recordings": [
       {
         "source": "sources/earshot/glass-tap.wav",
@@ -168,11 +168,11 @@
         "licence": "CC0-1.0"
       }
     ],
-    "sourceSha256": "e020caaef6ab259fcf687f8f7fb2b7ae3439d573970297db790274155659399f",
+    "sourceSha256": "b16b97efc55b81dcee2da6b5a6f5d34dc142271b93e251f6337d86666304b76d",
     "stereo": false,
     "bitrate": 160000,
-    "encodedSha256": "95b788ab098974b2c4cd6ec401de7801195187a17727e32d52dcadc7a2680374",
-    "encodedBytes": 9448
+    "encodedSha256": "795f190908ea7cb2dc3b361a2184c306e969eee9c0a98eeaa4c5e9181bb8bbb5",
+    "encodedBytes": 15195
   },
   {
     "cue": "truck-complete",
@@ -180,9 +180,9 @@
     "creator": "Tumbleworks / CJspellsfish / Earshot / Earshot",
     "page": "https://freesound.org/people/CJspellsfish/sounds/668383",
     "licence": "CC0-1.0",
-    "recipe": "Arcade truck payoff: close chassis thump, Earshot wood and glass, then a dry latch",
+    "recipe": "Arcade truck payoff: low chassis thump and dry latch, followed by a warm A3/E4 flourish",
     "generator": "scripts/generate-sounds.py",
-    "generatorSha256": "3819eec8ede5dbb9c49e13819d6175dfc1d29496b18c5132107c2ba9ec3f7f8d",
+    "generatorSha256": "29830b9c59deca35f8ae6d9c0f2e3fbaeab465683a802699f163ad1d313c4041",
     "recordings": [
       {
         "source": "sources/earshot/glass-tap.wav",
@@ -199,11 +199,11 @@
         "licence": "CC0-1.0"
       }
     ],
-    "sourceSha256": "c49e69aeb32499d5ac43815b787c489a26c68428f0babfc19de5840de7057021",
+    "sourceSha256": "c6be8a2527a08a9a40d530ef3ec819ee2f56ebc7fabb3ea0985c89b3cc55ba10",
     "stereo": false,
     "bitrate": 160000,
-    "encodedSha256": "eddc1d6fa43b170a87bd51662cb0e4a6afbc8a1c7af864e5260f3ca53f036315",
-    "encodedBytes": 9448
+    "encodedSha256": "1204c3e8fc03119caea76ed99325ded337ad298e6f3f31d39d4a3ce42d6ef09d",
+    "encodedBytes": 16762
   },
   {
     "cue": "blocked",
@@ -213,7 +213,7 @@
     "licence": "CC0-1.0",
     "recipe": "Rubber stop: real soft contact with muted B3 wood, no pitch warning",
     "generator": "scripts/generate-sounds.py",
-    "generatorSha256": "3819eec8ede5dbb9c49e13819d6175dfc1d29496b18c5132107c2ba9ec3f7f8d",
+    "generatorSha256": "29830b9c59deca35f8ae6d9c0f2e3fbaeab465683a802699f163ad1d313c4041",
     "recordings": [
       {
         "source": "sources/kenney-impact/impactSoft_medium_000.ogg",
@@ -237,7 +237,7 @@
     "licence": "CC0-1.0",
     "recipe": "Wooden detent return: E4-D4 soft double contact at 0/75 ms, no reverse",
     "generator": "scripts/generate-sounds.py",
-    "generatorSha256": "3819eec8ede5dbb9c49e13819d6175dfc1d29496b18c5132107c2ba9ec3f7f8d",
+    "generatorSha256": "29830b9c59deca35f8ae6d9c0f2e3fbaeab465683a802699f163ad1d313c4041",
     "recordings": [
       {
         "source": "sources/kenney-impact/impactWood_light_000.ogg",
@@ -261,7 +261,7 @@
     "licence": "CC0-1.0",
     "recipe": "Stopped mechanism: B3/A3 damped bodies at 0/135 ms with a dry wood stop",
     "generator": "scripts/generate-sounds.py",
-    "generatorSha256": "3819eec8ede5dbb9c49e13819d6175dfc1d29496b18c5132107c2ba9ec3f7f8d",
+    "generatorSha256": "29830b9c59deca35f8ae6d9c0f2e3fbaeab465683a802699f163ad1d313c4041",
     "recordings": [
       {
         "source": "sources/kenney-impact/impactWood_light_000.ogg",
@@ -283,9 +283,9 @@
     "creator": "Tumbleworks / Kenney",
     "page": "https://kenney.nl/assets/impact-sounds",
     "licence": "CC0-1.0",
-    "recipe": "Workshop signature: D4-F#4-A4 felt contacts, D4/A4/D5 warm closing chord and a quiet enamel rim",
+    "recipe": "Workshop win: four rising felt strikes and a full D-major chord with a long resonant body",
     "generator": "scripts/generate-sounds.py",
-    "generatorSha256": "3819eec8ede5dbb9c49e13819d6175dfc1d29496b18c5132107c2ba9ec3f7f8d",
+    "generatorSha256": "29830b9c59deca35f8ae6d9c0f2e3fbaeab465683a802699f163ad1d313c4041",
     "recordings": [
       {
         "source": "sources/kenney-impact/impactWood_light_000.ogg",
@@ -295,11 +295,11 @@
         "licence": "CC0-1.0"
       }
     ],
-    "sourceSha256": "c82c74ed1fddac9cf7e46e70aed3afafc9c2b320a97ff580daf5d0227ef5fc9b",
+    "sourceSha256": "8a4b1dd7475b3a3bc0bf3cb35a40ccf094e2db84065cbaf3f77e00d81b922db2",
     "stereo": false,
     "bitrate": 160000,
-    "encodedSha256": "c73fdd326efe0932702d33c67830746b66275c77ba3f25d771f4db2255d279c5",
-    "encodedBytes": 21986
+    "encodedSha256": "7ccd3390cab9d793e25f7cee9ab0d5d29fc87fcf7b210c6ff3ae7d886c47138b",
+    "encodedBytes": 28778
   },
   {
     "cue": "harbour-bell",
@@ -309,7 +309,7 @@
     "licence": "CC0-1.0",
     "recipe": "Little Harbour ship bell: F4 brass modes 1/1.49/2.01/2.74/4.05, felt striker and wooden mount, 720 ms",
     "generator": "scripts/generate-sounds.py",
-    "generatorSha256": "3819eec8ede5dbb9c49e13819d6175dfc1d29496b18c5132107c2ba9ec3f7f8d",
+    "generatorSha256": "29830b9c59deca35f8ae6d9c0f2e3fbaeab465683a802699f163ad1d313c4041",
     "recordings": [
       {
         "source": "sources/kenney-impact/impactSoft_medium_000.ogg",

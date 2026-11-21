@@ -16,7 +16,10 @@ import win from './sounds/win.mp3?no-inline';
 const SOUNDS = { tap, release, wood, glass, light, final, complete, truck, harbourBell, blocked, undo, jam, win };
 type Cue = keyof typeof SOUNDS;
 type Timer = ReturnType<typeof setTimeout>;
+type BedTheme = 'coast' | 'inland';
 type Harbour = {
+  theme: BedTheme;
+  level: number;
   gain: GainNode;
   surf: AudioBufferSourceNode;
   gull: AudioBufferSourceNode | null;
@@ -27,10 +30,11 @@ type Harbour = {
 const HARBOUR_LEVEL = 0.22;
 const HARBOUR_RATE = 12_000;
 
-function makeSurf(context: AudioContext): AudioBuffer {
+function makeBed(context: AudioContext, theme: BedTheme): AudioBuffer {
   const buffer = context.createBuffer(1, 12 * HARBOUR_RATE, HARBOUR_RATE);
   const samples = buffer.getChannelData(0);
-  let seed = 0x3a7291c, foam = 0, swell = 0;
+  const coastal = theme === 'coast';
+  let seed = coastal ? 0x3a7291c : 0x540239b, foam = 0, swell = 0;
   for (let i = 0; i < samples.length; i++) {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
     const noise = seed / 0x80000000 - 1;
@@ -38,7 +42,8 @@ function makeSurf(context: AudioContext): AudioBuffer {
     swell += 0.055 * (noise - swell);
     const phase = 2 * Math.PI * i / samples.length;
     const tide = 0.34 + 0.16 * Math.cos(3 * phase + 0.5) + 0.11 * Math.cos(2 * phase + 1.1);
-    samples[i] = (0.44 * swell + 0.20 * foam) * tide;
+    samples[i] = coastal ? (0.44 * swell + 0.20 * foam) * tide :
+      (0.46 * swell + 0.09 * foam) * (0.32 + 0.06 * Math.cos(phase) + 0.02 * Math.cos(5 * phase));
   }
   // Join the two ends over 30 ms without inserting a gap in the wash.
   const seam = Math.round(0.03 * HARBOUR_RATE);
@@ -76,8 +81,10 @@ class Sfx {
   private readonly buffers = new Map<Cue, AudioBuffer>();
   private readonly voices = new Set<AudioScheduledSourceNode>();
   private harbourRequested = false;
+  private boardTheme: BedTheme | null = null;
+  private boardFast = false;
   private harbour: Harbour | null = null;
-  private surfBuffer: AudioBuffer | null = null;
+  private readonly bedBuffers = new Map<BedTheme, AudioBuffer>();
   private gullBuffer: AudioBuffer | null = null;
   private lastImpact = -Infinity;
   private impactCount = 0;
@@ -102,7 +109,7 @@ class Sfx {
         this.ctx.onstatechange = () => this.syncHarbour();
         if (typeof document !== 'undefined') document.addEventListener('visibilitychange', () => {
           this.syncHarbour();
-          if (!document.hidden && this.harbourRequested && !this.muted && this.ctx?.state === 'suspended') {
+          if (!document.hidden && this.requestedBed && !this.muted && this.ctx?.state === 'suspended') {
             void this.ctx.resume().then(() => this.syncHarbour(), () => {});
           }
         });
@@ -172,6 +179,27 @@ class Sfx {
     this.syncHarbour();
   }
 
+  /** Chapter is zero-based. Board ambience takes precedence during map/board handoff. */
+  boardAmbience(active: boolean, chapter = 0): void {
+    this.boardTheme = active ? (chapter === 0 ? 'coast' : 'inland') : null;
+    if (!active) this.boardFast = false;
+    this.syncHarbour();
+  }
+
+  /** Pass the effective fast-forward state, including its automatic resets. */
+  boardFastForward(active: boolean): void {
+    this.boardFast = active;
+    this.syncHarbour();
+  }
+
+  private get requestedBed(): BedTheme | null {
+    return this.boardTheme ?? (this.harbourRequested ? 'coast' : null);
+  }
+
+  private get gullsWanted(): boolean {
+    return this.requestedBed === 'coast' && !(this.boardTheme && this.boardFast);
+  }
+
   private syncHarbour(): void {
     const context = this.ctx;
     if (!context || !this.master || this.muted || context.state !== 'running' ||
@@ -180,20 +208,31 @@ class Sfx {
       return;
     }
     const current = this.harbour;
-    if (!this.harbourRequested) {
+    const theme = this.requestedBed;
+    if (!theme || (current && current.theme !== theme)) {
       if (!current || current.fadeOut !== null) return;
       if (current.nextCall !== null) clearTimeout(current.nextCall);
       current.nextCall = null;
       current.gain.gain.setTargetAtTime(0, context.currentTime, 0.09);
-      current.fadeOut = setTimeout(() => this.stopHarbour(), 540);
+      current.fadeOut = setTimeout(() => {
+        this.stopHarbour();
+        this.syncHarbour();
+      }, 540);
       return;
     }
+    const level = this.boardTheme ? (theme === 'coast' ? 0.15 : 0.13) * (this.boardFast ? 0.35 : 1) : HARBOUR_LEVEL;
     if (current) {
-      if (current.fadeOut !== null) {
-        clearTimeout(current.fadeOut);
+      if (current.fadeOut !== null || current.level !== level) {
+        if (current.fadeOut !== null) clearTimeout(current.fadeOut);
         current.fadeOut = null;
-        current.gain.gain.setTargetAtTime(HARBOUR_LEVEL, context.currentTime, 0.16);
-        if (!current.gull) this.scheduleGull(current, context, 6500);
+        current.level = level;
+        current.gain.gain.setTargetAtTime(level, context.currentTime, 0.16);
+      }
+      if (!this.gullsWanted && current.nextCall !== null) {
+        clearTimeout(current.nextCall);
+        current.nextCall = null;
+      } else if (this.gullsWanted && !current.gull && current.nextCall === null) {
+        this.scheduleGull(current, context, 6500);
       }
       return;
     }
@@ -202,20 +241,22 @@ class Sfx {
     gain.gain.value = 0;
     gain.connect(this.master);
     const surf = context.createBufferSource();
-    surf.buffer = this.surfBuffer ??= makeSurf(context);
+    const buffer = this.bedBuffers.get(theme) ?? makeBed(context, theme);
+    this.bedBuffers.set(theme, buffer);
+    surf.buffer = buffer;
     surf.loopStart = 0.03;
     surf.loop = true;
     surf.connect(gain);
     surf.start(context.currentTime, surf.loopStart);
-    gain.gain.setTargetAtTime(HARBOUR_LEVEL, context.currentTime, 0.16);
-    const harbour = this.harbour = { gain, surf, gull: null, nextCall: null, fadeOut: null };
-    this.scheduleGull(harbour, context, 6500 + Math.random() * 3500);
+    gain.gain.setTargetAtTime(level, context.currentTime, 0.16);
+    const harbour = this.harbour = { theme, level, gain, surf, gull: null, nextCall: null, fadeOut: null };
+    if (this.gullsWanted) this.scheduleGull(harbour, context, 6500 + Math.random() * 3500);
   }
 
   private scheduleGull(harbour: Harbour, context: AudioContext, delay: number): void {
     harbour.nextCall = setTimeout(() => {
       harbour.nextCall = null;
-      if (this.harbour !== harbour || !this.harbourRequested || context.state !== 'running' ||
+      if (this.harbour !== harbour || !this.gullsWanted || context.state !== 'running' ||
         (typeof document !== 'undefined' && document.hidden)) return;
       const gull = context.createBufferSource();
       harbour.gull = gull;
@@ -225,7 +266,7 @@ class Sfx {
       gull.onended = () => {
         gull.disconnect();
         harbour.gull = null;
-        if (this.harbour === harbour && this.harbourRequested) {
+        if (this.harbour === harbour && this.gullsWanted && harbour.fadeOut === null) {
           this.scheduleGull(harbour, context, 15000 + Math.random() * 14000);
         }
       };

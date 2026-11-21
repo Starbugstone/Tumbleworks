@@ -35,7 +35,11 @@
         "name": "Little Harbour",
         "image": "demo/harbour.webp"
       }
-    ]
+    ],
+    "counter": {
+      "stock": "timber",
+      "stain": "#867762"
+    }
   },
   {
     "id": "glasshouse-gardens",
@@ -54,7 +58,11 @@
     "backdropFocus": [
       0,
       2
-    ]
+    ],
+    "counter": {
+      "stock": "tile",
+      "stain": "#7a837a"
+    }
   },
   {
     "id": "willow-mill",
@@ -73,7 +81,11 @@
     "backdropFocus": [
       1,
       0
-    ]
+    ],
+    "counter": {
+      "stock": "timber",
+      "stain": "#8b735f"
+    }
   },
   {
     "id": "clockmakers-hill",
@@ -92,7 +104,11 @@
     "backdropFocus": [
       0,
       -2
-    ]
+    ],
+    "counter": {
+      "stock": "slate",
+      "stain": "#777e83"
+    }
   },
   {
     "id": "cloud-bridge",
@@ -111,7 +127,11 @@
     "backdropFocus": [
       -6,
       2
-    ]
+    ],
+    "counter": {
+      "stock": "timber",
+      "stain": "#79796f"
+    }
   },
   {
     "id": "high-glassworks",
@@ -130,7 +150,11 @@
     "backdropFocus": [
       0,
       2
-    ]
+    ],
+    "counter": {
+      "stock": "tile",
+      "stain": "#778289"
+    }
   },
   {
     "id": "orchard-steps",
@@ -145,7 +169,11 @@
     "terrain": "#8b9d76",
     "roof": "#b16b52",
     "accent": "#f0c477",
-    "kind": "garden"
+    "kind": "garden",
+    "counter": {
+      "stock": "timber",
+      "stain": "#877a6e"
+    }
   },
   {
     "id": "copper-village",
@@ -160,7 +188,11 @@
     "terrain": "#82978a",
     "roof": "#b78261",
     "accent": "#f3c77c",
-    "kind": "mill"
+    "kind": "mill",
+    "counter": {
+      "stock": "tile",
+      "stain": "#75847a"
+    }
   },
   {
     "id": "windward-ridge",
@@ -175,7 +207,11 @@
     "terrain": "#92a2a1",
     "roof": "#688594",
     "accent": "#f1d29b",
-    "kind": "bridge"
+    "kind": "bridge",
+    "counter": {
+      "stock": "timber",
+      "stain": "#867463"
+    }
   },
   {
     "id": "starwatch-terrace",
@@ -190,7 +226,11 @@
     "terrain": "#89949f",
     "roof": "#636d99",
     "accent": "#ffd78a",
-    "kind": "clock"
+    "kind": "clock",
+    "counter": {
+      "stock": "slate",
+      "stain": "#78737b"
+    }
   },
   {
     "id": "summit-workshop",
@@ -205,7 +245,11 @@
     "terrain": "#9ba8a1",
     "roof": "#789598",
     "accent": "#f7d3a0",
-    "kind": "glass"
+    "kind": "glass",
+    "counter": {
+      "stock": "slate",
+      "stain": "#72828a"
+    }
   },
   {
     "id": "valley-crown",
@@ -220,6 +264,10 @@
     "terrain": "#8d9f91",
     "roof": "#637f89",
     "accent": "#ffd489",
-    "kind": "glass"
+    "kind": "glass",
+    "counter": {
+      "stock": "tile",
+      "stain": "#7f8177"
+    }
   }
 ]

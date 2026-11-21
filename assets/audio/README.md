@@ -12,7 +12,7 @@ reversed audio and piercing bell tones. The player still hears the established p
 
 - `src/sounds/*.mp3`: thirteen mono 160 kb/s MP3 player files, imported with Vite `?no-inline`.
 - `assets/audio/generated/*.wav`: deterministic 44.1 kHz mono 16-bit PCM masters.
-- `assets/audio/generated/provenance.json`: suite ID `compact-workshop-arcade-v2`, fixed-seed policy,
+- `assets/audio/generated/provenance.json`: suite ID `compact-workshop-arcade-v3`, fixed-seed policy,
   generator hash, recording hashes, durations, recipes and surface-mode definitions.
 - `assets/audio/manifest.json`: exact recording inputs per cue, creators, CC0 notices, source and
   generator hashes, bitrate, and encoded hashes/bytes.
@@ -56,8 +56,9 @@ lossy Ogg; modal masters are lossless WAV. No metadata reaches the encoded MP3 f
 
 The arcade release starts with a dry latch and closes the spacing between marble contacts.
 The glass strike uses a short hollow snap, while seating leads with a hard contact and
-decays into the cup body. Truck completion adds a low chassis hit and a latch. Dock completion
-pairs a hard seat with a short lower-register chord.
+decays into the cup body. Truck completion adds a low chassis hit, a latch and an answering A3/E4 flourish. Dock completion
+pairs a hard seat with a D4/A4 felt chord. A full win rises through four felt strikes to a longer
+D-major resolution.
 
 Surface resonances use three slightly detuned modes (−0.25%, centre, +0.25%, weights 0.22/0.56/0.22)
 per partial, plus small seeded pitch/velocity variation. High notes and upper partials decay faster.
@@ -74,8 +75,8 @@ Modal notes have 5 ms cosine attacks and a very quiet 6 ms, 850 Hz low-passed fe
 Recorded contacts have 5 ms attacks and two low-pass stages. The 220–330 Hz bodies carry a clear
 second partial around 440–660 Hz, helping phone audibility. Every body has a second 2400 Hz low-pass.
 The warm cues use a small bench room with double 1100 Hz damping and early reflections at 11–71 ms.
-The five arcade cues use dry, close contacts and a 4.2 ms onset taper to control MP3 pre-echo at the
-frame boundary. Both finishes use tanh saturation and DC removal, with a −22 dBFS source RMS target
+The arcade cues use dry, close contacts. The contact fade takes 4.2 ms and the two longer
+completion cues use 6.8 ms to control MP3 pre-echo at the frame boundary. Both finishes use tanh saturation and DC removal, with a −22 dBFS source RMS target
 and a 0.63 source peak ceiling. The arcade tails taper over 24 ms.
 
 ## Recipes and measured player files
@@ -90,15 +91,15 @@ Values below are actual FFmpeg-decoded MP3 duration, RMS dBFS and power-weighted
 | impact-glass | Arcade tube strike: Earshot glass tap over a short, hollow enamel snap | 0.156 | -22.45 | 985 | 4,223 |
 | landing-light | Arcade marble seat: hard contact over a low damped cup, with Earshot glass and wood | 0.282 | -22.45 | 525 | 6,835 |
 | landing-final | Full dock settles: D4 wood mass, A4 enamel rim and two quiet real wood contacts | 0.360 | -22.45 | 380 | 8,403 |
-| complete | Arcade dock payoff: hard seat, latch and a short low chord with an Earshot glass accent | 0.405 | -22.45 | 446 | 9,448 |
-| truck-complete | Arcade truck payoff: close chassis thump, Earshot wood and glass, then a dry latch | 0.417 | -22.44 | 400 | 9,448 |
+| complete | Arcade dock payoff: hard seat and an answering D4/A4 felt chord with an Earshot glass accent | 0.680 | -22.45 | 401 | 15,195 |
+| truck-complete | Arcade truck payoff: low chassis thump and dry latch, followed by a warm A3/E4 flourish | 0.770 | -22.44 | 341 | 16,762 |
 | blocked | Rubber stop: real soft contact with muted B3 wood, no pitch warning | 0.180 | -22.45 | 206 | 4,746 |
 | undo | Wooden detent return: E4-D4 soft double contact at 0/75 ms, no reverse | 0.290 | -22.45 | 389 | 7,358 |
 | jam | Stopped mechanism: B3/A3 damped bodies at 0/135 ms with a dry wood stop | 0.480 | -22.45 | 315 | 11,015 |
-| win | Workshop signature: D4-F#4-A4 felt contacts, D4/A4/D5 warm closing chord and a quiet enamel rim | 1.040 | -22.45 | 485 | 21,986 |
+| win | Workshop win: four rising felt strikes and a full D-major chord with a long resonant body | 1.380 | -22.45 | 480 | 28,778 |
 | harbour-bell | Little Harbour ship bell: F4 brass modes 1/1.49/2.01/2.74/4.05, felt striker and wooden mount, 720 ms | 0.720 | -22.45 | 375 | 15,717 |
 
-Total player audio is **112,894 / 150,000 bytes**. The
+Total player audio is **132,747 / 150,000 bytes**. The
 procedural harbour ambience adds no audio downloads. At the existing +4-semitone pitch ceiling,
 landing-light retains **99.22%** of its source-band energy below 2 kHz.
 Encoded cues remain part of the first-download budget even when fetched after a gesture.
@@ -169,6 +170,17 @@ The 12-second surf and the gull call are synthesized once into compact mono Web 
 The surf uses band-limited seeded noise and slow wave envelopes. The gull uses two short
 pitch-shaped calls. One surf node and at most one gull node share a quiet gain bus into the
 existing master. No ambience assets enter the MP3 manifest or first-download transfer.
+
+### Board ambience hook
+
+`sfx.boardAmbience(active: boolean, chapter = 0): void` takes a zero-based chapter. Chapter zero
+has a quieter coastal bed with occasional gulls. The inland bed uses a softer, steadier texture.
+Call on board entry, chapter changes and exit. Board ambience takes precedence over village
+ambience, sharing its decode-free buffers, gesture unlock, mute and visibility behavior. Changes
+fade the outgoing theme before starting the incoming one, so the beds do not stack.
+
+`sfx.boardFastForward(active: boolean): void` follows effective game speed above 1×. It ducks the
+board bed to 35% and clears pending gull calls. Leaving the board clears the ducking state.
 
 ## Initial workshop-bank verification — 21 November 2026
 

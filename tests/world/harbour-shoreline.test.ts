@@ -50,7 +50,7 @@ it('grounds every Little Harbour building, doorstep and tree across its rendered
   const ground = createVillageTerrain(LITTLE_HARBOUR.cinematicTerrain!,material,'full',true);
   const ray = new Raycaster(), pos = new Vector3(), down = new Vector3(0,-1,0);
   try {
-    const sites = [...LITTLE_HARBOUR.scenery,{ ...LITTLE_HARBOUR.workshop.house, model:'house-a' },
+    const sites = [...LITTLE_HARBOUR.scenery,...LITTLE_HARBOUR.cinematicScenery ?? [],{ ...LITTLE_HARBOUR.workshop.house, model:'house-a' },
       ...LITTLE_HARBOUR.rewards.map(slot => ({...slot, model:slot.project, scale:1}))];
     for (const site of sites) {
       if (site.model === 'boat') continue;
@@ -70,7 +70,7 @@ it('grounds every Little Harbour building, doorstep and tree across its rendered
           ray.set(new Vector3(pos.x,site.position[1]+1,pos.z),down);
           const height=ray.intersectObject(ground)[0]?.point.y ?? -Infinity;
           expect(height,`${site.model} at ${pos.x.toFixed(2)}, ${pos.z.toFixed(2)}`).toBeGreaterThanOrEqual(site.position[1]-.035);
-          expect(height).toBeLessThanOrEqual(site.position[1]+.10);
+          expect(height,`${site.model} at ${pos.x.toFixed(2)}, ${pos.z.toFixed(2)}`).toBeLessThanOrEqual(site.position[1]+.10);
         }
       });
       expect(probes).toBeGreaterThan(0);

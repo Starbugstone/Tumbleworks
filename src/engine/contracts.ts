@@ -6,7 +6,7 @@ import type { Stage } from './stage';
 export type GameStatus = 'playing' | 'won' | 'jammed';
 export type Difficulty = 'Getting started' | 'Finding a rhythm' | 'Thinking ahead' | 'Full spectrum';
 export interface ScreenPoint { x: number; y: number; label?: string }
-export interface GuideStep { readonly text: string; readonly target?: string; readonly done?: boolean }
+export interface GuideStep { readonly text: string; readonly prompt?: string; readonly target?: string; readonly done?: boolean }
 interface FeedbackDetails {
   readonly text?: string;
   readonly strength?: number;
@@ -32,6 +32,8 @@ export interface GameLevel {
 export interface GameRuntime {
   readonly guideId?: string;
   guide?(): GuideStep;
+  /** Immediate visual selection while the pointer is held. Actions still commit on release. */
+  press?(target: string | null): void;
   readonly drag?: {
     start(target: string, point: ScreenPoint): boolean;
     move(point: ScreenPoint, target: string | null): void;
@@ -51,6 +53,7 @@ export interface GameRuntime {
   readonly counter: { label: string; value: string; full?: boolean };
   readonly preview: readonly Color[];
   readonly previewLabel: string;
+  readonly jamSummary?: string;
   readonly jamReason: string;
   activate(target: string): readonly Feedback[];
   pick(x: number, y: number): string | null;

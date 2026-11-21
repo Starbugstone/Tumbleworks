@@ -1,7 +1,7 @@
 {
-  "suite": "compact-workshop-arcade-v2",
+  "suite": "compact-workshop-arcade-v3",
   "generator": "scripts/generate-sounds.py",
-  "generatorSha256": "3819eec8ede5dbb9c49e13819d6175dfc1d29496b18c5132107c2ba9ec3f7f8d",
+  "generatorSha256": "29830b9c59deca35f8ae6d9c0f2e3fbaeab465683a802699f163ad1d313c4041",
   "recordings": {
     "sources/kenney-impact/impactWood_light_000.ogg": "eb45e35b4bed784d3f120de4afec4b0d6ac09d9e143cce8cfcb7d739e1b1f3c3",
     "sources/kenney-impact/impactSoft_medium_000.ogg": "7d3ba0bb5e60a11b5d3e558c141303dcf494256675fbf753c0d252d2cf0481e3",
@@ -31,12 +31,12 @@
     "impact-glass": "Arcade tube strike: Earshot glass tap over a short, hollow enamel snap",
     "landing-light": "Arcade marble seat: hard contact over a low damped cup, with Earshot glass and wood",
     "landing-final": "Full dock settles: D4 wood mass, A4 enamel rim and two quiet real wood contacts",
-    "complete": "Arcade dock payoff: hard seat, latch and a short low chord with an Earshot glass accent",
-    "truck-complete": "Arcade truck payoff: close chassis thump, Earshot wood and glass, then a dry latch",
+    "complete": "Arcade dock payoff: hard seat and an answering D4/A4 felt chord with an Earshot glass accent",
+    "truck-complete": "Arcade truck payoff: low chassis thump and dry latch, followed by a warm A3/E4 flourish",
     "blocked": "Rubber stop: real soft contact with muted B3 wood, no pitch warning",
     "undo": "Wooden detent return: E4-D4 soft double contact at 0/75 ms, no reverse",
     "jam": "Stopped mechanism: B3/A3 damped bodies at 0/135 ms with a dry wood stop",
-    "win": "Workshop signature: D4-F#4-A4 felt contacts, D4/A4/D5 warm closing chord and a quiet enamel rim",
+    "win": "Workshop win: four rising felt strikes and a full D-major chord with a long resonant body",
     "harbour-bell": "Little Harbour ship bell: F4 brass modes 1/1.49/2.01/2.74/4.05, felt striker and wooden mount, 720 ms"
   },
   "durations": {
@@ -46,12 +46,12 @@
     "impact-glass": 0.156,
     "landing-light": 0.282,
     "landing-final": 0.36,
-    "complete": 0.405,
-    "truck-complete": 0.417,
+    "complete": 0.68,
+    "truck-complete": 0.77,
     "blocked": 0.18,
     "undo": 0.29,
     "jam": 0.48,
-    "win": 1.04,
+    "win": 1.38,
     "harbour-bell": 0.72
   },
   "surfaces": {

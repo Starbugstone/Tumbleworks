@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import type { App } from '../../src/view/App';
 
 type Sound = typeof import('../../src/audio')['sfx'];
-type AudioWindow = Window & { tumbleworks: { app: App }; observedSound: Pick<Sound, 'win' | 'deliver' | 'boxFilled' | 'harbourBell' | 'harbourAmbience'> & {
+type AudioWindow = Window & { tumbleworks: { app: App }; observedSound: Pick<Sound, 'win' | 'deliver' | 'boxFilled' | 'harbourBell' | 'harbourAmbience' | 'boardAmbience'> & {
   buffers: Map<string, AudioBuffer>; voices: Set<AudioScheduledSourceNode>;
   harbour: { surf: AudioBufferSourceNode } | null;
 }; audioCounts: { intake: number; complete: number; fastIntake: number } };
@@ -114,7 +114,9 @@ test('harbour ambience starts on gesture, reuses its loop, fades out and follows
   expect(await page.evaluate(() => {
     const sound = (window as unknown as AudioWindow).observedSound;
     sound.harbourAmbience(false);
-    return Boolean(sound.harbour);
+    const boardKeptLoop = Boolean(sound.harbour);
+    sound.boardAmbience(false);
+    return boardKeptLoop && Boolean(sound.harbour);
   })).toBe(true);
   await expect.poll(running).toBe(false);
   expect(errors).toEqual([]);

@@ -6,7 +6,7 @@ import { FIXED_SECONDS, type Point3 } from './physics';
 import { landingWeight, seat, SEAT_SECONDS } from './arrival';
 import { boxCorners, frameBoard } from './framing';
 import { focusOn } from './finish';
-import { rackFlightAcross } from './rack-flight';
+import { rackFlightAcross, rackFlightY } from './rack-flight';
 import { Shake } from './shake';
 
 /**
@@ -14,11 +14,11 @@ import { Shake } from './shake';
  * flight is drawn up toward, to pass over what stands between. `bounce` scales its rebound once it lands: 0 for a
  * marble that another is about to land on.
  */
-interface Placement { readonly id: string; readonly color: Color; readonly radius: number; readonly at: Point3; readonly target?: string; readonly delay?: number; readonly clear?: number; readonly bounce?: number }
+interface Placement { readonly id: string; readonly color: Color; readonly radius: number; readonly at: Point3; readonly target?: string; readonly delay?: number; readonly duration?: number; readonly clear?: number; readonly bounce?: number }
 interface Actor { readonly entity: MarbleEntity; radius: number; target: Point3 }
 interface Motion { readonly from: Point3; readonly to: Point3; time: number; readonly delay: number; readonly duration: number; readonly clear: number; readonly bounce: number; landed: boolean }
 /** Seconds a marble takes to fly to its new place, before the distance it has to cross is added. */
-const FLIGHT_SECONDS = 0.18;
+const FLIGHT_SECONDS = 0.28;
 const UP = new THREE.Vector3(0, 1, 0);
 
 /** Stable actors can be retargeted during motion. Rules never wait for presentation. */
@@ -96,7 +96,7 @@ export abstract class BoardView {
         this.stop(entry.id);
         const from = this.marblePosition(entry.id) ?? entry.at;
         this.motions.set(entry.id, { from, to: entry.at, time: 0, delay: entry.delay ?? 0, bounce: entry.bounce ?? 1, landed: false,
-          duration: FLIGHT_SECONDS + 0.01 * Math.hypot(entry.at.x - from.x, entry.at.z - from.z),
+          duration: entry.duration ?? FLIGHT_SECONDS + 0.014 * Math.hypot(entry.at.x - from.x, entry.at.z - from.z),
           clear: entry.clear ?? Math.max(from.y, entry.at.y) + 1.5 });
       }
       if (entry.target) this.hit(actor.entity.mesh, entry.target, entry.at, true);
@@ -147,10 +147,10 @@ export abstract class BoardView {
       if (t <= 0) continue;
       if (t < 1) {
         // Rise inside the opening, travel over the rack and drop vertically into the destination.
-        const u = t + 0.42 * Math.sin(Math.PI * 2 * t) / (Math.PI * 2), v = 1 - u;
+        const u = t + 0.42 * Math.sin(Math.PI * 2 * t) / (Math.PI * 2);
         const across = rackFlightAcross(u);
         const x = from.x + across * (to.x - from.x), z = from.z + across * (to.z - from.z);
-        const y = v * v * v * from.y + 3 * v * u * motion.clear + u * u * u * to.y;
+        const y = rackFlightY(from.y, to.y, motion.clear, u);
         this.heading.set(x - mesh.position.x, y - mesh.position.y, z - mesh.position.z);
         mesh.position.set(x, y, z);
         // In the air a marble is drawn a little long along its travel, and leaves a trail.

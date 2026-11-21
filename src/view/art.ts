@@ -55,7 +55,7 @@ function texture(element: HTMLCanvasElement): THREE.CanvasTexture {
  * which bleached yellow towards cream and orange towards peach until the two were hard to tell apart.
  */
 function glossy(color: Color): THREE.MeshPhysicalMaterial {
-  const material = new THREE.MeshPhysicalMaterial({ color: COLORS[color].hex, roughness: .19, metalness: 0, clearcoat: 1, clearcoatRoughness: .085, specularIntensity: .48 });
+  const material = new THREE.MeshPhysicalMaterial({ color: COLORS[color].hex, roughness: .16, metalness: 0, clearcoat: 1, clearcoatRoughness: .055, specularIntensity: .48 });
   // A long workshop window reflected in the clear shell. The small bright area
   // preserves the colour of the core even in dense, instanced crowds.
   material.onBeforeCompile = shader => {
@@ -63,7 +63,10 @@ function glossy(color: Color): THREE.MeshPhysicalMaterial {
       vec3 reflected = reflect(-normalize(vViewPosition), normal);
       vec2 glint = (reflected.xy - vec2(-.48,.69)) * vec2(2.5,4.6);
       float windowLight = (1.0 - smoothstep(.18,.65,dot(glint,glint))) * smoothstep(.1,.4,reflected.z);
-      outgoingLight = mix(outgoingLight, vec3(1.0,.96,.84), .82 * windowLight);
+      float grazing = 1.0 - clamp(dot(normalize(vViewPosition), normal), 0.0, 1.0);
+      float shell = grazing * grazing * grazing;
+      outgoingLight = mix(outgoingLight, vec3(.74,.90,.93), shell * .51);
+      outgoingLight = mix(outgoingLight, vec3(1.0,.97,.90), .91 * windowLight);
       #include <opaque_fragment>`);
   };
   return material;

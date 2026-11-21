@@ -44,10 +44,10 @@ export function workshopGlass(material: THREE.MeshStandardMaterial): Glass<THREE
         float windowX = reflected.x + reflected.y * .18;
         float broad = 1.0 - smoothstep(.035, .12, abs(windowX + .40));
         float mullion = 1.0 - smoothstep(.008, .024, abs(windowX + .22));
-        float highlight = max(broad * .68, mullion * .65);
+        float highlight = max(broad * .82, mullion * .78);
         float edge = pow(1.0 - abs(dot(normalize(vViewPosition), normal)), 2.0);
-        outgoingLight += vec3(.50, .69, .72) * highlight;
-        diffuseColor.a = clamp(diffuseColor.a * (.55 + .60 * edge) + .16 * highlight, 0.0, .65);
+        outgoingLight += vec3(.54, .73, .80) * highlight + vec3(.22,.38,.42) * edge;
+        diffuseColor.a = clamp(diffuseColor.a * (.49 + 1.08 * edge) + .29 * highlight, 0.0, .65);
         #include <opaque_fragment>`);
     };
   }

@@ -17,7 +17,7 @@ describe('the village a board is played in', () => {
     expect(boardChapter('workshop', 3, 'board-1')).toBeNull();
   });
 
-  it('floats harbour boards on water and stands every other village\'s boards on its land', () => {
+  it('surrounds the worktop with the current village terrain or water', () => {
     for (let chapter = 0; chapter < 12; chapter++) {
       setBoardVillage(chapter);
       expect(boardVillage()).toBe(chapter);
@@ -34,6 +34,8 @@ it('keeps each island’s artwork and demo links valid as the campaign grows', (
   expect(new Set(ids).size).toBe(ids.length);
   for (const [chapter, theme] of themes.entries()) {
     expect(theme.name).toHaveLength(2);
+    expect(['slate', 'tile', 'timber']).toContain(theme.counter.stock);
+    expect(theme.counter.stain).toMatch(/^#[0-9a-f]{6}$/i);
     for (const paint of [theme.terrain, theme.roof, theme.accent]) expect(paint).toMatch(/^#[0-9a-f]{6}$/i);
     if (theme.print) expect(existsSync(new URL('../../public/' + theme.print, import.meta.url))).toBe(true);
     for (const card of theme.demo ?? []) {

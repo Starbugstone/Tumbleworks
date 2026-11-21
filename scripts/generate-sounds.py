@@ -33,15 +33,15 @@ RECIPES = {
     'impact-glass': 'Arcade tube strike: Earshot glass tap over a short, hollow enamel snap',
     'landing-light': 'Arcade marble seat: hard contact over a low damped cup, with Earshot glass and wood',
     'landing-final': 'Full dock settles: D4 wood mass, A4 enamel rim and two quiet real wood contacts',
-    'complete': 'Arcade dock payoff: hard seat, latch and a short low chord with an Earshot glass accent',
-    'truck-complete': 'Arcade truck payoff: close chassis thump, Earshot wood and glass, then a dry latch',
+    'complete': 'Arcade dock payoff: hard seat and an answering D4/A4 felt chord with an Earshot glass accent',
+    'truck-complete': 'Arcade truck payoff: low chassis thump and dry latch, followed by a warm A3/E4 flourish',
     'blocked': 'Rubber stop: real soft contact with muted B3 wood, no pitch warning',
     'undo': 'Wooden detent return: E4-D4 soft double contact at 0/75 ms, no reverse',
     'jam': 'Stopped mechanism: B3/A3 damped bodies at 0/135 ms with a dry wood stop',
-    'win': 'Workshop signature: D4-F#4-A4 felt contacts, D4/A4/D5 warm closing chord and a quiet enamel rim',
+    'win': 'Workshop win: four rising felt strikes and a full D-major chord with a long resonant body',
     'harbour-bell': 'Little Harbour ship bell: F4 brass modes 1/1.49/2.01/2.74/4.05, felt striker and wooden mount, 720 ms',
 }
-DURATIONS = dict(zip(RECIPES, (.12, .239, .12, .156, .282, .36, .405, .417, .18, .29, .48, 1.04, .72)))
+DURATIONS = dict(zip(RECIPES, (.12, .239, .12, .156, .282, .36, .68, .77, .18, .29, .48, 1.38, .72)))
 RECIPE_RECORDINGS = {
     'tap': ('wood',), 'release': ('earshot-wood',), 'impact-wood': ('wood',),
     'impact-glass': ('earshot-glass',), 'landing-light': ('earshot-glass', 'earshot-wood'), 'landing-final': ('wood',),
@@ -216,7 +216,7 @@ def mix(seconds, layers):
     return result
 
 
-def finish_arcade(samples, cutoff, attack_boost):
+def finish_arcade(samples, cutoff, attack_boost, attack):
     samples = lowpass(samples, cutoff)
     for i, value in enumerate(samples):
         falloff = min(1.0, max(0.0, (i / RATE - 0.016) / 0.022))
@@ -225,7 +225,7 @@ def finish_arcade(samples, cutoff, attack_boost):
     for drive in (0.63, 0.85, 1.15, 1.45, 1.8, 2.2, 2.6):
         shaped = [math.tanh(drive * sample / peak) for sample in samples]
         mean = sum(shaped) / len(shaped)
-        shaped = fade([sample - mean for sample in shaped], 0.0042, 0.024)
+        shaped = fade([sample - mean for sample in shaped], attack, 0.024)
         rms = math.sqrt(sum(x * x for x in shaped) / len(shaped))
         gain = 10 ** (-22 / 20) / rms
         if gain * max(map(abs, shaped)) <= 0.63:
@@ -246,8 +246,10 @@ def arcade_cues():
                         (859, .33, .028), (1418, .27, .009)], 74, .53)
     latch = knock(0.12, [(414, .64, .023), (756, .54, .017), (1320, .31, .013),
                          (1810, .28, .007)], 75, .48)
-    chord = knock(0.275, [(349.23, .55, .067), (523.25, .48, .093), (698.46, .37, .065),
-                         (988, .23, .036), (1538, .16, .013)], 76, .17)
+    dock_chord = knock(.48, [(293.66, .54, .14), (440, .72, .119), (587.33, .32, .11),
+                             (880, .20, .073), (1174.7, .11, .033)], 76, .035)
+    truck_chord = knock(.52, [(220, .53, .145), (329.63, .66, .13), (440, .35, .111),
+                              (659.25, .26, .085), (986, .09, .043)], 77, .036)
 
     cues = {
         'impact-glass': (1900, [(0, 1.0, glass_snap), (0.002, .49, glass), (.019, .10, marble)]),
@@ -257,12 +259,14 @@ def arcade_cues():
         'landing-light': (1640, [(0, 1.0, seat), (0, .66, marble),
                                        (.004, .32, glass), (.028, .24, wood)]),
         'truck-complete': (1800, [(0, 1.0, axle), (0, .68, wood), (0, .44, marble),
-                                        (.055, .58, latch), (.061, .25, glass), (.089, .31, axle)]),
+                                        (.055, .58, latch), (.061, .25, glass), (.089, .31, axle),
+                                  (.13, .64, truck_chord), (.235, .31, truck_chord)]),
         'complete': (1860, [(0, .92, axle), (0, .71, marble), (.011, .28, glass),
-                                  (.049, .50, latch), (.049, .72, chord)]),
+                                  (.049, .50, latch), (.079, .76, dock_chord), (.194, .34, dock_chord)]),
     }
     boosts = {'release': 1.3, 'truck-complete': 0.68, 'complete': 0.85}
-    return {cue: finish_arcade(mix(DURATIONS[cue], layers), cutoff, boosts.get(cue, 0.0))
+    return {cue: finish_arcade(mix(DURATIONS[cue], layers), cutoff, boosts.get(cue, 0.0),
+                               0.0068 if cue in ('complete', 'truck-complete') else 0.0042)
             for cue, (cutoff, layers) in cues.items()}
 
 
@@ -284,12 +288,13 @@ def generate():
     for i, hz in enumerate((246.94, 220)):
         add(bank['jam'], body(hz, .32, 'felt', 160 + i), .135 * i, .7 - .12 * i)
     add(bank['jam'], recording('wood', .14, .68, 1000), gain=.4)
-    for i, hz in enumerate((293.66, 369.99, 440)):
-        add(bank['win'], body(hz, .40, 'felt', 170 + i), .075 * i, .62)
-        add(bank['win'], recording('wood', .10, .8 + i * .06, 1300), .075 * i, .09)
-    for i, hz in enumerate((293.66, 440, 587.33)):
-        add(bank['win'], body(hz, .69, 'felt', 180 + i), .29, .42 - i * .07)
-    add(bank['win'], body(880, .45, 'enamel', 190), .31, .03)
+    for i, hz in enumerate((293.66, 369.99, 440, 587.33)):
+        add(bank['win'], body(hz, .40, 'felt', 170 + i), .084 * i, .62 + .04 * i)
+        add(bank['win'], recording('wood', .10, .8 + i * .06, 1300), .084 * i, .09)
+    win_chord = knock(.97, [(293.66, .55, .23), (369.99, .48, .20), (440, .67, .21),
+                           (587.33, .33, .19), (739.99, .20, .13), (1174.66, .11, .09)], 178, .026)
+    add(bank['win'], win_chord, .33, .60)
+    add(bank['win'], body(293.66, .45, 'enamel', 190), .33, .14)
     add(bank['harbour-bell'], body(349.23, .72, 'brass', 200), gain=.75)
     add(bank['harbour-bell'], recording('soft', .10, .8, 1100), gain=.12)
     add(bank['harbour-bell'], recording('wood', .12, .72, 1300), gain=.055)
@@ -300,7 +305,7 @@ def generate():
     for cue, samples in bank.items():
         rendered = arcade[cue] if cue in arcade else finish(room(samples, .4 if cue in ('win', 'harbour-bell') else .14))
         write_wave(GENERATED / f'{cue}.wav', rendered)
-    provenance = {'suite': 'compact-workshop-arcade-v2', 'generator': 'scripts/generate-sounds.py',
+    provenance = {'suite': 'compact-workshop-arcade-v3', 'generator': 'scripts/generate-sounds.py',
                   'generatorSha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
                   'recordings': {RECORDINGS[name]: digest for name, digest in dependencies.items()},
                   'earshot': {
