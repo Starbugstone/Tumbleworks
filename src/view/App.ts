@@ -51,7 +51,8 @@ export class App {
   runtime!: GameRuntime;
   boardIndex = 0;
   manualClock = false;
-  private booting = true;
+  /** Startup resolves after the first screen is visible and can accept input. */
+  private onFirstScreen?: () => void;
   private accumulator = 0;
   private lastFrame = performance.now();
   private slowTime = 0;
@@ -292,7 +293,10 @@ export class App {
       else app.showWorkshop(workshopId!);
     }
     else if (tried < 0) app.showMap(undefined, false, true);
-    requestAnimationFrame(app.frame);
+    await new Promise<void>(resolve => {
+      app.onFirstScreen = resolve;
+      requestAnimationFrame(app.frame);
+    });
     return app;
   }
 
@@ -426,12 +430,13 @@ export class App {
     this.lastFrame = now;
     if (!this.manualClock && !document.hidden) {
       const drawn = this.advance(seconds);
-      if (this.booting && (this.screen === 'game' || this.screen === 'workshop' ||
+      if (this.onFirstScreen && (this.screen === 'game' || this.screen === 'workshop' ||
           (this.screen === 'film' ? ['ready','unavailable'].includes(this.stage.canvas.dataset.worldFilm ?? '') :
             ['ready','unavailable'].includes(this.stage.canvas.dataset.worldScene ?? '')))) {
-        this.booting = false;
         element('boot').hidden = true;
         element('hud').removeAttribute('inert');
+        this.onFirstScreen();
+        this.onFirstScreen = undefined;
       }
       // Only drawn frames say anything about the device: a still board skips drawing and costs nothing.
       if (drawn && this.screen === 'game') {
