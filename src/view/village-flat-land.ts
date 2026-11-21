@@ -18,18 +18,33 @@ export function mergeFlatLand(geometry:BufferGeometry,terrain:VillageTerrain,fac
   const eligible=(cell:LandFace)=>{
     const id=cell.row*terrain.columns+cell.column;
     if(terrain.cells[id]!=='land'||terrain.paint[id]!==0)return;
-    const ids=Array.from({length:6},(_,i)=>cell.start+i),y=at(cell.start,1);
-    if(ids.some(i=>!Object.is(at(i,1),y)||normal.getY(i)!==1||normal.getX(i)!==0||normal.getZ(i)!==0))return;
-    for(const attribute of[normal,color])for(const i of ids)for(let k=0;k<3;k++)if(attribute.getComponent(i,k)!==attribute.getComponent(cell.start,k))return;
-    const loX=Math.min(...ids.map(i=>at(i,0))),hiX=Math.max(...ids.map(i=>at(i,0))),loZ=Math.min(...ids.map(i=>at(i,2))),hiZ=Math.max(...ids.map(i=>at(i,2)));
-    if(!(loX<hiX&&loZ<hiZ))return;
-    const corners=[[loX,loZ],[hiX,loZ],[loX,hiZ],[hiX,hiZ]].map(([x,z])=>ids.find(i=>at(i,0)===x&&at(i,2)===z));
-    if(corners.some(i=>i===undefined)||ids.some(i=>![loX,hiX].includes(at(i,0))||![loZ,hiZ].includes(at(i,2))))return;
-    const area=(hiX-loX)*(hiZ-loZ),edge=new Map<string,number>();
-    for(let t=0;t<6;t+=3){const[a,b,c]=ids.slice(t,t+3);if((at(b!,0)-at(a!,0))*(at(c!,2)-at(a!,2))-(at(b!,2)-at(a!,2))*(at(c!,0)-at(a!,0))!==-area)return;
-      for(let j=0;j<3;j++){const u=ids[t+j]!,v=ids[t+(j+1)%3]!,key=`${at(u,0)}/${at(u,2)}>${at(v,0)}/${at(v,2)}`;edge.set(key,(edge.get(key)??0)+1);}}
-    const shared=[...edge.keys()].filter(k=>edge.has(k.split('>').reverse().join('>')));if(edge.size!==6||shared.length!==2)return;
-    return{cell,corners:corners as number[],loX,hiX,loZ,hiZ,y};
+    const start = cell.start, y = position.getY(start);
+    let loX = Infinity, hiX = -Infinity, loZ = Infinity, hiZ = -Infinity;
+    for (let i = start; i < start + 6; i++) {
+      if (!Object.is(position.getY(i), y) || normal.getY(i) !== 1 || normal.getX(i) !== 0 || normal.getZ(i) !== 0) return;
+      if (color.getX(i) !== color.getX(start) || color.getY(i) !== color.getY(start) || color.getZ(i) !== color.getZ(start)) return;
+      const x = position.getX(i), z = position.getZ(i);
+      loX = Math.min(loX, x); hiX = Math.max(hiX, x);
+      loZ = Math.min(loZ, z); hiZ = Math.max(hiZ, z);
+    }
+    if (!(loX < hiX && loZ < hiZ)) return;
+    const corners: number[] = [], cornerIds: number[] = [];
+    for (let i = start; i < start + 6; i++) {
+      const x = position.getX(i), z = position.getZ(i);
+      if ((x !== loX && x !== hiX) || (z !== loZ && z !== hiZ)) return;
+      const corner = (x === hiX ? 1 : 0) + (z === hiZ ? 2 : 0);
+      corners[corner] ??= i; cornerIds.push(corner);
+    }
+    if ([0, 1, 2, 3].some(corner => corners[corner] === undefined)) return;
+    const area = (hiX - loX) * (hiZ - loZ);
+    for (const a of [start, start + 3]) {
+      const b = a + 1, c = a + 2;
+      if ((at(b,0)-at(a,0))*(at(c,2)-at(a,2)) - (at(b,2)-at(a,2))*(at(c,0)-at(a,0)) !== -area) return;
+    }
+    // Two clockwise half rectangles tile their common extent only if their shared edge is a diagonal.
+    const shared = cornerIds.slice(3).filter(corner => cornerIds.indexOf(corner) < 3);
+    if (shared.length !== 2 || (shared[0]! ^ shared[1]!) !== 3) return;
+    return{cell,corners,loX,hiX,loZ,hiZ,y};
   };
   const joins=(a:NonNullable<ReturnType<typeof eligible>>,b:NonNullable<ReturnType<typeof eligible>>)=>{
     if(a.cell.row!==b.cell.row||a.cell.column+1!==b.cell.column||a.hiX!==b.loX||a.loZ!==b.loZ||a.hiZ!==b.hiZ||!Object.is(a.y,b.y))return false;
@@ -45,12 +60,32 @@ export function mergeFlatLand(geometry:BufferGeometry,terrain:VillageTerrain,fac
     plans.push({cells,corners:[a!,b!,c!,d!]});
   }
   if(!plans.length)return geometry;
-  const values:Record<string,number[]>={position:[],normal:[],color:[]},outputStarts=new Map<number,number>();
-  for(let i=0;i<position.count;){const replacement=replacements.get(i);if(removed.has(i)){i+=6;continue;}
-    if(replacement){outputStarts.set(i,values.position!.length/3);for(const j of replacement)for(const[name,attribute]of Object.entries({position,normal,color}))for(let k=0;k<3;k++)values[name]!.push(attribute.getComponent(j,k));i+=6;}
-    else{for(const[name,attribute]of Object.entries({position,normal,color}))for(let k=0;k<3;k++)values[name]!.push(attribute.getComponent(i,k));i++;}
+  const remap = new Uint32Array(position.count - removed.size * 6);
+  const outputStarts = new Map<number, number>();
+  let output = 0;
+  for (let i = 0; i < position.count;) {
+    if (removed.has(i)) { i += 6; continue; }
+    const replacement = replacements.get(i);
+    if (replacement) {
+      outputStarts.set(i, output);
+      remap.set(replacement, output);
+      output += replacement.length;
+      i += 6;
+    } else {
+      remap[output++] = i++;
+    }
   }
-  const result=new BufferGeometry();for(const[name,array]of Object.entries(values))result.setAttribute(name,new BufferAttribute(new Float32Array(array),3));
+  const result = new BufferGeometry();
+  for (const [name, attribute] of Object.entries({position, normal, color})) {
+    const values = new Float32Array(output * 3);
+    for (let i = 0; i < output; i++) {
+      const source = remap[i]!;
+      values[3*i] = attribute.getX(source);
+      values[3*i+1] = attribute.getY(source);
+      values[3*i+2] = attribute.getZ(source);
+    }
+    result.setAttribute(name, new BufferAttribute(values, 3));
+  }
   result.boundingSphere=geometry.boundingSphere?.clone()??null;result.boundingBox=geometry.boundingBox?.clone()??null;
   result.userData={...geometry.userData,flatLandRuns:plans.map(({cells,corners}):FlatLandRun=>({row:cells[0]!.row,firstColumn:cells[0]!.column,lastColumn:cells.at(-1)!.column,sourceStarts:cells.map(c=>c.start),sourceCorners:corners,outputStart:outputStarts.get(cells[0]!.start)!}))};
   return result;

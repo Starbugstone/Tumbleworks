@@ -38,8 +38,12 @@ export interface VillageScenePlan {
   readonly plan: VillagePlan;
   readonly construction: VillageConstruction;
   readonly terrain: VillageTerrainSpec;
-  /** Houses, trees, warehouses, boats: fixed dressing baked with the terrain. */
+  /** Scenic terrain for the shipping map and film when the research machine retains its surveyed ground. */
+  readonly cinematicTerrain?: VillageTerrainSpec;
+  /** Fixed dressing on the surveyed terrain. */
   readonly scenery: readonly VillageSceneryPiece[];
+  /** A complete replacement when the cinematic coast needs different placements. */
+  readonly cinematicScenery?: readonly VillageSceneryPiece[];
   readonly workshop: WorkshopSite;
   readonly rewards: readonly VillageRewardSlot[];
   /** Pieces for the wider-world miniature; the overview draws them over the 8 × 8 terrain sample. */

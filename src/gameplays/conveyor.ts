@@ -34,12 +34,14 @@ export class ConveyorRuntime implements GameRuntime {
   }
   get game() { return this.machine; }
   celebrate(clean = 1): void { this.view.celebrate(clean); }
+  pace(speed: number): void { this.view.pace(speed); }
   get status() { return this.machine.rules.status; }
   get busy() { return this.machine.transferring; }
   get canUndo() { return this.machine.canUndo; }
-  get counter() { return { label: t('Belt', 'Tapis'), value: `${this.machine.rules.occupancy}/${this.board.beltCapacity}${this.machine.rules.funnelCount ? ` +${this.machine.rules.funnelCount}` : ''}`, full: this.machine.rules.free <= 0 }; }
+  get counter() { return { label: t('Belt', 'Tapis'), value: `${this.machine.rules.occupancy}/${this.board.beltCapacity}`, full: this.machine.rules.free <= 0 }; }
   readonly preview = [];
   readonly previewLabel = '';
+  get jamSummary() { return t('No box can take these marbles', 'Aucune boîte pour ces billes'); }
   get jamReason() { return funnelJamReason(this.machine.rules); }
 
   activate(target: string): readonly Feedback[] {
@@ -108,7 +110,7 @@ export class ConveyorRuntime implements GameRuntime {
   get guideId() { return this.board.id === 'board-1' ? 'funnel-basics' : undefined; }
   guide() {
     const remaining = this.machine.rules.state.supplies[0]?.length ?? 0;
-    if (remaining === 2) return { target: 'supply0', text: t('Tap here to tip a crate into the funnel.', 'Touchez ici pour vider une caisse dans l’entonnoir.') };
+    if (remaining === 2) return { prompt: t('Tap the crate', 'Touchez la caisse'), target: 'supply0', text: t('Tap here to tip a crate into the funnel.', 'Touchez ici pour vider une caisse dans l’entonnoir.') };
     if (remaining === 1) return { target: 'supply0', text: t('Now pour the red ring crate. The front boxes need red.', 'Versez maintenant la caisse rouge à anneau. Les premières boîtes attendent du rouge.') };
     const filled = this.machine.readBoxes().some((box) => box.index === 0 && (box.fill === this.board.boxSize || !box.docked));
     return { text: t('Watch the boxes collect their colour. Then match the remaining boxes.', 'Les boîtes prennent leur couleur au passage. Continuez avec les boîtes restantes.'), done: filled };

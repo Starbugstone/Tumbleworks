@@ -24,7 +24,7 @@ it('keeps repeated contacts warm and the replacement gestures short', () => {
   const release = measurements.find(entry => entry.cue === 'release')!.decoded;
   expect(release.durationSeconds).toBeGreaterThanOrEqual(.2);
   expect(release.durationSeconds).toBeLessThanOrEqual(.3);
-  for (const cue of ['complete', 'win']) {
+  for (const cue of ['complete', 'truck-complete', 'win', 'harbour-bell']) {
     expect(measurements.find(entry => entry.cue === cue)!.decoded.spectralCentroidHz, cue).toBeLessThan(1500);
   }
   for (const cue of ['landing-final', 'undo', 'blocked', 'release']) {
@@ -33,7 +33,7 @@ it('keeps repeated contacts warm and the replacement gestures short', () => {
 });
 
 it('ships the measured CC0 bank with pinned recordings, generator and encoded bytes', () => {
-  expect(manifest).toHaveLength(11);
+  expect(manifest).toHaveLength(13);
   expect(manifest.reduce((sum, cue) => sum + cue.encodedBytes, 0)).toBeLessThanOrEqual(150_000);
   for (const cue of manifest) {
     expect(cue.licence).toBe('CC0-1.0');
@@ -77,5 +77,36 @@ it('keeps the actual PCM endpoints rounded and the bank levels within their meas
     expect(wav.readInt16LE(offset + (length - 1) * 2), cue.cue).toBe(0);
     expect(peak, cue.cue).toBeLessThan(.64);
     expect(20 * Math.log10(Math.sqrt(energy / length)), cue.cue).toBeGreaterThan(-27);
+  }
+});
+
+
+it('ships the workshop latch and ship bell as separate low-register rewards', () => {
+  const cue = (name: string) => manifest.find(entry => entry.cue === name)!;
+  const rewards = ['landing-final', 'complete', 'truck-complete', 'win', 'harbour-bell'];
+  expect(new Set(rewards.map(name => cue(name).encodedSha256)).size).toBe(rewards.length);
+  for (const name of rewards) {
+    const metrics = measurements.find(entry => entry.cue === name)!.decoded;
+    expect(metrics.phoneBodyEnergy, name).toBeGreaterThan(.15);
+    expect(metrics.spectralCentroidHz, name).toBeLessThan(1500);
+  }
+});
+
+it('gives completion rewards audible tails after ordinary contacts have ended', () => {
+  const recoveries = [
+    ['complete', .65, .33, .5, -40],
+    ['truck-complete', .74, .33, .5, -40],
+    ['win', 1.3, .8, 1.05, -43],
+  ] as const;
+  for (const [cue, duration, from, to, minRms] of recoveries) {
+    const item = manifest.find(entry => entry.cue === cue)!;
+    expect(measurements.find(entry => entry.cue === cue)!.decoded.durationSeconds).toBeGreaterThanOrEqual(duration);
+    const wav = audioFile(item.source);
+    const rate = wav.readUInt32LE(24);
+    const offset = wav.indexOf(Buffer.from('data')) + 8;
+    const first = Math.round(from * rate), last = Math.round(to * rate);
+    let energy = 0;
+    for (let i = first; i < last; i++) energy += (wav.readInt16LE(offset + i * 2) / 32768) ** 2;
+    expect(10 * Math.log10(energy / (last - first)), cue).toBeGreaterThan(minRms);
   }
 });

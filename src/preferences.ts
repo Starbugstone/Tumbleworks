@@ -1,6 +1,7 @@
+import { saveKey } from './demo';
 export type Locale = 'en' | 'fr';
 interface Preferences { locale: Locale; guides: string[] }
-const KEY = 'tumbleworks.preferences.v1';
+const KEY = saveKey('tumbleworks.preferences.v1');
 const browserLocale = (): Locale => typeof navigator !== 'undefined' && navigator.language.toLowerCase().startsWith('fr') ? 'fr' : 'en';
 let preferences: Preferences = { locale: browserLocale(), guides: [] };
 try {

@@ -19,8 +19,8 @@ async function ready(page: Page): Promise<void> {
 }
 
 async function overview(page: Page, language: 'en' | 'fr' = 'en'): Promise<void> {
-  await page.getByRole('button', { name: language === 'en' ? 'The valley' : 'La vallée', exact: true }).click();
-  const locations = page.getByRole('navigation', { name: language === 'en' ? 'Valley locations' : 'Lieux de la vallée' });
+  await page.getByRole('button', { name: language === 'en' ? 'Islands' : 'Îles', exact: true }).click();
+  const locations = page.getByRole('navigation', { name: language === 'en' ? 'Islands' : 'Îles' });
   await expect(locations).toHaveCount(1);
   // Its projected children are fixed on the canvas; the navigation itself has no layout height.
   await expect(locations.getByRole('button').first()).toBeVisible();
@@ -85,7 +85,7 @@ test('the phone overview shows six compact village labels over resting 3D terrai
   // aria-disabled conveys the lock while a real tap still explains the prerequisite.
   const locked = (await page.locator('.wv-location[data-chapter="1"]').boundingBox())!;
   await page.touchscreen.tap(locked.x + locked.width / 2, locked.y + locked.height / 2);
-  await expect(page.locator('.wv-heading p')).toHaveText('Finish Little Harbour to open this village.');
+  await expect(page.locator('.wv-heading p')).toHaveText('Finish Little Harbour to open this island.');
   expect(await state(page)).toMatchObject({ worldChapter: 0, worldView: 'overview' });
   await page.screenshot({ path: 'output/current/world/navigation-phone.png' });
   await page.getByRole('button', { name: 'Back to the village' }).tap();

@@ -3,6 +3,7 @@ import {Mesh,Vector3} from 'three';
 import {cinematicWorld} from './cinematic-world-fixture';
 import {solidProbes,sphereCollision,sphereSupported,trackCrossings,exposedOverlaps,visible} from './village-geometry';
 import {surfaceTriangles} from './surface-overlap';
+import { handoffSurfaces } from './handoff-surfaces';
 import {VillageCinematic} from '../../src/world/village-cinematic';
 import {villageChannelGeometry} from '../../src/view/machine-primitives';
 import {CLOUD_BRIDGE} from '../../src/world/villages/cloud-bridge';
@@ -29,9 +30,9 @@ for(let chapter=0;chapter<6;chapter++)describe(`cinematic scene ${chapter}`,()=>
  it('checks complete track width and exposed surfaces at moving handoffs',()=>{
   const f=cinematicWorld(chapter,true);try{
    const r=f.machine.route as VillageCinematic,times=new Set([0,r.duration,...r.phases.filter(p=>p.kind==='ride').flatMap(p=>[p.start,(p.start+p.end)/2,p.end]),...r.transfers.filter(t=>t.kind==='carry').flatMap(t=>[t.start,(t.start+t.end)/2,t.end])]);
-   for(const t of times){f.machine.apply(t);const all=surfaceTriangles(f.world.scene).filter(s=>visible(s.mesh)),tracks=all.filter(s=>s.mesh.name.startsWith('village-track-'));
-    expect(trackCrossings(tracks,all).slice(0,8),`full width at ${t}`).toEqual([]);
-    expect(exposedOverlaps(all).slice(0,8).map(o=>({a:o.a.mesh.name,b:o.b.mesh.name,area:o.area})),`exposed faces at ${t}`).toEqual([]);
+   for(const sample of handoffSurfaces(f.world.scene,times,t=>f.machine.apply(t))){
+    expect(sample.crossings.slice(0,8),`full width at ${sample.time}`).toEqual([]);
+    expect(sample.exposed.slice(0,8).map(o=>({a:o.a.mesh.name,b:o.b.mesh.name,faces:[o.a.index,o.b.index],point:o.point.toArray(),area:o.area})),`exposed faces at ${sample.time}`).toEqual([]);
    }
   }finally{f.dispose();}
  },180000);
@@ -68,4 +69,49 @@ it('rejects a clock gate that has not lifted when the rolling marble reaches it'
   for(let t=c.start;t<=c.end;t+=1/120){f.machine.apply(t);r.sample(t,p);if(sphereCollision(probes,p,.3)){collision=true;break;}}
   expect(collision).toBe(true);
  }finally{shut.mockRestore();f.dispose();}
+});
+
+it('checks moving occlusion, changed geometry and crossings against exhaustive posed triangles', async () => {
+  const { BoxGeometry, MeshBasicMaterial, PlaneGeometry, Group, Ray } = await import('three');
+  const { surfaceOverlaps } = await import('./surface-overlap');
+  const root = new Group(), material = new MeshBasicMaterial();
+  const plate = new Mesh(new PlaneGeometry(2, 2), material);
+  plate.name = 'village-track-control';
+  const duplicate = new Mesh(plate.geometry.clone(), material);
+  const shield = new Mesh(new PlaneGeometry(4, 4), material);
+  const beam = new Mesh(new BoxGeometry(.2, 3, .2), material);
+  root.add(plate, duplicate, shield, beam);
+  const pose = (t: number) => {
+    duplicate.visible = t !== 3;
+    shield.position.set(t ? 5 : 0, 0, .5);
+    beam.position.set(t === 2 ? 0 : 5, 0, 0);
+    const vertices = duplicate.geometry.getAttribute('position');
+    for (let i = 0; i < vertices.count; i++) vertices.setZ(i, t === 2 ? .2 : 0);
+  };
+  try {
+    const times = [0, 1, 2, 3, 4];
+    const expected = times.map(t => {
+      pose(t);
+      const faces = surfaceTriangles(root).filter(face => visible(face.mesh));
+      const covered = surfaceOverlaps(faces).filter(pair => {
+        const samples = [pair.point, ...pair.polygon.map(v => v.clone().lerp(pair.point,.05))];
+        return samples.some(point => {
+          const ray = new Ray(point.clone().addScaledVector(pair.a.normal,.0001),pair.a.normal);
+          return !faces.some(f => {
+            const hit = ray.intersectTriangle(f.a,f.b,f.c,false,new Vector3());
+            return hit !== null && hit.distanceTo(ray.origin) > .0001;
+          });
+        });
+      });
+      return { crossing:trackCrossings(faces.filter(f=>f.mesh===plate),faces).length>0, count:covered.length };
+    });
+    const actual = [...handoffSurfaces(root,times,pose)].map(s=>({crossing:s.crossings.length>0,count:s.exposed.length}));
+    expect(expected[0]!.count).toBe(0); expect(expected[1]!.count).toBeGreaterThan(0);
+    expect(expected[2]!.crossing).toBe(true);
+    expect(expected[3]!.count).toBe(0); expect(expected[4]!.count).toBe(expected[1]!.count);
+    expect(actual).toEqual(expected);
+  } finally {
+    for (const mesh of [plate,duplicate,shield,beam]) mesh.geometry.dispose();
+    material.dispose();
+  }
 });

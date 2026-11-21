@@ -113,7 +113,7 @@ async function cardsFit(page: Page): Promise<void> {
     await expect(cue).toHaveAttribute('src', `/models/projects/cues/${await card.getAttribute('data-workshop')}.png`);
     const rewardBox = (await image.boundingBox())!, cueBox = (await cue.boundingBox())!;
     expect(rewardBox.width).toBeGreaterThan(cueBox.width);
-    expect(cueBox.y).toBeGreaterThanOrEqual(rewardBox.y + rewardBox.height + 3);
+    expect(cueBox.x).toBeGreaterThanOrEqual(rewardBox.x + rewardBox.width + 3);
     await expect(card.locator('.wv-project-status')).toContainText('✓');
     await expect(article.locator('[data-project-village]')).toHaveText('Voir le village');
     expect((await article.locator('[data-project-village]').boundingBox())!.height).toBeGreaterThanOrEqual(44);
@@ -134,8 +134,8 @@ for (const count of [0, 5]) test(`locked project deep link with ${count} campaig
   const card = projectCard(page, 'board-210');
   await expect(card).toHaveAttribute('data-status', 'locked');
   await expect(card).toHaveAttribute('aria-disabled', 'true');
-  await expect(card.locator('.wv-project-status')).toHaveText(`⚑ Locked · Little Harbour: ${count === 0 ? 0 : 1} of 2 stops built`);
-  await expect(card.locator('.wv-project-status')).not.toContainText('🔒');
+  await expect(card.locator('.wv-project-status')).toHaveText(`${count === 0 ? 0 : 1}/2 stops built`);
+  await expect(card.locator('.wv-project-status .wv-lock')).toBeVisible();
   await card.locator('.wv-project-status').evaluate(element => {
     const observer = new MutationObserver(() => {
       if (element.classList.contains('wv-required')) {
@@ -201,18 +201,19 @@ test('old completed projects keep every reward and replay without constructing m
     expect(await state(page)).toMatchObject({ worldChapter: project.chapter, worldView: 'map' });
     await rewardArt(page, project.id);
     await expect(page.locator('.map-stop[data-status="built"]')).toHaveCount(0);
-    await expect(page.locator('.map-stop:not(:disabled)')).toHaveCount(project.chapter === 0 ? 1 : 0);
+    await expect(page.locator('.map-stop:not([aria-disabled="true"])')).toHaveCount(project.chapter === 0 ? 1 : 0);
     await openWorkshop(page);
     await projectCard(page, project.id).tap(); await ready(page, 'game');
     expect(await state(page)).toMatchObject({ source: 'workshop', levelId: project.id });
     await leaveGame(page); await openWorkshop(page);
   }
   await page.getByRole('button', { name: 'Back to the village' }).tap(); await ready(page, 'map');
-  await page.getByRole('button', { name: 'The valley', exact: true }).tap();
+  await page.getByRole('button', { name: 'Islands', exact: true }).tap();
   await page.waitForFunction(() => (window as unknown as GameWindow).tumbleworks.app.world.valley !== null);
   await page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.advance(0));
   await expect(page.locator('.wv-location[data-chapter="5"]')).toHaveAttribute('aria-disabled', 'true');
-  await expect(page.locator('.wv-location small')).toHaveText(Array(6).fill('0/10'));
+  await expect(page.locator('.wv-location[aria-disabled="true"] .wv-lock')).toHaveCount(5);
+  await expect(page.locator('.wv-location[data-chapter="0"]')).toHaveAccessibleName(/0 of 10 stops built/);
   const overview = await page.evaluate(() => {
     const app = (window as unknown as GameWindow).tumbleworks.app;
     return { villages: app.world.valley?.scene.children.filter(object => object.name.startsWith('valley-village-') && object.visible).length,

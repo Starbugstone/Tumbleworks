@@ -45,6 +45,25 @@ describe('the rounded loop track', () => {
 });
 
 describe('the Loop Sort machine agrees with the rules', () => {
+  it('plays delivery and departure feedback on contact with the receiving truck', () => {
+    const machine = new LoopMachine(LOOP_1);
+    let delivered = 0;
+    for (let frame = 0; frame < 3000; frame++) {
+      for (const event of machine.step()) {
+        if (event.type === 'absorb') {
+          expect(machine.rules.state.marbles[event.unit]?.status).toBe('in-truck');
+          delivered++;
+        }
+        if (event.type === 'complete') {
+          expect(delivered).toBe(12);
+          expect(machine.readTrucks().find(truck => truck.lane === event.lane && truck.index === event.truck)?.departing).toBe(true);
+          return;
+        }
+      }
+    }
+    throw new Error('The yellow truck never departed');
+  });
+
   for (const board of LOOP_BOARDS.slice(0, 2)) {
     it(`${board.id}: the introductory exchange never waits for belt capacity`, () => {
       const machine = new LoopMachine(board);
@@ -96,7 +115,7 @@ describe('the Loop Sort machine agrees with the rules', () => {
     expect(machine.readTrucks().find((truck) => truck.lane === 1 && truck.docked)?.finalColor).toBe('yellow');
   });
 
-  it('dispatches above the deck and shrinks away before disappearing', { timeout: 300_000 }, () => {
+  it('dispatches ordinary trucks above the deck and parks only the terminal full cohort', { timeout: 300_000 }, () => {
     for (const board of LOOP_BOARDS) {
       const machine = new LoopMachine(board);
       const taps = [...(LOOP_WITNESSES[board.id] ?? '')].map((letter) => letter.charCodeAt(0) - 65);
@@ -119,7 +138,12 @@ describe('the Loop Sort machine agrees with the rules', () => {
         const lane = taps[next];
         if (lane !== undefined && machine.rules.pending === 0 && !machine.rules.canDrain() && tick % 10 === 0 && machine.tap(lane).ok) next++;
       }
-      expect(finished.size).toBe(board.lanes.reduce((sum, lane) => sum + lane.length, 0));
+      const retained = machine.readTrucks().filter(truck => truck.retained);
+      for (const truck of retained) {
+        expect(truck.visible && !truck.departing && !finished.has(truck.lane + ':' + truck.index)).toBe(true);
+        expect(truck.blocks).toEqual([{ color: truck.finalColor, units: truck.capacity, pouring: false }]);
+      }
+      expect(finished.size + retained.length).toBe(board.lanes.reduce((sum, lane) => sum + lane.length, 0));
     }
   });
 
@@ -132,7 +156,7 @@ describe('the Loop Sort machine agrees with the rules', () => {
     const full = CONGESTED_LOOP;
     expect(full.loop.reduce((sum, entry) => sum + entry.count, 0)).toBe(full.loopCapacity);
     const machine = new LoopMachine(full);
-    const poses: UnitPose[] = Array.from({ length: machine.marblesPerUnit }, () => ({ x: 0, y: 0, z: 0, roll: 0, visible: false }));
+    const poses: UnitPose[] = Array.from({ length: machine.marblesPerUnit }, () => ({ x: 0, y: 0, z: 0, roll: 0, visible: false, flight: 0 }));
     const centres = machine.rules.state.marbles.filter((marble) => marble.status === 'on-loop').map((marble) => {
       machine.readUnit(marble.id, poses);
       const middle = poses[Math.floor(machine.marblesPerUnit / 2)]!;

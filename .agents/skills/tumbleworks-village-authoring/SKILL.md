@@ -65,6 +65,12 @@ writing data, physics, scenery or assets. Keep one owner integrating the complet
 village. Delegate a bounded specialty only when useful and authorized; repeated
 partial handoffs do not deliver a playable film.
 
+## Ground every building and tree
+
+**Floating buildings fail village acceptance.** Fit every house, warehouse, lighthouse, workshop and earned building to the terrain drawn in the map and film. Include doorstep slabs, projecting corners and the downhill edge of each foundation. Seat each tree trunk at its roots. A terrace can follow the site's grade, or a masonry foundation can continue below the lowest corner.
+
+After a terrain or placement change, probe the rendered land beneath the rotated, scaled footprint, including its perimeter and steps. Check that the foundation meets solid ground throughout and that soil does not bury entrances. Inspect the downhill side at a low oblique angle with the village fully built. Verify the mobile map, a film close-up and any separately drawn overview. Keep a regression that reproduces the reported gap.
+
 ## Build and prove in increasing cost
 
 Use [the checks and tool map](references/checks.md). Retain a regression that

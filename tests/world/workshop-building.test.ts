@@ -49,16 +49,18 @@ it('keeps every moving sign triangle clear of the actual house throughout both s
   expect(front).toBeCloseTo(-0.232, 3);
   const mesh = building.sign.children[0] as THREE.Mesh;
   const triangles = (mesh.geometry.index?.count ?? mesh.geometry.getAttribute('position').count) / 3;
-  expect(building.sign.children).toHaveLength(1); expect(triangles).toBeLessThanOrEqual(120);
+  expect(building.sign.children).toHaveLength(1); expect(triangles).toBeGreaterThan(0); expect(triangles).toBeLessThanOrEqual(120);
   const positions = mesh.geometry.getAttribute('position'), vertex = new THREE.Vector3();
+  let minimumGap = Infinity;
   for (const reduced of [false, true]) for (let frame = -15; frame <= 240; frame++) {
     building.apply(frame / 240, 0, reduced); building.sign.updateMatrixWorld(true);
     for (let index = 0; index < positions.count; index++) {
       vertex.fromBufferAttribute(positions, index).applyMatrix4(mesh.matrixWorld);
       // All triangle interiors inherit this separating plane from their vertices.
-      expect(vertex.z - front).toBeGreaterThanOrEqual(0.3);
+      minimumGap = Math.min(minimumGap, vertex.z - front);
     }
   }
+  expect(minimumGap).toBeGreaterThanOrEqual(0.3);
   building.reset(); expect(building.sign.rotation.z).toBe(0);
   const disposeMaterial = vi.spyOn(material, 'dispose'); building.dispose(); expect(disposeMaterial).not.toHaveBeenCalled();
   assets.dispose(); material.dispose();

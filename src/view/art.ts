@@ -54,13 +54,27 @@ function texture(element: HTMLCanvasElement): THREE.CanvasTexture {
  * its palette colour: one clean highlight from the clearcoat, and little of the pale studio mirrored in the body,
  * which bleached yellow towards cream and orange towards peach until the two were hard to tell apart.
  */
-function glossy(color: Color): THREE.MeshPhysicalMaterial {
-  return new THREE.MeshPhysicalMaterial({ color: COLORS[color].hex, roughness: 0.25, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.05, specularIntensity: 0.5 });
+function glossy(hex: number): THREE.MeshPhysicalMaterial {
+  const material = new THREE.MeshPhysicalMaterial({ color: hex, roughness: .16, metalness: 0, clearcoat: 1, clearcoatRoughness: .055, specularIntensity: .48 });
+  // A long workshop window reflected in the clear shell. The small bright area
+  // preserves the colour of the core even in dense, instanced crowds.
+  material.onBeforeCompile = shader => {
+    shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>', `
+      vec3 reflected = reflect(-normalize(vViewPosition), normal);
+      vec2 glint = (reflected.xy - vec2(-.48,.69)) * vec2(2.5,4.6);
+      float windowLight = (1.0 - smoothstep(.18,.65,dot(glint,glint))) * smoothstep(.1,.4,reflected.z);
+      float grazing = 1.0 - clamp(dot(normalize(vViewPosition), normal), 0.0, 1.0);
+      float shell = grazing * grazing * grazing;
+      outgoingLight = mix(outgoingLight, vec3(.74,.90,.93), shell * .51);
+      outgoingLight = mix(outgoingLight, vec3(1.0,.97,.90), .91 * windowLight);
+      #include <opaque_fragment>`);
+  };
+  return material;
 }
 
 /** The shared marble entity: a plain glossy sphere in its natural colour. */
 export function marbleMaterial(color: Color): THREE.MeshPhysicalMaterial {
-  return glossy(color);
+  return glossy(COLORS[color].hex);
 }
 
 /** Each colour has its own shape, so the machine never relies on hue alone. */
@@ -119,18 +133,18 @@ export function drawSymbol(ctx: Ctx, color: Color, cx: number, cy: number, r: nu
 /** Printed on containers, with a light backing for contrast on every plastic color. */
 export function containerSymbolTexture(color: Color): THREE.CanvasTexture {
   return texture(canvas(128, 128, (ctx) => {
-    ctx.fillStyle = '#202335';
-    ctx.beginPath(); ctx.arc(64, 64, 62, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#fff9ee';
-    ctx.beginPath(); ctx.arc(64, 64, 57, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#202335';
-    drawSymbol(ctx, color, 64, 64, 39);
+    const ink = cargoInk(color);
+    // A narrow keyline keeps the punched mark readable over empty slate rails, too.
+    ctx.fillStyle = ink === '#202335' ? '#fff1d1' : '#192830';
+    drawSymbol(ctx, color, 64, 64, 56);
+    ctx.fillStyle = ink;
+    drawSymbol(ctx, color, 64, 64, 47);
   }));
 }
 
 /** A plain glossy marble in its natural colour, for instanced crowds. Patterns live on the containers. */
-export function crowdMaterial(color: Color): THREE.MeshPhysicalMaterial {
-  return glossy(color);
+export function crowdMaterial(): THREE.MeshPhysicalMaterial {
+  return glossy(0xffffff);
 }
 
 /**

@@ -1,6 +1,6 @@
 import { MeshBasicMaterial, Raycaster, Vector3 } from 'three';
 import { expect, it } from 'vitest';
-import { compileTerrain, terrainHeightAt, terrainOccupancy, type VillageTerrainSpec } from '../../src/world/village-terrain';
+import { compileTerrain, terrainFieldHeight, terrainHeightAt, terrainOccupancy, type VillageTerrainSpec } from '../../src/world/village-terrain';
 import { createVillageTerrain } from '../../src/view/village-terrain';
 
 const square = [[-4, -4], [4, -4], [4, 4], [-4, 4]] as const;
@@ -10,6 +10,24 @@ const spec: VillageTerrainSpec = {
     { kind: 'hole', polygon: [[1, 1], [3, 1], [3, 3], [1, 3]] }],
   palette: { grass: 0x789773, grassAlt: 0x819f7b, rock: 0x777466, shore: 0xb1a077, water: 0x739eaa, cliff: 0x6c7061 },
 };
+
+it('preserves every grid height across overlapping skirts, inlets and building aprons', () => {
+  const diamond = [[-1.5, 0], [0, -.75], [1, .25], [.25, 1.5]] as const;
+  const authored: VillageTerrainSpec = {
+    ...spec, beachWidth: 1.25, cells: [37, 41],
+    features: [...spec.features,
+      { kind: 'plateau', polygon: diamond, height: 3.3, skirt: .6 },
+      { kind: 'cut', polygon: diamond, depth: .49, skirt: 1.2 }],
+    buildingPads: [{outline: diamond, height: .8, apron: .4}, {outline: square, height: .4, apron: .35}],
+  };
+  const actual = compileTerrain(authored);
+  const expected = Float32Array.from(actual.heights, (_, i) => {
+    const x = actual.originX + (i % (actual.columns + 1)) * actual.cellWidth;
+    const z = actual.originZ + Math.floor(i / (actual.columns + 1)) * actual.cellDepth;
+    return terrainFieldHeight(authored, x, z);
+  });
+  expect(actual.heights).toEqual(expected);
+});
 
 it('queries the actual rendered triangle on both grid diagonals, rather than the ungridded height field', () => {
   const terrain = compileTerrain(spec), material = new MeshBasicMaterial(), mesh = createVillageTerrain(terrain, material);

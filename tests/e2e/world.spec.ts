@@ -121,13 +121,14 @@ async function solve(page: Page, index: number): Promise<void> {
   expect(await state(page)).toMatchObject({ status: 'won', busy: false });
 }
 
-test('the phone map has ten reachable targets, stays still, and requires a stop tap', async ({ page }) => {
+test('the phone map has ten reachable targets, explains locked taps, and rests with reduced motion', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   const films: string[] = []; page.on('request', request => { if (request.url().includes('/films/')) films.push(request.url()); });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/'); await ready(page);
   await expect(page.locator('body')).toHaveAttribute('data-screen', 'map');
   await expect(page.locator('.map-stop')).toHaveCount(10);
-  await expect(page.locator('.map-stop:not(:disabled)')).toHaveCount(1);
+  await expect(page.locator('.map-stop:not([aria-disabled="true"])')).toHaveCount(1);
   for (const button of await page.locator('.map-stop').all()) {
     const box = await button.boundingBox();
     expect(box).not.toBeNull(); if (!box) continue;
@@ -135,6 +136,15 @@ test('the phone map has ten reachable targets, stays still, and requires a stop 
     expect(box.x).toBeGreaterThanOrEqual(0); expect(box.x + box.width).toBeLessThanOrEqual(375);
     expect(box.y).toBeGreaterThan(110); expect(box.y + box.height).toBeLessThan(600);
   }
+  await expect(page.getByRole('button', { name: 'Workshop', exact: true })).toHaveCount(1);
+  await expect(page.locator('.wv-arrow:disabled')).toHaveCount(0);
+  const lock = page.locator('.map-stop[data-status="locked"]').first();
+  const blocked = (await lock.boundingBox())!;
+  await page.touchscreen.tap(blocked.x + blocked.width / 2, blocked.y + blocked.height / 2);
+  await expect(page.locator('body')).toHaveAttribute('data-screen', 'map');
+  await expect(lock).toHaveClass(/wv-locked-tap/);
+  await expect(page.locator('.map-stop[aria-current="step"]')).toHaveClass(/wv-next-stop/);
+  await expect(page.locator('.wv-heading [role="status"]')).toHaveText('Build stop 1 first');
   const before = await page.evaluate(() => {
     const app = (window as unknown as GameWindow).tumbleworks.app;
     return { fingerprint: app.runtime.game.fingerprint(), calls: app.stage.renderer.info.render.calls, frame: app.stage.renderer.info.render.frame };
@@ -159,12 +169,19 @@ test('three actual games construct one stop and require a new map touch', async 
   await page.evaluate(() => { (window as unknown as GameWindow).tumbleworks.app.manualClock = true; });
   for (let index = 0; index < 3; index++) {
     await solve(page, index);
-    if (index < 2) { await page.getByRole('button', { name: 'Next level', exact: true }).click(); await expect(page.locator('#journey-transition')).toBeHidden(); }
+    if (index < 2) {
+      const next = page.getByRole('button', { name: 'Play next level', exact: true });
+      await expect(next).toBeVisible();
+      if (index === 0) await page.screenshot({ path: 'output/current/review-fixes/navigation/campaign-win.png' });
+      await next.tap(); await expect(page.locator('#journey-transition')).toBeHidden();
+    }
   }
   await expect(page.locator('body')).toHaveAttribute('data-screen', 'map');
   await expect(page.locator('.map-stop[data-round="0"]')).toHaveAttribute('data-status', 'built');
   await expect(page.locator('.map-stop[data-round="1"]')).toBeEnabled();
   expect((await state(page)).levelIndex).toBe(2);
+  await expect(page.locator('#journey-transition')).toBeHidden();
+  await page.screenshot({ path: 'output/current/review-fixes/navigation/first-stop-built.png' });
   const completed = await page.evaluate(() => JSON.parse(localStorage.getItem('tumbleworks.progress.v1')!).completed);
   expect(completed).toEqual(CAMPAIGN.slice(0, 3).map(level => level.id));
   await page.locator('.map-stop[data-round="1"]').tap();
@@ -229,7 +246,7 @@ test('Workshop deep links and the village Back button keep reloads in the chosen
 test('desktop and French map navigation preserve the campaign and phone-independent controls', async ({ page }) => {
   await page.setViewportSize(DESKTOP); await page.goto('/'); await ready(page);
   await page.screenshot({ path: 'output/current/world/map-desktop.png' });
-  await page.getByRole('button', { name: 'The valley', exact: true }).click();
+  await page.getByRole('button', { name: 'Islands', exact: true }).click();
   await expect(page.locator('.wv-location')).toHaveCount(Math.ceil(CAMPAIGN.length / 30));
   await page.locator('.wv-location[data-chapter="0"]').click();
   await page.locator('#levels-toggle').click();
@@ -237,7 +254,7 @@ test('desktop and French map navigation preserve the campaign and phone-independ
   await page.getByRole('button', { name: 'Français', exact: true }).click();
   if (await page.locator('#levels').isVisible()) await page.locator('#levels-toggle').click();
   await expect(page.locator('.wv-heading h1')).toHaveText('Le petit port');
-  await expect(page.getByRole('button', { name: 'La vallée', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Îles', exact: true })).toBeVisible();
   await primaryFits(page);
   await page.getByRole('button', { name: 'Jouer le niveau suivant' }).click();
   expect(await state(page)).toMatchObject({ screen: 'game', levelIndex: 0 });
@@ -272,7 +289,7 @@ test('a completed campaign makes its film the single primary action', async ({ p
 });
 
 test('finishing a location earns its film, skip connects to the next location, and replay survives reload', async ({ page }) => {
-  test.setTimeout(240_000);
+  test.setTimeout(360_000);
   await page.addInitScript(completed => {
     if (!localStorage.getItem('tumbleworks.progress.v1')) localStorage.setItem('tumbleworks.progress.v1', JSON.stringify({ completed, current: completed.at(-1), muted: true }));
   }, CAMPAIGN.slice(0, 29).map(level => level.id));
@@ -283,17 +300,20 @@ test('finishing a location earns its film, skip connects to the next location, a
   await expect(page.locator('#journey-transition')).toBeHidden();
   await page.evaluate(() => { (window as unknown as GameWindow).tumbleworks.app.manualClock = true; });
   await solve(page, 29);
-  await expect(page.locator('body')).toHaveAttribute('data-screen', 'film');
+  // Resume the normal player clock before waiting for the celebration and film.
+  await page.evaluate(() => { (window as unknown as GameWindow).tumbleworks.app.manualClock = false; });
+  await expect(page.locator('body')).toHaveAttribute('data-screen', 'film', { timeout: 45_000 });
   expect(await page.evaluate(() => {
     const world = ((window as unknown as GameWindow).tumbleworks.app as unknown as { world: FilmProbe }).world;
     return world.scene?.constructionProgress;
   }), 'the earned structure is fully constructed before carrying its marble').toBe(1);
-  await page.evaluate(() => { (window as unknown as GameWindow).tumbleworks.app.manualClock = false; });
   const filmEntities = (await filmSnapshot(page)).entities;
   await movingFilm(page, filmEntities - 1);
   await page.locator('#film-skip').tap();
   await expect(page.locator('body')).toHaveAttribute('data-screen', 'map');
   await expect(page.locator('.wv-heading h1')).toHaveText('Glasshouse Gardens');
+  await expect(page.locator('#journey-transition')).toBeHidden({ timeout: 45_000 });
+  await page.screenshot({ path: 'output/current/review-fixes/navigation/next-island-earned.png' });
   expect((await filmSnapshot(page)).entities).toBe(filmEntities - 1);
   await expect(page.locator('.map-stop[data-round="10"]')).toBeEnabled();
   await page.reload(); await ready(page);

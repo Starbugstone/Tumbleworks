@@ -22,7 +22,7 @@ export class Stage {
   readonly renderer: THREE.WebGLRenderer;
   readonly marbles = new MarbleFactory();
   private readonly environment: THREE.Texture;
-  private readonly instancedShadows = new WeakMap<THREE.Scene, THREE.MeshDepthMaterial>();
+  private readonly instancedShadows = new WeakMap<THREE.Scene, Map<boolean, THREE.MeshDepthMaterial>>();
   private compiled = new WeakSet<THREE.Scene>();
   private readonly keys = new WeakMap<THREE.Scene, THREE.DirectionalLight>();
   private quality = 0;
@@ -153,13 +153,16 @@ export class Stage {
    */
   draw(scene: THREE.Scene, camera: THREE.Camera): void {
     if (!this.compiled.has(scene)) {
-      // Three's default depth material alternates shader variants between plain and instanced casters.
-      // Keep one scene-owned instanced variant, including after clearLevel removes its meshes.
+      // Three caches the instancing and per-instance colour flags on the depth material.
+      // Keep both caster variants warm across draws, even when a coloured crowd becomes empty.
       // Every caster is built before this first draw, including waiting lorries and hidden effects.
       scene.traverse((object) => {
         if (!(object instanceof THREE.InstancedMesh) || !object.castShadow || object.customDepthMaterial) return;
-        let depth = this.instancedShadows.get(scene);
-        if (!depth) { depth = new THREE.MeshDepthMaterial(); this.instancedShadows.set(scene, depth); }
+        let variants = this.instancedShadows.get(scene);
+        if (!variants) { variants = new Map(); this.instancedShadows.set(scene, variants); }
+        const painted = object.instanceColor !== null;
+        let depth = variants.get(painted);
+        if (!depth) { depth = new THREE.MeshDepthMaterial(); variants.set(painted, depth); }
         object.customDepthMaterial = depth;
       });
       if (this.finish) this.finish.compile(scene, camera); else this.renderer.compile(scene, camera);
@@ -194,7 +197,7 @@ export class Stage {
       if ('map' in material && material.map instanceof THREE.Texture) material.map.dispose();
       material.dispose();
     }
-    this.instancedShadows.get(scene)?.dispose();
+    this.instancedShadows.get(scene)?.forEach(material => material.dispose());
     this.instancedShadows.delete(scene);
     scene.clear();
   }

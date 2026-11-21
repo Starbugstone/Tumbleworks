@@ -696,7 +696,7 @@ export const TUBE_BOARDS: readonly TubeDef[] = [
   },
   /** Four colours, one spare, and most openings lose. */
   {
-    kind: 'tube', id: 'tube-41', title: 'No second chances', capacity: 4,
+    kind: 'tube', id: 'tube-41', title: 'No second chances', capacity: 4, rows: [2, 1, 2],
     tubes: [
       ['green', 'red', 'yellow', 'red'],
       ['blue', 'blue', 'yellow', 'green'],

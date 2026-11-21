@@ -3,6 +3,8 @@ import{mergePaintedFlatLand}from'./village-painted-land';
 import{mergeFlatLand,type LandFace}from'./village-flat-land';
 import { cellDiagonal, compileTerrain, type VillageTerrain, type VillageTerrainSpec } from '../world/village-terrain';
 
+const moorUrl = new URL('./textures/harbour-moor.webp', import.meta.url).href;
+
 export type VillageTerrainDetail = 'full' | 'overview';
 /** The wider-world miniature samples every landform on the same coarse grid. */
 export const OVERVIEW_CELLS = [8, 8] as const;
@@ -53,7 +55,7 @@ function grade(terrain: VillageTerrain, column: number, row: number): number {
  * line follows the slope's contour across the triangles instead of stepping cell by cell; geometry,
  * triangle count and the land's ownership are untouched. Meshes without a `grade` attribute read 0.
  */
-export function rockContour(material: THREE.Material, rock: THREE.Color): void {
+export function rockContour(material: THREE.Material, rock: THREE.Color, harbourGrass?: THREE.Color): void {
   const uniform = { value: rock.clone() };
   material.onBeforeCompile = shader => {
     shader.uniforms['uRock'] = uniform;
@@ -64,7 +66,92 @@ export function rockContour(material: THREE.Material, rock: THREE.Color): void {
       float rockEdge = max(fwidth(vGrade), 1e-4);
       diffuseColor.rgb = mix(diffuseColor.rgb, uRock, smoothstep(${ROCK_GRADE.toFixed(4)} - rockEdge, ${ROCK_GRADE.toFixed(4)} + rockEdge, vGrade));`);
   };
-  material.customProgramCacheKey = () => 'rock-contour';
+  if (harbourGrass && typeof Image !== 'undefined') {
+    const moor = new THREE.TextureLoader().load(moorUrl);
+    moor.wrapS = moor.wrapT = THREE.RepeatWrapping;
+    moor.colorSpace = THREE.SRGBColorSpace;
+    material.addEventListener('dispose', () => moor.dispose());
+    const cargo = new THREE.Vector3(0,-100,0);
+    material.userData.filmCargo = cargo;
+    const contour = material.onBeforeCompile;
+    material.onBeforeCompile = (shader, renderer) => {
+      contour.call(material, shader, renderer);
+      shader.uniforms.uMoor = { value: moor };
+      shader.uniforms.uFilmCargo = { value: cargo };
+      shader.uniforms.uGrass = { value: harbourGrass };
+      shader.uniforms.uStrand = { value: sunny(0xe4c899, new THREE.Color()) };
+      shader.uniforms.uQuayA = { value: sunny(0xcfc4a2, new THREE.Color()) };
+      shader.uniforms.uQuayB = { value: sunny(0xbfb79b, new THREE.Color()) };
+      shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vHarbour;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvHarbour = (modelMatrix * vec4(position, 1.0)).xyz;');
+      shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>
+        uniform sampler2D uMoor;
+        uniform vec3 uGrass, uStrand, uQuayA, uQuayB, uFilmCargo;
+        varying vec3 vHarbour;`)
+        .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+          vec2 shoreXZ=vHarbour.xz;
+          float ground=min(min(distance(vColor.rgb,uGrass),distance(vColor.rgb,uStrand)),
+                           min(distance(vColor.rgb,uQuayA),distance(vColor.rgb,uQuayB)));
+          // The Blender kit uses distinct paints for slate and fired-clay roofs.
+          bool tile = distance(vColor.rgb,vec3(.57758,.14126,.06848)) < .003 ||
+                      distance(vColor.rgb,vec3(.37626,.07619,.04374)) < .007 ||
+                      distance(vColor.rgb,vec3(.06663,.13563,.18782)) < .007 ||
+                      distance(vColor.rgb,vec3(.42327,.06663,.03071)) < .008 ||
+                      distance(vColor.rgb,vec3(.03071,.09990,.13563)) < .008;
+          if (tile) {
+            vec2 uv=vec2(shoreXZ.x*3.6+shoreXZ.y*.3,(vHarbour.y+shoreXZ.y*.16)*6.);
+            uv.x += .5*mod(floor(uv.y),2.);
+            vec2 cell=fract(uv), px=max(fwidth(uv),vec2(.009));
+            float joint=max(1.-smoothstep(.025,.025+px.x,min(cell.x,1.-cell.x)),1.-smoothstep(.06,.06+px.y,cell.y));
+            float grain=texture2D(uMoor,shoreXZ*.29).g;
+            diffuseColor.rgb *= .88+.19*cell.y+.31*grain-.32*joint;
+          }
+          if (distance(vColor.rgb,vec3(.065,.185,.065)) < .002) {
+            float leaves=texture2D(uMoor,shoreXZ*1.9+vHarbour.y*.42).g;
+            diffuseColor.rgb *= .74+1.12*leaves;
+          }
+          if (ground < .007) {
+            // Meadow and shale use their own grain directions. Vertical faces have a true elevation coordinate.
+            vec2 rockUv=vec2(dot(shoreXZ,vec2(.73,.67)),vHarbour.y);
+            float broad=texture2D(uMoor,shoreXZ*.094+vec2(.17,.33)).g;
+            float grass=texture2D(uMoor,mat2(.75,.66,-.66,.75)*shoreXZ*.83).g;
+            float rockGrain=texture2D(uMoor,rockUv*vec2(.34,.69)).g;
+            float beach=smoothstep(.10,.96,vHarbour.y+broad*.22);
+            vec3 turf=mix(vec3(.12,.224,.102),vec3(.32,.37,.15),clamp(.21+broad*.95,0.,1.));
+            turf*=.81+.45*smoothstep(.035,.42,grass);
+            vec3 sand=mix(vec3(.36,.313,.217),vec3(.71,.57,.35),smoothstep(-.16,.55,vHarbour.y));
+            sand*=.90+.18*broad;
+            float phase=vHarbour.y*1.53+shoreXZ.x*.18+shoreXZ.y*.11+rockGrain*1.14
+                        +.51*sin(shoreXZ.y*.77+shoreXZ.x*.48+vHarbour.y*.62);
+            float ledge=abs(fract(phase)-.52);
+            float seam=1.-smoothstep(.035,.10+fwidth(phase),ledge);
+            vec3 shale=mix(vec3(.20,.244,.235),vec3(.40,.366,.263),smoothstep(.1,.54,rockGrain));
+            shale*=.97+.065*fract(phase)-.15*seam*smoothstep(.07,.42,broad+.6*rockGrain);
+            float scree=smoothstep(.46,1.29,vGrade+(broad-.20)*.43);
+            diffuseColor.rgb=mix(mix(sand,turf,beach),shale,scree*beach);
+            float walk=min(max(abs(shoreXZ.y+8.1+.41*sin(shoreXZ.x*.48))-.36,abs(shoreXZ.x)-8.15),
+                           max(abs(shoreXZ.x+7.25+.55*sin(shoreXZ.y*.39))-.29,abs(shoreXZ.y-1.7)-10.));
+            vec2 pave=shoreXZ*vec2(2.55,3.3);
+            pave.x+=.50*mod(floor(pave.y),2.);
+            vec2 joints=abs(fract(pave)-.5),px=max(fwidth(pave),.002);
+            float mortar=max(smoothstep(.44-px.x,.50,joints.x),smoothstep(.44-px.y,.50,joints.y));
+            vec3 path=mix(vec3(.54,.439,.30),vec3(.35,.31,.23),mortar)*(.97+.10*broad);
+            diffuseColor.rgb=mix(diffuseColor.rgb,path,(1.-smoothstep(-.06,.08,walk+(grass-.2)*.1))*beach);
+          }`)
+        .replace('#include <opaque_fragment>', `
+          // A rolling sphere casts a close contact shadow directly onto the moving channel.
+          vec3 toRuby = vHarbour - uFilmCargo;
+          float contact = (1.-smoothstep(.05,.47,length(toRuby.xz+vec2(.04,-.03))))
+                          *smoothstep(.08,.20,-toRuby.y)*(1.-smoothstep(.34,.54,-toRuby.y));
+          outgoingLight *= 1.-.37*contact;
+          // Lantern glass is self-lit even with the sun behind the tower.
+          if (length(vHarbour.xz-vec2(1.5,-10.)) < .57 && vHarbour.y > 7.075 && vHarbour.y < 7.59) {
+            outgoingLight += vec3(2.7,1.34,.31) * (.35+.65*smoothstep(.05,.3,vColor.r));
+          }
+          #include <opaque_fragment>`);
+    };
+  }
+  material.customProgramCacheKey = () => harbourGrass ? 'harbour-promenade' : 'rock-contour';
   material.needsUpdate = true;
 }
 
@@ -145,6 +232,20 @@ export function villageTerrainGeometry(source: VillageTerrain | VillageTerrainSp
   const land:number[]=[];let output=0;for(let i=0;i<geometry.getAttribute('position').count;){if(removed.has(i)){i+=6;continue;}const count=replaced.get(i);if(count!==undefined){for(let j=0;j<count;j++)land.push(output++);i+=6;}else{if(landStarts.has(i))land.push(output);output++;i+=3;}}
   if(output*3!==result.getAttribute('position').count)throw new Error('Terrain ownership lineage mismatch');terrainOwnership.set(result,{terrain,land:Object.freeze(land),prefixVertices:output*3});
   if(spec.rockContour)result.setAttribute('grade',new THREE.Float32BufferAttribute(slopeGrades(result,terrain,land),1));
+  if (spec.beachWidth) {
+    // Adjacent land triangles share the slope of the height field. Skirts retain
+    // their outward normals, and the collision mesh remains the exact land surface.
+    const pos = result.getAttribute('position'), normals = result.getAttribute('normal');
+    const n = new THREE.Vector3();
+    for (const tri of land) for (let i = tri * 3; i < tri * 3 + 3; i++) {
+      const c = Math.round((pos.getX(i) - originX) / cellWidth), r = Math.round((pos.getZ(i) - originZ) / cellDepth);
+      const left = Math.max(0,c-1), right = Math.min(columns,c+1), back = Math.max(0,r-1), front = Math.min(rows,r+1);
+      const dx = (heights[r*stride+right]! - heights[r*stride+left]!) / ((right-left)*cellWidth);
+      const dz = (heights[front*stride+c]! - heights[back*stride+c]!) / ((front-back)*cellDepth);
+      n.set(-dx,1,-dz).normalize();
+      normals.setXYZ(i,n.x,n.y,n.z);
+    }
+  }
   if(result!==geometry)geometry.dispose();return result;
 }
 

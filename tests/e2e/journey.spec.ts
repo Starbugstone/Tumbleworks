@@ -160,7 +160,7 @@ test.describe('the whole campaign completes through real touch input', () => {
           if (index + 1 < last) await select(page, index + 1);
         } else {
           await expect(page.locator('#card')).toBeVisible();
-          if (index + 1 < last) await page.getByRole('button', { name: 'Next level', exact: true }).click();
+          if (index + 1 < last) await page.getByRole('button', { name: 'Play next level', exact: true }).click();
         }
       }
       if (last === CAMPAIGN.length) await expect(page.locator('body')).toHaveAttribute('data-screen', 'map');
@@ -271,7 +271,7 @@ test('storage write failure still records completion and keeps round boundaries 
   await solve(page, tube);
   await expect(page.locator(`.chip[data-level="${tube}"]`)).toHaveClass(/completed/);
   // The earlier two games are unfinished, so completing this Tube Sort resumes the first missing game of its own stop.
-  await page.getByRole('button', { name: 'Next level', exact: true }).click();
+  await page.getByRole('button', { name: 'Play next level', exact: true }).click();
   expect((await state(page)).levelId).toBe(CAMPAIGN[tube - 2]?.id);
   await expect(page.locator(`.chip[data-level="${tube}"]`)).toHaveClass(/completed/);
 });
