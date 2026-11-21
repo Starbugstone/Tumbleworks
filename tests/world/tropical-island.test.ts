@@ -37,6 +37,54 @@ it('rounds the fountain basin shoulder without filling the open irrigation water
   } finally { f.dispose(); }
 });
 
+it('rounds the Willow bank toe in the film without damming its surveyed river', async () => {
+  const { cinematicWorld } = await import('./cinematic-world-fixture');
+  const f = cinematicWorld(2);
+  try {
+    const { water } = villageScenePlan(2).terrain;
+    const ground = f.world.scene.getObjectByName('village-landscape-2')?.children.find(node => node instanceof Mesh);
+    if (!(ground instanceof Mesh)) throw new Error('Missing Willow terrain');
+    ground.updateWorldMatrix(true, false);
+    const ray = new Raycaster(new Vector3(), new Vector3(0, -1, 0));
+    const surface = (x: number, z: number) => {
+      ray.ray.origin.set(x, 12, z);
+      return ray.intersectObject(ground)[0]?.point.y ?? -Infinity;
+    };
+    // The square exposed face in the film was the native cell edge at z=3.
+    for (const x of [-2.96, -2.82, -2.62]) {
+      expect(surface(x, 2.99)).toBeGreaterThan(water);
+      expect(surface(x, 2.99)).toBeLessThan(water + .20);
+    }
+    for (let i = 0; i <= 13; i++) {
+      const z = 3.3 + i / 10;
+      // The surveyed centre runs from (1.3,-.5) to (-2.5,5) here.
+      const centre = 1.3 - (z + .5) * 3.8 / 5.5;
+      expect(surface(centre, z)).toBeLessThanOrEqual(water);
+      expect(surface(centre - 2.3, z)).toBeGreaterThan(water);
+    }
+  } finally { f.dispose(); }
+}, 30_000);
+
+it('keeps the Willow mill clear of the whole aqueduct, including its feet', async () => {
+  const { cinematicWorld } = await import('./cinematic-world-fixture');
+  const { WorldKitAssets } = await import('../../src/view/world-kit');
+  const { surfaceTriangles } = await import('./surface-overlap');
+  const { trackCrossings } = await import('./village-geometry');
+  const f = cinematicWorld(2, true), kit = new WorldKitAssets(true), material = new MeshBasicMaterial();
+  try {
+    const site = villageScenePlan(2).cinematicScenery?.find(piece => piece.model === 'mill');
+    if (!site) throw new Error('Missing surveyed mill');
+    const model = kit.model(site.model, material);
+    model.position.fromArray(site.position); model.rotation.y = site.yaw; model.scale.setScalar(site.scale);
+    f.machine.apply(2.75);
+    const machine = surfaceTriangles(f.machine.root);
+    expect(trackCrossings(machine, surfaceTriangles(model))).toEqual([]);
+    // This larger downstream shift leaves the rail clear but intersects its trestle.
+    model.position.z = .77;
+    expect(trackCrossings(machine, surfaceTriangles(model)).map(hit => hit.track)).toContain('village-stop-4-static-BoxGeometry-0');
+  } finally { f.dispose(); material.dispose(); kit.dispose(); }
+}, 30_000);
+
 it.each([0, 1, 2, 3, 4, 5])('keeps chapter %i coastal triangles outside authored land and protected structures', chapter => {
   const terrain = compileTerrain(villageScenePlan(chapter).terrain);
   const forbidden = new Box3(new Vector3(-30, -10, -30), new Vector3(-8, 40, 30));

@@ -127,7 +127,8 @@ export class WorldScene {
     yield 'terrain';
     const landscape = new THREE.Group(); landscape.name = `village-landscape-${chapter}`;
     // The land as drawn: dressing beside it (river banks) continues these colours.
-    const drawn = { ...terrain, spec: { ...terrain.spec, mergeFlatLand: true, rockContour: true, palette: villageSurfacePalette(terrain.spec.palette, chapter) } };
+    const drawn = { ...terrain, spec: { ...terrain.spec, mergeFlatLand: true, rockContour: true,
+      smoothLandNormals: chapter === 2 && options.motion === 'cinematic', palette: villageSurfacePalette(terrain.spec.palette, chapter) } };
     if (chapter === 0) rockContour(this.material, sunny(drawn.spec.palette.rock, new THREE.Color()), sunny(drawn.spec.palette.grass, new THREE.Color()));
     else illustrateInlandTerrain(this.material, drawn.spec, chapter);
     const ground = createVillageTerrain(drawn, this.material, 'full', true); landscape.add(ground);

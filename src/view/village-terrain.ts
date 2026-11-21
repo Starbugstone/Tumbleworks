@@ -204,7 +204,10 @@ const inlandFinish = [
   // Willow Mill. Broad ochre meadows flank the river; the surveyed mill and warehouse yards are worn clay.
   `float field = 1.-smoothstep(1.30,2.3,abs(p.x+8.9+.52*sin(p.y*.25)));
   field *= smoothstep(-12.,-9.5,p.y)*(1.-smoothstep(6.5,10.,p.y));
-  land = mix(land,vec3(.28,.215,.086)*(.83+.43*grain),max(plot ? .84 : 0.,field*.82));`,
+  float quay = max(abs(p.x+1.8)-2.60,abs(p.y+2.8)-5.20);
+  float yard = max(abs(p.x-9.2)-1.80,abs(p.y-7.4)-2.80);
+  float earth = 1.-smoothstep(-.14,.33,min(quay,yard)+(broad-.26)*.37);
+  land = mix(land,vec3(.278,.233,.113)*(.87+.33*grain),max(earth*.69,field*.69));`,
   // Clockmakers' Hill. Slate around the brass spiral, warmer stone in the inhabited streets.
   `vec2 slope = vec2((p.x+.37)*.91,(p.y+3.6)*.78);
   float ring = abs(length(slope)-9.0-.42*sin(atan(slope.y,slope.x+.001)*2.+.2));
@@ -303,6 +306,9 @@ export function illustrateInlandTerrain(material: THREE.Material, terrain: Villa
           }
           ${chapter === 2 ? `
           if (bank) {
+            float turf = 1.-smoothstep(.012,.095,distance(vColor.rgb,uTurf));
+            vec3 meadow = mix(uTurf,uTurfAlt,smoothstep(.05,.42,broad))*(.78+.56*grain);
+            land = mix(land,meadow,turf);
             float damp = 1.-smoothstep(.19,.88,y-uWaterline);
             land = mix(land,vec3(.26,.239,.200)*(.86+.29*grain),damp*.40);
           }
@@ -453,18 +459,23 @@ export function villageTerrainGeometry(source: VillageTerrain | VillageTerrainSp
     result.setAttribute('grade', new THREE.Float32BufferAttribute(slopeGrades(result, terrain, land), 1));
     result.setAttribute('terrainSurface', new THREE.BufferAttribute(surface, 1));
   }
-  if (spec.beachWidth) {
+  if (spec.beachWidth || spec.smoothLandNormals) {
     // Adjacent land triangles share the slope of the height field. Skirts retain
     // their outward normals, and the collision mesh remains the exact land surface.
     const pos = result.getAttribute('position'), normals = result.getAttribute('normal');
     const n = new THREE.Vector3();
-    for (const tri of land) for (let i = tri * 3; i < tri * 3 + 3; i++) {
-      const c = Math.round((pos.getX(i) - originX) / cellWidth), r = Math.round((pos.getZ(i) - originZ) / cellDepth);
-      const left = Math.max(0,c-1), right = Math.min(columns,c+1), back = Math.max(0,r-1), front = Math.min(rows,r+1);
-      const dx = (heights[r*stride+right]! - heights[r*stride+left]!) / ((right-left)*cellWidth);
-      const dz = (heights[front*stride+c]! - heights[back*stride+c]!) / ((front-back)*cellDepth);
-      n.set(-dx,1,-dz).normalize();
-      normals.setXYZ(i,n.x,n.y,n.z);
+    for (const tri of land) {
+      const first = tri * 3, height = pos.getY(first);
+      // A merged flat strip can run across the meadow. A bank normal at one end must not shade the entire strip.
+      if (spec.smoothLandNormals && pos.getY(first + 1) === height && pos.getY(first + 2) === height) continue;
+      for (let i = first; i < first + 3; i++) {
+        const c = Math.round((pos.getX(i) - originX) / cellWidth), r = Math.round((pos.getZ(i) - originZ) / cellDepth);
+        const left = Math.max(0,c-1), right = Math.min(columns,c+1), back = Math.max(0,r-1), front = Math.min(rows,r+1);
+        const dx = (heights[r*stride+right]! - heights[r*stride+left]!) / ((right-left)*cellWidth);
+        const dz = (heights[front*stride+c]! - heights[back*stride+c]!) / ((front-back)*cellDepth);
+        n.set(-dx,1,-dz).normalize();
+        normals.setXYZ(i,n.x,n.y,n.z);
+      }
     }
   }
   if(result!==geometry)geometry.dispose();return result;

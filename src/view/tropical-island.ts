@@ -366,6 +366,23 @@ function basinShoulder(edges: readonly Edge[], edge: number, distance: number, x
   const overlap = Math.max(0, radius - (other - distance));
   return Math.max(0, distance - overlap * overlap / (4 * radius));
 }
+
+/** Keep each native bank seam exact and give its new shoulder a continuous crest between grid steps. */
+function millCrest(edges: readonly Edge[], nearest: { distance: number; bank: number }, x: number, z: number): number {
+  const { distance, bank } = nearest;
+  if (distance < 1e-6) return bank;
+  const reach = distance + .68;
+  let total = 0, weights = 0;
+  indexOf(edges).near(x, z, reach, i => {
+    const edge = edges[i]!;
+    const { d, u } = edgeDistance(edge, x, z);
+    if (d >= reach) return;
+    const weight = (1 - d / reach) ** 2 / (d * d);
+    total += (edge[1] + (edge[4] - edge[1]) * u) * weight;
+    weights += weight;
+  });
+  return weights ? total / weights : bank;
+}
 /**
  * Where a river or inlet is drawn at an angle across the grid, its banks are staircases of little cliffs.
  * A bank dressing in the water cells fills every step flush with the land, out to the staircase's outermost
@@ -376,7 +393,11 @@ export function riverBanks(t: VillageTerrain, protectedBounds: readonly THREE.Bo
   const { edges, cells } = bankEdges(t), holes = t.spec.features.flatMap(f => f.kind === 'hole' ? [f.polygon] : []);
   if (!edges.length || !holes.length) return null;
   const garden = cinematicChapter === 1;
-  const rounded = garden || cinematicChapter === 2;
+  const mill = cinematicChapter === 2;
+  const rounded = garden || mill;
+  // A mixed land/water cell edge can extend at most half a grid diagonal into the surveyed river.
+  // A single allowance keeps the wetted edge parallel to the authored river through the stair steps.
+  const millRim = Math.hypot(t.cellWidth, t.cellDepth) / 2;
   const floor = t.spec.water - .35, inWater = (x: number, z: number) => Math.max(0, ...holes.map(h => pointInPolygon(h, x, z) ? distanceToPolygon(h, x, z) : 0));
   const { proud, step } = staircase(edges, inWater);
   /** The drawn bank nearest a point runs at an angle across the grid. */
@@ -391,21 +412,23 @@ export function riverBanks(t: VillageTerrain, protectedBounds: readonly THREE.Bo
   };
   // A high bank stands steeper rather than filling the river. The Garden's broad pool leaves more room for its shoulder.
   const drop = (bank: number) => rounded
-    ? Math.min(garden ? .80 : .60, .29 + .16 * Math.max(0, bank - floor))
+    ? Math.min(.80, (mill ? .43 : .29) + .16 * Math.max(0, bank - floor))
     : Math.min(BANK_RUN, 1.5 * Math.max(0, bank - floor) / BANK_SLOPE);
   const subdivide = garden ? 3 : 2;
   const reach = Math.max(...edges.map((e, i) => (garden ? 0 : proud[i]!) + drop(Math.max(e[1], e[4]))))
     + Math.SQRT2 * step / (garden ? subdivide : 1);
-  const rock = new THREE.Color(t.spec.palette.rock), top = new THREE.Color(), wet = new THREE.Color(0xc9b99a);
+  const rock = new THREE.Color(t.spec.palette.rock), grass = new THREE.Color(t.spec.palette.grass), top = new THREE.Color(), wet = new THREE.Color(0xc9b99a);
   const geometry = shoreSurface(t, protectedBounds, {
     host: 'water',
     surface: garden ? TERRAIN_SURFACE.basin : TERRAIN_SURFACE.bank,
     accepts: (x, z, sample) => sample.distance <= reach && (rounded || (sample.bank ?? floor) - t.spec.water <= BANK_HIGHEST && slanted(x, z)),
     sample(x, z) {
-      const { distance, bank, edge } = nearestEdge(edges, x, z), land = cells[edge] ?? -1;
+      const nearest = nearestEdge(edges, x, z);
+      const { distance, edge } = nearest, land = cells[edge] ?? -1;
+      const bank = mill ? millCrest(edges, nearest, x, z) : nearest.bank;
       // The assembled pool is a union of adjoining cuts. Only its real land edges can contribute a bank.
       const shore = garden ? basinShoulder(edges, edge, distance, x, z)
-        : Math.min(distance, Math.max(0, inWater(x, z) - mostProud(edges, proud, x, z, distance + Math.SQRT2 * step)));
+        : Math.min(distance, Math.max(0, inWater(x, z) - (mill ? millRim : mostProud(edges, proud, x, z, distance + Math.SQRT2 * step))));
       const width = drop(bank);
       const height = width > 0 ? bank + (floor - bank) * THREE.MathUtils.smoothstep(shore / width, 0, 1) : floor;
       return { distance, shore, height, land, bank };
@@ -415,7 +438,7 @@ export function riverBanks(t: VillageTerrain, protectedBounds: readonly THREE.Bo
     snap(x, z, sample, reach) {
       const depth = inWater(x, z);
       if (garden || depth <= 0 || sample.shore >= sample.distance) return undefined;
-      const most = mostProud(edges, proud, x, z, sample.distance + Math.SQRT2 * step), f = depth - most;
+      const most = mill ? millRim : mostProud(edges, proud, x, z, sample.distance + Math.SQRT2 * step), f = depth - most;
       let best = Infinity, px = 0, pz = 0;
       for (const h of holes) for (let i = 0; i < h.length; i++) {
         const a = h[i]!, b = h[(i + 1) % h.length]!, dx = b[0] - a[0], dz = b[1] - a[1];
@@ -423,14 +446,22 @@ export function riverBanks(t: VillageTerrain, protectedBounds: readonly THREE.Bo
         if (d < best) { best = d; px = qx; pz = qz; }
       }
       if (!(best > 1e-9)) return undefined;
-      const moves = [0, drop(sample.bank ?? floor)].map(target => target - f).filter(move => Math.abs(move) < reach);
+      const bank = sample.bank ?? floor, width = drop(bank);
+      const contours = [0, width];
+      if (mill && bank > t.spec.water) {
+        const submerged = (bank - t.spec.water) / (bank - floor);
+        contours.push(width * (.5 - Math.sin(Math.asin(1 - 2 * submerged) / 3)));
+      }
+      const moves = contours.map(target => target - f).filter(move => Math.abs(move) < reach);
       if (!moves.length) return undefined;
       const move = moves.reduce((m, n) => Math.abs(n) < Math.abs(m) ? n : m);
       return [x + (x - px) / best * move, z + (z - pz) / best * move];
     },
     paint(p, sample, floor, color) {
       const bank = sample.bank ?? floor, land = sample.land ?? -1;
-      if (land >= 0) landFaceColour(t, land % t.columns, Math.floor(land / t.columns), top); else top.copy(rock);
+      if (mill) top.copy(grass);
+      else if (land >= 0) landFaceColour(t, land % t.columns, Math.floor(land / t.columns), top);
+      else top.copy(rock);
       // The flush top continues the land beside it; the steep face below is the cliff's own rock.
       const ratio = bank > floor ? (p.y - floor) / (bank - floor) : 0;
       color.copy(rock).lerp(top, THREE.MathUtils.smoothstep(ratio, .8, .97));
