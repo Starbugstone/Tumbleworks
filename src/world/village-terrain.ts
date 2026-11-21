@@ -184,13 +184,8 @@ function validate(spec: VillageTerrainSpec, cells: TerrainVec2): void {
   }
 }
 
-/** Grid the field once. `cells` overrides the spec's subdivision (the overview samples 8 × 8). */
-export function compileTerrain(spec: VillageTerrainSpec, cells: TerrainVec2 = spec.cells): VillageTerrain {
-  validate(spec, cells);
-  const [columns, rows] = cells;
-  const cellWidth = spec.size[0] / columns, cellDepth = spec.size[1] / rows;
-  const originX = -spec.size[0] / 2, originZ = -spec.size[1] / 2;
-  const heights = new Float32Array((columns + 1) * (rows + 1));
+/** Limit height sampling to the authored features that can affect a row, retaining their order. */
+export function terrainHeightRows(spec: VillageTerrainSpec): (z: number) => VillageTerrainSpec {
   const zBand = (points: readonly TerrainVec2[], margin: number) => {
     let min = Infinity, max = -Infinity;
     for (const point of points) { min = Math.min(min, point[1]); max = Math.max(max, point[1]); }
@@ -202,11 +197,21 @@ export function compileTerrain(spec: VillageTerrainSpec, cells: TerrainVec2 = sp
     return { feature, ...zBand(feature.polygon, Math.max(0, margin)) };
   });
   const pads = spec.buildingPads?.map(pad => ({ pad, ...zBand(pad.outline, Math.max(0, pad.apron)) }));
+  return z => ({ ...spec, features: bands.filter(b => b.min <= z && z <= b.max).map(b => b.feature),
+    buildingPads: pads?.filter(b => b.min <= z && z <= b.max).map(b => b.pad) });
+}
+
+/** Grid the field once. `cells` overrides the spec's subdivision (the overview samples 8 × 8). */
+export function compileTerrain(spec: VillageTerrainSpec, cells: TerrainVec2 = spec.cells): VillageTerrain {
+  validate(spec, cells);
+  const [columns, rows] = cells;
+  const cellWidth = spec.size[0] / columns, cellDepth = spec.size[1] / rows;
+  const originX = -spec.size[0] / 2, originZ = -spec.size[1] / 2;
+  const heights = new Float32Array((columns + 1) * (rows + 1));
+  const rowAt = terrainHeightRows(spec);
   for (let row = 0; row <= rows; row++) {
     const z = originZ + row * cellDepth;
-    // Keep the authored order. A slope, shore or footing outside its influence band cannot change this row.
-    const rowSpec = { ...spec, features: bands.filter(b => b.min <= z && z <= b.max).map(b => b.feature),
-      buildingPads: pads?.filter(b => b.min <= z && z <= b.max).map(b => b.pad) };
+    const rowSpec = rowAt(z);
     for (let column = 0; column <= columns; column++) {
       heights[row * (columns + 1) + column] = terrainFieldHeight(rowSpec, originX + column * cellWidth, z);
     }

@@ -3,7 +3,7 @@ import themes from '../world/village-themes.json' with { type: 'json' };
 import type { CounterFinish } from './board-counter';
 import { worldLocation } from '../world/locations';
 import { VILLAGE_SCENE_PLANS } from '../world/village-plans';
-import { distanceToPolygon, pointInPolygon, terrainFieldHeight, type VillageTerrainSpec } from '../world/village-terrain';
+import { distanceToPolygon, pointInPolygon, terrainFieldHeight, terrainHeightRows, type VillageTerrainSpec } from '../world/village-terrain';
 
 /** The worktop takes its finish from the current village, with that village's water or terrain beyond the edge. */
 let village: number | null = null;
@@ -55,32 +55,37 @@ function paintLand(spec: VillageTerrainSpec, focus: readonly [number, number], t
   const holes = spec.features.filter((feature) => feature.kind === 'hole');
   const paints = spec.features.filter((feature) => feature.kind === 'paint').map((feature) => ({ polygon: feature.polygon, color: mix(ground(feature.color), grass, 0.55) }));
   const step = 0.4;
-  for (let py = 0; py < GRID; py++) for (let px = 0; px < GRID; px++) {
-    // Canvas up is the back of the board, as in the village's own plan.
-    const x = ((px + 0.5) / GRID - 0.5) * REACH / SCALE + focus[0], z = ((py + 0.5) / GRID - 0.5) * REACH / SCALE + focus[1];
-    const coast = (pointInPolygon(spec.outline, x, z) ? 1 : -1) * distanceToPolygon(spec.outline, x, z);
-    let color: [number, number, number];
-    if (coast < -0.5) color = sea;
-    else {
-      const height = terrainFieldHeight(spec, x, z);
-      const slopeX = (terrainFieldHeight(spec, x + step, z) - height) / step, slopeZ = (terrainFieldHeight(spec, x, z + step) - height) / step;
-      color = mix(grass, grassAlt, smooth(0.3, 0.7, noise(x * 0.32 + 7, z * 0.32 + 3) * 0.7 + noise(x * 0.9, z * 0.9) * 0.3));
-      if (height < spec.water + 0.45) color = mix(color, shore, 0.7);
-      for (const paint of paints) if (pointInPolygon(paint.polygon, x, z)) color = [...paint.color];
-      color = mix(color, rock, smooth(0.5, 1.1, Math.hypot(slopeX, slopeZ)) * 0.8);
-      // Lit from the back left like the board itself: slopes that face the light are a little lighter.
-      const relief = 1 + Math.max(-0.13, Math.min(0.1, (slopeX * 0.55 + slopeZ * 0.6) * 0.11)) + Math.max(-0.03, Math.min(0.05, (height - spec.base) * 0.012));
-      color = [color[0] * relief, color[1] * relief, color[2] * relief];
-      for (const hole of holes) {
-        const inside = pointInPolygon(hole.polygon, x, z), bank = distanceToPolygon(hole.polygon, x, z);
-        if (inside) color = mix(mix(color, shore, 0.5), water, smooth(0, 0.6, bank));
+  const rowAt = terrainHeightRows(spec);
+  for (let py = 0; py < GRID; py++) {
+    const z = ((py + 0.5) / GRID - 0.5) * REACH / SCALE + focus[1];
+    const row = rowAt(z), slopeRow = rowAt(z + step);
+    for (let px = 0; px < GRID; px++) {
+      // Canvas up is the back of the board, as in the village's own plan.
+      const x = ((px + 0.5) / GRID - 0.5) * REACH / SCALE + focus[0];
+      const coast = (pointInPolygon(spec.outline, x, z) ? 1 : -1) * distanceToPolygon(spec.outline, x, z);
+      let color: [number, number, number];
+      if (coast < -0.5) color = sea;
+      else {
+        const height = terrainFieldHeight(row, x, z);
+        const slopeX = (terrainFieldHeight(row, x + step, z) - height) / step, slopeZ = (terrainFieldHeight(slopeRow, x, z + step) - height) / step;
+        color = mix(grass, grassAlt, smooth(0.3, 0.7, noise(x * 0.32 + 7, z * 0.32 + 3) * 0.7 + noise(x * 0.9, z * 0.9) * 0.3));
+        if (height < spec.water + 0.45) color = mix(color, shore, 0.7);
+        for (const paint of paints) if (pointInPolygon(paint.polygon, x, z)) color = [...paint.color];
+        color = mix(color, rock, smooth(0.5, 1.1, Math.hypot(slopeX, slopeZ)) * 0.8);
+        // Lit from the back left like the board itself: slopes that face the light are a little lighter.
+        const relief = 1 + Math.max(-0.13, Math.min(0.1, (slopeX * 0.55 + slopeZ * 0.6) * 0.11)) + Math.max(-0.03, Math.min(0.05, (height - spec.base) * 0.012));
+        color = [color[0] * relief, color[1] * relief, color[2] * relief];
+        for (const hole of holes) {
+          const inside = pointInPolygon(hole.polygon, x, z), bank = distanceToPolygon(hole.polygon, x, z);
+          if (inside) color = mix(mix(color, shore, 0.5), water, smooth(0, 0.6, bank));
+        }
+        // A pale strand, then the sea.
+        color = mix(mix(sea, shore, 0.55), color, smooth(-0.5, 0.7, coast));
+        if (coast < 0) color = mix(sea, color, smooth(-0.5, 0, coast));
       }
-      // A pale strand, then the sea.
-      color = mix(mix(sea, shore, 0.55), color, smooth(-0.5, 0.7, coast));
-      if (coast < 0) color = mix(sea, color, smooth(-0.5, 0, coast));
+      const at = (py * GRID + px) * 4;
+      image.data[at] = color[0]; image.data[at + 1] = color[1]; image.data[at + 2] = color[2]; image.data[at + 3] = 255;
     }
-    const at = (py * GRID + px) * 4;
-    image.data[at] = color[0]; image.data[at + 1] = color[1]; image.data[at + 2] = color[2]; image.data[at + 3] = 255;
   }
   ctx.putImageData(image, 0, 0);
   return canvas;
