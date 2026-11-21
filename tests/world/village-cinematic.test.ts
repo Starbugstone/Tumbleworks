@@ -4,10 +4,42 @@ import { VillageCinematic } from "../../src/world/village-cinematic";
 import { VillageProgram } from "../../src/world/village-program";
 import { VILLAGE_SCENE_PLANS } from "../../src/world/village-plans";
 import { VILLAGE_SHAPES } from "../../src/world/village-shapes";
+import { VillageTerminalPath } from "../../src/world/village-terminal";
+import { cinematicMachine } from "./cinematic-world-fixture";
 import {
   carrierContact,
   mechanismMatrix,
 } from "../../src/view/machine-primitives";
+
+it.each([0, 1])("chapter %i terminal only compresses after the marble reaches its brake", chapter => {
+  const { machine, dispose } = cinematicMachine(chapter);
+  try {
+    const { route } = machine;
+    if (!(route instanceof VillageCinematic)) throw new Error("Expected the shipped cinematic route");
+    const station = route.authoredPlan.stations.find(station => station.terminalCapture)!;
+    const path = new VillageTerminalPath(station);
+    const contact = route.contacts.find(contact => contact.stop === station.stop)!;
+    const roll = route.phases.find(phase => phase.kind === "roll" && phase.start <= contact.start && phase.end >= contact.end);
+    if (!roll || roll.kind !== "roll") throw new Error("Expected a rolling terminal");
+    const brakeTime = roll.start + roll.run.timeAt(roll.run.distanceAt(contact.start - roll.start) + path.startDistance);
+    const damper = machine.root.getObjectByName(`village-${station.stop}-damper`)!;
+    const expected = new Matrix4();
+    path.headPose(path.startDistance, expected);
+    for (let time = 0; time < brakeTime - 1 / 120; time += 1 / 120) {
+      machine.apply(time);
+      if (!damper.matrix.equals(expected)) expect(damper.matrix.toArray(), `brake time ${brakeTime}, marble time ${time}`).toEqual(expected.toArray());
+    }
+    machine.apply(contact.end);
+    expect(damper.matrix.equals(expected)).toBe(false);
+    const seated = damper.matrix.clone();
+    machine.apply(0);
+    expect(damper.matrix.equals(expected)).toBe(true);
+    machine.apply(contact.end);
+    expect(damper.matrix.equals(seated)).toBe(true);
+  } finally {
+    dispose();
+  }
+});
 
 describe("cinematic village films", () => {
   for (const scene of VILLAGE_SCENE_PLANS)
