@@ -363,6 +363,7 @@ test('reduced motion keeps a chapter replay still until Play film is explicitly 
   await page.getByRole('button', { name: 'Previous location', exact: true }).click();
   await page.getByRole('button', { name: 'Watch your machine' }).click();
   await expect(page.locator('body')).toHaveAttribute('data-screen', 'film');
+  await expect(page.locator('#scene')).toHaveAttribute('data-world-film', 'ready', { timeout: 30_000 });
   const still = await filmSnapshot(page);
   expect(still.time).toBe(0);
   await page.evaluate(() => { const app = (window as unknown as GameWindow).tumbleworks.app; for (let i = 0; i < 60; i++) app.advance(1 / 60); });
