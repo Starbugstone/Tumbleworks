@@ -77,6 +77,11 @@ bundle=$(basename "$(ls "$public"/assets/index-*.js)")
 expect_status 200 /
 expect_status 200 "/assets/$bundle"
 [[ "$(header / Cache-Control)" == no-cache ]] || fail 'the page must be rechecked on every visit'
+for boot in village-shell.js village-themes.json; do
+  expect_status 200 "/$boot"
+  [[ "$(header "/$boot" Cache-Control)" == no-cache ]] || fail "$boot must revalidate"
+done
+expect_status 404 /demo/review.html
 [[ "$(header "/assets/$bundle" Cache-Control)" == *immutable* ]] || fail 'hashed bundles must be cached for good'
 [[ "$(header "/assets/$bundle" Content-Type)" == *javascript* ]] || fail 'the bundle must be served as JavaScript'
 for asset in "$public"/assets/*; do

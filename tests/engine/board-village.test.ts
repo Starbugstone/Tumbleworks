@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { boardChapter } from '../../src/world/board-village';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import themes from '../../src/world/village-themes.json' with { type: 'json' };
 import { CAMPAIGN } from '../../src/campaign';
 import { worldLocation } from '../../src/world/locations';
@@ -30,6 +30,8 @@ describe('the village a board is played in', () => {
 
 
 it('keeps each island’s artwork and demo links valid as the campaign grows', () => {
+  const bootManifest = new URL('../../public/village-themes.json', import.meta.url);
+  expect(JSON.parse(readFileSync(bootManifest, 'utf8'))).toEqual(themes);
   const ids = themes.map(theme => theme.id);
   expect(new Set(ids).size).toBe(ids.length);
   for (const [chapter, theme] of themes.entries()) {

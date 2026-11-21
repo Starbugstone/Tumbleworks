@@ -13,7 +13,7 @@
     "roof": "#c66c4b",
     "accent": "#ffca6d",
     "kind": "harbour",
-    "print": "demo/harbour-print.webp",
+    "print": "islands/little-harbour/harbour-print.webp",
     "demo": [
       {
         "level": "board-43",
