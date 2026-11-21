@@ -34,10 +34,11 @@ export class WinWave {
 
   step(dt: number, sparks: Sparks): void {
     if (!this.active) return;
+    const previousAge = this.age;
     this.age += dt;
     while (this.next < this.beats.length && this.beats[this.next]!.delay <= this.age) {
       const beat = this.beats[this.next++]!;
-      if (this.share >= 1) sparks.land(beat.at, beat.tint);
+      if (this.share >= 1) sparks.land(beat.at, beat.tint, beat.delay - previousAge);
     }
   }
 

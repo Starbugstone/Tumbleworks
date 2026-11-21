@@ -37,6 +37,7 @@ const button = (id: string): HTMLButtonElement => {
 /** Campaign, controls and feedback only. Gameplay rules and entities belong to registered runtimes. */
 /** Ten rounds of the three games. */
 const CHAPTER_LEVELS = 30;
+const WIN_HOLD_SECONDS = 1.25;
 
 export class App {
   /** Held fast forward runs this many ticks per real tick: a lap of a full belt in a third or a fifth of the time. */
@@ -61,6 +62,8 @@ export class App {
   private messageTimer = 0;
   private quietWin = false;
   private winTimer = 0;
+  private winStarted = 0;
+  private winElapsed = 0;
   private hintTimer = 0;
   private instructionTimer = 0;
   private previewKey = '';
@@ -481,7 +484,7 @@ export class App {
     const seconds = Math.min(Math.max((now - this.lastFrame) / 1000, 0), 0.25);
     this.lastFrame = now;
     if (!this.manualClock && !this.demoMenuOpen && !document.hidden) {
-      const drawn = this.advance(seconds);
+      const drawn = this.advance(seconds, true, now);
       if (this.onFirstScreen && (this.screen === 'game' || this.screen === 'workshop' ||
           (this.screen === 'film' ? ['ready','unavailable'].includes(this.stage.canvas.dataset.worldFilm ?? '') :
             ['ready','unavailable'].includes(this.stage.canvas.dataset.worldScene ?? '')))) {
@@ -504,10 +507,13 @@ export class App {
   };
 
   /** Runs the ticks due and draws, unless the board was still before and after; true when it drew. */
-  advance(seconds: number, draw = true): boolean {
+  advance(seconds: number, draw = true, frameTime?: number): boolean {
     if (this.screen !== 'game') return draw && this.world.advance(this.screen === 'film' ? seconds : Math.min(seconds, 0.05));
     const wasStill = this.runtime.still === true;
-    if (this.ending === 'won' && this.card.hidden) this.runtime.advanceCelebration?.(seconds);
+    if (this.ending === 'won' && this.card.hidden) {
+      // RAF and the footer share a wall-clock deadline. Manual playback advances by supplied intervals.
+      this.advanceWinTo(frameTime === undefined ? this.winElapsed + seconds : (frameTime - this.winStarted) / 1000);
+    }
     this.accumulator += Math.min(seconds * this.speed, 0.25);
     const limit = 8 * this.speed;
     let steps = 0;
@@ -617,21 +623,32 @@ export class App {
       this.renderChips();
       element('guide').hidden = element('instruction').hidden = true;
       this.runtime.celebrate?.(this.quietWin || this.speed > 1 ? .45 : this.helped ? .65 : 1);
-      this.winTimer = window.setTimeout(() => this.finishWin('timeout'), 1250);
+      this.winStarted = performance.now();
+      this.winElapsed = 0;
+      this.winTimer = window.setTimeout(() => this.finishWin('timeout'), WIN_HOLD_SECONDS * 1000);
     } else {
       sfx.jam();
       this.endingCard();
     }
   }
 
+  private advanceWinTo(seconds: number): void {
+    const elapsed = Math.min(seconds, WIN_HOLD_SECONDS);
+    if (elapsed <= this.winElapsed) return;
+    this.runtime.advanceCelebration?.(elapsed - this.winElapsed);
+    this.winElapsed = elapsed;
+  }
+
   private finishWin(reason: 'timeout' | 'skip'): void {
     if (this.screen !== 'game' || this.runtime.status !== 'won') return;
+    if (reason === 'timeout') this.advanceWinTo(WIN_HOLD_SECONDS);
     this.runtime.finishCelebration?.();
-    this.redraw = true;
     if (!demoEntry && this.source === 'campaign' && this.nextRoundLevel() === null) {
       this.showMap(Math.floor(this.boardIndex / CHAPTER_LEVELS), true, true, reason === 'timeout');
     } else {
       if (reason === 'skip') sfx.cancel();
+      this.redraw = document.hidden;
+      if (!document.hidden) this.runtime.render(this.accumulator / FIXED_SECONDS, 0);
       this.endingCard();
     }
   }

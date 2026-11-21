@@ -501,6 +501,11 @@ export class TubeView extends BoardView {
   finishCelebration(): void {
     this.wave.clear();
     this.sparks.clear();
+    // The footer can arrive between fixed ticks while a column is still drawn in its bow.
+    this.identities.forEach((ids, tube) => {
+      for (const id of ids) this.squeeze(id, 0);
+      this.rims[tube]!.scale.setScalar(1);
+    });
   }
 
   override dispose(): void {

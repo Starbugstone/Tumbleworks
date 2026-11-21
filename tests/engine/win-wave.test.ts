@@ -74,3 +74,16 @@ it('settles immediately for reduced motion and cancels future beats on skip', ()
   expect(wave.pulse(1)).toBe(0);
   sparks.dispose();
 });
+
+it('ages each glint from its own beat when a frame arrives late', () => {
+  const { camera, sparks } = stage();
+  const wave = new WinWave();
+  const land = vi.spyOn(sparks, 'land');
+  const pieces = [0, 1, 2].map(index => ({ index, at: { x: index, y: 0, z: 0 }, tint: 0xddaa66 }));
+  wave.start(pieces, [], camera, sparks, 1, false);
+  wave.step(.4, sparks);
+  wave.step(.44, sparks);
+  // The second frame spans both .42 and .78. Their glints must reach the screen at different ages.
+  expect(land.mock.calls.map(call => call[2])).toEqual([expect.closeTo(.06), expect.closeTo(.02), expect.closeTo(.38)]);
+  sparks.dispose();
+});
