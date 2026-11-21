@@ -17,6 +17,6 @@ export default defineConfig({
   projects: [
     { name: 'game', testIgnore: /performance\.spec\.ts/ },
     // Frame timings beside other busy browsers measure the contention, so the budget runs alone, after the rest.
-    { name: 'performance', testMatch: /performance\.spec\.ts/, dependencies: ['game'] },
+    { name: 'performance', testMatch: /performance\.spec\.ts/, dependencies: ['game'], workers: 1 },
   ],
 });
