@@ -4,16 +4,21 @@ import { TUBE_BOARDS } from '../../src/puzzles/levels';
 import { availableTubeMoves, TubeRules } from '../../src/puzzles/rules';
 import type { App } from '../../src/view/App';
 import { CAMPAIGN } from '../../src/campaign';
+import { worldProgress } from '../../src/world/progression';
 import { FUNNEL_WITNESSES, LOOP_JAMS, LOOP_WITNESSES } from '../witnesses';
 import { chooseLevel, enterGame } from '../fixtures/picker';
 
 type GameWindow = Window & { tumbleworks: { app: App } };
 const state = (page: Page) => page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.debugState());
 
-async function ready(page: Page): Promise<void> {
+async function ready(page: Page, mode: 'picker' | 'map' = 'picker'): Promise<void> {
   await page.waitForFunction(() => Boolean((window as unknown as Partial<GameWindow>).tumbleworks?.app?.runtime), undefined, { timeout: 60000 });
   await page.evaluate(() => { (window as unknown as GameWindow).tumbleworks.app.manualClock = true; });
-  await enterGame(page);
+  if (mode === 'picker') await enterGame(page);
+  else {
+    await expect(page.locator('#boot')).toBeHidden({ timeout: 90_000 });
+    await expect(page.locator('body')).toHaveAttribute('data-screen', 'map');
+  }
 }
 
 /** Real game ticks with rendering only at the end; this is functional verification, not an FPS benchmark. */
@@ -132,6 +137,41 @@ test('a completed forty-round save continues into the new campaign', async ({ pa
   expect(savedCompleted).toEqual([...new Set(completed)]);
 });
 
+async function seedCampaignPrefix(page: Page, first: number): Promise<void> {
+  const completed = CAMPAIGN.slice(0, first).map(level => level.id);
+  const progress = worldProgress(CAMPAIGN, new Set(completed));
+  const seen = progress.chapters.filter(chapter => chapter.complete).map(chapter => chapter.key);
+  const chapter = progress.stops[progress.frontier]!.chapter;
+  await page.addInitScript(({ completed, seen, chapter }) => {
+    if (localStorage.getItem('tumbleworks.progress.v1') === null) {
+      localStorage.setItem('tumbleworks.progress.v1', JSON.stringify({ completed, muted: true }));
+    }
+    if (localStorage.getItem('tumbleworks.valley.v1') === null) {
+      localStorage.setItem('tumbleworks.valley.v1', JSON.stringify({ seen, chapter }));
+    }
+  }, { completed, seen, chapter });
+}
+
+async function enterNextStop(page: Page): Promise<void> {
+  await expect(page.locator('body')).toHaveAttribute('data-screen', 'map');
+  await expect(page.locator('#journey-transition')).toBeHidden();
+  await page.getByRole('button', { name: '▶ Play next level', exact: true }).tap();
+}
+
+test('a campaign prefix makes the final Gardens stop playable from the map', async ({ page }) => {
+  await seedCampaignPrefix(page, 57);
+  await page.goto('/');
+  await ready(page, 'map');
+  const filmProgress = await page.evaluate(() => JSON.parse(localStorage.getItem('tumbleworks.valley.v1')!));
+  const chapters = worldProgress(CAMPAIGN, new Set(CAMPAIGN.slice(0, 57).map(level => level.id))).chapters;
+  expect(filmProgress.seen).toEqual([chapters[0]!.key]);
+  await expect(page.locator('.map-stop[aria-current="step"]')).toHaveAttribute('data-round', '19');
+  await enterNextStop(page);
+  expect((await state(page)).levelIndex).toBe(57);
+  const savedCompleted = await page.evaluate(() => JSON.parse(localStorage.getItem('tumbleworks.progress.v1')!).completed);
+  expect(savedCompleted).toEqual(CAMPAIGN.slice(0, 57).map(level => level.id));
+});
+
 test.describe('the whole campaign completes through real touch input', () => {
   test.describe.configure({ mode: 'parallel' });
   for (let slice = 0; slice < SLICES; slice++) {
@@ -140,23 +180,26 @@ test.describe('the whole campaign completes through real touch input', () => {
       test.setTimeout(1_500_000);
       const errors: string[] = [];
       page.on('pageerror', (error) => errors.push(error.message));
+      await seedCampaignPrefix(page, first);
       await page.goto('/');
-      await ready(page);
+      await ready(page, 'map');
       await page.locator('#levels-toggle').click();
       await expect(page.locator('.chip')).toHaveCount(3);
       await page.locator('#levels-toggle').click();
-      if (first > 0) await select(page, first);
+      await enterNextStop(page);
       for (let index = first; index < last; index++) {
         expect((await state(page)).levelIndex).toBe(index);
         // A level may start with trucks loading from the ring or marbles settling: let it come to rest before the first tap.
         await settle(page);
         await page.screenshot({ path: `output/current/campaign-level${index + 1}.png` });
         await solve(page, index);
-        await expect.poll(() => page.evaluate(id => JSON.parse(localStorage.getItem('tumbleworks.progress.v1')!).completed.includes(id), CAMPAIGN[index]!.id)).toBe(true);
+        const levelId = CAMPAIGN[index]!.id;
+        const saved = await page.evaluate(id => JSON.parse(localStorage.getItem('tumbleworks.progress.v1')!).completed.includes(id), levelId);
+        expect(saved, `${levelId} saved after settling the win`).toBe(true);
         if ((index + 1) % 3 === 0) {
           await expect.poll(async () => (await state(page)).screen).not.toBe('game');
           if ((await state(page)).screen === 'film') await page.locator('#film-skip').click();
-          if (index + 1 < last) await select(page, index + 1);
+          if (index + 1 < last) await enterNextStop(page);
         } else {
           await expect(page.locator('#card')).toBeVisible();
           if (index + 1 < last) await page.getByRole('button', { name: 'Play next level', exact: true }).click();
@@ -164,12 +207,11 @@ test.describe('the whole campaign completes through real touch input', () => {
       }
       if (last === CAMPAIGN.length) await expect(page.locator('body')).toHaveAttribute('data-screen', 'map');
       await page.reload();
-      await ready(page);
+      await ready(page, 'map');
       await page.locator('#levels-toggle').click();
       await expect(page.locator('.chip')).toHaveCount(3);
       const savedCompleted = await page.evaluate(() => JSON.parse(localStorage.getItem('tumbleworks.progress.v1')!).completed);
-      expect(savedCompleted).toEqual(expect.arrayContaining(CAMPAIGN.slice(first, last).map(level => level.id)));
-      expect(savedCompleted).toHaveLength(last - first);
+      expect(savedCompleted).toEqual(CAMPAIGN.slice(0, last).map(level => level.id));
       expect(errors).toEqual([]);
     });
   }
