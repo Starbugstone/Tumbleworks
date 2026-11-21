@@ -366,6 +366,7 @@ test('reduced motion keeps a chapter replay still until Play film is explicitly 
   await expect(page.locator('#scene')).toHaveAttribute('data-world-film', 'ready', { timeout: 30_000 });
   const still = await filmSnapshot(page);
   expect(still.time).toBe(0);
+  expect(still.camera).not.toBeNull();
   await page.evaluate(() => { const app = (window as unknown as GameWindow).tumbleworks.app; for (let i = 0; i < 60; i++) app.advance(1 / 60); });
   expect(await filmSnapshot(page)).toEqual(still);
   // Resizing clears the renderer's backing buffer even while explicit playback is paused.
@@ -384,7 +385,7 @@ test('reduced motion keeps a chapter replay still until Play film is explicitly 
     const resized = await filmSnapshot(page);
     expect(resized.time).toBe(still.time);
     expect(resized.position).toEqual(still.position);
-    expect(resized.camera?.slice(3, 7)).toEqual(still.camera?.slice(3, 7));
+    expect(resized.camera?.slice(3, 7)).toEqual(still.camera!.slice(3, 7).map(component => expect.closeTo(component, 12)));
     expect(resized.fingerprint).toBe(still.fingerprint); expect(resized.steps).toBe(still.steps);
     await page.evaluate(() => { const app = (window as unknown as GameWindow).tumbleworks.app; for (let i = 0; i < 60; i++) app.advance(1 / 60); });
     expect(await page.evaluate(() => (window as unknown as Window & { pausedFilmDraws: number }).pausedFilmDraws)).toBe(1);
