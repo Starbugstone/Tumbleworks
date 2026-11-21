@@ -319,3 +319,10 @@ describe('the rules and the machine tell the same story', () => {
     });
   }
 });
+
+it('replays a pre-workshop bug report captured while a Loop marble was landing', () => {
+  const machine = new LoopMachine(LOOP_BOARDS.find(board => board.id === 'loop-44')!);
+  expect(machine.tap(0).ok).toBe(true);
+  for (let tick = 0; tick < 38; tick++) machine.step();
+  expect(machine.fingerprint()).toBe('4da526c1');
+});

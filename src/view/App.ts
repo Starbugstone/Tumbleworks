@@ -719,7 +719,7 @@ export class App {
     element('help-label').textContent = t('How to play', 'Comment jouer');
     button('guide-replay').textContent = t('Restart with guide', 'Recommencer avec le guide');
     button('guide-replay').hidden = !this.runtime.guideId;
-    button('copy-replay').hidden = !import.meta.env.DEV || !new URLSearchParams(location.search).has('diagnostics');
+    button('copy-replay').hidden = !new URLSearchParams(location.search).has('diagnostics');
     button('copy-replay').textContent = t('Copy this game for a bug report', 'Copier cette partie pour signaler un bug');
     element('guide-pointer-label').textContent = t('Tap here', 'Touchez ici');
     element('patterns').replaceChildren(...PALETTE.map((color) => {

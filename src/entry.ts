@@ -7,6 +7,8 @@ let game: App | undefined;
 let starting: Promise<App> | undefined;
 let routeNumber = 0;
 let visibleUrl = location.href;
+const retry = document.getElementById('boot-retry') as HTMLButtonElement;
+retry.onclick = () => location.reload();
 if (demoSession) root.dataset.demoSession = 'true';
 
 async function route() {
@@ -23,6 +25,14 @@ async function route() {
   }
   if (game) { game.openDemoRoute(); return; }
   boot.hidden = false;
+  retry.hidden = true;
+  const offerRetry = () => {
+    if (current !== routeNumber || boot.hidden) return;
+    retry.textContent = root.lang === 'fr' ? 'Réessayer' : 'Retry';
+    retry.hidden = false;
+  };
+  // A slow village can still finish after the player is offered a reload.
+  const timer = window.setTimeout(offerRetry, 15_000);
   try {
     starting ??= import('./main').then(module => module.start());
     game = await starting;
@@ -32,13 +42,13 @@ async function route() {
     }
   } catch (error) {
     console.error(error);
+    if (current !== routeNumber || boot.hidden) return;
     const french = root.lang === 'fr';
     boot.dataset.error = '';
     document.getElementById('boot-message')!.textContent = french ? 'L’atelier n’a pas pu démarrer.' : 'The workshop could not start.';
-    const retry = document.getElementById('boot-retry') as HTMLButtonElement;
-    retry.textContent = french ? 'Réessayer' : 'Retry';
-    retry.hidden = false;
-    retry.onclick = () => location.reload();
+    offerRetry();
+  } finally {
+    window.clearTimeout(timer);
   }
 }
 if (demoSession) {

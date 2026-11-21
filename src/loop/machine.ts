@@ -273,7 +273,9 @@ export class LoopMachine implements Replayable {
   }
 
   fingerprint(): string {
-    return fingerprintOf(JSON.stringify(this.rules.state), JSON.stringify(this.control));
+    // The reserved seat only controls the drawn arrival. Older replay logs hash the same simulation without it.
+    const control = JSON.stringify(this.control, (key, value: unknown) => key === 'reservedFill' ? undefined : value);
+    return fingerprintOf(JSON.stringify(this.rules.state), control);
   }
 
   step(): LoopMachineEvent[] {
