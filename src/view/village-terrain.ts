@@ -10,7 +10,7 @@ export type VillageTerrainDetail = 'full' | 'overview';
 export const OVERVIEW_CELLS = [8, 8] as const;
 
 interface Sink { positions: number[]; colors: number[] }
-export const TERRAIN_SURFACE = { turf: 1, plot: 2, bank: 3, cliff: 4 } as const;
+export const TERRAIN_SURFACE = { turf: 1, plot: 2, bank: 3, cliff: 4, basin: 5 } as const;
 const scratch = new THREE.Color();
 const hsl = { h: 0, s: 0, l: 0 };
 /**
@@ -220,9 +220,10 @@ const inlandFinish = [
   float lots = min(length((p-vec2(8.6,-6.2))*vec2(.27,.23)),length((p-vec2(-7.7,9.6))*vec2(.28,.22)));
   land = mix(land,vec3(.295,.264,.194)*(.91+.22*grain),(1.-smoothstep(.56,1.12,lots))*.58);`,
   // High Glassworks. Pale cobbled work yards sit in pockets amid the ash and exposed cinders.
-  `float yards = min(min(length((p-vec2(-8.7,-11.7))*vec2(.27,.34)),length((p-vec2(6.9,-11.7))*vec2(.24,.37))),
-      min(length((p-vec2(1.9,-5.9))*vec2(.28,.43)),length((p-vec2(4.4,-.1))*vec2(.43,.45))));
-  float apron = 1.-smoothstep(.71,1.12,yards+(broad-.25)*.26);
+  `float kilnYards = min(yardEdge(p-vec2(-8.7,-11.7),vec2(3.35,2.2)),yardEdge(p-vec2(6.9,-11.8),vec2(3.6,2.2)));
+  float packingYards = min(yardEdge(p-vec2(1.9,-6.2),vec2(2.8,1.55)),yardEdge(p-vec2(4.5,-.1),vec2(1.75,1.55)));
+  float entries = min(yardEdge(p-vec2(-7.7,-9.5),vec2(1.15,.62)),yardEdge(p-vec2(3.1,-4.65),vec2(1.2,.57)));
+  float apron = 1.-smoothstep(-.06,.17,min(kilnYards,min(packingYards,entries))+(broad-.25)*.14);
   float paving = stoneJoints(p*vec2(1.66,2.15));
   vec3 cobbles = vec3(.385,.354,.301)*(.83+.39*grain-.16*paving);
   land = mix(land,cobbles,apron);`,
@@ -255,14 +256,18 @@ export function illustrateInlandTerrain(material: THREE.Material, terrain: Villa
         vec2 px=max(fwidth(uv),vec2(.006)), joints=abs(fract(uv)-.5);
         float mortar=max(smoothstep(.44-px.x,.50,joints.x),smoothstep(.44-px.y,.50,joints.y));
         return mortar*(1.-smoothstep(.18,.54,max(px.x,px.y)));
+      }
+      float yardEdge(vec2 fromCentre, vec2 halfSize) {
+        vec2 d = abs(fromCentre)-halfSize;
+        return max(max(d.x,d.y),(d.x+d.y+.60)*.7071);
       }`)
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
-        if (vTerrainSurface > .5 && vTerrainSurface < 4.5) {
+        if (vTerrainSurface > .5 && vTerrainSurface < 5.5) {
           vec2 p = vTerrainPosition.xz;
           float y = vTerrainPosition.y;
           bool plot = vTerrainSurface > 1.5 && vTerrainSurface < 2.5;
           bool bank = vTerrainSurface > 2.5;
-          bool cliff = vTerrainSurface > 3.5;
+          bool cliff = vTerrainSurface > 3.5 && vTerrainSurface < 4.5;
           float broad = texture2D(uTerrainGrain,p*.105+vec2(.19,.37)).g;
           float stone = cliff ? 1. : smoothstep(.48,1.17,vGrade+(broad-.24)*.56);
           vec2 shale = vec2(dot(p,vec2(.83,.56)),y*1.66);
@@ -271,16 +276,38 @@ export function illustrateInlandTerrain(material: THREE.Material, terrain: Villa
           vec3 land = mix(uTurf,uTurfAlt,smoothstep(.05,.42,broad))*(.78+.56*grain);
           if (!bank) { ${finish} }
           float seam = terrainRows(y*1.49 + p.x*.18 + p.y*.11 + broad*.95);
-          vec3 rock = (cliff ? vColor.rgb*.79 : uStone)*(.76+.31*grain+.20*seam);
+          float seamContrast = ${chapter === 2 ? '.25' : chapter === 4 ? '.57' : '1.'};
+          vec3 rock = (cliff ? vColor.rgb*.79 : uStone)*(.86+.31*grain+.20*(seam-.5)*seamContrast);
           land = mix(land,rock,stone);
           if (bank && !cliff) {
             float strata = smoothstep(.60,1.52,y-uWaterline);
-            land = vColor.rgb*(.77+.41*grain+.13*broad)*mix(1.,.79+.24*seam,strata);
+            land = vColor.rgb*(.77+.41*grain+.13*broad)*mix(1.,.91+.24*(seam-.5)*seamContrast,strata);
           }
+          ${chapter === 2 ? `
+          if (bank) {
+            float damp = 1.-smoothstep(.19,.88,y-uWaterline);
+            land = mix(land,vec3(.26,.239,.200)*(.86+.29*grain),damp*.40);
+          }
+          ` : ''}
+          ${chapter === 1 ? `
+          if (vTerrainSurface > 4.5) {
+            vec3 face = cross(dFdx(vTerrainPosition),dFdy(vTerrainPosition));
+            float along = abs(face.x)>abs(face.z) ? p.y : p.x;
+            float joints = stoneJoints(vec2(along*2.45,y*4.4));
+            float coping = smoothstep(.72,.85,y-uWaterline);
+            vec3 masonry = mix(vec3(.275,.240,.183),vec3(.48,.422,.322),coping);
+            land = masonry*(.86+.33*grain-.27*joints);
+          }
+          ` : ''}
           ${chapter === 4 ? `
-          float hollow = 1.-smoothstep(.72,2.82,abs(p.x+.44+.34*sin(p.y*.41)));
-          float mist = hollow*(1.-smoothstep(-.75,.48,y))*(.61+.21*broad);
-          land = mix(land,vec3(.317,.382,.397),mist);
+          if (!bank) {
+            float drift = .36*sin(p.y*.32)+.65*(broad-.25);
+            float hollow = 1.-smoothstep(.40,2.38,abs(p.x+.31+drift));
+            float ends = smoothstep(-13.6,-8.4,p.y)*(1.-smoothstep(7.4,13.3,p.y+drift));
+            float wisps = .50+.42*broad+.08*sin(p.y*.47+p.x*.73+broad*3.4);
+            float mist = hollow*ends*(1.-smoothstep(-.85,.04,y))*wisps;
+            land = mix(land,vec3(.282,.341,.367),mist);
+          }
           ` : ''}
           float wet = 1.-smoothstep(.04,.48,y-uWaterline);
           diffuseColor.rgb = land*(1.-wet*.19);

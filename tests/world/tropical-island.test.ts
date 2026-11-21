@@ -16,6 +16,27 @@ it('opens the harbour water to the continuous sea without moving any land', () =
   mesh.geometry.dispose(); material.dispose();
 });
 
+it('rounds the fountain basin shoulder without filling the open irrigation water', async () => {
+  const { cinematicWorld } = await import('./cinematic-world-fixture');
+  const f = cinematicWorld(1);
+  try {
+    const terrain = compileTerrain(villageScenePlan(1).terrain);
+    const landscape = f.world.scene.getObjectByName('village-landscape-1');
+    const mesh = landscape?.children.find(node => node instanceof Mesh);
+    if (!(mesh instanceof Mesh)) throw new Error('Missing Garden terrain');
+    mesh.updateWorldMatrix(true, false);
+    const ray = new Raycaster(new Vector3(), new Vector3(0, -1, 0));
+    const height = (x: number, z: number) => {
+      ray.ray.origin.set(x, 4, z);
+      return ray.intersectObject(mesh)[0]?.point.y ?? -Infinity;
+    };
+    // This is the outside corner of the raised fountain platform in the film close-up.
+    expect(terrainOccupancy(terrain, 7.6744, 2.8171)).toBe('water');
+    expect(height(7.6744, 2.8171)).toBeGreaterThan(terrain.spec.water + .002);
+    expect(height(6.4, 7.4)).toBeLessThan(terrain.spec.water);
+  } finally { f.dispose(); }
+});
+
 it.each([0, 1, 2, 3, 4, 5])('keeps chapter %i coastal triangles outside authored land and protected structures', chapter => {
   const terrain = compileTerrain(villageScenePlan(chapter).terrain);
   const forbidden = new Box3(new Vector3(-30, -10, -30), new Vector3(-8, 40, 30));
