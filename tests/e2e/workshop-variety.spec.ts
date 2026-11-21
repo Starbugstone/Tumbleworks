@@ -186,7 +186,8 @@ for (const id of ids) test(`${id} Workshop real input, causal rules, undo, jam a
   await causalMoment(page, id);
   await page.locator('#restart').click(); await play(page, id, true);
   expect((await state(page)).status).toBe('jammed'); await capture(page, id, 'jam');
-  await page.locator('#undo').click(); expect((await state(page)).status).toBe('playing');
+  await page.locator('#card[data-kind="jam"]').getByRole('button', { name: 'Undo', exact: true }).tap();
+  expect((await state(page)).status).toBe('playing');
   await page.locator('#restart').click(); await page.locator('#hint').click(); await expect(page.locator('#message')).not.toBeEmpty();
   await play(page, id); expect((await state(page)).status).toBe('won');
   const log = await page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.replay());
