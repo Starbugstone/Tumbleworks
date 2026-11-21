@@ -1,3 +1,4 @@
+import { inlandSettlement } from './inland-settlements';
 import { villagePort } from '../village-plan';
 import type { VillageScenePlan } from '../village-plans';
 import type { VillageTerrainSpec } from '../village-terrain';
@@ -39,13 +40,15 @@ const connectors=stations.slice(0,-1).map((from,i)=>from.stop === 2 ? connectVia
   {out:.83,in:.83,steps:32},
 ]) : connect(from,stations[i+1]!,[9,8,6,4].includes(from.stop)?1.2:3.2,from.stop===4?2.4:[9,8,6].includes(from.stop)?1.2:3.2,[0,0],{lead:0.8,steps:64}))
   .map(link=>link.from===1?{...link,supportIndices:[2,link.points.length-3]}:link.from===4?{...link,refineFloor:true,supportIndices:[2,link.points.length-3]}:link.from===3?{...link,refineFloor:true}:link);
+const scenery = [piece('glassworks',[-2,at(-2,-14),-14],0,.7),piece('glassworks',[8,at(8,-14),-14],0,.55),piece('warehouse',[-11,at(-11,-8),-8],Math.PI/2,.6)];
 export const HIGH_GLASSWORKS:VillageScenePlan={chapter:5,construction:'rise',terrain,
+  cinematicScenery: inlandSettlement(5, at),
   plan:{chapter:5,profile:'steel',stations,connectors,camera:shots([0,2.5,0],[
     {at:2.1,target:[2,5,-10],radius:30},{at:6,target:[-2,4,-3],radius:30},
     {at:9.9,target:[-3,4,2],radius:30},{at:14.6,target:[4,3,6],radius:28},{at:20.4,target:[0,2.5,0],radius:66},
   ])},
-  scenery:[piece('glassworks',[-2,at(-2,-14),-14],0,.7),piece('glassworks',[8,at(8,-14),-14],0,.55),piece('warehouse',[-11,at(-11,-8),-8],Math.PI/2,.6)],
+  scenery,
   workshop:workshopSite({position:[10,at(10,4),4],scale:.7,yaw:-Math.PI/2},[10.5, 3.2, 3.5],{from:3,to:2}),
   rewards:[{project:'tube-211',position:[-11,at(-11,8),8],yaw:0}],
-  overview:[piece('glassworks',[-5,at(-5,-11),-11],0,1),piece('glassworks',[5,at(5,-11),-11],0,.8),piece('mechanism-funnel',[2,at(2,4),4],0,1.2)],
+  overview:[piece('bottle-kiln',[-5,at(-5,-11),-11],0,1),piece('bottle-kiln',[5,at(5,-11),-11],0,.8),piece('glass-packing-house',[2,at(2,4),4],0,1.2)],
 };

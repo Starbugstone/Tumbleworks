@@ -3,7 +3,7 @@ import { BufferGeometry, Color, Float32BufferAttribute } from 'three';
 type Point = readonly [number, number, number];
 
 /** Small painted wooden models. Each face has its own paint and crease normal, then bakes into the village draw. */
-class PaintedFaces {
+export class PaintedFaces {
   readonly vertices: number[] = [];
   readonly colours: number[] = [];
   private readonly tint = new Color();
@@ -36,6 +36,204 @@ class PaintedFaces {
 }
 
 const CREAM = 0xf2dfa9, BLUE = 0x315967, INK = 0x273f46, WOOD = 0xb77e4b, RED = 0xae4931;
+
+const STONE = 0x898479;
+const CLAY = 0xb95c47;
+const SLATE = 0x4b6676;
+
+const townHouses = {
+  'fisher-row': { width: 2.08, depth: 1.12, wall: 1.64, roof: .61, paint: 0xe7c193, tiles: CLAY, door: BLUE, bays: 3, hip: .0, chimney: -.65 },
+  'pilot-house': { width: 1.45, depth: 1.31, wall: 2.14, roof: .56, paint: 0xece0bd, tiles: SLATE, door: RED, bays: 2, hip: .39, chimney: .4 },
+  'salt-cottage': { width: 1.61, depth: 1.25, wall: 1.29, roof: .71, paint: 0xcd9674, tiles: SLATE, door: 0x476755, bays: 2, hip: .0, chimney: -.52 },
+  'smokehouse': { width: 2.26, depth: 1.37, wall: 1.38, roof: .57, paint: 0xcbb590, tiles: 0x4e4d55, door: 0x725744, bays: 2, hip: .0, chimney: .72 },
+  'chandlery': { width: 2.20, depth: 1.30, wall: 1.90, roof: .55, paint: 0xe6d2a8, tiles: 0x917454, door: 0x456c68, bays: 3, hip: .25, chimney: -.65 },
+} as const;
+
+export type HarbourHouse = keyof typeof townHouses;
+
+function framedWindow(g: PaintedFaces, x: number, y: number, z: number, width: number, height: number, paint: number): void {
+  const half = width / 2;
+  const panel = (w: number, low: number, high: number, face: number, tint: number) =>
+    g.quad([x-w,low,face],[x+w,low,face],[x+w,high,face],[x-w,high,face],tint);
+  panel(half+.052,y-.02,y+height+.034,z,paint);
+  panel(half,y,y+height,z+.006,INK);
+  panel(half,y+height*.53,y+height*.53+.025,z+.014,CREAM);
+  g.block(x,y-.035,z,width+.15,.045,.09,CREAM);
+}
+
+/** Harbour buildings share stone footings and front stoops, with individual massing and roofing. */
+export function harbourTownHouse(kind: HarbourHouse): BufferGeometry {
+  const { width, depth, wall, roof, paint, tiles, door, bays, hip, chimney } = townHouses[kind];
+  const g = new PaintedFaces(), x = width/2, z = depth/2, eave = wall+.1, top = eave+roof;
+  const over = .10, ridgeSpan = x + over - hip;
+  g.block(0,-.20,0,width+.12,.36,depth+.12,STONE);
+  g.block(0,.16,0,width,wall-.06,depth,paint);
+  g.block(0,-.13,z+.12,.56,.26,.27,STONE);
+  g.block(0,.13,z+.051,.43,kind==='smokehouse'?.83:.96,.12,door);
+  g.block(.134,.59,z+.117,.035,.038,.019,0xf5cb74);
+
+  if (hip === 0) {
+    g.triangle([-x,eave,-z],[-x,eave,z],[-x,top,0],paint);
+    g.triangle([x,eave,z],[x,eave,-z],[x,top,0],paint);
+  }
+  const pales = new Color(tiles).multiplyScalar(1.17).getHex();
+  const darks = new Color(tiles).multiplyScalar(.82).getHex();
+  for (let strip=0;strip<4;strip++) {
+    const at = strip/4, next = (strip+1)/4;
+    const a = x+over-hip*at, b = x+over-hip*next;
+    const y = eave-.035+(roof+.035)*at, upper = eave-.035+(roof+.035)*next;
+    const low = (z+over)*(1-at), high = (z+over)*(1-next);
+    const tint = strip===0 ? darks : strip===2 ? pales : tiles;
+    g.quad([-a,y,low],[a,y,low],[b,upper,high],[-b,upper,high],tint);
+    g.quad([a,y,-low],[-a,y,-low],[-b,upper,-high],[b,upper,-high],tint);
+  }
+  if (hip > 0) {
+    g.triangle([-x-over,eave-.035,-z-over],[-x-over,eave-.035,z+over],[-ridgeSpan,top,0],darks);
+    g.triangle([x+over,eave-.035,z+over],[x+over,eave-.035,-z-over],[ridgeSpan,top,0],pales);
+  }
+  g.block(0,top-.028,0,2*ridgeSpan-.04,.066,.106,darks);
+  g.block(chimney,top-.41,-.23,.22,.61,.23,kind==='smokehouse'?CLAY:paint);
+  g.block(chimney,top+.20,-.23,.32,.08,.31,STONE);
+  if (kind === 'smokehouse') {
+    g.block(-chimney,top-.40,-.23,.25,.56,.24,CLAY);
+    g.block(-chimney,top+.16,-.23,.34,.08,.32,STONE);
+  }
+
+  for (const side of [-1,1]) {
+    const windowX=side*width*.32;
+    framedWindow(g,windowX,.54,z+.004,kind==='chandlery'?.44:.27,.33,door);
+    if (wall > 1.55) framedWindow(g,windowX,wall-.48,z+.004,.25,.32,door);
+  }
+  if (bays===3) framedWindow(g,0,wall-.48,z+.004,.27,.32,door);
+  if (kind==='chandlery') {
+    g.block(0,1.03,z+.09,width*.81,.09,.20,door);
+    for (const side of [-1,1]) g.block(side*width*.39,.86,z+.12,.08,.19,.12,WOOD);
+    g.block(0,.17,-z-.023,1.27,.88,.075,door);
+    g.block(0,.19,-z-.071,.035,.83,.035,WOOD);
+    g.block(0,1.022,-z-.038,1.40,.09,.157,WOOD);
+    g.block(.64,1.37,-z-.031,.36,.35,.087,INK);
+    g.block(-.64,1.37,-z-.031,.36,.35,.087,INK);
+    g.block(0,1.27,z+.044,.44,.21,.061,BLUE);
+    g.quad([-.12,1.32,z+.077],[.12,1.32,z+.077],[.08,1.41,z+.077],[-.08,1.41,z+.077],CREAM);
+  }
+  return g.finish();
+}
+
+export type HarbourYardPiece = 'net-rack' | 'lobster-pots' | 'fish-trays' | 'drying-line' | 'coastal-thicket' | 'stone-wall';
+
+export function harbourScenery(name: string): BufferGeometry | undefined {
+  if (Object.hasOwn(townHouses, name)) return harbourTownHouse(name as HarbourHouse);
+  switch (name) {
+    case 'net-rack': case 'lobster-pots': case 'fish-trays': case 'drying-line': case 'coastal-thicket': case 'stone-wall':
+      return harbourYardPiece(name);
+    case 'sail-loft': return sailLoft();
+    case 'harbour-dinghy': return harbourDinghy();
+    case 'fish-stall': return fishStall();
+    case 'crew-blue': return harbourResident(false);
+    case 'crew-gold': return harbourResident(true);
+  }
+}
+
+export function harbourYardPiece(kind: HarbourYardPiece): BufferGeometry {
+  const g = new PaintedFaces();
+  switch (kind) {
+    case 'net-rack': {
+      for (const x of [-.89,.89]) g.block(x,-.12,0,.10,1.46,.13,WOOD);
+      g.block(0,1.23,0,1.94,.095,.095,WOOD);
+      g.block(0,.36,0,1.78,.065,.08,WOOD);
+      // A dark open weave lets the ground and adjacent track read through the drying net.
+      const a=-.76, b=.76, bottom=.38, top=1.23, offset=.047;
+      for (let i=0;i<9;i++) {
+        const x=a+(b-a)*i/8, c=Math.min(x+.20,b+.10), d=Math.min(x+.224,b+.125);
+        g.quad([x,bottom,offset],[x+.024,bottom,offset],[d,top,offset],[c,top,offset],0x68513d);
+      }
+      for (let i=1;i<6;i++) {
+        const t=i/6, y=bottom+(top-bottom)*t, x=.20*t;
+        g.quad([a+x,y,offset+.005],[b+x,y,offset+.005],[b+x,y+.020,offset+.005],[a+x,y+.020,offset+.005],0x8c7854);
+      }
+      for (const x of [-.52,0,.52]) g.block(x,1.166,.075,.095,.071,.075,RED);
+      break;
+    }
+    case 'lobster-pots': {
+      for (const [x,z,raised] of [[-.36,-.24,0],[.37,.19,0],[.38,.21,.30]]) {
+        g.block(x!,-.08+raised!,z!,.66,.17,.48,0x624e38);
+        const l=x!-.30,r=x!+.30,b=z!-.23,f=z!+.23,y=.09+raised!,high=y+.22;
+        g.quad([l,y,f],[r,y,f],[r,high,z!],[l,high,z!],0x796751);
+        g.quad([r,y,b],[l,y,b],[l,high,z!],[r,high,z!],0x8a7653);
+        for (const bar of [-.19,0,.19]) g.block(x!+bar,high-.025,z!,.029,.040,.102,0xcfa872);
+        g.block(x!-.19,y+.041,f-.012,.12,.105,.037,INK);
+      }
+      break;
+    }
+    case 'fish-trays': {
+      for (const [x,z,width,high,paint] of [[-.46,-.15,.57,.28,0x55756d],[.31,.21,.66,.22,0x96734c],[.45,-.34,.49,.27,0xa7583c]]) {
+        g.block(x!,-.085,z!,width!,high!+.085,.45,paint!);
+        for (const side of [-1,1]) g.block(x!+side*width!*.43,.035,z!+.242,.062,high!-.023,.042,WOOD);
+        for (const xOffset of [-.12,.03,.17]) g.block(x!+xOffset,high!-.013,z!,.055,.06,.26,0x8bb1a7);
+      }
+      break;
+    }
+    case 'drying-line': {
+      for (const x of [-.91,.91]) g.block(x,-.14,0,.075,1.22,.075,WOOD);
+      for (const [left,right,low,paint] of [[-.78,-.40,.70,CREAM],[-.26,.12,.59,BLUE],[.31,.70,.73,CLAY]]) {
+        g.quad([left!,low!,0],[right!,low!+.022,0],[right!,1.03,0],[left!,1.03,0],paint!);
+      }
+      g.block(0,1.033,0,1.85,.023,.023,0x79674e);
+      break;
+    }
+    case 'coastal-thicket': {
+      for (const [x,z,r,h,paint] of [[-.49,.19,.44,.80,0x416451],[.38,.25,.44,1.07,0x516e46],[.12,-.44,.60,1.38,0x355d4b]]) {
+        g.block(x!,-.14,z!,.103,h!*.62,.103,0x6d5b3c);
+        const crown: Point=[x!+r!*.16,h!,z!-.08];
+        for (let i=0;i<6;i++) {
+          const point=(n:number,y:number,amount:number): Point=>[x!+Math.cos(n*Math.PI/3)*r!*amount,y,z!+Math.sin(n*Math.PI/3)*r!*amount];
+          const a=point(i,h!*.64,1), b=point(i+1,h!*.64,1);
+          const c=point(i,h!*.90,.59), d=point(i+1,h!*.90,.59);
+          const shade=new Color(paint!).multiplyScalar(i%3===0?1.22:.94).getHex();
+          g.triangle(crown,d,c,shade);
+          g.quad(c,d,b,a,shade);
+          g.quad(a,b,point(i+1,h!*.42,.69),point(i,h!*.42,.69),paint!);
+        }
+      }
+      break;
+    }
+    case 'stone-wall': {
+      g.block(0,-.25,0,2.24,.60,.27,STONE);
+      for (let i=0;i<5;i++) g.block(-.89+i*.445,.35,0,.42,.082,.35,i%2===0?0xaaa692:0x979686);
+      break;
+    }
+  }
+  return g.finish();
+}
+
+/** A shallow clinker dinghy waiting at a floating mooring, with thwarts visible above water. */
+function harbourDinghy(): BufferGeometry {
+  const g = new PaintedFaces();
+  const frames = [[-.93,.03,.31],[-.61,.27,.23],[-.09,.36,.20],[.51,.34,.20],[.75,.29,.24]] as const;
+  for (const side of [-1,1]) for (let i = 1; i < frames.length; i++) {
+    const [x,w,y] = frames[i-1]!, [nextX,nextW,nextY] = frames[i]!;
+    const a: Point=[x,-.13,side*w*.59], b: Point=[nextX,-.13,side*nextW*.59];
+    const c: Point=[nextX,nextY,side*nextW], d: Point=[x,y,side*w];
+    const e: Point=[nextX,nextY-.043,side*(nextW-.036)], f: Point=[x,y-.043,side*(w-.018)];
+    const inner: Point=[x,.085,side*w*.55], nextInner: Point=[nextX,.085,side*nextW*.55];
+    if (side > 0) {
+      g.quad(a,b,c,d,RED);
+      g.quad(d,c,e,f,CREAM);
+      g.quad(f,e,nextInner,inner,WOOD);
+    } else {
+      g.quad(d,c,b,a,RED);
+      g.quad(f,e,c,d,CREAM);
+      g.quad(inner,nextInner,e,f,WOOD);
+    }
+  }
+  g.quad([.75,-.13,.17],[.75,-.13,-.17],[.75,.24,-.29],[.75,.24,.29],BLUE);
+  g.block(-.03,.081,0,1.21,.055,.35,WOOD);
+  for (const x of [-.35,.16,.52]) g.block(x,.158,0,.12,.036,.54,CREAM);
+  g.block(-.61,.167,.03,.34,.041,.105,BLUE);
+  g.quad([-1.37,.079,-.023],[-.92,.229,-.023],[-.92,.229,.023],[-1.37,.079,.023],WOOD);
+  g.block(-1.41,.02,0,.16,.13,.15,0xd5a85e);
+  return g.finish();
+}
 
 /** A clinker fishing launch: a raked stem, broad stern, boot stripe, wheelhouse and mast. Bow points towards -X. */
 export function harbourSkiff(): BufferGeometry {
@@ -71,33 +269,6 @@ export function harbourSkiff(): BufferGeometry {
   g.block(-.44,.41,0,.055,1.05,.055,WOOD);
   g.triangle([-.44,1.46,0],[-.44,1.28,0],[-.09,1.37,-.06],CREAM);
   g.triangle([-.09,1.37,-.06],[-.44,1.37,.045],[-.44,1.46,0],CREAM);
-  return g.finish();
-}
-
-/** Salt-stained plaster, two pitched roof planes and shutters facing the harbour street. */
-export function harbourCottage(reverse: boolean): BufferGeometry {
-  const g=new PaintedFaces();
-  const wall=reverse ? 0xe2b580 : 0xf3dfb4, roof=reverse ? BLUE : RED;
-  g.block(0,-.035,0,1.44,.23,1.12,0x82765d);
-  g.block(0,.195,0,1.36,1.10,1.04,wall);
-  for(const side of [-1,1]) {
-    const x=side*.68;
-    const a:Point=[x,1.295,-.52],b:Point=[x,1.295,.52],c:Point=[x,1.86,0];
-    if(side<0)g.triangle(a,b,c,wall);else g.triangle(b,a,c,wall);
-  }
-  g.quad([-.77,1.24,.62],[.77,1.24,.62],[.77,1.90,0],[-.77,1.90,0],roof);
-  g.quad([.77,1.24,-.62],[-.77,1.24,-.62],[-.77,1.90,0],[.77,1.90,0],roof);
-  g.block(-.43,1.57,-.18,.19,.51,.21,CREAM);
-  g.block(-.43,2.08,-.18,.24,.07,.26,RED);
-  g.quad([-.12,.195,.522],[.11,.195,.522],[.11,.91,.522],[-.12,.91,.522],BLUE);
-  for(const x of [-.43,.43]){
-    g.quad([x-.14,.64,.523],[x+.14,.64,.523],[x+.14,1.02,.523],[x-.14,1.02,.523],INK);
-    for(const side of [-1,1]){
-      const shutter=x+side*.186;
-      g.quad([shutter-.035,.62,.526],[shutter+.035,.62,.526],[shutter+.035,1.04,.526],[shutter-.035,1.04,.526], BLUE);
-    }
-    g.quad([x-.14,.82,.527],[x+.14,.82,.527],[x+.14,.845,.527],[x-.14,.845,.527],CREAM);
-  }
   return g.finish();
 }
 
@@ -147,8 +318,14 @@ export function fishStall(): BufferGeometry {
 }
 
 /** A stack of sawn sleepers ready for its track, with two smaller crosswise timbers on top. */
-export function buildTimber(): BufferGeometry {
+export function buildTimber(chapter = 0): BufferGeometry {
   const g=new PaintedFaces();
+  if (chapter === 3 || chapter === 5) {
+    const masonry = chapter === 3 ? [0x979182,0xbbb09c] : [0x925842,0xb66d4d];
+    for(const x of [-.34,.34])for(const z of [-.23,.23])g.block(x,-.09,z,.63,.22,.41,masonry[0]!);
+    g.block(-.16,.13,-.13,.64,.19,.40,masonry[1]!);
+    return g.finish();
+  }
   for(const z of [-.28,.05,.38])g.block(0,-.045,z,1.34,.15,.23,WOOD);
   for(const x of [-.45,.42])g.block(x,.105,.05,.23,.12,.97,0xd2a46e);
   return g.finish();

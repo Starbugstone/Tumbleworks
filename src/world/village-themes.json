@@ -62,7 +62,15 @@
     "counter": {
       "stock": "tile",
       "stain": "#7a837a"
-    }
+    },
+    "print": "islands/glasshouse-gardens/workshop.webp",
+    "demo": [
+      {
+        "level": "village",
+        "name": "Glasshouse Gardens",
+        "image": "islands/glasshouse-gardens/workshop.webp"
+      }
+    ]
   },
   {
     "id": "willow-mill",
@@ -85,7 +93,15 @@
     "counter": {
       "stock": "timber",
       "stain": "#8b735f"
-    }
+    },
+    "print": "islands/willow-mill/workshop.webp",
+    "demo": [
+      {
+        "level": "village",
+        "name": "Willow Mill",
+        "image": "islands/willow-mill/workshop.webp"
+      }
+    ]
   },
   {
     "id": "clockmakers-hill",
@@ -108,7 +124,15 @@
     "counter": {
       "stock": "slate",
       "stain": "#777e83"
-    }
+    },
+    "print": "islands/clockmakers-hill/workshop.webp",
+    "demo": [
+      {
+        "level": "village",
+        "name": "Clockmaker’s Hill",
+        "image": "islands/clockmakers-hill/workshop.webp"
+      }
+    ]
   },
   {
     "id": "cloud-bridge",
@@ -131,7 +155,15 @@
     "counter": {
       "stock": "timber",
       "stain": "#79796f"
-    }
+    },
+    "print": "islands/cloud-bridge/workshop.webp",
+    "demo": [
+      {
+        "level": "village",
+        "name": "Cloud Bridge",
+        "image": "islands/cloud-bridge/workshop.webp"
+      }
+    ]
   },
   {
     "id": "high-glassworks",
@@ -154,7 +186,15 @@
     "counter": {
       "stock": "tile",
       "stain": "#778289"
-    }
+    },
+    "print": "islands/high-glassworks/workshop.webp",
+    "demo": [
+      {
+        "level": "village",
+        "name": "High Glassworks",
+        "image": "islands/high-glassworks/workshop.webp"
+      }
+    ]
   },
   {
     "id": "orchard-steps",

@@ -1,3 +1,4 @@
+import { inlandSettlement } from './inland-settlements';
 import type { VillageScenePlan } from '../village-plans';
 import type { VillageTerrainSpec } from '../village-terrain';
 import { workshopSite } from '../workshop-building';
@@ -353,6 +354,7 @@ const scenery = [
 ];
 export const GLASSHOUSE_GARDENS: VillageScenePlan = {
   chapter: 1, construction: 'drop', terrain, scenery,
+  cinematicScenery: [...scenery.filter(s => s.model !== 'greenhouse'), ...inlandSettlement(1, at)],
   plan: { chapter: 1, profile: 'terracotta', stations, connectors, camera: shots([0, 2.6, 0], [
     { at: 2.7, target: [-5.0, 5.3, -8.0], radius: 22 }, { at: 4.8, target: [-3.6, 4.9, -2.6], radius: 22, elevation: REST_ELEVATION },
     { at: 7.45, target: [0.5, 3.9, -4.0], radius: 22, elevation: REST_ELEVATION }, { at: 11.45, target: [4.4, 3.5, -7.4], radius: 24 },
@@ -360,5 +362,5 @@ export const GLASSHOUSE_GARDENS: VillageScenePlan = {
   ]) },
   workshop: workshopSite({ position: [4 / 3, at(4 / 3, 3.2), 3.2], scale: 1.1, yaw: 0 }, [0.19, at(4 / 3, 3.2) + 2.3, 9.32], { from: 2, to: 1 }),
   rewards: [{ project: 'loop-210', position: [-6.8, at(-6.8, 5.6), 5.6], yaw: 0 }],
-  overview: [piece('greenhouse', [-5, at(-5, -11), -11], 0, 1.2), piece('greenhouse', [1, at(1, -11), -11], 0, 1.1), piece('house-b', [-6, at(-6, 4), 4], 0, 1.1)],
+  overview: [piece('palm-house', [-5, at(-5, -11), -11], 0, 1.2), piece('palm-house', [1, at(1, -11), -11], 0, 1.1), piece('house-b', [-6, at(-6, 4), 4], 0, 1.1)],
 };

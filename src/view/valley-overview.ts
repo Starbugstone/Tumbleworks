@@ -125,7 +125,7 @@ export class ValleyOverview {
       village.add(ground);
       for (const piece of source.overview) {
         const model = this.assets.model(piece.model, material);
-        model.position.fromArray(piece.position); model.rotation.y = piece.yaw; const landmark = ['harbour-beacon','mill','greenhouse','clock','bridge','glassworks'].includes(piece.model);
+        model.position.fromArray(piece.position); model.rotation.y = piece.yaw; const landmark = ['harbour-beacon','mill','palm-house','civic-clock','bridge','bottle-kiln'].includes(piece.model);
         model.scale.setScalar(piece.scale * (landmark ? 1.93 : 1.26));
         if (piece.model !== 'boat') {
           const foot=seatMiniature(model,ground,material);if(foot)feet.push(foot);

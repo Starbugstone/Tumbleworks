@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { fishStall, harbourCottage, harbourResident, harbourSkiff, sailLoft } from './harbour-craft';
+import { harbourScenery, harbourSkiff } from './harbour-craft';
+import { inlandCraft, inlandGeometry } from './inland-craft';
 import kitRaw from '../../assets/world-3d/kit-runtime.json?raw';
 
 export interface AssetMesh {
@@ -99,24 +100,18 @@ function harbourBeacon(): THREE.BufferGeometry {
 
 /** Geometry belongs to one scene; repeated village pieces share it only inside that scene. */
 export class WorldKitAssets {
-  constructor(private readonly tropical = false, private readonly harbour = false, private readonly fishingBoats = false) {}
+  constructor(private readonly tropical = false, private readonly harbour = false, private readonly fishingBoats = false, private readonly roof?: number) {}
   private readonly geometries = new Map<AssetMesh, THREE.BufferGeometry>();
   private readonly coastalKit = new Map<string,THREE.BufferGeometry>();
   private beacon?: THREE.BufferGeometry;
   /** Names exported by the village asset kit. */
   get modelNames(): readonly string[] { return [...new Set(kit?.meshes.map(mesh => mesh.model) ?? [])]; }
   model(name: string, material: THREE.Material): THREE.Group {
-    const coastal = name === 'sail-loft' || name === 'cottage-clay' || name === 'cottage-slate' || name === 'fish-stall' || name === 'crew-gold' || name === 'crew-blue' || (this.fishingBoats && name === 'boat');
-    if (coastal) {
-      let geometry = this.coastalKit.get(name);
-      if (!geometry) {
-        if (name === 'sail-loft') geometry = sailLoft();
-        else if (name === 'boat') geometry = harbourSkiff();
-        else if (name === 'fish-stall') geometry = fishStall();
-        else if (name.startsWith('crew-')) geometry = harbourResident(name === 'crew-gold');
-        else geometry = harbourCottage(name === 'cottage-slate');
-        this.coastalKit.set(name, geometry);
-      }
+    const inland = Object.hasOwn(inlandCraft, name);
+    const geometry = this.coastalKit.get(name) ?? (inland ? inlandGeometry(name as keyof typeof inlandCraft)
+      : this.fishingBoats && name === 'boat' ? harbourSkiff() : harbourScenery(name));
+    if (geometry) {
+      this.coastalKit.set(name, geometry);
       const group = new THREE.Group(); group.name = name;
       group.add(new THREE.Mesh(geometry,material)); return group;
     }
@@ -136,6 +131,7 @@ export class WorldKitAssets {
         geometry.setAttribute('color', new THREE.Float32BufferAttribute(source.colors.flatMap(index => {
           if (this.tropical && ['house-a', 'house-b', 'warehouse'].includes(source.model)) {
             const paint: Record<number, number> = { 0: 0xf7e9c7, 1: 0xe7bb86, 7: source.model === 'warehouse' ? 0x398d8c : 0x329b9c };
+            if (this.roof !== undefined && (index === 5 || index === 7)) paint[index] = this.roof;
             if (this.harbour && index === 7) paint[index] = source.model === 'warehouse' ? 0xa54e3b : 0x496778;
             if (paint[index] !== undefined) return new THREE.Color(paint[index]).toArray();
           }

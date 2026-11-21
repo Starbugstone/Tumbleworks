@@ -118,7 +118,7 @@ describe('the 3D valley overview', () => {
     const model = vi.spyOn(source, 'model');
     const overview = new ValleyOverview(stage, progress(6), source);
     const names = model.mock.calls.map(([name]) => name);
-    for (const name of ['boat', 'greenhouse', 'mill', 'clock', 'bridge', 'glassworks']) expect(names).toContain(name);
+    for (const name of ['boat', 'palm-house', 'mill', 'civic-clock', 'bridge', 'bottle-kiln']) expect(names).toContain(name);
     let triangles = 0, meshes = 0;
     overview.scene.traverse(object => {
       if (!(object instanceof THREE.Mesh)) return;
