@@ -26,13 +26,21 @@ async function route() {
   if (game) { game.openDemoRoute(); return; }
   boot.hidden = false;
   retry.hidden = true;
-  const offerRetry = () => {
+  const offerRetry = (failed: boolean) => {
     if (current !== routeNumber || boot.hidden) return;
-    retry.textContent = root.lang === 'fr' ? 'Réessayer' : 'Retry';
+    const french = root.lang === 'fr';
+    const message = document.getElementById('boot-message')!;
+    if (failed) {
+      boot.dataset.error = '';
+      message.textContent = french ? 'L’atelier n’a pas pu démarrer.' : 'The workshop could not start.';
+    } else {
+      message.textContent = french ? 'Chargement en cours. Vous pouvez attendre ou recommencer.' : 'Still loading. You can wait or start over.';
+    }
+    retry.textContent = french ? 'Réessayer' : 'Retry';
     retry.hidden = false;
   };
   // A slow village can still finish after the player is offered a reload.
-  const timer = window.setTimeout(offerRetry, 15_000);
+  const timer = window.setTimeout(() => offerRetry(false), 15_000);
   try {
     starting ??= import('./main').then(module => module.start());
     game = await starting;
@@ -42,11 +50,7 @@ async function route() {
     }
   } catch (error) {
     console.error(error);
-    if (current !== routeNumber || boot.hidden) return;
-    const french = root.lang === 'fr';
-    boot.dataset.error = '';
-    document.getElementById('boot-message')!.textContent = french ? 'L’atelier n’a pas pu démarrer.' : 'The workshop could not start.';
-    offerRetry();
+    offerRetry(true);
   } finally {
     window.clearTimeout(timer);
   }

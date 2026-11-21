@@ -43,6 +43,7 @@ test('offers Retry during a stalled boot and retries the same campaign URL', asy
     await expect(retry).toBeHidden();
     await page.clock.fastForward(15_000);
     await expect(retry).toBeVisible();
+    await expect(page.locator('#boot-message')).toHaveText('Still loading. You can wait or start over.');
     await retry.tap();
     await expect.poll(() => requested).toBe(2);
     await expect(page).toHaveURL(/\/\?diagnostics=1$/);

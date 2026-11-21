@@ -1,7 +1,6 @@
 import { expect, it, vi } from 'vitest';
 import * as THREE from 'three';
 import type { Stage } from '../../src/engine/stage';
-import { separateMapPins } from '../../src/view/map-pins';
 import { TestWorldScene as WorldScene } from './cinematic-scene-fixture';
 
 it('keeps the ten stop targets separate and above the Workshop footer on an upright phone', () => {
@@ -20,7 +19,7 @@ it('keeps the ten stop targets separate and above the Workshop footer on an upri
       world.resetView();
       world.orbit.rotate(dragX, 0);
       world.inspect();
-      const pins = separateMapPins(world.targets(), width, height);
+      const pins = world.targets();
       expect(pins).toHaveLength(10);
       for (const [index, pin] of pins.entries()) {
         expect(pin.x - 22).toBeGreaterThanOrEqual(0);
@@ -28,7 +27,7 @@ it('keeps the ten stop targets separate and above the Workshop footer on an upri
         expect(pin.y - 22).toBeGreaterThan(90);
         expect(pin.y + 22).toBeLessThan(height - 120);
         for (const other of pins.slice(0, index)) {
-          expect(Math.hypot(pin.x - other.x, pin.y - other.y)).toBeGreaterThanOrEqual(44);
+          expect(Math.hypot(pin.x - other.x, pin.y - other.y)).toBeGreaterThanOrEqual(48);
         }
       }
     }
