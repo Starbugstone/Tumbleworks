@@ -71,10 +71,15 @@ Use [the checks and tool map](references/checks.md). Retain a regression that
 rejects the old defect and accepts the real repair. Distinguish:
 
 - a rolling pass with continuous incoming/outgoing velocity. The owner requires this at every
-  seesaw, swinging bar, clock gate and short sliding carriage: the marble never stops there;
+  seesaw, swinging bar, clock gate, turntable and short sliding carriage: the marble never stops there;
 - a genuine catch with finite braking, spin settling and visible release, reserved for lift-class
   carries;
 - a powered carry with a visible, mechanically plausible source and shared mesh/actor frames.
+
+`village_check.py status` lists every place the marble stops between its start and
+final rest. Each one must be a genuine catch at a lift-class stop or a bridge, which
+the owner accepts as it is; a stop anywhere else is a defect, even when it is part
+of a carry.
 
 Reuse supported primitives where they fit the visible design. Physical research
 still requires its complete contact/drive model; film animation does not.
