@@ -1,6 +1,6 @@
 import{certifyRockerScene}from'./gravity-rocker-native';
 import{bindNativeTerrain}from'./village-terrain';
-import { villageArtisan } from './village-artisan';
+import { markVillageArtisan, villageArtisans } from './village-artisan';
 import villageThemes from '../world/village-themes.json';
 import { buildTimber } from './harbour-craft';
 import * as THREE from 'three';
@@ -10,7 +10,7 @@ import { boxCorners } from '../engine/framing';
 import type { MarbleEntity } from '../engine/marbles';
 import type { ScreenPoint } from '../engine/contracts';
 import type { WorldChapter } from '../world/progression';
-import { villageScenePlan, type VillageScenePlan } from '../world/village-plans';
+import { villageScenePlan, type VillageScenePlan, type VillageSceneryPiece } from '../world/village-plans';
 import { compileTerrain, terrainHeightAt, type VillageTerrain } from '../world/village-terrain';
 import { VILLAGE_RADIUS, type VillagePlan, type VillageCameraShot } from '../world/village-plan';
 import { completedLevels } from '../progress';
@@ -134,11 +134,13 @@ export class WorldScene {
     this.detachedGround = ground.geometry;
     yield 'ground';
     const scenery = options.motion === 'cinematic' ? this.scenePlan.cinematicScenery ?? this.scenePlan.scenery : this.scenePlan.scenery;
+    const artisans: VillageSceneryPiece[] = [];
     for (const piece of scenery) {
       const model = this.model(piece.model);
       model.position.fromArray(piece.position); model.rotation.y = piece.yaw; model.scale.setScalar(piece.scale);
       if (chapter > 0 && ['gardener','miller','horologist','shepherd','glassworker'].includes(piece.model) && typeof Image !== 'undefined') {
-        this.poseArtisan = villageArtisan(this.material, piece);
+        markVillageArtisan(model, artisans.length);
+        artisans.push(piece);
       }
       if (terrain.spec.beachWidth && piece.model === 'boat' && piece.position[0] < 1) {
         bakeWorldGroup(model, this.material);
@@ -151,6 +153,7 @@ export class WorldScene {
       landscape.add(model);
       yield 'scenery';
     }
+    if (artisans.length) this.poseArtisan = villageArtisans(this.material, artisans);
     const workshop = this.scenePlan.workshop;
     const house = this.model('house-a'); house.position.fromArray(workshop.house.position);
     house.rotation.y = workshop.house.yaw; house.scale.setScalar(workshop.house.scale); landscape.add(house); triangleBounds(house,SCENERY_CLEARANCE,coastalProtected);

@@ -1,5 +1,6 @@
 import { Uint8BufferAttribute, Vector3 } from 'three';
 import { PaintedFaces } from './harbour-craft';
+import { ARTISAN_SURFACE } from './village-artisan';
 
 const stone = 0x766d60, plaster = 0xe5d3aa, oak = 0x835636, window = 0x34545a;
 const slate = 0x454c61, brick = 0x9d5139, cream = 0xe6dfbd;
@@ -33,7 +34,7 @@ class WorkshopFaces extends PaintedFaces {
     }
     if(Number.isFinite(this.movingArm)) {
       const parts = new Uint8Array(positions.count);
-      parts.fill(8,this.movingArm);
+      parts.fill(ARTISAN_SURFACE,this.movingArm);
       g.setAttribute('terrainSurface',new Uint8BufferAttribute(parts,1));
     }
     return g;
@@ -167,6 +168,75 @@ function atelier(g:WorkshopFaces) {
   g.block(-.37,.21,.72,.33,.77,.045,oak);
   g.casement(.28,.66,.72,.59,.54);
   g.casement(0,1.58,.822,.29,.32);
+}
+
+/** Short stone street frontages with separate rooflines and their doors facing the court. */
+function courtHouse(form: 'brick' | 'plaster' | 'stone', g: WorkshopFaces) {
+  const looks = {
+    brick: [1.66, 1.22, 1.20, .42, .38, 0xb2684f, 0x615057],
+    plaster: [1.42, 1.20, 1.31, .68, 0, 0xe4cfae, 0x414957],
+    stone: [1.80, 1.27, .92, .45, .28, 0xb5ab91, 0x896e49],
+  } as const;
+  const [width, depth, wall, rise, hip, facade, shingles] = looks[form];
+  const x = width / 2, z = depth / 2, eave = wall + .14;
+  const end = x + .11, side = z + .10, ridge = end - hip, top = eave + rise;
+  g.block(0,-.22,0,width+.094,.36,depth+.10,stone);
+  g.block(0,.14,0,width,wall,depth,facade);
+  g.quad([-end,eave,side],[end,eave,side],[ridge,top,0],[-ridge,top,0],shingles);
+  g.quad([end,eave,-side],[-end,eave,-side],[-ridge,top,0],[ridge,top,0],form==='plaster'?0x485461:shingles);
+  if (hip > 0) {
+    g.triangle([-end,eave,-side],[-end,eave,side],[-ridge,top,0],shingles);
+    g.triangle([end,eave,side],[end,eave,-side],[ridge,top,0],shingles);
+  } else {
+    g.triangle([-x,eave,-z],[-x,eave,z],[-x,top-.05,0],facade);
+    g.triangle([x,eave,z],[x,eave,-z],[x,top-.05,0],facade);
+  }
+  g.block(0,top-.018,0,2*ridge-.06,.055,.072,shingles);
+  const panel = (at: number, y: number, w: number, h: number, colour: number, front = z + .006) =>
+    g.quad([at-w/2,y,front],[at+w/2,y,front],[at+w/2,y+h,front],[at-w/2,y+h,front],colour);
+  panel(-.30,.14,.27,.53,oak);
+  panel(.28,.56,.39,.30,cream);
+  panel(.28,.59,.31,.24,window,z+.012);
+  panel(.28,.69,.31,.026,cream,z+.017);
+  if (wall > 1) panel(-.30,.86,.24,.25,window);
+  if (form === 'brick') {
+    g.block(.40,top-.33,-.20,.16,.51,.16,brick);
+    g.block(.40,top+.18,-.20,.21,.06,.21,stone);
+  }
+}
+
+/** A covered loading table and crates occupy the working edge of a glass terrace. */
+function sortingYard(g: WorkshopFaces) {
+  const a = -1.42, b = 1.42, c = -.80, d = .79;
+  const upper = 1.4, lower = 1.07, thickness = .045;
+  for (const x of [-1.27,1.27]) for (const z of [-.65,.65]) {
+    const seat = lower + (upper - lower) * (d - z) / (d - c) - .025;
+    g.block(x,-.16,z,.12,seat+.16,.12,oak);
+  }
+  g.quad([a,lower,d],[b,lower,d],[b,upper,c],[a,upper,c],0x4f6266);
+  g.quad([a,upper-thickness,c],[b,upper-thickness,c],[b,lower-thickness,d],[a,lower-thickness,d],0x394d51);
+  g.quad([a,lower-thickness,d],[b,lower-thickness,d],[b,lower,d],[a,lower,d],0x566463);
+  g.quad([b,upper-thickness,c],[a,upper-thickness,c],[a,upper,c],[b,upper,c],0x566463);
+  g.quad([a,upper-thickness,c],[a,lower-thickness,d],[a,lower,d],[a,upper,c],0x566463);
+  g.quad([b,lower-thickness,d],[b,upper-thickness,c],[b,upper,c],[b,lower,d],0x566463);
+  g.block(0,1.052,d,2.74,.075,.065,0x9a6f46);
+  g.block(0,.42,0,1.82,.12,.69,oak);
+  for (const x of [-.71,.71]) g.block(x,-.13,0,.14,.56,.58,oak);
+  for (const [x,z,h,paint] of [[-.56,-.07,.18,0x6b8989],[.23,.13,.29,0xa06b46],[.78,-.10,.16,0x527677]] as const) {
+    g.block(x,.54,z,.43,h,.34,paint);
+    g.quad([x-.14,.55,z+.175],[x-.10,.55,z+.175],[x-.10,.54+h,z+.175],[x-.14,.54+h,z+.175],cream);
+  }
+  g.block(-.85,-.12,.42,.44,.39,.36,0x9c754f);
+  g.block(.95,-.12,.34,.42,.29,.37,0x75938c);
+}
+
+/** A low stone planting bed, with the foliage gathering over its inward-facing edges. */
+function civicPlanter(g: WorkshopFaces) {
+  g.block(0,-.30,0,1.52,.48,.76,0x9c927e);
+  g.block(0,.18,0,1.37,.06,.63,0x4c5945);
+  for (const [x,z,height,paint] of [[-.44,.025,.53,0x4d6650],[.06,-.04,.65,0x53684b],[.46,.015,.42,0x566d51]] as const) {
+    g.turn(x,z,[[.14,.23,0],[.20,.36,paint],[.105,height,paint],[0,height+.06,paint]],5);
+  }
 }
 
 function bothy(g:WorkshopFaces) {
@@ -307,7 +377,9 @@ export const inlandCraft = {
   shepherd:artisan.bind(null,3), glassworker:artisan.bind(null,4), 'glass-rack':glassRack,
   'pollard':pollard, 'clock-court':court, 'fell-scrub':scree, 'glass-packing-house':packhouse,
   'palm-house':palmHouse, 'civic-clock':civicClock, 'potting-house':pottingHouse, 'planting-bed':flowerBed, 'grain-barn':granary, 'timber-yard':woodYard,
-  'dial-atelier':atelier, 'fell-cottage':bothy, sheepfold, 'bottle-kiln':furnace, 'annealing-shed':lehr,
+  'dial-atelier':atelier, 'brick-watchshop':courtHouse.bind(null,'brick'), 'plaster-terrace':courtHouse.bind(null,'plaster'),
+  'stone-croft':courtHouse.bind(null,'stone'), 'fell-cottage':bothy, sheepfold, 'bottle-kiln':furnace, 'annealing-shed':lehr,
+  'glass-sorting-yard':sortingYard, 'civic-planter':civicPlanter,
 };
 
 export function inlandGeometry(name:keyof typeof inlandCraft) {

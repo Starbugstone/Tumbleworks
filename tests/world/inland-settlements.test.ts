@@ -1,4 +1,4 @@
-import { Box2, Box3, Mesh, MeshBasicMaterial, Vector2, Vector3 } from 'three';
+import { Box2, Box3, Group, Mesh, MeshBasicMaterial, Ray, Triangle, Vector2, Vector3 } from 'three';
 import { expect, it } from 'vitest';
 import { WorldKitAssets } from '../../src/view/world-kit';
 import { VILLAGE_SCENE_PLANS, type VillageSceneryPiece } from '../../src/world/village-plans';
@@ -8,8 +8,12 @@ import { workshopProject } from '../../src/world/workshop-projects';
 import { inlandCraft, inlandGeometry } from '../../src/view/inland-craft';
 import { NativeRayTree } from './native-ray-tree';
 import { surfaceOverlaps, surfaceTriangles } from './surface-overlap';
-import { visibleOverlaps } from './village-geometry';
+import { indexedTrackCrossings, visible, visibleOverlaps } from './village-geometry';
 import { cinematicWorld } from './cinematic-world-fixture';
+import { ARTISAN_SURFACE, markVillageArtisan, villageArtisans } from '../../src/view/village-artisan';
+import { bakeWorldGroup } from '../../src/view/world-bake';
+import { TERRAIN_SURFACE } from '../../src/view/village-terrain';
+import { inlandDistricts } from '../../src/world/villages/inland-districts';
 
 for (const village of VILLAGE_SCENE_PLANS.slice(1)) {
   it(`grounds the new workshops, yards and workers in chapter ${village.chapter}, clear of the machine and neighbours`, () => {
@@ -67,6 +71,40 @@ it.each(models)('builds %s without overlapping exposed faces', name => {
   } finally { geometry.dispose(); material.dispose(); }
 });
 
+it('bakes shared worker geometry into one draw with two distinct arm pivots', () => {
+  const geometry = inlandGeometry('glassworker'), material = new MeshBasicMaterial(), landscape = new Group();
+  const sites = [
+    {model:'glassworker',position:[-2,0,1],scale:1,yaw:0},
+    {model:'glassworker',position:[4,0,1],scale:1,yaw:Math.PI/2},
+  ] as const;
+  for (const [index,site] of sites.entries()) {
+    const mesh = new Mesh(geometry,material);
+    mesh.position.fromArray(site.position); mesh.rotation.y = site.yaw;
+    markVillageArtisan(mesh,index); landscape.add(mesh);
+  }
+  const baked = bakeWorldGroup(landscape,material)!;
+  try {
+    const tags = baked.geometry.getAttribute('terrainSurface'), original = geometry.getAttribute('terrainSurface');
+    const shoulderFaces = [...original.array].filter(tag=>tag===ARTISAN_SURFACE).length;
+    expect(shoulderFaces).toBeGreaterThan(0);
+    expect(landscape.children).toEqual([baked]);
+    expect([...tags.array].filter(tag=>tag===ARTISAN_SURFACE)).toHaveLength(shoulderFaces);
+    expect([...tags.array].filter(tag=>tag===ARTISAN_SURFACE+1)).toHaveLength(shoulderFaces);
+    expect([...original.array].includes(ARTISAN_SURFACE+1)).toBe(false);
+    const pose = villageArtisans(material, sites);
+    type Shader = Parameters<typeof material.onBeforeCompile>[0];
+    const shader = {uniforms:{},vertexShader:'#include <common>\n#include <beginnormal_vertex>\n#include <begin_vertex>'} as Shader;
+    material.onBeforeCompile(shader,{} as Parameters<typeof material.onBeforeCompile>[1]);
+    expect(shader.vertexShader.match(/uniform float uWorkBeat/g)).toHaveLength(1);
+    expect(shader.uniforms.uShoulders!.value.map((v:Vector3)=>v.x)).toEqual([-1.822,4.016]);
+    expect(shader.uniforms.uWorkAxes!.value.map((v:Vector3)=>v.z)).toEqual([-0,-1]);
+    pose(1,false);
+    expect(shader.uniforms.uWorkBeat!.value).toBeGreaterThan(0);
+    pose(1,true);
+    expect(shader.uniforms.uWorkBeat!.value).toBe(0);
+  } finally { baked.geometry.dispose(); geometry.dispose(); material.dispose(); }
+});
+
 it.each([3,5])('keeps chapter %i landmarks outside the stop faces in the built phone map', chapter => {
   const { world, dispose } = cinematicWorld(chapter);
   const plan = VILLAGE_SCENE_PLANS[chapter]!;
@@ -96,7 +134,7 @@ it.each([3,5])('keeps chapter %i landmarks outside the stop faces in the built p
     };
     const landmarks = plan.cinematicScenery!.filter(({ model, position }) => chapter === 3 ? model === 'civic-clock' :
       model === 'glass-packing-house' || ((model === 'bottle-kiln' || model === 'annealing-shed') && position[2] < -9));
-    expect(landmarks).toHaveLength(chapter === 3 ? 1 : 6);
+    expect(landmarks).toHaveLength(chapter === 3 ? 1 : 8);
     for (const site of landmarks) {
       expect(pinGapAt(site,site.position[0],site.position[2]),site.model).toBeGreaterThan(clearance);
       if (site.model === 'civic-clock') expect(pinGapAt(site,9.3,-10.3)).toBeLessThan(clearance);
@@ -105,4 +143,78 @@ it.each([3,5])('keeps chapter %i landmarks outside the stop faces in the built p
       if (site.model === 'glass-packing-house' && site.scale === .86) expect(pinGapAt(site,8.7,7.5)).toBeLessThan(clearance);
     }
   } finally { kit.dispose(); material.dispose(); dispose(); }
+},30000);
+
+it.each([4,5])('keeps the chapter %i terrace fixtures clear of the full machine and support triangles', chapter => {
+  const { machine, dispose } = cinematicWorld(chapter);
+  const kit = new WorldKitAssets(true), material = new MeshBasicMaterial();
+  const groups = chapter === 4 ? [
+    ['fell-cottage',1.11,11.23,12.64], ['sheepfold',1.02,4.01,6.33],
+  ] as const : [
+    ['glassworker',1.03,5,11.36], ['glass-sorting-yard',1.06,8.49,-4.24],
+  ] as const;
+  try {
+    const scene = VILLAGE_SCENE_PLANS[chapter]!;
+    const terrain = compileTerrain(scene.cinematicTerrain ?? scene.terrain);
+    const shipped = new Group(), previous = new Group();
+    for (const [name,scale,x,z] of groups) {
+      const site = scene.cinematicScenery!.find(model => model.model===name && model.scale===scale)!;
+      const group = kit.model(name, material);
+      group.traverse(object => { object.name = name; });
+      group.position.fromArray(site.position); group.scale.setScalar(scale); group.rotation.y=site.yaw;
+      const old = group.clone(); old.position.set(x,terrainHeightAt(terrain,x,z)!,z);
+      shipped.add(group); previous.add(old);
+    }
+    const current = new NativeRayTree(surfaceTriangles(shipped));
+    const machineFaces = () => surfaceTriangles(machine.root).filter(face=>visible(face.mesh));
+    machine.apply(0);
+    for (const old of previous.children) {
+      expect(indexedTrackCrossings(machineFaces(),[new NativeRayTree(surfaceTriangles(old))]),old.name).not.toHaveLength(0);
+    }
+    const times = new Set(machine.route.contacts.flatMap(c=>[c.start,(c.start+c.end)/2,c.end]));
+    for (let i=0;i<=24;i++) times.add(machine.route.duration*i/24);
+    for (const seconds of times) {
+      machine.apply(seconds);
+      expect(indexedTrackCrossings(machineFaces(),[current]),`complete assembly at ${seconds}s`).toEqual([]);
+    }
+  } finally { kit.dispose(); material.dispose(); dispose(); }
+},30000);
+
+it.each([3,4,5])('composes at least three quarters of the usable land in chapter %i phone map and film views', chapter => {
+  const { world, machine, dispose } = cinematicWorld(chapter);
+  try {
+    const landscape = world.scene.getObjectByName(`village-landscape-${chapter}`)!;
+    const tree = new NativeRayTree(surfaceTriangles(landscape));
+    const ray = new Ray(), cursor = new Vector3(), triangle = new Triangle(), barycentric = new Vector3();
+    const districts = inlandDistricts[chapter]!;
+    world.resetView();
+    const moments = [null, ...[.12,.43,.8].map(fraction => fraction * machine.route.duration)];
+    for (const seconds of moments) {
+      if (seconds !== null) world.film(seconds);
+      let architecture = 0, usedGround = 0, bareGround = 0;
+      // At each sample use the foremost baked landscape triangle, independent of badges and the machine.
+      for (let y=2;y<690;y+=4) for (let x=2;x<375;x+=4) {
+        cursor.set(x*2/375-1,1-y*2/690,.5).unproject(world.camera);
+        ray.set(world.camera.position,cursor.sub(world.camera.position).normalize());
+        const nearest = tree.hits(ray,world.camera.far)
+          .filter(hit => hit.face.normal.dot(ray.direction) < 0).sort((a,b) => a.distance-b.distance)[0];
+        if (!nearest) continue;
+        const { face, point } = nearest, attributes = face.mesh.geometry.attributes, i = face.index*3;
+        const surface = attributes.terrainSurface!.getX(i);
+        if (surface === 0) { architecture++; continue; }
+        if (surface >= TERRAIN_SURFACE.bank || (chapter === 4 && surface === TERRAIN_SURFACE.plot)) continue;
+        triangle.set(face.a,face.b,face.c).getBarycoord(point,barycentric);
+        const grade = attributes.grade!;
+        if (barycentric.x*grade.getX(i)+barycentric.y*grade.getX(i+1)+barycentric.z*grade.getX(i+2) >= .98) continue;
+        const marked = districts.some(([,cx,cz,w,d]) => {
+          const dx = Math.abs(point.x-cx)-w, dz = Math.abs(point.z-cz)-d;
+          return Math.max(dx,dz,(dx+dz+.60)*.7071) < .04;
+        });
+        if (marked) usedGround++; else bareGround++;
+      }
+      expect(architecture).toBeGreaterThan(0);
+      const total = architecture+usedGround+bareGround;
+      expect(bareGround/total,seconds===null?'built map':`film at ${seconds.toFixed(2)}s`).toBeLessThan(.25);
+    }
+  } finally { dispose(); }
 },30000);

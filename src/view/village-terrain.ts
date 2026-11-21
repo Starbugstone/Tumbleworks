@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import{mergePaintedFlatLand}from'./village-painted-land';
 import{mergeFlatLand,type LandFace}from'./village-flat-land';
 import { cellDiagonal, compileTerrain, type TerrainPalette, type VillageTerrain, type VillageTerrainSpec } from '../world/village-terrain';
+import { districtEdge } from '../world/villages/inland-districts';
 
 const moorUrl = new URL('./textures/harbour-moor.webp', import.meta.url).href;
 
@@ -204,29 +205,46 @@ const inlandFinish = [
   `float field = 1.-smoothstep(1.30,2.3,abs(p.x+8.9+.52*sin(p.y*.25)));
   field *= smoothstep(-12.,-9.5,p.y)*(1.-smoothstep(6.5,10.,p.y));
   land = mix(land,vec3(.28,.215,.086)*(.83+.43*grain),max(plot ? .84 : 0.,field*.82));`,
-  // Clockmakers' Hill. A pale curved footpath follows the shoulder around the summit.
+  // Clockmakers' Hill. Slate around the brass spiral, warmer stone in the inhabited streets.
   `vec2 slope = vec2((p.x+.37)*.91,(p.y+3.6)*.78);
-  float turn = atan(slope.y,slope.x+.001);
-  float shoulder = abs(length(slope)-9.0-.65*sin(turn*2.+.2)-.39*sin(turn*3.+.55));
-  float path = (1.-smoothstep(.45,.72+grain*.20,shoulder))*smoothstep(-12.,-9.0,p.y);
-  float higher = y+.28*(broad-.24);
-  float terraces = (smoothstep(1.38,1.85,higher)+smoothstep(2.30,2.71,higher))*.28;
-  land = mix(land,vec3(.365,.344,.277)*(.85+.25*grain),terraces);
-  land = mix(land,vec3(.48,.436,.343)*(.89+.29*grain-.14*stoneJoints(p*1.8)),path);`,
-  // Cloud Bridge. Light scrub tops the bridgeheads; cool rubble remains visible in the cleft.
-  `float scrub = smoothstep(.15,.40,broad+.16*grain);
-  land = mix(land,vec3(.24,.284,.145)*(.87+.28*grain),scrub*.33);
-  land = mix(land,vec3(.245,.252,.217)*(.81+.42*grain),plot ? .74 : 0.);
-  float lots = min(length((p-vec2(8.6,-6.2))*vec2(.27,.23)),length((p-vec2(-7.7,9.6))*vec2(.28,.22)));
-  land = mix(land,vec3(.295,.264,.194)*(.91+.22*grain),(1.-smoothstep(.56,1.12,lots))*.58);`,
-  // High Glassworks. Pale cobbled work yards sit in pockets amid the ash and exposed cinders.
-  `float kilnYards = min(yardEdge(p-vec2(-8.7,-11.7),vec2(3.35,2.2)),yardEdge(p-vec2(6.9,-11.8),vec2(3.6,2.2)));
-  float packingYards = min(yardEdge(p-vec2(1.9,-6.2),vec2(2.8,1.55)),yardEdge(p-vec2(4.5,-.1),vec2(1.75,1.55)));
-  float entries = min(yardEdge(p-vec2(-7.7,-9.5),vec2(1.15,.62)),yardEdge(p-vec2(3.1,-4.65),vec2(1.2,.57)));
-  float apron = 1.-smoothstep(-.06,.17,min(kilnYards,min(packingYards,entries))+(broad-.25)*.14);
+  float ring = abs(length(slope)-9.0-.42*sin(atan(slope.y,slope.x+.001)*2.+.2));
+  float street = 1.-smoothstep(-.12,.21,min(${districtEdge(3,'lane')},ring-.55));
+  float courtyard = ${districtEdge(3,'yard')};
+  float garden = 1.-smoothstep(-.14,.23,${districtEdge(3,'garden')});
+  float contour = terrainRows((y+.16*broad)*1.13+p.x*.025);
+  float pockets = smoothstep(.09,.49,broad+.10*grain);
+  vec3 grove = mix(vec3(.085,.125,.109),vec3(.139,.177,.138),pockets)
+    *(.88+.26*grain+.10*contour);
+  vec3 greyStone = vec3(.172,.184,.190)*(.88+.29*grain-.19*stoneJoints(p*1.65));
+  vec3 setts = vec3(.375,.316,.247)*(.83+.38*grain-.27*stoneJoints(p*vec2(1.9,2.45)));
+  float yard = 1.-smoothstep(-.11,.18,courtyard);
+  float yardRim = smoothstep(-.44,-.18,courtyard);
+  land = mix(land,grove,garden);
+  land = mix(land,greyStone,street);
+  land = mix(land,setts*(1.-.26*yardRim),yard);
+  float gravel = (1.-smoothstep(1.7,3.25,length((p-vec2(.15,-5.4))*vec2(1.,.95))))*smoothstep(1.40,3.10,y);
+  land = mix(land,greyStone*.61,gravel);`,
+  // Cloud Bridge. Worked paddocks and stone courts distinguish the lower and upper crofts.
+  `float field = 1.-smoothstep(-.22,.26,${districtEdge(4,'garden')});
+  float courts = ${districtEdge(4,'yard')};
+  float walk = 1.-smoothstep(-.14,.24,${districtEdge(4,'lane')});
+  float rows = terrainRows((p.x+.18*p.y)*1.15+broad*.17);
+  vec3 grassRows = mix(vec3(.137,.177,.100),vec3(.224,.244,.142),rows)*(.83+.36*grain);
+  vec3 hardpack = vec3(.343,.294,.218)*(.86+.31*grain-.16*stoneJoints(p*1.93));
+  vec3 grit = vec3(.268,.258,.209)*(.85+.34*grain);
+  land = mix(land,grassRows,field);
+  land = mix(land,grit,walk);
+  land = mix(land,hardpack*(1.-.30*smoothstep(-.43,-.18,courts)),1.-smoothstep(-.13,.24,courts));
+  land = mix(land,vec3(.192,.225,.231)*(.81+.42*grain),plot ? .84 : 0.);`,
+  // High Glassworks. Kiln aprons, loading bays and the circulation across all three tiers.
+  `float court = ${districtEdge(5,'yard')};
+  float traffic = ${districtEdge(5,'lane')};
   float paving = stoneJoints(p*vec2(1.66,2.15));
-  vec3 cobbles = vec3(.385,.354,.301)*(.83+.39*grain-.16*paving);
-  land = mix(land,cobbles,apron);`,
+  float cinder = terrainRows(p.x*1.25+p.y*.30+broad*.23);
+  vec3 cobbles = vec3(.349,.312,.264)*(.82+.39*grain-.29*paving);
+  vec3 ash = mix(vec3(.157,.157,.145),vec3(.221,.200,.176),.18*cinder+.82*broad)*(.89+.34*grain);
+  land = mix(land,ash,1.-smoothstep(-.16,.25,traffic));
+  land = mix(land,cobbles*(1.-.27*smoothstep(-.45,-.15,court)),1.-smoothstep(-.13,.22,court));`,
 ] as const;
 
 /** Illustrate only geometry marked as terrain. Other pieces can share this material and its cached draw. */
@@ -319,7 +337,7 @@ export function illustrateInlandTerrain(material: THREE.Material, terrain: Villa
 const inlandPalettes: readonly (readonly [number, number, number, number, number])[] = [
   [0x788551, 0x88965b, 0x9c8f73, 0xc5b693, 0x786f5e],
   [0x748653, 0x929c58, 0x8d7b62, 0xc2ae83, 0x736854],
-  [0x7b8667, 0x929971, 0x989082, 0xc0b292, 0x777364],
+  [0x657567, 0x7c8a6e, 0x656e6d, 0xc0b292, 0x777364],
   [0x82917a, 0xa8ae8d, 0x8e8b7d, 0xb6b39e, 0x716e63],
   [0x5f665e, 0x787770, 0x6d6661, 0xb0a292, 0x5e5550],
 ];

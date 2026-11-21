@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { ARTISAN_SURFACE } from './village-artisan';
 
 const worldAttributes = ['position', 'normal', 'color', 'grade', 'terrainSurface'];
 
@@ -18,6 +19,10 @@ export function bakeWorldGroup(group: THREE.Group, material: THREE.Material): TH
     if (!part.getAttribute('color')) {
       const colors = new Float32Array(part.getAttribute('position').count * 3); colors.fill(1);
       part.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    }
+    const artisanSurface = object.userData.artisanSurface, surface = part.getAttribute('terrainSurface');
+    if (typeof artisanSurface === 'number' && surface) {
+      for (let i=0;i<surface.count;i++) if (surface.getX(i) === ARTISAN_SURFACE) surface.setX(i,artisanSurface);
     }
     parts.push(part.applyMatrix4(inverse.clone().multiply(object.matrixWorld))); meshes.push(object);
   });
