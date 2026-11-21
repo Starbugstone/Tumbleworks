@@ -16,54 +16,41 @@ it('opens the harbour water to the continuous sea without moving any land', () =
   mesh.geometry.dispose(); material.dispose();
 });
 
-it('rounds the fountain basin shoulder without filling the open irrigation water', async () => {
-  const { cinematicWorld } = await import('./cinematic-world-fixture');
-  const f = cinematicWorld(1);
-  try {
-    const terrain = compileTerrain(villageScenePlan(1).terrain);
-    const landscape = f.world.scene.getObjectByName('village-landscape-1');
-    const mesh = landscape?.children.find(node => node instanceof Mesh);
-    if (!(mesh instanceof Mesh)) throw new Error('Missing Garden terrain');
-    mesh.updateWorldMatrix(true, false);
-    const ray = new Raycaster(new Vector3(), new Vector3(0, -1, 0));
-    const height = (x: number, z: number) => {
-      ray.ray.origin.set(x, 4, z);
-      return ray.intersectObject(mesh)[0]?.point.y ?? -Infinity;
-    };
-    // This is the outside corner of the raised fountain platform in the film close-up.
-    expect(terrainOccupancy(terrain, 7.6744, 2.8171)).toBe('water');
-    expect(height(7.6744, 2.8171)).toBeGreaterThan(terrain.spec.water + .002);
-    expect(height(6.4, 7.4)).toBeLessThan(terrain.spec.water);
-  } finally { f.dispose(); }
-});
+function raycastSurfaceHeight(mesh: Mesh, y: number) {
+  mesh.updateWorldMatrix(true, false);
+  const ray = new Raycaster(new Vector3(), new Vector3(0, -1, 0));
+  return (x: number, z: number) => {
+    ray.ray.origin.set(x, y, z);
+    return ray.intersectObject(mesh)[0]?.point.y ?? -Infinity;
+  };
+}
 
-it('rounds the Willow bank toe in the film without damming its surveyed river', async () => {
-  const { cinematicWorld } = await import('./cinematic-world-fixture');
-  const f = cinematicWorld(2);
-  try {
-    const { water } = villageScenePlan(2).terrain;
-    const ground = f.world.scene.getObjectByName('village-landscape-2')?.children.find(node => node instanceof Mesh);
-    if (!(ground instanceof Mesh)) throw new Error('Missing Willow terrain');
-    ground.updateWorldMatrix(true, false);
-    const ray = new Raycaster(new Vector3(), new Vector3(0, -1, 0));
-    const surface = (x: number, z: number) => {
-      ray.ray.origin.set(x, 12, z);
-      return ray.intersectObject(ground)[0]?.point.y ?? -Infinity;
-    };
-    // The square exposed face in the film was the native cell edge at z=3.
-    for (const x of [-2.96, -2.82, -2.62]) {
-      expect(surface(x, 2.99)).toBeGreaterThan(water);
-      expect(surface(x, 2.99)).toBeLessThan(water + .20);
-    }
-    for (let i = 0; i <= 13; i++) {
-      const z = 3.3 + i / 10;
-      // The surveyed centre runs from (1.3,-.5) to (-2.5,5) here.
-      const centre = 1.3 - (z + .5) * 3.8 / 5.5;
-      expect(surface(centre, z)).toBeLessThanOrEqual(water);
-      expect(surface(centre - 2.3, z)).toBeGreaterThan(water);
-    }
-  } finally { f.dispose(); }
-}, 30_000);
+function checkGardenBasin(mesh: Mesh): void {
+  const terrain = compileTerrain(villageScenePlan(1).terrain);
+  const height = raycastSurfaceHeight(mesh, 4);
+  // This is the outside corner of the raised fountain platform in the film close-up.
+  expect(terrainOccupancy(terrain, 7.6744, 2.8171)).toBe('water');
+  expect(height(7.6744, 2.8171), 'rounded fountain basin shoulder').toBeGreaterThan(terrain.spec.water + .002);
+  expect(height(6.4, 7.4), 'open irrigation water').toBeLessThan(terrain.spec.water);
+}
+
+function checkWillowBank(mesh: Mesh): void {
+  const { water } = villageScenePlan(2).terrain;
+  const surface = raycastSurfaceHeight(mesh, 12);
+  // The square exposed face in the film was the native cell edge at z=3.
+  for (const x of [-2.96, -2.82, -2.62]) {
+    const height = surface(x, 2.99);
+    expect(height, `Willow bank toe at x=${x}`).toBeGreaterThan(water);
+    expect(height, `Willow bank toe at x=${x}`).toBeLessThan(water + .20);
+  }
+  for (let i = 0; i <= 13; i++) {
+    const z = 3.3 + i / 10;
+    // The surveyed centre runs from (1.3,-.5) to (-2.5,5) here.
+    const centre = 1.3 - (z + .5) * 3.8 / 5.5;
+    expect(surface(centre, z), `open Willow river at z=${z}`).toBeLessThanOrEqual(water);
+    expect(surface(centre - 2.3, z), `dry Willow bank at z=${z}`).toBeGreaterThan(water);
+  }
+}
 
 it('keeps the Willow mill clear of the whole aqueduct, including its feet', async () => {
   const { cinematicWorld } = await import('./cinematic-world-fixture');
@@ -159,6 +146,9 @@ it.each([0,1,2,3,4,5])('keeps chapter %i new shore faces separate from exposed l
   const f=cinematicWorld(chapter);
   try{
     const all=surfaceTriangles(f.world.scene),land=all.find(s=>s.mesh.geometry.userData['coastalDressing'])!.mesh;
+    // Reuse the delivered shore for the profile probes and overlap checks.
+    if (chapter === 1) checkGardenBasin(land);
+    if (chapter === 2) checkWillowBank(land);
     const first=land.geometry.userData['coastalDressing'].first/3;
     const dressing=all.filter(s=>s.mesh===land&&s.index>=first),newFaces=new Set(dressing);
     const foreign=all.filter(s=>s.mesh!==land&&s.mesh.name!=='village-sea'&&dressing.some(d=>d.bounds.intersectsBox(s.bounds)));
