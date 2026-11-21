@@ -115,7 +115,7 @@ export class WorldView {
     this.resetView.setAttribute('aria-label',t('Reset village view','Recentrer le village'));
     window.clearTimeout(this.lockTimer);
     this.footer.classList.remove('wv-workshop-footer');
-    sfx.harbourAmbience(this.chapter === 0);
+    sfx.harbourAmbience(true, this.chapter);
     this.actions.screen(this.view);
     this.heading.hidden = this.nodes.hidden = this.footer.hidden = false;
     const current = progress.chapters[this.chapter];
@@ -345,7 +345,7 @@ export class WorldView {
     if (!this.progress?.chapters[chapter]?.complete) return;
     this.stopFilm(); this.view = 'film'; this.filmIndex = chapter; this.element.hidden = false;
     this.earnedFilm = earned;
-    sfx.harbourAmbience(this.filmIndex === 0);
+    sfx.harbourAmbience(true, this.filmIndex);
     this.actions.screen(this.view);
     this.heading.hidden = this.nodes.hidden = this.panel.hidden = this.footer.hidden = true;
     this.filmControls.hidden = false;
