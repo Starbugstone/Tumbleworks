@@ -1,4 +1,4 @@
-import { demoEntry } from '../demo';
+import { demoFilmChapter, demoMenuUrl } from '../demo';
 import * as THREE from 'three';
 import { separateMapPins } from './map-pins';
 import { confetti } from './confetti';
@@ -61,6 +61,7 @@ export class WorldView {
   private view: 'map' | 'overview' | 'workshop' | 'film' = 'map';
   private playback: WorldFilm | null = null;
   private filmTime = 0;
+  private harbourFrame = 0;
   private playing = false;
   private valley: ValleyOverview | null = null;
   private valleyAssets: WorldKitAssets | null = null;
@@ -108,6 +109,7 @@ export class WorldView {
     this.resetView.setAttribute('aria-label',t('Reset village view','Recentrer le village'));
     this.workshopMarker.hidden = false; this.workshopMarker.setAttribute('aria-label', t('Workshop', 'Atelier'));
     this.workshopMarker.querySelector('.wv-project-notice')?.remove(); this.workshopMarker.removeAttribute('aria-description');
+    sfx.harbourAmbience(this.chapter === 0);
     this.actions.screen(this.view);
     this.heading.hidden = this.nodes.hidden = this.footer.hidden = false;
     const current = progress.chapters[this.chapter];
@@ -159,8 +161,8 @@ export class WorldView {
       }
     }
     nav.append(previous, makeButton(t('The valley', 'La vallée'), () => this.overview(), 'wv-soft'), atelier, next);
-    if (demoEntry === 'harbour') {
-      const back = makeButton(t('Back to demos', 'Retour aux démos'), () => window.location.assign('./demo.html'), 'wv-soft');
+    if (demoFilmChapter >= 0) {
+      const back = makeButton(t('Back to demos', 'Retour aux démos'), () => window.location.assign(demoMenuUrl()), 'wv-soft');
       const replay = makeButton(t('Replay film', 'Revoir le film'), () => this.playFilm(this.chapter), 'wv-film-button');
       primary.replaceChildren(back, replay);
       this.footer.replaceChildren(primary);
@@ -193,6 +195,7 @@ export class WorldView {
     this.clearMapPointers();this.viewControls.hidden=true;this.releaseBuildCover(); this.ownership.leave('overview');
     this.view = 'overview'; this.nodes.hidden = this.footer.hidden = true; this.panel.hidden = false;
     this.workshopMarker.hidden = true;
+    sfx.harbourAmbience(false);
     this.actions.screen(this.view);
     const title = document.createElement('h1'); title.textContent = t('The Valley Run', 'La grande traversée');
     const sub = document.createElement('p'); sub.textContent = t('One valley. One wonderfully unlikely machine.', 'Une vallée. Une machine merveilleusement improbable.');
@@ -246,6 +249,7 @@ export class WorldView {
     this.progress = progress;
     this.stopFilm(); this.view = 'workshop'; this.element.hidden = false;
     this.workshopMarker.hidden = true;
+    sfx.harbourAmbience(false);
     this.actions.screen(this.view);
     this.heading.hidden = false; this.nodes.hidden = this.footer.hidden = true; this.panel.hidden = false;
     const title = document.createElement('h1'); title.textContent = t('The Workshop', 'L’atelier');
@@ -301,6 +305,7 @@ export class WorldView {
     this.stopFilm(); this.view = 'film'; this.filmIndex = chapter; this.element.hidden = false;
     this.workshopMarker.hidden = true;
     this.earnedFilm = earned;
+    sfx.harbourAmbience(this.filmIndex === 0);
     this.actions.screen(this.view);
     this.heading.hidden = this.nodes.hidden = this.panel.hidden = this.footer.hidden = true;
     this.filmControls.hidden = false;
@@ -350,7 +355,7 @@ export class WorldView {
       if (this.playback !== playback) return;
       this.playing = true; this.filmControls.querySelector('.wv-film-button')?.remove();
     };
-    if (this.reduced.matches) this.filmControls.prepend(makeButton(t('Play film', 'Lire le film'), play, 'wv-film-button'));
+    if (this.reduced.matches) this.filmControls.prepend(makeButton(t('Play film', 'Lire le film'), () => { sfx.unlock(); play(); }, 'wv-film-button'));
     else play();
     return true;
   }
@@ -374,7 +379,7 @@ export class WorldView {
     this.scene?.stopFilm(); this.filmNote.remove();
     delete this.stage.canvas.dataset['worldPlayback']; delete this.stage.canvas.dataset['worldFilm']; this.filmControls.hidden = true;
   }
-  hide(): void { this.releaseBuildCover(); this.stopFilm(); this.ownership.leave('hidden'); this.disposeValley(); this.gesture = null; this.clearMapPointers(); this.element.hidden = true; }
+  hide(): void { sfx.harbourAmbience(false); this.releaseBuildCover(); this.stopFilm(); this.ownership.leave('hidden'); this.disposeValley(); this.gesture = null; this.clearMapPointers(); this.element.hidden = true; }
   resize(): void { this.scene?.resize(); this.valley?.resize(); this.playback?.resize(); if (this.view === 'overview') this.valleyLabels(); else this.positions(); this.dirty = true; }
   private positions(): void {
     const workshop=this.scene?.workshopTargets(),badges=this.scene?.targets()??[];
@@ -411,7 +416,10 @@ export class WorldView {
         this.scene?.stepSea(seconds,this.reduced.matches);this.playback.render(this.filmTime, !this.reduced.matches); return true;
       }
       this.dirty = false;
+      const strike = this.playback.bellStrike;
+      const previous = this.filmTime;
       this.filmTime += seconds;
+      if (strike !== undefined && previous < strike && this.filmTime >= strike) sfx.harbourBell();
       if (this.filmTime >= this.playback.duration) {
         // The run came home: paper over the map it returns to. A skipped film ends quietly.
         this.finishFilm(); confetti(); return false;
@@ -421,8 +429,14 @@ export class WorldView {
     if (this.view === 'overview') { if (!this.dirty) return false; this.dirty = false; this.valley?.draw(); return true; }
     if (!this.scene) return false;
     const moving = this.view === 'map' && this.scene.advance(seconds);
-    if (!moving && !this.dirty) return false;
-    this.dirty = false;this.scene.stepSea(seconds,this.reduced.matches); this.scene.draw(); return true;
+    const harbour = this.view === 'map' && this.scene.hasVillageLife && !this.reduced.matches && !document.hidden;
+    if (harbour) this.harbourFrame += seconds;
+    if (!moving && !this.dirty && !(harbour && this.harbourFrame >= 1 / 20)) return false;
+    this.dirty = false;
+    this.scene.stepSea(harbour ? this.harbourFrame : seconds, this.reduced.matches);
+    this.harbourFrame = 0;
+    this.scene.draw();
+    return true;
   }
 
   /** One boundary snapshot fades after the new scene is ready; no second renderer runs alongside play. */

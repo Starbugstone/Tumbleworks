@@ -41,13 +41,14 @@ export class MarbleCrowd {
     this.slots.set(id, { color, index });
   }
 
-  set(id: number, x: number, y: number, z: number, qx: number, qy: number, qz: number, qw: number, scale = 1): void {
+  /** `tall` draws it flattened or drawn up along its own vertical axis; pass no turn with it, or the squash turns too. */
+  set(id: number, x: number, y: number, z: number, qx: number, qy: number, qz: number, qw: number, scale = 1, tall = scale): void {
     const slot = this.slots.get(id);
     const mesh = slot && this.meshes.get(slot.color);
     if (!slot || !mesh || scale <= 0.001) return;
     this.dummy.position.set(x, y, z);
     this.dummy.quaternion.set(qx, qy, qz, qw);
-    this.dummy.scale.setScalar(scale);
+    this.dummy.scale.set(scale, tall, scale);
     this.dummy.updateMatrix();
     const index = this.written.get(slot.color) ?? 0;
     mesh.setMatrixAt(index, this.dummy.matrix);

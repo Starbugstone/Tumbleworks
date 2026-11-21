@@ -2,6 +2,20 @@ import * as THREE from 'three';
 import { candy } from '../engine/candy';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Point3 } from '../engine/physics';
+import { boardBackdrop } from './yard-backdrop';
+
+const lagoonPrint = new URL('./textures/lagoon.webp', import.meta.url).href;
+
+let seaPrint: HTMLImageElement | undefined;
+export async function prepareLagoon(): Promise<void> {
+  if (seaPrint) return;
+  const artwork = new Image();
+  artwork.src = lagoonPrint;
+  try {
+    await artwork.decode();
+    seaPrint = artwork;
+  } catch { /* The sea's radial wash also works on its own. */ }
+}
 
 /** Inked enamel wells, laminated beech cut edges, and bronze at working joints. */
 export const ARCADE = { deck: 0x4b5567, edge: 0x23283e, track: 0x26283a, lane: 0x354059, rim: 0xe9c181, ground: 0x758d94, cyan: 0x99c5ba, gold: 0xb98650, trim: 0x805739, shell: 0xc69a65 } as const;
@@ -111,39 +125,20 @@ export function causticTexture(): THREE.DataTexture {
   return map;
 }
 
-/** A low-poly islet: sand, a green cap and, on the larger ones, a leaning palm. */
-function islet(x: number, z: number, radius: number, turn: number): THREE.BufferGeometry[] {
-  const parts: THREE.BufferGeometry[] = [];
-  const put = (geometry: THREE.BufferGeometry, hex: number, matrix: THREE.Matrix4): void => { parts.push(tinted(geometry.applyMatrix4(matrix), hex)); };
-  const place = new THREE.Matrix4(), at = new THREE.Vector3(), spin = new THREE.Quaternion(), size = new THREE.Vector3();
-  put(new THREE.SphereGeometry(1, 9, 5, 0, Math.PI * 2, 0, Math.PI / 2), 0xf6e2ad,
-    place.compose(at.set(x, WATER_LEVEL - 0.02, z), spin.setFromEuler(new THREE.Euler(0, turn, 0)), size.set(radius, radius * 0.24, radius * 0.82)));
-  put(new THREE.SphereGeometry(1, 8, 4, 0, Math.PI * 2, 0, Math.PI / 2), 0x52b867,
-    place.compose(at.set(x - 0.1, WATER_LEVEL + radius * 0.1, z - 0.1), spin, size.set(radius * 0.62, radius * 0.3, radius * 0.52)));
-  if (radius < 1.8) return parts;
-  const lean = new THREE.Euler(0.22 * Math.cos(turn), turn, 0.22 * Math.sin(turn));
-  const crown = new THREE.Vector3(0, 1.5, 0).applyEuler(lean).add(at.set(x + 0.2, WATER_LEVEL + radius * 0.3, z + 0.1));
-  put(new THREE.CylinderGeometry(0.06, 0.1, 1.5, 5).translate(0, 0.75, 0), 0x9a6a3c,
-    place.compose(at.set(x + 0.2, WATER_LEVEL + radius * 0.3, z + 0.1), spin.setFromEuler(lean), size.set(1, 1, 1)));
-  for (let leaf = 0; leaf < 6; leaf++) {
-    const around = leaf / 6 * Math.PI * 2 + turn;
-    put(new THREE.ConeGeometry(0.2, 0.95, 4).translate(0, 0.47, 0), leaf % 2 ? 0x2f9552 : 0x3fae5e,
-      place.compose(crown, spin.setFromEuler(new THREE.Euler(0, -around, -1.95, 'YXZ')), size.set(1, 1, 0.3)));
-  }
-  return parts;
-}
-
 /**
- * The world around the toy: a shallow sunlit lagoon with low islets out toward the corners of the screen.
- * The water is one plane whose light net drifts slowly and whose foam laps the hull; it moves only while the
- * board itself is being drawn, so a resting board still costs nothing. It stays mid-dark and blue: cargo
- * never rests on it, but yellow, orange and white crates are seen against it.
+ * The world around the toy: the water or the ground of the village whose boards are being played, and nothing
+ * else. In Little Harbour it is one plane of water whose light net drifts slowly and whose foam laps the hull;
+ * it moves only while the board itself is being drawn, so a resting board still costs nothing. Inland it is that
+ * village's own land, painted once and still (`boardBackdrop` in `yard-backdrop.ts`). Either way it stays
+ * mid-dark: cargo never rests on it, but yellow, orange and white crates are seen against it. The owner found
+ * the palm islets that used to stand round every board irrelevant: nothing is placed out there.
  */
 export class ArcadeYard {
   readonly group = new THREE.Group();
   private readonly time = { value: 0 };
-  private readonly caustic = causticTexture();
-  private readonly still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  /** The water's light net; land has none. */
+  private caustic: THREE.DataTexture | null = null;
+  private still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   /** Just inside the hull's four corners, where the end-of-level fountains stand. */
   readonly corners: readonly Point3[];
@@ -152,7 +147,18 @@ export class ArcadeYard {
     this.corners = [-1, 1].flatMap((side) => [back, front].map((z) => ({ x: side * (halfWidth - 0.7), y: 0.4, z: z + (z === back ? 0.7 : -0.7) })));
     parent.add(this.group);
     const center = (back + front) / 2, depth = (front - back) / 2;
-    const SIZE = 256;
+    const backdrop = boardBackdrop();
+    if (backdrop.kind === 'land') {
+      const map = texture(512, 512, (ctx) => backdrop.paint?.(ctx, 512, SPAN));
+      // Matt ground: it takes the toy's shadow and mirrors none of the studio.
+      const ground = new THREE.Mesh(new THREE.PlaneGeometry(SPAN, SPAN), new THREE.MeshStandardMaterial({ map, roughness: 0.95, envMapIntensity: 0.2 }));
+      ground.rotation.x = -Math.PI / 2; ground.position.set(0, WATER_LEVEL, center); ground.receiveShadow = true;
+      this.group.add(ground);
+      this.still = true;
+      return;
+    }
+    const caustic = this.caustic = causticTexture();
+    const SIZE = seaPrint ? 768 : 256;
     const map = texture(SIZE, SIZE, (ctx) => {
       const sea = ctx.createRadialGradient(SIZE / 2, SIZE / 2, SIZE * 0.05, SIZE / 2, SIZE / 2, SIZE * 0.62);
       sea.addColorStop(0, '#7494a5');
@@ -160,12 +166,18 @@ export class ArcadeYard {
       sea.addColorStop(0.62, '#688597');
       sea.addColorStop(1, '#617d90');
       ctx.fillStyle = sea; ctx.fillRect(0, 0, SIZE, SIZE);
+      if (seaPrint) {
+        ctx.globalAlpha = 0.70;
+        const tile = SIZE / 3;
+        for (let row = 0; row < 3; row++) for (let col = 0; col < 3; col++)
+          ctx.drawImage(seaPrint, col * tile, row * tile, tile, tile);
+      }
     });
     const water = new THREE.MeshStandardMaterial({ map, roughness: 0.4, envMapIntensity: 0.7 });
     const board = new THREE.Vector4(halfWidth + 0.2, depth + 0.2, 0.7, 0);
     water.onBeforeCompile = (shader) => {
       shader.uniforms['uTime'] = this.time;
-      shader.uniforms['uCaustic'] = { value: this.caustic };
+      shader.uniforms['uCaustic'] = { value: caustic };
       shader.uniforms['uBoard'] = { value: board };
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <common>', '#include <common>\nuniform float uTime;\nuniform sampler2D uCaustic;\nuniform vec4 uBoard;')
@@ -185,23 +197,13 @@ export class ArcadeYard {
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(SPAN, SPAN), water);
     floor.rotation.x = -Math.PI / 2; floor.position.set(0, WATER_LEVEL, center); floor.receiveShadow = true;
     this.group.add(floor);
-    // Islets are placed from the board's own size, always outside it, so no level hides one under the toy.
-    const reach = halfWidth + 3.2;
-    const islets: readonly (readonly [number, number, number, number])[] = [
-      [-reach - 2.5, -depth - 1, 2.1, 0.4], [reach + 3.4, -depth - 5, 2.6, 2.1], [-reach - 4.5, 1, 1.7, 1.2],
-      [reach + 3.2, 3, 1.9, 0.2], [-reach - 2, depth + 4, 2.3, 2.6], [reach + 1.5, depth + 5, 1.8, 1.7],
-      [-reach - 5, -depth - 9, 2.8, 0.9], [reach + 6, depth - 3, 1.5, 1.4],
-    ];
-    const land = new THREE.Mesh(fuse(islets.flatMap(([x, z, radius, turn]) => islet(x, center + z, radius, turn))),
-      new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, flatShading: true, envMapIntensity: 0.5 }));
-    this.group.add(land);
   }
 
   /** Lets the water drift; called only on frames the board draws. */
   step(seconds: number): void { if (!this.still) this.time.value += seconds; }
 
   dispose(): void {
-    this.caustic.dispose();
+    this.caustic?.dispose();
     this.group.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) return;
       object.geometry.dispose();

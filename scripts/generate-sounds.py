@@ -22,21 +22,38 @@ FFMPEG = os.environ.get('FFMPEG', 'ffmpeg')
 GENERATED = ROOT / 'assets/audio/generated'
 RECORDINGS = {
     'wood': 'sources/kenney-impact/impactWood_light_000.ogg',
-    'glass': 'sources/kenney-impact/impactGlass_light_000.ogg',
     'soft': 'sources/kenney-impact/impactSoft_medium_000.ogg',
+    'earshot-glass': 'sources/earshot/glass-tap.wav',
+    'earshot-wood': 'sources/earshot/wood-knock.wav',
 }
 RECIPES = {
-    'tap': 'Kenney wood at 0.82x, double low-pass 1600 Hz, 5 ms felt onset',
-    'release': 'Four rounded Kenney wood knocks at 0/32/71/118 ms, varied pitch, A3 wooden body; no air',
-    'impact-wood': 'Kenney light wood at 0.94x, double low-pass 1800 Hz, 5 ms onset',
-    'impact-glass': 'Kenney light glass at 0.87x, double low-pass 1800 Hz, 6 ms onset',
-    'landing-light': 'G4 (392 Hz) felt marimba/kalimba, detuned modes, 0.30 s, low-pass 1800 Hz',
-    'landing-final': 'D4 (293.66 Hz) felt marimba with audible 587 Hz body partial, 0.40 s',
-    'complete': 'D4 A4 D5 warm marimba triplet at 0/85/170 ms, quiet D6 vibraphone accent',
-    'blocked': 'Kenney soft/wood at 0.78x/0.72x with D4/587 Hz muted body, low-pass 1250 Hz',
-    'undo': 'D4 C4 damped wooden double note at 0/95 ms; no reverse or air',
-    'jam': 'Muted marimba A4 D4 descent at 0/160 ms, warm room',
-    'win': 'D4 F#4 A4 D5 marimba ascent at 0/120/240/360 ms; warm D-major vibraphone chord at 520 ms, quiet D6 accent',
+    'tap': 'Walnut button: slowed real wood, felt B3 body, 5 ms onset, dry bench',
+    'release': 'Arcade crate release: dry latch and a tightening cluster of marble contacts over Earshot wood',
+    'impact-wood': 'Real maple contact at 0.91x with damped D4 bench resonance',
+    'impact-glass': 'Arcade tube strike: Earshot glass tap over a short, hollow enamel snap',
+    'landing-light': 'Arcade marble seat: hard contact over a low damped cup, with Earshot glass and wood',
+    'landing-final': 'Full dock settles: D4 wood mass, A4 enamel rim and two quiet real wood contacts',
+    'complete': 'Arcade dock payoff: hard seat, latch and a short low chord with an Earshot glass accent',
+    'truck-complete': 'Arcade truck payoff: close chassis thump, Earshot wood and glass, then a dry latch',
+    'blocked': 'Rubber stop: real soft contact with muted B3 wood, no pitch warning',
+    'undo': 'Wooden detent return: E4-D4 soft double contact at 0/75 ms, no reverse',
+    'jam': 'Stopped mechanism: B3/A3 damped bodies at 0/135 ms with a dry wood stop',
+    'win': 'Workshop signature: D4-F#4-A4 felt contacts, D4/A4/D5 warm closing chord and a quiet enamel rim',
+    'harbour-bell': 'Little Harbour ship bell: F4 brass modes 1/1.49/2.01/2.74/4.05, felt striker and wooden mount, 720 ms',
+}
+DURATIONS = dict(zip(RECIPES, (.12, .239, .12, .156, .282, .36, .405, .417, .18, .29, .48, 1.04, .72)))
+RECIPE_RECORDINGS = {
+    'tap': ('wood',), 'release': ('earshot-wood',), 'impact-wood': ('wood',),
+    'impact-glass': ('earshot-glass',), 'landing-light': ('earshot-glass', 'earshot-wood'), 'landing-final': ('wood',),
+    'complete': ('earshot-glass',), 'truck-complete': ('earshot-glass', 'earshot-wood'), 'blocked': ('soft',),
+    'undo': ('wood',), 'jam': ('wood',), 'win': ('wood',), 'harbour-bell': ('soft', 'wood'),
+}
+# Surface modes share a bench-sized room; none uses a high bare bell or swept noise.
+SURFACES = {
+    'wood': ((1, 2.01, 3.87, 6.2), (1, .72, .35, .05), .047, 1450),
+    'felt': ((1, 2, 3.93, 7.1), (1, .72, .40, .035), .083, 1700),
+    'enamel': ((1, 2.32, 4.12, 6.29), (1, .58, .16, .025), .075, 1600),
+    'brass': ((1, 1.49, 2.01, 2.74, 4.05), (1, .50, .34, .14, .045), .205, 1800),
 }
 
 
@@ -89,34 +106,31 @@ def add(target, sound, at=0, gain=1):
         target[start + i] += sound[i] * gain
 
 
-def mallet(hz, duration, material, seed, velocity=1):
+def body(hz, duration, surface, seed, velocity=1):
     rng = random.Random(seed)
-    # A small second partial keeps even the low notes audible on phone speakers.
-    ratios = (1, 2, 3.93, 9.24) if material == 'marimba' else (1, 2, 3.9, 5.4)
-    amplitudes = (1, .65, .55, .09) if material == 'marimba' else (1, .32, .36, .10)
-    decay = (.085 if material == 'marimba' else .14) * (392 / hz) ** .22
+    ratios, amplitudes, decay, cutoff = SURFACES[surface]
+    decay *= (349.23 / hz) ** .2
     result = [0.0] * round(duration * RATE)
     velocity *= rng.uniform(.97, 1.03)
     for mode, (ratio, amplitude) in enumerate(zip(ratios, amplitudes)):
         frequency = hz * ratio * rng.uniform(.999, 1.001)
         if frequency > RATE * .45:
             continue
-        tau = decay / (1 + .48 * mode)
-        # Three nearby resonances per partial give a little warmth without chorus effects.
-        for detune, weight in ((-.003, .22), (0, .56), (.003, .22)):
+        tau = decay / (1 + .32 * mode)
+        for detune, weight in ((-.0025, .22), (0, .56), (.0025, .22)):
             for i in range(len(result)):
                 t = i / RATE
                 attack = .5 - .5 * math.cos(math.pi * min(1, t / .005))
                 result[i] += velocity * amplitude * weight * attack * math.exp(-t / tau) * math.sin(2 * math.pi * frequency * (1 + detune) * t)
-    add(result, felt_strike(seed + 2000), gain=.035 * velocity)
-    return lowpass(lowpass(result, 1800 if material == 'marimba' else 2400), 2400)
+    add(result, felt_strike(seed + 2000), gain=.025 * velocity)
+    return lowpass(lowpass(result, cutoff), 2100)
+
 
 def room(dry, amount):
     # One shared small-room recipe, baked so cancel() stops reflections with their voice.
     result = dry.copy()
-    damped = lowpass(lowpass(dry, 1400), 1400)
-    for delay, gain in ((.013, .30), (.023, -.22), (.037, .18), (.053, .13),
-                        (.079, -.09), (.107, .06), (.139, .035)):
+    damped = lowpass(lowpass(dry, 1100), 1100)
+    for delay, gain in ((.011, .24), (.021, -.17), (.034, .13), (.049, .075), (.071, -.04)):
         add(result, damped, delay, gain * amount)
     return result
 
@@ -146,40 +160,156 @@ def write_wave(path, samples):
         output.writeframes(pcm.tobytes())
 
 
+def fade(samples, attack, release):
+    n = len(samples)
+    for i in range(n):
+        amount = min(1.0, i / (attack * RATE), (n - 1 - i) / (release * RATE))
+        samples[i] *= 0.5 - 0.5 * math.cos(math.pi * amount)
+    return samples
+
+
+def load_earshot(kind):
+    pcm = subprocess.check_output([
+        FFMPEG, '-v', 'error', '-nostdin', '-i', str(ROOT / 'assets/audio' / RECORDINGS[kind]), '-ac', '1',
+        '-ar', str(RATE), '-f', 'f32le', '-',
+    ])
+    samples = array('f', pcm)
+    if sys.byteorder != 'little':
+        samples.byteswap()
+    return list(samples)
+
+
+def arcade_contact(kind, length, cutoff, speed):
+    source = lowpass(load_earshot(kind), cutoff)
+    threshold = 0.05 * max(map(abs, source))
+    first = max(0, next(i for i, x in enumerate(source) if abs(x) > threshold) - round(0.001 * RATE))
+    values = []
+    for i in range(round(length * RATE)):
+        at = first + i * speed
+        j = int(at)
+        values.append(source[j] + (source[j + 1] - source[j]) * (at - j) if j + 1 < len(source) else 0)
+    peak = max(map(abs, values))
+    return fade([x / peak for x in values], 0.002, 0.014)
+
+
+def knock(seconds, modes, seed, crack):
+    rng = random.Random(seed)
+    noise = lowpass([rng.uniform(-1, 1) for _ in range(round(0.014 * RATE))], 2600)
+    noise = fade(noise, 0.001, 0.009)
+    y = []
+    for i in range(round(seconds * RATE)):
+        t = i / RATE
+        sample = sum(gain * math.sin(2 * math.pi * hz * t) * math.exp(-t / decay)
+                     for hz, gain, decay in modes)
+        if i < len(noise):
+            sample += crack * noise[i]
+        y.append(sample)
+    return fade(y, 0.0028, 0.020)
+
+
+def mix(seconds, layers):
+    result = [0.0] * round(seconds * RATE)
+    for start, gain, layer in layers:
+        offset = round(start * RATE)
+        for i, value in enumerate(layer[:len(result) - offset]):
+            result[i + offset] += gain * value
+    return result
+
+
+def finish_arcade(samples, cutoff, attack_boost):
+    samples = lowpass(samples, cutoff)
+    for i, value in enumerate(samples):
+        falloff = min(1.0, max(0.0, (i / RATE - 0.016) / 0.022))
+        samples[i] = value * (1 + attack_boost * (1 - falloff))
+    peak = max(map(abs, samples))
+    for drive in (0.63, 0.85, 1.15, 1.45, 1.8, 2.2, 2.6):
+        shaped = [math.tanh(drive * sample / peak) for sample in samples]
+        mean = sum(shaped) / len(shaped)
+        shaped = fade([sample - mean for sample in shaped], 0.0042, 0.024)
+        rms = math.sqrt(sum(x * x for x in shaped) / len(shaped))
+        gain = 10 ** (-22 / 20) / rms
+        if gain * max(map(abs, shaped)) <= 0.63:
+            return [x * gain for x in shaped]
+    raise ValueError('Could not match the current cue level with peak headroom')
+
+
+def arcade_cues():
+    glass = arcade_contact('earshot-glass', 0.070, 3650, 1.06)
+    wood = arcade_contact('earshot-wood', 0.092, 2600, 1.14)
+    glass_snap = knock(0.16, [(565, .53, .026), (974, .62, .019), (1560, .36, .010),
+                            (2250, .18, .004)], 71, .48)
+    marble = knock(0.102, [(493, .65, .020), (826, .57, .014), (1280, .39, .008),
+                          (2200, .20, .004)], 72, .43)
+    seat = knock(0.244, [(328, .56, .061), (655, .66, .046), (926, .43, .031),
+                        (1448, .30, .011)], 73, .41)
+    axle = knock(0.265, [(151, .48, .056), (302, .61, .052), (594, .54, .044),
+                        (859, .33, .028), (1418, .27, .009)], 74, .53)
+    latch = knock(0.12, [(414, .64, .023), (756, .54, .017), (1320, .31, .013),
+                         (1810, .28, .007)], 75, .48)
+    chord = knock(0.275, [(349.23, .55, .067), (523.25, .48, .093), (698.46, .37, .065),
+                         (988, .23, .036), (1538, .16, .013)], 76, .17)
+
+    cues = {
+        'impact-glass': (1900, [(0, 1.0, glass_snap), (0.002, .49, glass), (.019, .10, marble)]),
+        'release': (1780, [(0, .71, latch), (0, .34, wood), (.028, .84, marble),
+                                 (.060, .57, glass_snap), (.083, .42, marble), (.103, .29, wood),
+                                 (.103, .32, marble), (.125, .18, glass_snap)]),
+        'landing-light': (1640, [(0, 1.0, seat), (0, .66, marble),
+                                       (.004, .32, glass), (.028, .24, wood)]),
+        'truck-complete': (1800, [(0, 1.0, axle), (0, .68, wood), (0, .44, marble),
+                                        (.055, .58, latch), (.061, .25, glass), (.089, .31, axle)]),
+        'complete': (1860, [(0, .92, axle), (0, .71, marble), (.011, .28, glass),
+                                  (.049, .50, latch), (.049, .72, chord)]),
+    }
+    boosts = {'release': 1.3, 'truck-complete': 0.68, 'complete': 0.85}
+    return {cue: finish_arcade(mix(DURATIONS[cue], layers), cutoff, boosts.get(cue, 0.0))
+            for cue, (cutoff, layers) in cues.items()}
+
+
 def generate():
-    durations = dict(zip(RECIPES, (.14, .27, .14, .18, .30, .40, .65, .22, .32, .64, 1.28)))
-    bank = {cue: [0.0] * round(seconds * RATE) for cue, seconds in durations.items()}
-    add(bank['tap'], recording('wood', .14, .82, 1600))
-    add(bank['impact-wood'], recording('wood', .14, .94, 1800))
-    add(bank['impact-glass'], soften(recording('glass', .18, .87, 1800), .006))
-    add(bank['blocked'], recording('soft', .22, .78, 1250), gain=.25)
-    add(bank['blocked'], recording('wood', .16, .72, 1250), gain=.7)
-    add(bank['blocked'], mallet(293.66, .22, 'marimba', 5), gain=.22)
-    add(bank['release'], mallet(220, .25, 'marimba', 6), gain=.32)
-    for time, speed, gain in ((0, .78, .85), (.032, .94, .65), (.071, .86, .48), (.118, 1.06, .32)):
-        add(bank['release'], recording('wood', .13, speed, 1500), time, gain)
-    for i, hz in enumerate((293.66, 261.63)):
-        add(bank['undo'], mallet(hz, .22, 'marimba', 7 + i), .095 * i, .65 - .12 * i)
-    add(bank['landing-light'], mallet(392, .30, 'marimba', 10))
-    add(bank['landing-final'], mallet(293.66, .40, 'marimba', 11))
+    bank = {cue: [0.0] * round(seconds * RATE) for cue, seconds in DURATIONS.items()}
+    add(bank['tap'], recording('wood', .12, .73, 1450), gain=.75)
+    add(bank['tap'], body(246.94, .12, 'wood', 101), gain=.17)
+    add(bank['impact-wood'], recording('wood', .12, .91, 1650), gain=.75)
+    add(bank['impact-wood'], body(293.66, .12, 'wood', 102), gain=.12)
+    add(bank['landing-final'], body(293.66, .36, 'felt', 112), gain=.8)
+    add(bank['landing-final'], body(440, .25, 'enamel', 113), .018, .24)
+    for at, gain in ((0, .4), (.036, .14)):
+        add(bank['landing-final'], recording('wood', .12, .76, 1350), at, gain)
+    add(bank['blocked'], recording('soft', .18, .70, 1000), gain=.7)
+    add(bank['blocked'], body(246.94, .18, 'wood', 140), gain=.30)
+    for i, hz in enumerate((329.63, 293.66)):
+        add(bank['undo'], body(hz, .21, 'wood', 150 + i), .075 * i, .6 - .1 * i)
+        add(bank['undo'], recording('wood', .10, .85 - .07 * i, 1200), .075 * i, .22)
+    for i, hz in enumerate((246.94, 220)):
+        add(bank['jam'], body(hz, .32, 'felt', 160 + i), .135 * i, .7 - .12 * i)
+    add(bank['jam'], recording('wood', .14, .68, 1000), gain=.4)
+    for i, hz in enumerate((293.66, 369.99, 440)):
+        add(bank['win'], body(hz, .40, 'felt', 170 + i), .075 * i, .62)
+        add(bank['win'], recording('wood', .10, .8 + i * .06, 1300), .075 * i, .09)
     for i, hz in enumerate((293.66, 440, 587.33)):
-        add(bank['complete'], mallet(hz, .46, 'marimba', 20 + i), .085 * i, .80 + .1 * i)
-    add(bank['complete'], mallet(1174.66, .40, 'vibes', 23), .17, .045)
-    for i, hz in enumerate((440, 293.66)):
-        add(bank['jam'], mallet(hz, .46, 'marimba', 30 + i), .16 * i, 1 - .08 * i)
-    for i, hz in enumerate((293.66, 369.99, 440, 587.33)):
-        add(bank['win'], mallet(hz, .48, 'marimba', 40 + i), .12 * i, .65)
-        add(bank['win'], mallet(hz, .75, 'vibes', 50 + i), .52, .40)
-    add(bank['win'], mallet(1174.66, .60, 'vibes', 60), .57, .055)
+        add(bank['win'], body(hz, .69, 'felt', 180 + i), .29, .42 - i * .07)
+    add(bank['win'], body(880, .45, 'enamel', 190), .31, .03)
+    add(bank['harbour-bell'], body(349.23, .72, 'brass', 200), gain=.75)
+    add(bank['harbour-bell'], recording('soft', .10, .8, 1100), gain=.12)
+    add(bank['harbour-bell'], recording('wood', .12, .72, 1300), gain=.055)
     GENERATED.mkdir(parents=True, exist_ok=True)
     dependencies = {name: hashlib.sha256((ROOT / 'assets/audio' / path).read_bytes()).hexdigest()
                     for name, path in RECORDINGS.items()}
+    arcade = arcade_cues()
     for cue, samples in bank.items():
-        write_wave(GENERATED / f'{cue}.wav', finish(room(samples, .55 if cue in ('complete', 'win') else .22)))
-    provenance = {'generator': 'scripts/generate-sounds.py',
+        rendered = arcade[cue] if cue in arcade else finish(room(samples, .4 if cue in ('win', 'harbour-bell') else .14))
+        write_wave(GENERATED / f'{cue}.wav', rendered)
+    provenance = {'suite': 'compact-workshop-arcade-v2', 'generator': 'scripts/generate-sounds.py',
                   'generatorSha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
                   'recordings': {RECORDINGS[name]: digest for name, digest in dependencies.items()},
-                  'recipes': RECIPES, 'sampleRate': RATE, 'seedPolicy': 'fixed explicit seed per felt strike and modal note'}
+                  'earshot': {
+                      'repository': 'https://github.com/Leonxlnx/earshot',
+                      'commit': '7a7f7c5c70d4a763a1eca4b3666af7c77e313f97',
+                      'inputs': {'earshot-glass': {'sound': 'glass/tap', 'seed': 42, 'mono': True},
+                                 'earshot-wood': {'sound': 'knock/wood', 'seed': 42, 'mono': False}},
+                  },
+                  'recipes': RECIPES, 'durations': DURATIONS, 'surfaces': SURFACES, 'sampleRate': RATE, 'seedPolicy': 'fixed explicit seed per felt strike and modal note'}
     (GENERATED / 'provenance.json').write_text(json.dumps(provenance, indent=2) + '\n')
 
 
@@ -228,7 +358,7 @@ def failures(metrics, cue=None):
         result.append('abrupt attack/endpoint')
     if metrics['onsetSeconds'] > .035:
         result.append('late onset')
-    if cue in ('tap', 'release', 'impact-wood', 'impact-glass', 'landing-light', 'undo', 'complete', 'win') and metrics['spectralCentroidHz'] >= 1500:
+    if cue in ('tap', 'release', 'impact-wood', 'impact-glass', 'landing-light', 'undo', 'complete', 'truck-complete', 'win', 'harbour-bell') and metrics['spectralCentroidHz'] >= 1500:
         result.append('excessive brightness')
     if cue == 'landing-light':
         if not .25 <= metrics['durationSeconds'] <= .35:
@@ -245,9 +375,9 @@ def self_test():
     assert 'single pure partial' in failures(measure(tone))
     step = [.3] * (RATE // 3)
     assert 'abrupt attack/endpoint' in failures(measure(step))
-    assert not failures(measure(finish(mallet(587.33, .56, 'marimba', 1))))
-    assert not failures(measure(finish(mallet(392, .30, 'marimba', 2))), 'landing-light')
-    bright = finish(mallet(2349.32, .56, 'vibes', 3))
+    assert not failures(measure(finish(body(349.23, .4, 'felt', 1))))
+    assert not failures(measure(finish(body(440, .28, 'enamel', 2))), 'landing-light')
+    bright = finish(body(2349.32, .56, 'brass', 3))
     assert 'excessive brightness' in failures(measure(bright), 'landing-light')
     assert 'long or abrupt landing' in failures(measure(bright), 'landing-light')
     print('Quality guards reject pure oscillators, stepped attacks and bright/long landings; accept warm modal mallets.')

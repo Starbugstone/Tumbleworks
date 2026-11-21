@@ -1,0 +1,225 @@
+[
+  {
+    "id": "little-harbour",
+    "name": [
+      "Little Harbour",
+      "Le petit port"
+    ],
+    "creation": [
+      "The harbour relay",
+      "Le relais du port"
+    ],
+    "terrain": "#71958a",
+    "roof": "#c66c4b",
+    "accent": "#ffca6d",
+    "kind": "harbour",
+    "print": "demo/harbour-print.webp",
+    "demo": [
+      {
+        "level": "board-43",
+        "name": "Funnel Sort",
+        "image": "demo/funnel.webp"
+      },
+      {
+        "level": "loop-44",
+        "name": "Loop Sort",
+        "image": "demo/loop.webp"
+      },
+      {
+        "level": "tube-41",
+        "name": "Tube Sort",
+        "image": "demo/tube.webp"
+      },
+      {
+        "level": "village",
+        "name": "Little Harbour",
+        "image": "demo/harbour.webp"
+      }
+    ]
+  },
+  {
+    "id": "glasshouse-gardens",
+    "name": [
+      "Glasshouse Gardens",
+      "Les jardins de verre"
+    ],
+    "creation": [
+      "The watering chain",
+      "La cascade des arrosoirs"
+    ],
+    "terrain": "#789773",
+    "roof": "#528b86",
+    "accent": "#f0c478",
+    "kind": "garden",
+    "backdropFocus": [
+      0,
+      2
+    ]
+  },
+  {
+    "id": "willow-mill",
+    "name": [
+      "Willow Mill",
+      "Le moulin des saules"
+    ],
+    "creation": [
+      "The bucket lift",
+      "L’ascenseur à godets"
+    ],
+    "terrain": "#88956c",
+    "roof": "#b76545",
+    "accent": "#e8b86e",
+    "kind": "mill",
+    "backdropFocus": [
+      1,
+      0
+    ]
+  },
+  {
+    "id": "clockmakers-hill",
+    "name": [
+      "Clockmaker’s Hill",
+      "La colline de l’horloger"
+    ],
+    "creation": [
+      "The spiral clock",
+      "L’horloge en spirale"
+    ],
+    "terrain": "#82918b",
+    "roof": "#68769e",
+    "accent": "#f5c872",
+    "kind": "clock",
+    "backdropFocus": [
+      0,
+      -2
+    ]
+  },
+  {
+    "id": "cloud-bridge",
+    "name": [
+      "Cloud Bridge",
+      "Le pont des nuages"
+    ],
+    "creation": [
+      "The swinging crossing",
+      "La traversée suspendue"
+    ],
+    "terrain": "#8a9aa0",
+    "roof": "#587980",
+    "accent": "#f1c68a",
+    "kind": "bridge",
+    "backdropFocus": [
+      -6,
+      2
+    ]
+  },
+  {
+    "id": "high-glassworks",
+    "name": [
+      "High Glassworks",
+      "La verrerie des hauteurs"
+    ],
+    "creation": [
+      "The great release",
+      "Le grand départ"
+    ],
+    "terrain": "#999f8f",
+    "roof": "#6c8990",
+    "accent": "#ffcc85",
+    "kind": "glass",
+    "backdropFocus": [
+      0,
+      2
+    ]
+  },
+  {
+    "id": "orchard-steps",
+    "name": [
+      "Orchard Steps",
+      "Les terrasses du verger"
+    ],
+    "creation": [
+      "The seesaw orchard",
+      "Le verger à bascules"
+    ],
+    "terrain": "#8b9d76",
+    "roof": "#b16b52",
+    "accent": "#f0c477",
+    "kind": "garden"
+  },
+  {
+    "id": "copper-village",
+    "name": [
+      "Copper Village",
+      "Le village de cuivre"
+    ],
+    "creation": [
+      "The counterweight dance",
+      "La danse des contrepoids"
+    ],
+    "terrain": "#82978a",
+    "roof": "#b78261",
+    "accent": "#f3c77c",
+    "kind": "mill"
+  },
+  {
+    "id": "windward-ridge",
+    "name": [
+      "Windward Ridge",
+      "La crête des vents"
+    ],
+    "creation": [
+      "The wind chimes",
+      "Les carillons du vent"
+    ],
+    "terrain": "#92a2a1",
+    "roof": "#688594",
+    "accent": "#f1d29b",
+    "kind": "bridge"
+  },
+  {
+    "id": "starwatch-terrace",
+    "name": [
+      "Starwatch Terrace",
+      "La terrasse des étoiles"
+    ],
+    "creation": [
+      "The turning sky",
+      "Le ciel tournant"
+    ],
+    "terrain": "#89949f",
+    "roof": "#636d99",
+    "accent": "#ffd78a",
+    "kind": "clock"
+  },
+  {
+    "id": "summit-workshop",
+    "name": [
+      "Summit Workshop",
+      "L’atelier du sommet"
+    ],
+    "creation": [
+      "The twin paths",
+      "Les chemins jumeaux"
+    ],
+    "terrain": "#9ba8a1",
+    "roof": "#789598",
+    "accent": "#f7d3a0",
+    "kind": "glass"
+  },
+  {
+    "id": "valley-crown",
+    "name": [
+      "Valley Crown",
+      "La couronne de la vallée"
+    ],
+    "creation": [
+      "One valley, one machine",
+      "Une vallée, une machine"
+    ],
+    "terrain": "#8d9f91",
+    "roof": "#637f89",
+    "accent": "#ffd489",
+    "kind": "glass"
+  }
+]

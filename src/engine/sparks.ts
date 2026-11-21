@@ -149,9 +149,9 @@ export class Sparks {
   }
 
   /** One fading dot left behind a marble in flight: a run of them draws the path it took. */
-  trail(at: Point3, color: number): void {
+  trail(at: Point3, color: number, size = 0.21, life = 0.26): void {
     if (this.reducedMotion) return;
-    this.spawn(Kind.Trail, at, color, 0.26, this.unit * 0.21);
+    this.spawn(Kind.Trail, at, color, life, this.unit * size);
     this.alive = this.mesh.visible = true;
   }
 

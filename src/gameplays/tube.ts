@@ -118,16 +118,16 @@ export class TubeRuntime implements GameRuntime {
     this.selected = null;
     this.view.select(-1);
     this.view.moved(result, this.rules.state, starts);
-    return [{ type: 'move' }, ...(result.completedTube ? [{ type: 'match' as const }] : [])];
+    // The landing and, for a finished tube, the completion are reported by `step` when the marbles touch down.
+    return [{ type: 'move' }];
   }
 
   get still(): boolean { return this.view.still; }
   step(): readonly Feedback[] {
-    const busy = this.busy;
     this.view.step();
-    if (busy && !this.busy) return [{ type: 'deliver' }];
-    return [];
+    return this.view.takeLandings().map((landing) => ({ type: landing === 'complete' ? 'match' : 'deliver' }));
   }
+  pace(speed: number): void { this.view.pace(speed); }
   hint(): readonly Feedback[] {
     if (this.status !== 'playing') return [];
     const move = this.rules.hint();

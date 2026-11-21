@@ -19,6 +19,7 @@ export class LoopRuntime implements GameRuntime {
   }
   get game() { return this.machine; }
   celebrate(clean = 1): void { this.view.celebrate(clean); }
+  pace(speed: number): void { this.view.pace(speed); }
   get status() { return this.machine.rules.status; }
   get busy() { return this.machine.transferring; }
   get canUndo() { return this.machine.canUndo; }

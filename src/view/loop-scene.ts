@@ -3,6 +3,7 @@ import { BeltSurface } from './belt-surface';
 import * as THREE from 'three';
 import { bakeOcclusion, candy } from '../engine/candy';
 import { Shake } from '../engine/shake';
+import { landingWeight, Spring } from '../engine/arrival';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { Sparks } from '../engine/sparks';
 import { cargoBrick, lorry, lorryMaterials, TUB, type LorryMaterials } from './lorry';
@@ -68,7 +69,13 @@ function rounded(width: number, height: number, depth: number, material: THREE.M
 }
 
 interface Block { readonly group: THREE.Group; readonly box: THREE.Mesh; readonly setLength: (length: number) => void; readonly badge: THREE.Mesh; color: Color | null; units: number; previousUnits: number }
-interface TruckVisual { readonly group: THREE.Group; readonly blocks: Block[]; readonly setLatched: (latched: boolean) => void; readonly setWheelTravel: (distance: number) => void; readonly setUnloading: (state: 'pouring' | 'waiting' | null, time: number) => void; pulse: number }
+/** `recoil` pushes the lorry back along its lane under each load that drops in; `swell` grows the pattern printed on the cargo that receives it. */
+interface TruckVisual { readonly group: THREE.Group; readonly blocks: Block[]; readonly setLatched: (latched: boolean) => void; readonly setWheelTravel: (distance: number) => void; readonly setUnloading: (state: 'pouring' | 'waiting' | null, time: number) => void; pulse: number; readonly recoil: Spring; readonly swell: Spring }
+/** One load dropping in shoves the lorry about a twentieth of a unit toward its cab; a stream of them holds it there, humming. */
+const RECOIL_KICK = 1.9;
+const SWELL_KICK = 9;
+/** Where a load drops into the tub, measured in from the tailboard. */
+const LANDING_INSET = 0.24;
 
 /** The Loop Sort toy: the belt and the row of docked lorries. Numbers and waiting lorries live in the cards beneath it. */
 export class LoopScene {
@@ -93,6 +100,8 @@ export class LoopScene {
   private yard: ArcadeYard | null = null;
   private readonly shake = new Shake();
   private readonly reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  /** 1 at the player's own speed, less while fast forward is held: every landing answers that much. */
+  private weight = 1;
   /** One printed pattern material per colour for every lorry on the level. */
   private readonly decals = new Map<Color, THREE.MeshBasicMaterial>();
   private perUnit = 3;
@@ -189,7 +198,7 @@ export class LoopScene {
       group.add(block);
       blocks.push({ group: block, box, setLength: brick.setLength, badge, color: null, units: 0, previousUnits: 0 });
     }
-    return { group, blocks, setLatched: shell.setLatched, setWheelTravel: shell.setWheelTravel, setUnloading: shell.setUnloading, pulse: 0 };
+    return { group, blocks, setLatched: shell.setLatched, setWheelTravel: shell.setWheelTravel, setUnloading: shell.setUnloading, pulse: 0, recoil: new Spring(5, 0.42), swell: new Spring(5, 0.5) };
   }
 
   setMachine(machine: LoopMachine): void {
@@ -202,8 +211,8 @@ export class LoopScene {
     this.crowd = new MarbleCrowd(this.level, counts, MARBLE_RADIUS);
     for (const marble of machine.rules.state.marbles) {
       for (let k = 0; k < this.perUnit; k++) this.crowd.add(marble.id * this.perUnit + k, marble.color);
-      this.previous.set(marble.id, Array.from({ length: this.perUnit }, () => ({ x: 0, y: 0, z: 0, roll: 0, visible: false })));
-      this.current.set(marble.id, Array.from({ length: this.perUnit }, () => ({ x: 0, y: 0, z: 0, roll: 0, visible: false })));
+      this.previous.set(marble.id, Array.from({ length: this.perUnit }, () => ({ x: 0, y: 0, z: 0, roll: 0, visible: false, flight: 0 })));
+      this.current.set(marble.id, Array.from({ length: this.perUnit }, () => ({ x: 0, y: 0, z: 0, roll: 0, visible: false, flight: 0 })));
     }
     const materials = lorryMaterials();
     for (const truck of machine.readTrucks()) {
@@ -306,8 +315,15 @@ export class LoopScene {
       const truck = this.machine.readTrucks().find((truck) => truck.lane === event.lane && (event.type === 'pour' ? truck.docked : truck.index === event.truck));
       if (!truck) continue;
       const visual = this.trucks.get(`${truck.lane}:${truck.index}`);
-      if (visual) visual.pulse = event.type === 'complete' ? 1 : event.type === 'pour' ? 0.65 : 0.4;
-      if (event.type === 'absorb' && event.fill % 3 === 0) this.sparks.land({ x: truck.x, y: truck.y + 0.9, z: truck.z - TRUCK.bedLength / 2 }, 0xffd76a);
+      if (visual && event.type !== 'absorb') visual.pulse = event.type === 'complete' ? 1 : 0.65;
+      if (event.type === 'absorb') {
+        // Contact: the load has dropped into the tub. The lorry is shoved back on its wheels and rolls forward again,
+        // and the pattern on the cargo that took it swells; a stream of loads keeps both up until it ends.
+        if (visual && !this.reducedMotion) { visual.recoil.kick(RECOIL_KICK * this.weight); visual.swell.kick(SWELL_KICK * this.weight); }
+        const facing = this.machine.facing(truck.lane);
+        // Every third load glints where it landed; held fast forward brings them too often for that.
+        if (event.fill % 3 === 0 && this.weight === 1) this.sparks.land({ x: truck.x, y: truck.y + 0.95, z: this.machine.mouthZ(truck.lane) - facing * LANDING_INSET }, 0xffd76a);
+      }
       if (event.type === 'pour') this.sparks.tap({ x: truck.x, y: truck.y + 1, z: truck.z });
       if (event.type === 'complete') {
         const at = { x: truck.x, y: truck.y + 1.1, z: truck.z };
@@ -380,7 +396,7 @@ export class LoopScene {
     this.sparks.clear();
     this.syncTrucks(true);
     this.syncCargo(true);
-    for (const visual of this.trucks.values()) visual.pulse = 0;
+    for (const visual of this.trucks.values()) { visual.pulse = 0; visual.recoil.reset(); visual.swell.reset(); }
     const machine = this.machine;
     if (!machine) return;
     this.roster?.sync();
@@ -390,6 +406,9 @@ export class LoopScene {
       if (previous) for (let k = 0; k < this.perUnit; k++) Object.assign(previous[k]!, poses[k]);
     }
   }
+
+  /** Held fast forward: loads come several times as often, so each one answers quietly. */
+  pace(speed: number): void { this.weight = landingWeight(speed); }
 
   render(alpha: number, seconds = 0): void {
     const machine = this.machine;
@@ -413,6 +432,15 @@ export class LoopScene {
         axis.set(c.z - p.z, 0, -(c.x - p.x));
         if (axis.lengthSq() < 1e-8) axis.set(0, 0, -1);
         axis.normalize();
+        if (c.flight > 0 && p.visible) {
+          // Thrown at its lorry: drawn long along the throw, and smaller over the last stretch as it sinks into the tub.
+          const flight = p.flight + (c.flight - p.flight) * alpha;
+          const sink = Math.max(0, (flight - 0.72) / 0.28);
+          const size = 1 - 0.5 * sink * sink;
+          if (this.reducedMotion) this.crowd.set(marble, x, y, z, 0, 0, 0, 1, size);
+          else this.crowd.setStretched(marble, x, y, z, c.x - p.x, c.y - p.y, c.z - p.z, 1.22 * size, 0.9 * size);
+          continue;
+        }
         this.dummy.quaternion.setFromAxisAngle(axis, roll);
         const q = this.dummy.quaternion;
         this.crowd.set(marble, x, y, z, q.x, q.y, q.z, q.w);
@@ -430,7 +458,10 @@ export class LoopScene {
       const y = previous ? previous.y + (truck.y - previous.y) * blend : truck.y;
       const z = previous ? previous.z + (truck.z - previous.z) * blend : truck.z;
       const scale = previous ? previous.scale + (truck.scale - previous.scale) * blend : truck.scale;
-      visual.group.position.set(truck.x, y + Math.sin(visual.pulse * Math.PI) * 0.1, z);
+      const step = Math.max(0, seconds);
+      // Pushed toward its cab by what drops in at the tailboard; it overshoots forward once as it rolls back.
+      const recoil = visual.recoil.step(step), swell = Math.max(-0.12, visual.swell.step(step));
+      visual.group.position.set(truck.x, y + Math.sin(visual.pulse * Math.PI) * 0.1, z - facing * recoil);
       visual.group.scale.setScalar(scale);
       // A pour rocks the lorry on its wheels: about three degrees, one damped swing.
       visual.group.rotation.z = this.reducedMotion ? 0 : Math.sin(visual.pulse * Math.PI * 3) * 0.052 * Math.min(1, visual.pulse * visual.pulse * 2.4);
@@ -440,6 +471,9 @@ export class LoopScene {
       // Cargo packs against the cab; the mouth end stays open. Blocks are listed loop end first.
       const unit = machine.unitLength;
       let edge = -facing * truck.bedLength / 2;
+      // The cargo at the open end is the one that receives.
+      let receiving: Block | null = null;
+      for (const block of visual.blocks) if (block.units > 0.05) receiving = block;
       visual.blocks.forEach((block) => {
         const length = (block.previousUnits + (block.units - block.previousUnits) * alpha) * unit;
         block.group.visible = length > 0.005;
@@ -448,7 +482,7 @@ export class LoopScene {
         block.setLength(Math.max(length - 0.03, 0.005));
         const side = Math.min(0.34, length - 0.05);
         block.badge.visible = side > 0.06;
-        block.badge.scale.setScalar(side);
+        block.badge.scale.setScalar(side * (block === receiving ? 1 + swell : 1));
         edge += facing * length;
       });
     }

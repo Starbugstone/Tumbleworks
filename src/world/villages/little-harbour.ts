@@ -1,5 +1,5 @@
-import type { VillageScenePlan } from '../village-plans';
-import type { VillageTerrainSpec } from '../village-terrain';
+import type { VillageSceneryPiece, VillageScenePlan } from '../village-plans';
+import type { TerrainVec2, VillageTerrainSpec } from '../village-terrain';
 import { workshopSite } from '../workshop-building';
 import { along, connect, groundOf, join, piece, schedule, shots, station, straight, track, turn, UP } from './author';
 import { villagePort, type VillageBearingSeat, type VillageConnector, type VillagePort, type VillageVec3 } from '../village-plan';
@@ -472,8 +472,47 @@ const scenery = [
   piece('tree-a', [-9.2, at(-9.2, 1.0), 1.0], 0, 0.85), piece('tree-a', [6.0, at(6.0, 4.8), 4.8], 0, 0.8),
   piece('tree-a', [-1.5, at(-1.5, -8.0), -8.0], 0, 0.75), piece('tree-a', [9.8, at(9.8, 1.5), 1.5], 0, 0.8),
 ];
+const workshop = workshopSite({ position: [-7.4, at(-7.4, 4.6), 4.6], scale: 1.1, yaw: 0.3 },
+  [-7.6, at(-7.4, 4.6) + 3.3, 4.8], { from: 8, to: 7 });
+const rewards = [
+  { project: 'board-210', position: [-3.6, at(-3.6, -5.6), -5.6], yaw: 0 },
+  { project: 'board-212', position: [-7.2, at(-7.2, -2.0), -2.0], yaw: 0 },
+] satisfies VillageScenePlan['rewards'];
+
+// Half-width, back and front of the kit's load-bearing base, including doorsteps.
+const bases: Record<string, readonly [number, number, number]> = {
+  'house-a': [1.05, -.95, 1.25], 'house-b': [.89, -.99, 1.30], warehouse: [1.63, -.98, 1.90],
+  'harbour-beacon': [.86, -.86, .86], 'tree-a': [.30, -.30, .28],
+  'board-210': [1.25,-1.0,1.0], 'board-212': [1.05,-1.0,1.0],
+};
+function buildingPad(site: VillageSceneryPiece) {
+  const [w, back, front] = bases[site.model]!;
+  const [cx, y, cz] = site.position, c = Math.cos(site.yaw), s = Math.sin(site.yaw);
+  // Cover the corners of the interpolation triangles under the fitted footprint.
+  const margin = Math.hypot(terrain.size[0]/terrain.cells[0], terrain.size[1]/terrain.cells[1]);
+  const left = -w*site.scale-margin, right = -left, near = front*site.scale+margin, far = back*site.scale-margin;
+  const outline: TerrainVec2[] = [[left,far],[right,far],[right,near],[left,near]].map(([x,z]) =>
+    [cx + x!*c + z!*s, cz - x!*s + z!*c]);
+  return { outline, height: y+.012, apron: site.model === 'tree-a' ? .65 : 1.25 };
+}
+// The inner shore winds between the crane quay and the slipway. The waterline
+// falls away on the land side as well as on the underwater apron.
+const harbourCoast: VillageTerrainSpec = {
+  ...terrain,
+  beachWidth: 2.45,
+  buildingPads: [...scenery.filter(site=>site.model in bases),{ ...workshop.house, model: 'house-a' },
+    ...rewards.map(site=>({ ...site, model:site.project, scale:1 }))].map(buildingPad),
+  outline: [[-10,-9],[-9.5,-12],[-7.8,-13.6],[-4.2,-14.2],[-1.5,-13.8],[1.8,-14.7],[5.3,-14.4],[8.3,-13.1],[10.6,-10.8],[11,-7.7],[10.6,-5.3],[11.6,-2.3],[11.4,1.4],[10.6,4.7],[11.25,7.4],[10.9,11.7],[10.4,14.2],[8.6,15.5],[5.4,15.8],[2,15.1],[-1,14.7],[-4.3,15.7],[-8.25,15.8],[-10.95,14.65],[-11.65,12.3],[-11.25,9.8],[-11.35,7.5],[-11.55,4.6],[-10.9,2.3],[-11.6,-.7],[-11.4,-4.1],[-11.15,-7.5]],
+  features: [
+    ...terrain.features.filter(f => f.kind !== 'hole'),
+    { kind: 'hole', polygon: [[-.4,2.15],[.55,2.3],[1.25,3.1],[1.65,4.5],[1.85,6.6],[1.48,8.5],[1.72,10.2],[2.15,11.6],[2.2,13.2],[1.6,16.5],[-3.8,16.5],[-3.5,14.3],[-3.2,13],[-3.7,11],[-3.65,9.3],[-3.05,8],[-2.25,6.9],[-1.85,5.4],[-1.97,4.1],[-1.7,3.1],[-1.12,2.45]] },
+    { kind: 'hole', polygon: [[10.6,5.6],[12.5,4.8],[12.5,16.5],[8.7,16.5],[8.8,13.6],[9.1,12.4],[8.85,11],[8.9,9.5],[9.45,7.85],[9.65,6.55]] },
+    { kind: 'mound', centre: [-2.2,-12.1], radii: [2.3,1.55], height: 1.35 },
+    { kind: 'mound', centre: [4.45,-12.5], radii: [2.1,1.6], height: .93 },
+  ],
+};
 export const LITTLE_HARBOUR: VillageScenePlan = {
-  chapter: 0, construction: 'rise', terrain, scenery,
+  chapter: 0, construction: 'rise', terrain, cinematicTerrain: harbourCoast, scenery,
   // Shot times are unchanged authored metadata; retime against route.duration at the camera stage.
   plan: { chapter: 0, profile: 'plank', staticSupports:'harbour-static-112', stations: physical, connectors, camera: shots([0, 2.4, 0], [
     { at: 2.6, target: [-3.6, 4.8, 5.0], radius: 22 }, { at: 5.0, target: [-1.3, 4.6, 1.0], radius: 22 },
@@ -481,10 +520,6 @@ export const LITTLE_HARBOUR: VillageScenePlan = {
     // The bell shot's target moves with the berth; its time, radius and the zoom count are unchanged.
     { at: 14.9, target: [4.0, 2.0, 4.6], radius: 26 }, { at: 17.55, target: [7.6, 1.5, 7.6], radius: 22 },
   ]) },
-  workshop: workshopSite({ position: [-7.4, at(-7.4, 4.6), 4.6], scale: 1.1, yaw: 0.3 }, [-7.6, at(-7.4, 4.6) + 3.3, 4.8], { from: 8, to: 7 }),
-  rewards: [
-    { project: 'board-210', position: [-3.6, at(-3.6, -5.6), -5.6], yaw: 0 },
-    { project: 'board-212', position: [-7.2, at(-7.2, -2.0), -2.0], yaw: 0 },
-  ],
+  workshop, rewards,
   overview: [piece('harbour-beacon', [-4, at(-4, -9.5), -9.5], 0, 1.3), piece('boat', [-0.3, -0.25, 9], -0.3, 1.5), piece('house-a', [-7.5, at(-7.5, 5), 5], 0.3, 1.2)],
 };

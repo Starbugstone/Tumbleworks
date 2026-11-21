@@ -243,9 +243,10 @@ test('earned map construction animates through the real frame path at natural qu
   await expect(page.locator('.map-stop[data-status="built"]')).toHaveCount(buildIndex);
   const earned = worldProgress(LEVELS, new Set(LEVELS.slice(0, chapter.stops.length * LEVELS_PER_STOP).map(level => level.id)));
   await withCpu(page, async () => {
-    await beginSample(page, 'construction-event', buildIndex);
+    await beginSample(page, 'before-construction', buildIndex);
     const eventMs = await page.evaluate(progress => {
       const target = window as unknown as GameWindow;
+      target.worldPerformanceProbe!.phase = 'construction-event';
       const start = performance.now(); target.tumbleworks.app.world.show(progress, 0, true);
       const elapsed = performance.now() - start;
       target.worldPerformanceProbe!.phase = 'natural'; return elapsed;
@@ -261,8 +262,9 @@ test('earned map construction animates through the real frame path at natural qu
     }, errors);
     expect(completed, 'construction completed before the collection deadline; partial samples are attached').toBe(true);
     assertPaused(sample, 'map');
-    const progress = sample.draws.map(draw => draw.buildProgress).filter((value): value is number => value !== null);
-    const transforms = sample.draws.map(draw => JSON.stringify(draw.buildTransform));
+    const construction = sample.draws.filter(draw => draw.phase !== 'before-construction');
+    const progress = construction.map(draw => draw.buildProgress).filter((value): value is number => value !== null);
+    const transforms = construction.map(draw => JSON.stringify(draw.buildTransform));
     expect(progress[0], 'the earned construction starts before its rest pose').toBeLessThan(1);
     expect(progress.at(-1), 'the structure reaches its completed rest pose').toBe(1);
     expect(new Set(progress).size, 'intermediate construction frames were actually drawn').toBeGreaterThan(2);
@@ -304,7 +306,7 @@ test('fully built chapter scenes report setup and bounded requested draws', asyn
       }, REQUESTED_DRAWS) : { completed: 0, requested: REQUESTED_DRAWS, elapsedMs: 0, deadlineMs: 15_000 };
       const sample = await endSample(page);
       await report(info, `world-built-chapter-${chapter.index + 1}`, [sample], {
-        kind: 'requested-draw microbenchmark; the resting map normally draws nothing', chapter: chapter.index, builtStops: chapter.stops.length, mapSettled, ...setup, ...requested,
+        kind: 'requested-draw microbenchmark; natural ambience draws are recorded separately', chapter: chapter.index, builtStops: chapter.stops.length, mapSettled, ...setup, ...requested,
       }, errors);
       expect(mapSettled, 'the chapter settled before requested draws; partial samples are attached').toBe(true);
       assertPaused(sample, 'map');

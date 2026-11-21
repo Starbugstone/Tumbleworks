@@ -1,4 +1,7 @@
-import { demoEntry } from '../demo';
+import { prepareLagoon } from './arcade';
+import { setBoardVillage } from './yard-backdrop';
+import { boardChapter } from '../world/board-village';
+import { demoEntry, demoFilmChapter, demoMenuUrl } from '../demo';
 import { sfx } from '../audio';
 import { confetti } from './confetti';
 import { CAMPAIGN, TRY_LEVEL } from '../campaign';
@@ -17,7 +20,7 @@ import { guideSeen, locale, onLocaleChange, setGuideSeen, setLocale } from '../p
 import { enterStop, nextInStop, worldProgress, type WorldProgress } from '../world/progression';
 import { filmSeen, initializeValley, markFilmSeen } from '../world/film-progress';
 import { WorldView } from './world';
-import { worldLocation } from '../world/locations';
+import { showVillageTheme, worldLocation } from '../world/locations';
 import { levelIcon } from './level-icon';
 import './level-menu.css';
 import './world.css';
@@ -48,6 +51,7 @@ export class App {
   runtime!: GameRuntime;
   boardIndex = 0;
   manualClock = false;
+  private booting = true;
   private accumulator = 0;
   private lastFrame = performance.now();
   private slowTime = 0;
@@ -90,7 +94,7 @@ export class App {
     // Only the explicitly appended development trial is outside the registered triples.
     const extraTrial = TRY_LEVEL !== null && CAMPAIGN.length % 3 === 1 && CAMPAIGN.at(-1)?.id === TRY_LEVEL;
     const completed = new Set(completedLevels());
-    if (demoEntry === 'harbour') for (const level of CAMPAIGN.slice(0, CHAPTER_LEVELS)) completed.add(level.id);
+    if (demoFilmChapter >= 0) for (const level of CAMPAIGN.slice(0, (demoFilmChapter + 1) * CHAPTER_LEVELS)) completed.add(level.id);
     return worldProgress(extraTrial ? CAMPAIGN.slice(0, -1) : CAMPAIGN, completed);
   }
 
@@ -115,6 +119,11 @@ export class App {
         this.pointer.cancel(); this.setFast(false);
         this.screen = mode === 'overview' ? 'map' : mode;
         document.body.dataset['screen'] = this.screen;
+        if (mode === 'map' || mode === 'film') showVillageTheme(this.world.currentChapter);
+        if (mode === 'film') {
+          button('mute').classList.toggle('muted', !sfx.isUnlocked || sfx.isMuted);
+          button('mute').setAttribute('aria-label', !sfx.isUnlocked ? t('Enable sound','Activer le son') : t('Sound','Son'));
+        } else button('mute').classList.toggle('muted',sfx.isMuted);
         element('load').classList.remove('full', 'jammed');
         element('scene').setAttribute('aria-label', mode === 'film' ? t('Completed marble machine', 'Machine à billes terminée') : t('Village construction map', 'Carte de construction du village'));
         if (this.screen === 'map') {
@@ -137,7 +146,7 @@ export class App {
     });
     button('map-open').addEventListener('click', () => {
       sfx.unlock();
-      if (demoEntry) location.assign('./demo.html');
+      if (demoEntry) location.assign(demoMenuUrl());
       else if (this.source === 'workshop' && this.screen === 'game') this.showWorkshop();
       else this.showMap(this.menuStop()?.chapter, false, true);
     });
@@ -151,7 +160,7 @@ export class App {
     button('card-action').addEventListener('click', () => {
       sfx.unlock();
       if (this.runtime.status === 'won') {
-        if (demoEntry) { location.assign('./demo.html'); return; }
+        if (demoEntry) { location.assign(demoMenuUrl()); return; }
         if (this.source === 'workshop') this.showWorkshop();
         else {
           const next = this.nextRoundLevel();
@@ -166,9 +175,16 @@ export class App {
     const mute = button('mute');
     mute.classList.toggle('muted', sfx.isMuted);
     mute.addEventListener('click', () => {
+      const enableFilm = this.screen === 'film' && !sfx.isUnlocked && !sfx.isMuted;
       sfx.unlock();
-      mute.classList.toggle('muted', sfx.toggleMute());
+      mute.classList.toggle('muted', enableFilm ? false : sfx.toggleMute());
+      mute.setAttribute('aria-label', t('Sound', 'Son'));
       mute.setAttribute('aria-pressed', String(sfx.isMuted));
+    });
+    this.world.element.addEventListener('pointerdown', () => {
+      sfx.unlock();
+      mute.classList.toggle('muted', sfx.isMuted);
+      mute.setAttribute('aria-label', t('Sound', 'Son'));
     });
     window.addEventListener('resize', () => { this.pointer.cancel(); this.stage.resized(); this.redraw = true; if (this.screen === 'game') { this.runtime?.resize(); this.refresh(); } else this.world.resize(); });
     document.addEventListener('visibilitychange', () => { this.pointer.cancel(); this.setFast(false); if (document.hidden) sfx.cancel(); this.lastFrame = performance.now(); this.accumulator = 0; this.redraw = true; });
@@ -247,6 +263,7 @@ export class App {
     const playing = this.screen === 'game' && Boolean(this.runtime) && this.runtime.status === 'playing';
     if (!playing) this.heldSpeeds.clear();
     this.speed = Math.max(1, ...this.heldSpeeds.values());
+    if (this.runtime) this.runtime.pace?.(this.speed);
     for (const { speed, element: fast } of this.fastButtons) {
       const active = this.speed === speed;
       fast.classList.toggle('active', active);
@@ -255,7 +272,7 @@ export class App {
   }
 
   static async start(canvas: HTMLCanvasElement, workshopLevels: readonly GameLevel[] = []): Promise<App> {
-    await physics.init();
+    await Promise.all([physics.init(), prepareLagoon()]);
     const app = new App(canvas, workshopLevels);
     const saved = currentLevel();
     const tried = CAMPAIGN.findIndex((level) => level.id === (demoEntry ?? TRY_LEVEL));
@@ -267,15 +284,14 @@ export class App {
     app.loadBoard(tried >= 0 ? tried : selected >= 0 ? selected : Math.max(0, open));
     if (demoEntry) document.body.classList.add('demo');
     if (demoEntry === 'levels') app.showLevels(true);
-    else if (demoEntry === 'harbour') {
-      app.showMap(0);
-      app.world.playFilm(0);
+    else if (demoFilmChapter >= 0 && demoFilmChapter < app.worldProgress().chapters.length) {
+      app.showMap(demoFilmChapter);
+      app.world.playFilm(demoFilmChapter);
     } else if (workshop >= 0) {
       if (canEnterProject(workshopId!, app.worldProgress(), new Set(completedLevels()))) app.loadBoard(workshop, 'workshop');
       else app.showWorkshop(workshopId!);
     }
     else if (tried < 0) app.showMap(undefined, false, true);
-    element('boot').hidden = true;
     requestAnimationFrame(app.frame);
     return app;
   }
@@ -298,7 +314,12 @@ export class App {
     this.screen = 'game'; document.body.dataset['screen'] = 'game';
     this.runtime?.dispose();
     this.boardIndex = index;
+    // The board stands in its own village: a campaign level in the chapter it belongs to, a Workshop project in the village it builds for.
+    const chapter = boardChapter(source,index,level.id);
+    setBoardVillage(chapter);
+    if (chapter !== null) showVillageTheme(chapter);
     this.runtime = level.create(this.services);
+    this.runtime.pace?.(this.speed);
     this.helped = false;
     this.stage.resized();
     this.redraw = true;
@@ -405,6 +426,13 @@ export class App {
     this.lastFrame = now;
     if (!this.manualClock && !document.hidden) {
       const drawn = this.advance(seconds);
+      if (this.booting && (this.screen === 'game' || this.screen === 'workshop' ||
+          (this.screen === 'film' ? ['ready','unavailable'].includes(this.stage.canvas.dataset.worldFilm ?? '') :
+            ['ready','unavailable'].includes(this.stage.canvas.dataset.worldScene ?? '')))) {
+        this.booting = false;
+        element('boot').hidden = true;
+        element('hud').removeAttribute('inert');
+      }
       // Only drawn frames say anything about the device: a still board skips drawing and costs nothing.
       if (drawn && this.screen === 'game') {
         this.slowTime += seconds;

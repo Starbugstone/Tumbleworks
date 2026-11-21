@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 class Param {
   value = 0;
   setValueAtTime = vi.fn();
+  setTargetAtTime = vi.fn();
   exponentialRampToValueAtTime = vi.fn();
 }
 class Node {
@@ -20,6 +21,8 @@ class Source extends Node {
   override connect(node: Node) { this.envelope = node; return node; }
   buffer: unknown = null;
   playbackRate = new Param();
+  loop = false;
+  loopStart = 0;
   frequency = new Param();
   type = 'sine';
   start = vi.fn();
@@ -38,22 +41,26 @@ class Context {
   createGain() { return new Node(); }
   createOscillator() { const source = new Source(); oscillators.push(source); return source; }
   createBufferSource() { const source = new Source(); buffers.push(source); return source; }
+  createBuffer(_channels: number, length: number, rate: number) {
+    const samples = new Float32Array(length);
+    return { duration: length / rate, getChannelData: () => samples };
+  }
   decodeAudioData = vi.fn(async (bytes: ArrayBuffer) => ({ duration: .3, bytes }));
 }
 const fetchSound = vi.fn(async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(1) }));
-const loaded = async () => { await vi.waitFor(() => expect(contexts[0]?.decodeAudioData).toHaveBeenCalledTimes(11)); await new Promise(resolve => setTimeout(resolve, 0)); };
+const loaded = async () => { await vi.waitFor(() => expect(contexts[0]?.decodeAudioData).toHaveBeenCalledTimes(13)); await new Promise(resolve => setTimeout(resolve, 0)); };
 beforeEach(() => {
   buffers.length = oscillators.length = contexts.length = compressors.length = 0;
   fetchSound.mockClear(); vi.resetModules();
   vi.stubGlobal('AudioContext', Context); vi.stubGlobal('fetch', fetchSound);
 });
-afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 it('does not load before interaction and fetches/decodes the bank only once', async () => {
   const { sfx } = await import('../../src/audio');
   sfx.tap(); expect(fetchSound).not.toHaveBeenCalled();
   sfx.unlock(); sfx.unlock(); await loaded();
-  expect(fetchSound).toHaveBeenCalledTimes(11);
+  expect(fetchSound).toHaveBeenCalledTimes(13);
   expect(contexts).toHaveLength(1);
   sfx.tap();
   expect(buffers).toHaveLength(1);
@@ -98,7 +105,7 @@ it('keeps input immediate during loading without replaying stale cues after canc
   finish({ ok: true, arrayBuffer: async () => new ArrayBuffer(1) }); await loaded();
   expect(buffers).toHaveLength(0);
   sfx.toggleMute(); sfx.tap(); expect(buffers).toHaveLength(1);
-  expect(fetchSound).toHaveBeenCalledTimes(11);
+  expect(fetchSound).toHaveBeenCalledTimes(13);
 });
 
 it('muting stops existing tails and does not fetch when starting muted', async () => {
@@ -123,10 +130,10 @@ it('contains download/decode failures, stays silent and never retries per cue', 
   fetchSound.mockRejectedValueOnce(new Error('offline'));
   const { sfx } = await import('../../src/audio');
   sfx.unlock();
-  await vi.waitFor(() => expect(fetchSound).toHaveBeenCalledTimes(11));
+  await vi.waitFor(() => expect(fetchSound).toHaveBeenCalledTimes(13));
   await new Promise(resolve => setTimeout(resolve, 0));
   sfx.tap(); expect(oscillators).toHaveLength(0); expect(buffers).toHaveLength(0);
-  sfx.unlock(); sfx.tap(); expect(fetchSound).toHaveBeenCalledTimes(11);
+  sfx.unlock(); sfx.tap(); expect(fetchSound).toHaveBeenCalledTimes(13);
   contexts[0]!.state = 'suspended'; contexts[0]!.resume.mockRejectedValueOnce(new Error('blocked'));
   sfx.unlock(); await new Promise(resolve => setTimeout(resolve, 0));
 });
@@ -165,4 +172,85 @@ it('keeps repeated cue gains clearly below rewards with their existing timing an
   expect(Math.max(...repeated)).toBeLessThan(reward * .6);
   expect(buffers.slice(2, 5).map(source => source.playbackRate.value)).toEqual([2 ** (4 / 12), 1, 2 ** (2 / 12)]);
   expect(buffers.every(source => source.start.mock.calls[0]?.[0] === 1)).toBe(true);
+});
+
+
+it('gives a seated dock, departing truck and harbour bell distinct samples with cancellable tails', async () => {
+  const { sfx } = await import('../../src/audio');
+  sfx.unlock(); await loaded();
+  sfx.landing(3); sfx.boxFilled(0); sfx.harbourBell();
+  expect(buffers).toHaveLength(4);
+  expect(new Set(buffers.map(source => source.buffer)).size).toBe(4);
+  expect(buffers.every(source => source.start.mock.calls[0]?.[0] === 1)).toBe(true);
+  sfx.toggleMute();
+  expect(buffers.every(source => source.stop.mock.calls.length === 1)).toBe(true);
+  sfx.harbourBell(); expect(buffers).toHaveLength(4);
+});
+
+it('fades one harbour loop after unlock and reuses it during rapid exit and re-entry', async () => {
+  vi.useFakeTimers();
+  const { sfx } = await import('../../src/audio');
+  sfx.harbourAmbience(true);
+  expect(contexts).toHaveLength(0);
+  expect(fetchSound).not.toHaveBeenCalled();
+  sfx.unlock();
+  sfx.harbourAmbience(true);
+  expect(buffers).toHaveLength(1);
+  const surf = buffers[0]!;
+  expect(surf.loop).toBe(true);
+  expect(surf.start).toHaveBeenCalledTimes(1);
+  expect(surf.envelope!.gain.setTargetAtTime.mock.calls[0]?.[0]).toBeGreaterThan(0);
+  sfx.cancel();
+  expect(surf.stop).not.toHaveBeenCalled();
+  sfx.harbourAmbience(false);
+  expect(surf.envelope!.gain.setTargetAtTime).toHaveBeenLastCalledWith(0, 1, expect.any(Number));
+  vi.advanceTimersByTime(200);
+  sfx.harbourAmbience(true);
+  vi.advanceTimersByTime(600);
+  expect(surf.stop).not.toHaveBeenCalled();
+  expect(buffers).toHaveLength(1);
+  sfx.harbourAmbience(false);
+  vi.advanceTimersByTime(600);
+  expect(surf.stop).toHaveBeenCalledTimes(1);
+  expect(surf.disconnect).toHaveBeenCalledTimes(1);
+  expect(vi.getTimerCount()).toBe(0);
+  expect(fetchSound).toHaveBeenCalledTimes(13);
+});
+
+it('stops harbour and scheduled gulls while muted or hidden and restores only an active harbour', async () => {
+  vi.useFakeTimers();
+  vi.spyOn(Math, 'random').mockReturnValue(0);
+  const page = Object.assign(new EventTarget(), { hidden: false });
+  vi.stubGlobal('document', page);
+  const { sfx } = await import('../../src/audio');
+  sfx.harbourAmbience(true);
+  sfx.unlock();
+  vi.advanceTimersByTime(6500);
+  expect(buffers.map(source => source.loop)).toEqual([true, false]);
+  const [surf, gull] = buffers;
+  vi.advanceTimersByTime(30000);
+  expect(buffers).toHaveLength(2);
+  gull!.onended?.();
+  expect(vi.getTimerCount()).toBe(1);
+
+  page.hidden = true;
+  page.dispatchEvent(new Event('visibilitychange'));
+  expect(surf!.stop).toHaveBeenCalledTimes(1);
+  expect(vi.getTimerCount()).toBe(0);
+  vi.advanceTimersByTime(30000);
+  expect(buffers).toHaveLength(2);
+  page.hidden = false;
+  page.dispatchEvent(new Event('visibilitychange'));
+  expect(buffers).toHaveLength(3);
+  expect(buffers[2]!.buffer).toBe(surf!.buffer);
+  vi.advanceTimersByTime(6500);
+  expect(buffers).toHaveLength(4);
+  sfx.toggleMute();
+  expect(buffers[2]!.stop).toHaveBeenCalledTimes(1);
+  expect(buffers[3]!.stop).toHaveBeenCalledTimes(1);
+  expect(vi.getTimerCount()).toBe(0);
+  sfx.harbourAmbience(false);
+  sfx.toggleMute();
+  expect(buffers).toHaveLength(4);
+  expect(vi.getTimerCount()).toBe(0);
 });

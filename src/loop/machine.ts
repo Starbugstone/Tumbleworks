@@ -61,7 +61,8 @@ interface Control {
 
 interface Saved { readonly rules: ReturnType<LoopRules['snapshot']>; readonly control: Control }
 
-export interface UnitPose { x: number; y: number; z: number; roll: number; visible: boolean }
+/** `flight` runs from 0 to 1 while a marble is thrown from the loop into its truck, and is 0 at every other time. */
+export interface UnitPose { x: number; y: number; z: number; roll: number; visible: boolean; flight: number }
 
 /** A truck's bed as whole percentages of its capacity: colours from the loop end back, then what is free. */
 export interface TruckLoad { readonly shares: readonly { readonly color: Color; readonly percent: number }[]; readonly freePercent: number }
@@ -180,6 +181,7 @@ export class LoopMachine implements Replayable {
       const pose = into[k];
       if (!pose) continue;
       pose.visible = unit.phase !== 'truck' && unit.phase !== 'landed';
+      pose.flight = 0;
       if (!pose.visible) continue;
       const across = k % ROW_WIDTH;
       const rowIndex = Math.floor(k / ROW_WIDTH);
@@ -200,11 +202,18 @@ export class LoopMachine implements Replayable {
         pose.y = mouthY + (RIDE_Y + point.y - mouthY) * t * t + sin(t * Math.PI) * 0.25;
         pose.z = mouthZ + (point.z - mouthZ) * t;
       } else {
+        // Each marble leaves from where it rode when its unit was taken, is thrown up over the tailboard and drops
+        // into the tub just inside it: quick across, then down. Drawing only; the unit lands when the rules say.
         const t = Math.max(0, Math.min((unit.time / STREAM.absorbSeconds - stagger) / (1 - stagger), 1));
-        const fromX = unit.fromX + (across - 1) * 0.26;
-        pose.x = fromX + (mouthX - fromX) * t;
-        pose.y = unit.fromY + (mouthY - unit.fromY) * t + sin(t * Math.PI) * 0.35;
-        pose.z = unit.fromZ + (mouthZ - unit.fromZ) * t;
+        const from = this.track.point(distance - LOOP.speed * unit.time, row);
+        const across01 = 1 - (1 - t) * (1 - t);
+        const landX = (this.bays[unit.lane]?.x ?? 0) + (across - 1) * 0.2;
+        const landY = DECK_TOP + TRUCK.bedHeight + 0.2;
+        const landZ = mouthZ - this.facing(unit.lane) * 0.24;
+        pose.x = from.x + (landX - from.x) * across01;
+        pose.y = RIDE_Y + from.y + (landY - RIDE_Y - from.y) * t * t + sin(t * Math.PI) * 0.5;
+        pose.z = from.z + (landZ - from.z) * across01;
+        pose.flight = t;
       }
     }
   }

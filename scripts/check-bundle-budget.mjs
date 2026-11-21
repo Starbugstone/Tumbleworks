@@ -68,9 +68,16 @@ if (audioBytes > AUDIO_BUDGET) {
 
 let total = gzipSync(page, { level: 9 }).length;
 for (const file of [...linked, ...fonts, ...workers]) total += gzipSync(readFileSync(join(directory, file)), { level: 9 }).length;
-total += audioBytes;
+// Vite emits the painted lagoon beside the bundle; the game fetches it at startup.
+const images = readdirSync(join(directory, 'assets')).filter(file => /\.(webp|avif|png|jpe?g)$/i.test(file));
+total += audioBytes + images.reduce((sum, file) => sum + readFileSync(join(directory, 'assets', file)).length, 0);
 
-const summary = `${(total / 1_000_000).toFixed(3)} MB of ${(FIRST_DOWNLOAD_BUDGET / 1_000_000).toFixed(3)} MB (${linked.length + fonts.length + workers.length + sounds.length + 1} files; audio ${audioBytes}/${AUDIO_BUDGET} bytes)`;
+const bootFiles = ['village-shell.js','village-themes.json'];
+for (const file of bootFiles) total += gzipSync(readFileSync(join(directory,file)), {level:9}).length;
+const themes = JSON.parse(readFileSync(join(directory,'village-themes.json'),'utf8'));
+total += Math.max(0,...themes.map(theme => theme.print ? readFileSync(join(directory,theme.print)).length : 0));
+
+const summary = `${(total / 1_000_000).toFixed(3)} MB of ${(FIRST_DOWNLOAD_BUDGET / 1_000_000).toFixed(3)} MB (${linked.length + fonts.length + workers.length + sounds.length + images.length + bootFiles.length + 2} files; audio ${audioBytes}/${AUDIO_BUDGET} bytes)`;
 if (total > FIRST_DOWNLOAD_BUDGET) {
   console.error(`First download over budget: ${summary}`);
   process.exit(1);

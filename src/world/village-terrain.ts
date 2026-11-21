@@ -34,6 +34,10 @@ export type TerrainFeature =
 export interface VillageTerrainSpec {
   /** Render-only exact same-row flat rectangle union; physics grid stays literal. */
   readonly mergeFlatLand?: boolean;
+  /** Inland distance over which a tidal bank rises from the waterline to its authored elevation. */
+  readonly beachWidth?: number;
+  /** Surveyed platforms for occupied footprints. The surrounding grade meets the natural bank. */
+  readonly buildingPads?: readonly { readonly outline: readonly TerrainVec2[]; readonly height: number; readonly apron: number }[];
   /** FULL-detail only: exact painted rectangles, all boundary nodes retained. */
   readonly mergePaintedFlatLand?: boolean;
   /** Render-only: unpainted slopes carry their grade per vertex (`grade`), and the material draws rock along its contour. */
@@ -137,6 +141,25 @@ export function terrainFieldHeight(spec: VillageTerrainSpec, x: number, z: numbe
       case 'hole': case 'paint': break;
     }
   }
+  let footingBlend = 1;
+  if (spec.beachWidth) {
+    let inland = distanceToPolygon(spec.outline, x, z);
+    for (const feature of spec.features) {
+      if (feature.kind === 'hole') inland = Math.min(inland, distanceToPolygon(feature.polygon, x, z));
+    }
+    if (inland < spec.beachWidth) {
+      // Keep the mesh edge under water even where a loaded terrace meets the coast.
+      const toe = spec.water - .28;
+      const edge = Math.hypot(spec.size[0] / spec.cells[0], spec.size[1] / spec.cells[1]) / 2;
+      height = toe + (height - toe) * smooth((inland - edge) / (spec.beachWidth - edge));
+      footingBlend = smooth((inland-edge)/.8);
+    }
+  }
+  for (const pad of spec.buildingPads ?? []) {
+    const d = pointInPolygon(pad.outline,x,z) ? 0 : distanceToPolygon(pad.outline,x,z);
+    if (d < pad.apron) height += (pad.height - height) * (1 - smooth(d / pad.apron)) * footingBlend;
+    if (d === 0) break;
+  }
   return height;
 }
 
@@ -173,7 +196,7 @@ export function compileTerrain(spec: VillageTerrainSpec, cells: TerrainVec2 = sp
     const x = originX + (column + 0.5) * cellWidth, z = originZ + (row + 0.5) * cellDepth;
     const kind = classify(spec, x, z); kinds.push(kind);
     if (kind === 'land') for (const feature of spec.features) if (feature.kind === 'paint' && pointInPolygon(feature.polygon, x, z)) paint[row * columns + column] = feature.color;
-    if (kind === 'water') for (let dz = 0; dz <= 1; dz++) for (let dx = 0; dx <= 1; dx++) {
+    if (kind === 'water' && !spec.beachWidth) for (let dz = 0; dz <= 1; dz++) for (let dx = 0; dx <= 1; dx++) {
       if (heights[(row + dz) * (columns + 1) + column + dx]! <= spec.water) throw new Error(`Terrain water at (${x.toFixed(1)}, ${z.toFixed(1)}) is not below its banks`);
     }
   }

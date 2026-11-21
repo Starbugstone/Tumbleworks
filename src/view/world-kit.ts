@@ -82,12 +82,12 @@ function harbourBeacon(): THREE.BufferGeometry {
   const points = mesh.getAttribute('position');
   const colors = new Float32Array(points.count * 3);
   for (let i = 0; i < points.count; i += 3) {
-    const y = (points.getY(i) + points.getY(i + 1) + points.getY(i + 2)) / 3;
+    const band = Math.floor(i / 6) % (section.length - 1);
     const pane = Math.floor(i / (6 * (section.length - 1)));
     let paint = 0xf1dbaf;
-    if (y <= .25 || (y >= 2.65 && y <= 2.88) || y >= 3.38) paint = 0x354754;
-    else if (y > 1.18 && y < 1.92) paint = 0xb94636;
-    else if (y > 2.88) paint = pane % 3 === 0 ? 0x455664 : 0xffbe60;
+    if (band <= 1 || (band >= 5 && band <= 7) || band >= 9) paint = 0x354754;
+    else if (band === 3) paint = 0xb94636;
+    else if (band === 8) paint = pane % 3 === 0 ? 0x455664 : 0xffbe60;
     const color = new THREE.Color(paint);
     for (let j = i; j < i + 3; j++) color.toArray(colors, j * 3);
   }
@@ -125,6 +125,16 @@ export class WorldKitAssets {
           }
           return asset.palette[index]!;
         }), 3));
+        if (this.harbour && source.model === 'tree-a') {
+          const position = geometry.getAttribute('position'), normal = geometry.getAttribute('normal');
+          const color = geometry.getAttribute('color'), n = new THREE.Vector3();
+          for (let i = 0; i < source.colors.length; i++) {
+            if (source.colors[i]! < 17 || source.colors[i]! > 19) continue;
+            n.set(position.getX(i), (position.getY(i) - 1.5) * .84, position.getZ(i)).normalize();
+            normal.setXYZ(i,n.x,n.y,n.z);
+            color.setXYZ(i,.065,.185,.065);
+          }
+        }
         geometry.setIndex(source.indices);
         geometry.computeBoundingSphere();
         this.geometries.set(source, geometry);

@@ -7,6 +7,7 @@ import { type WorldSceneOptions, WorldScene } from './world-scene';
  */
 export class WorldFilm {
   readonly duration: number;
+  readonly bellStrike: number | undefined;
   private begun = false;
   private readonly current: WorldScene;
   private readonly ownsCurrent: boolean;
@@ -18,6 +19,7 @@ export class WorldFilm {
     this.ownsCurrent = !current;
     if (this.ownsCurrent) this.current.activateProof();
     this.duration = this.current.machine.route.duration;
+    this.bellStrike = chapter === 0 ? this.current.machine.route.transfers.find(t => t.kind === 'strike')?.start : undefined;
     this.resize();
   }
   resize(): void { this.current.resize(); }

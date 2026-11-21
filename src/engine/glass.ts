@@ -32,3 +32,24 @@ export class Glass<T extends THREE.Material = THREE.Material> {
     return group;
   }
 }
+
+/** A pair of narrow studio-window reflections on the moulded glass. The projection
+ * responds to the angle of each pane and stays on the pane above moving cargo. */
+export function workshopGlass(material: THREE.MeshStandardMaterial): Glass<THREE.MeshStandardMaterial> {
+  const glass = new Glass(material);
+  for (const pane of [glass.front, glass.back, glass.flat]) {
+    pane.onBeforeCompile = shader => {
+      shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>', `
+        vec3 reflected = reflect(-normalize(vViewPosition), normal);
+        float windowX = reflected.x + reflected.y * .18;
+        float broad = 1.0 - smoothstep(.035, .12, abs(windowX + .40));
+        float mullion = 1.0 - smoothstep(.008, .024, abs(windowX + .22));
+        float highlight = max(broad * .68, mullion * .65);
+        float edge = pow(1.0 - abs(dot(normalize(vViewPosition), normal)), 2.0);
+        outgoingLight += vec3(.50, .69, .72) * highlight;
+        diffuseColor.a = clamp(diffuseColor.a * (.55 + .60 * edge) + .16 * highlight, 0.0, .65);
+        #include <opaque_fragment>`);
+    };
+  }
+  return glass;
+}

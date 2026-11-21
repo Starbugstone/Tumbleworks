@@ -58,6 +58,8 @@ export interface GameRuntime {
   undo(): boolean;
   step(): readonly Feedback[];
   render(alpha: number, seconds: number): void;
+  /** Ticks per display frame changed (1, or the held fast-forward speed): presentation only, so landings can calm down. */
+  pace?(speed: number): void;
   /** The level has just been won: the board's own send-off, if it has one. */
   celebrate?(clean?: number): void;
   resize(): void;

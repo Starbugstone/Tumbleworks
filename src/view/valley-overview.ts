@@ -37,6 +37,65 @@ interface Village {
   readonly material: THREE.MeshStandardMaterial;
 }
 
+/** Seat the building against the miniature's coarse mesh, including its downhill corners. */
+function seatMiniature(model: THREE.Group, ground: THREE.Mesh, material: THREE.Material): THREE.BufferGeometry | undefined {
+  model.updateMatrixWorld();
+  const toLocal = model.matrixWorld.clone().invert();
+  const point = new THREE.Vector3();
+  const bounds = new THREE.Box3().makeEmpty();
+  const bottom = new THREE.Box3().setFromObject(model).min.y;
+  model.traverse(part => {
+    if (!(part instanceof THREE.Mesh)) return;
+    const positions = part.geometry.getAttribute('position');
+    for (let i = 0; i < positions.count; i++) {
+      point.fromBufferAttribute(positions, i).applyMatrix4(part.matrixWorld);
+      if (point.y <= bottom + .18) bounds.expandByPoint(point.applyMatrix4(toLocal));
+    }
+  });
+  if (bounds.isEmpty()) return;
+
+  const ray = new THREE.Raycaster();
+  const down = new THREE.Vector3(0, -1, 0);
+  const middle = bounds.getCenter(new THREE.Vector3());
+  let high = -Infinity, low = Infinity;
+  for (const x of [bounds.min.x, middle.x, bounds.max.x]) {
+    for (const z of [bounds.min.z, middle.z, bounds.max.z]) {
+      point.set(x, 0, z).applyMatrix4(model.matrixWorld);
+      point.y = 64;
+      ray.set(point, down);
+      const y = ray.intersectObject(ground)[0]?.point.y;
+      if (y !== undefined) {
+        high = Math.max(high, y);
+        low = Math.min(low, y);
+      }
+    }
+  }
+  if (!Number.isFinite(low)) return;
+  model.position.y += high - bottom - .025;
+  model.updateMatrixWorld();
+
+  const relief = high - low;
+  if (relief < .045) return;
+  const top = bounds.min.y, foot = top - (relief + .08) / model.scale.y;
+  const ring = [
+    [bounds.min.x, bounds.min.z], [bounds.max.x, bounds.min.z],
+    [bounds.max.x, bounds.max.z], [bounds.min.x, bounds.max.z],
+  ] as const;
+  const vertices: number[] = [];
+  for (let i = 0; i < ring.length; i++) {
+    const [x, z] = ring[i]!, [u, v] = ring[(i + 1) % ring.length]!;
+    vertices.push(x, top, z, u, top, v, u, foot, v, x, top, z, u, foot, v, x, foot, z);
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+  const tint = new THREE.Color(0x988d78), colours: number[] = [];
+  for (let i = 0; i < vertices.length; i += 3) colours.push(tint.r, tint.g, tint.b);
+  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colours, 3));
+  geometry.computeVertexNormals();
+  model.add(new THREE.Mesh(geometry, material));
+  return geometry;
+}
+
 /** The whole valley uses the existing renderer and has no clock, animation or automatic draws. */
 export class ValleyOverview {
   readonly scene: THREE.Scene;
@@ -59,10 +118,14 @@ export class ValleyOverview {
       const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.88 });
       const village = new THREE.Group(), group = new THREE.Group();
       group.name = `valley-village-${chapter.index}`;
-      const ground = createVillageTerrain(source.terrain, material, 'overview'); village.add(ground);
+      const feet:THREE.BufferGeometry[]=[];
+      const ground = createVillageTerrain(source.cinematicTerrain ?? source.terrain, material, 'overview'); village.add(ground);
       for (const piece of source.overview) {
         const model = this.assets.model(piece.model, material);
         model.position.fromArray(piece.position); model.rotation.y = piece.yaw; model.scale.setScalar(piece.scale);
+        if (source.cinematicTerrain?.buildingPads && piece.model !== 'boat') {
+          const foot=seatMiniature(model,ground,material);if(foot)feet.push(foot);
+        }
         village.add(model);
       }
       // The Mill's driven wheel is procedural in the full scene, so its silhouette
@@ -83,13 +146,15 @@ export class ValleyOverview {
         const slot = source.rewards.find(slot => slot.project === project.id);
         if (!slot) throw new Error(`Village miniature reward slot is missing: ${project.id}`);
         const reward = createProjectReward(project.reward, this.assets, material);
-        reward.name = `project-${project.id}`; reward.position.fromArray(slot.position); reward.rotation.y = slot.yaw; village.add(reward);
+        reward.name = `project-${project.id}`; reward.position.fromArray(slot.position); reward.rotation.y = slot.yaw;
+        if (source.cinematicTerrain?.buildingPads) {const foot=seatMiniature(reward,ground,material);if(foot)feet.push(foot);}
+        village.add(reward);
       }
       const bounds = new THREE.Box3().setFromObject(village), center = bounds.getCenter(new THREE.Vector3());
       const scale = 6.4 / Math.max(source.terrain.size[0], source.terrain.size[1]);
       village.scale.setScalar(scale); village.position.set(-center.x * scale, -bounds.min.y * scale, -center.z * scale);
       group.add(village); bakeWorldGroup(group, material);
-      ground.geometry.dispose(); signature?.dispose();
+      ground.geometry.dispose(); signature?.dispose();for(const foot of feet)foot.dispose();
       this.scene.add(group);
       this.villages.push({ chapter: chapter.index, anchor: new THREE.Vector3(), label: new THREE.Vector3(),
         group, hitbox: new THREE.Box3(), material });

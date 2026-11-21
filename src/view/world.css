@@ -101,3 +101,8 @@ body[data-screen='map'] .wv-heading p { font-size: 12px; }
 .wv-view-controls { position: absolute; right: 13px; top: 103px; }
 #world .wv-reset-view { width: 44px; height: 44px; border-radius: 50%; font-size: 27px; background: #173947d9; color: #fff1cf; border: 1px solid #9fb9a7; box-shadow: 0 2px 7px #123d4866; }
 body:not([data-screen='map']) .wv-view-controls { display: none; }
+
+/* The film leaves one sound control in thumb reach, away from the camera subject. */
+body[data-screen='film'] #top { display: flex; inset: auto max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) auto; }
+body[data-screen='film'] #top > :not(#mute) { display:none; }
+body[data-screen='film'] #mute { width:44px; height:44px; }

@@ -24,7 +24,7 @@ it('keeps repeated contacts warm and the replacement gestures short', () => {
   const release = measurements.find(entry => entry.cue === 'release')!.decoded;
   expect(release.durationSeconds).toBeGreaterThanOrEqual(.2);
   expect(release.durationSeconds).toBeLessThanOrEqual(.3);
-  for (const cue of ['complete', 'win']) {
+  for (const cue of ['complete', 'truck-complete', 'win', 'harbour-bell']) {
     expect(measurements.find(entry => entry.cue === cue)!.decoded.spectralCentroidHz, cue).toBeLessThan(1500);
   }
   for (const cue of ['landing-final', 'undo', 'blocked', 'release']) {
@@ -33,7 +33,7 @@ it('keeps repeated contacts warm and the replacement gestures short', () => {
 });
 
 it('ships the measured CC0 bank with pinned recordings, generator and encoded bytes', () => {
-  expect(manifest).toHaveLength(11);
+  expect(manifest).toHaveLength(13);
   expect(manifest.reduce((sum, cue) => sum + cue.encodedBytes, 0)).toBeLessThanOrEqual(150_000);
   for (const cue of manifest) {
     expect(cue.licence).toBe('CC0-1.0');
@@ -77,5 +77,17 @@ it('keeps the actual PCM endpoints rounded and the bank levels within their meas
     expect(wav.readInt16LE(offset + (length - 1) * 2), cue.cue).toBe(0);
     expect(peak, cue.cue).toBeLessThan(.64);
     expect(20 * Math.log10(Math.sqrt(energy / length)), cue.cue).toBeGreaterThan(-27);
+  }
+});
+
+
+it('ships the workshop latch and ship bell as separate low-register rewards', () => {
+  const cue = (name: string) => manifest.find(entry => entry.cue === name)!;
+  const rewards = ['landing-final', 'complete', 'truck-complete', 'win', 'harbour-bell'];
+  expect(new Set(rewards.map(name => cue(name).encodedSha256)).size).toBe(rewards.length);
+  for (const name of rewards) {
+    const metrics = measurements.find(entry => entry.cue === name)!.decoded;
+    expect(metrics.phoneBodyEnergy, name).toBeGreaterThan(.15);
+    expect(metrics.spectralCentroidHz, name).toBeLessThan(1500);
   }
 });

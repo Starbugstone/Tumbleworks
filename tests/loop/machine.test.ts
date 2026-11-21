@@ -151,7 +151,7 @@ describe('the Loop Sort machine agrees with the rules', () => {
     const full = CONGESTED_LOOP;
     expect(full.loop.reduce((sum, entry) => sum + entry.count, 0)).toBe(full.loopCapacity);
     const machine = new LoopMachine(full);
-    const poses: UnitPose[] = Array.from({ length: machine.marblesPerUnit }, () => ({ x: 0, y: 0, z: 0, roll: 0, visible: false }));
+    const poses: UnitPose[] = Array.from({ length: machine.marblesPerUnit }, () => ({ x: 0, y: 0, z: 0, roll: 0, visible: false, flight: 0 }));
     const centres = machine.rules.state.marbles.filter((marble) => marble.status === 'on-loop').map((marble) => {
       machine.readUnit(marble.id, poses);
       const middle = poses[Math.floor(machine.marblesPerUnit / 2)]!;

@@ -1,6 +1,7 @@
 import{certifyRockerScene}from'./gravity-rocker-native';
 import{bindNativeTerrain}from'./village-terrain';
 import * as THREE from 'three';
+import { HarbourLaunch } from './harbour-life';
 import type { Stage } from '../engine/stage';
 import { boxCorners } from '../engine/framing';
 import type { MarbleEntity } from '../engine/marbles';
@@ -86,6 +87,9 @@ export class WorldScene {
   cameraMode: 'map' | 'film' = 'film';
   private mapOrbit?: VillageOrbit;
   private sea?: THREE.Mesh;
+  private launch?: HarbourLaunch;
+  private harbourSeconds = 0;
+  get hasVillageLife(): boolean { return this.launch !== undefined; }
   readonly coastalDressing={beachCount:0,palmCount:0};
   private readonly coastalProtected: THREE.Box3[] = [];
   get orbit(): VillageOrbit { if (!this.mapOrbit) throw new Error('Village is still building'); return this.mapOrbit; }
@@ -113,7 +117,8 @@ export class WorldScene {
   /** The former constructor body, unchanged in order: one bounded step per yield. */
   private *complete(options: WorldSceneOptions): Generator<unknown, void, void> {
     const chapter = this.chapter;
-    const terrain = compileTerrain(this.scenePlan.terrain);
+    if (chapter === 0 && options.motion === 'cinematic') this.scene.background = new THREE.Color(0x8ab3c5);
+    const terrain = compileTerrain((options.motion === 'cinematic' && this.scenePlan.cinematicTerrain) || this.scenePlan.terrain);
     yield 'terrain';
     const landscape = new THREE.Group(); landscape.name = `village-landscape-${chapter}`;
     // The land as drawn: dressing beside it (river banks) continues these colours.
@@ -125,6 +130,13 @@ export class WorldScene {
     for (const piece of this.scenePlan.scenery) {
       const model = this.model(piece.model);
       model.position.fromArray(piece.position); model.rotation.y = piece.yaw; model.scale.setScalar(piece.scale);
+      if (terrain.spec.beachWidth && piece.model === 'boat' && piece.position[0] < 1) {
+        bakeWorldGroup(model, this.material);
+        model.traverse(part => { part.castShadow = false; });
+        this.launch = new HarbourLaunch(model);
+        this.scene.add(model);
+        continue;
+      }
       triangleBounds(model,SCENERY_CLEARANCE,this.coastalProtected);
       landscape.add(model);
       yield 'scenery';
@@ -139,7 +151,7 @@ export class WorldScene {
     ground.geometry.dispose(); this.detachedGround = undefined;
     this.scene.add(landscape, this.workshopBuilding.sign);this.detachedBaked=undefined;
     // One water surface continues through every inlet; the terrain omits its old water sheets.
-    this.sea = villageSea(terrain.spec.water, terrain.spec.palette.water, terrain); this.scene.add(this.sea);
+    this.sea = villageSea(terrain.spec.water, terrain.spec.palette.water, terrain, this.launch?.wake); this.scene.add(this.sea);
     bakedLand.geometry.computeBoundingBox();
     this.stage.fitShadows?.(this.scene, boxCorners(bakedLand.geometry.boundingBox!.clone().applyMatrix4(bakedLand.matrixWorld)), 1);
     yield 'land-merge';
@@ -162,7 +174,7 @@ export class WorldScene {
     // Construction lays a slab under each station; the shore keeps clear of it too.
     for (const station of this.plan.stations) { const { x, z, height } = foundationSite(station, terrain); this.coastalProtected.push(new THREE.Box3(new THREE.Vector3(x - FOUNDATION[0] / 2, height, z - FOUNDATION[2] / 2), new THREE.Vector3(x + FOUNDATION[0] / 2, height + FOUNDATION[1], z + FOUNDATION[2] / 2)).expandByVector(SCENERY_CLEARANCE)); }
     for(let seconds=0;seconds<=this.machine.route.duration;seconds+=.15){const p=new THREE.Vector3();this.machine.sample(seconds,p);this.coastalProtected.push(new THREE.Box3(p.clone().addScalar(-.8),p.clone().addScalar(.8)));}
-    const coast=tropicalCoast(terrain,this.coastalProtected),banks=riverBanks(drawn,this.coastalProtected);
+    const coast=tropicalCoast(terrain,this.coastalProtected),banks=terrain.spec.beachWidth ? null : riverBanks(drawn,this.coastalProtected);
     const shore=banks?mergeGeometries([coast,banks]):coast;if(banks){coast.dispose();banks.dispose();}
     if(!shore)throw new Error('Shore dressing could not be merged');
     const beach = new THREE.Mesh(shore,this.material); beach.name='village-beach'; beach.receiveShadow=true;
@@ -250,7 +262,12 @@ export class WorldScene {
     this.scene.userData['focus']={near:0,far:160,falloff:30};
   }
   resetView(): void { this.orbit.reset();this.inspect(); }
-  stepSea(seconds:number,reduced:boolean):void{if(this.sea&&!reduced)advanceVillageSea(this.sea,seconds);}
+  stepSea(seconds: number, reduced: boolean): void {
+    if (!this.sea || reduced) return;
+    advanceVillageSea(this.sea, seconds);
+    this.harbourSeconds += seconds;
+    this.launch?.pose(this.harbourSeconds);
+  }
   setYaw(radians: number): void {
     this.camera.clearViewOffset();this.cameraMode='film';
     this.angle = THREE.MathUtils.clamp(radians, -MAX_YAW, MAX_YAW);

@@ -285,10 +285,10 @@ export function tropicalCoast(t: VillageTerrain, protectedBounds: readonly THREE
   const edges = coastalEdges(t), grass = new THREE.Color(0x60a95c), sand = new THREE.Color(0xf6dfac), wet = new THREE.Color(0xc6bd8a);
   return shoreSurface(t, protectedBounds, {
     host: 'void',
-    accepts: (_x, _z, sample) => sample.distance <= 3.5,
+    accepts: (_x, _z, sample) => sample.distance <= (t.spec.beachWidth ? .75 : 3.5),
     // Inlet mouths stay open water.
     sinks: (x, z) => t.spec.features.some(f => f.kind === 'hole' && distanceToPolygon(f.polygon,x,z) < 1.1),
-    coarse: sample => sample.distance >= .8,
+    coarse: sample => sample.distance >= (t.spec.beachWidth ? .45 : .8),
     sample: (x, z) => coastSample(edges, t.spec.water, x, z, t.spec.outline),
     paint(p, sample, floor, color) {
       const d=sample.shore,y0=sample.height;

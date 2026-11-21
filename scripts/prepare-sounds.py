@@ -17,6 +17,13 @@ spec = importlib.util.spec_from_file_location('toy_sounds', ROOT / 'scripts/gene
 synth = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(synth)
 
+RECORDING_CREDITS = {
+    'wood': ('Kenney', 'https://kenney.nl/assets/impact-sounds'),
+    'soft': ('Kenney', 'https://kenney.nl/assets/impact-sounds'),
+    'earshot-glass': ('CJspellsfish / Earshot', 'https://freesound.org/people/CJspellsfish/sounds/668383'),
+    'earshot-wood': ('Earshot', 'https://github.com/Leonxlnx/earshot/blob/7a7f7c5c70d4a763a1eca4b3666af7c77e313f97/README.md#licence'),
+}
+
 
 def sha(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -39,17 +46,18 @@ def main():
     if args.update_manifest:
         items = []
         for cue, recipe in synth.RECIPES.items():
-            recorded = ('wood' if cue in ('tap', 'release', 'impact-wood') else
-                        'glass' if cue == 'impact-glass' else 'soft' if cue == 'blocked' else None)
-            items.append({'cue': cue, 'source': f'generated/{cue}.wav', 'creator': 'Tumbleworks' + (' / Kenney' if recorded else ''),
-                          'page': 'https://kenney.nl/assets/impact-sounds' if recorded else None,
+            recordings = []
+            for kind in synth.RECIPE_RECORDINGS[cue]:
+                creator, page = RECORDING_CREDITS[kind]
+                source = synth.RECORDINGS[kind]
+                recordings.append({'source': source, 'sourceSha256': provenance['recordings'][source],
+                                   'creator': creator, 'page': page, 'licence': 'CC0-1.0'})
+            creators = dict.fromkeys(recording['creator'] for recording in recordings)
+            items.append({'cue': cue, 'source': f'generated/{cue}.wav', 'creator': ' / '.join(('Tumbleworks', *creators)),
+                          'page': recordings[0]['page'] if recordings else None,
                           'licence': 'CC0-1.0', 'recipe': recipe, 'generator': provenance['generator'],
                           'generatorSha256': provenance['generatorSha256'],
-                          'recordings': [{'source': synth.RECORDINGS[kind],
-                                          'sourceSha256': provenance['recordings'][synth.RECORDINGS[kind]],
-                                          'creator': 'Kenney', 'page': 'https://kenney.nl/assets/impact-sounds',
-                                          'licence': 'CC0-1.0'} for kind in
-                                         (('soft', 'wood') if cue == 'blocked' else (recorded,) if recorded else ())],
+                          'recordings': recordings,
                           'sourceSha256': sha(ROOT / 'assets/audio' / f'generated/{cue}.wav'),
                           'stereo': False, 'bitrate': 160000, 'encodedSha256': '', 'encodedBytes': 0})
     else:

@@ -117,7 +117,12 @@ export function lorry(target: Color, dimensions: Dimensions, materials: LorryMat
   box(w, 0.5, cab, 0, 0.44, cabZ, paint);
   box(w * 0.86, roof - 0.62, cab * 0.74, 0, (roof + 0.62) / 2, cabZ + 0.06, paint);
   box(w * 0.74, roof - 0.74, 0.05, 0, (roof + 0.68) / 2 - 0.01, cabZ + 0.06 - cab * 0.37, windowMaterial);
+  // A projecting brow and a split windscreen give the cab its silhouette in the overhead view.
+  const windshieldZ = cabZ + 0.06 - cab * 0.37;
+  box(w * 0.93, 0.10, cab * 0.28, 0, roof - 0.024, windshieldZ, paint);
+  box(0.045, roof - 0.78, 0.038, 0, 0.84, windshieldZ - 0.038, ivory);
   for (const side of [-1, 1]) {
+    box(w * 0.19, 0.16, cab * 0.83, side * w * 0.44, 0.59, cabZ - cab * 0.08, paint);
     box(0.04, roof - 0.78, cab * 0.42, side * w * 0.43, (roof + 0.7) / 2, cabZ + 0.03, windowMaterial);
     box(0.12, 0.08, 0.12, side * w * 0.54, 0.66, cabZ - cab * 0.25, chrome);
     box(0.17, 0.11, 0.04, side * w * 0.31, 0.42, cabZ - cab / 2 - 0.02, lights);
