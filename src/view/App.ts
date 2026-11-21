@@ -1,3 +1,4 @@
+import { demoEntry } from '../demo';
 import { sfx } from '../audio';
 import { confetti } from './confetti';
 import { CAMPAIGN, TRY_LEVEL } from '../campaign';
@@ -88,7 +89,9 @@ export class App {
   private worldProgress(): WorldProgress {
     // Only the explicitly appended development trial is outside the registered triples.
     const extraTrial = TRY_LEVEL !== null && CAMPAIGN.length % 3 === 1 && CAMPAIGN.at(-1)?.id === TRY_LEVEL;
-    return worldProgress(extraTrial ? CAMPAIGN.slice(0, -1) : CAMPAIGN, new Set(completedLevels()));
+    const completed = new Set(completedLevels());
+    if (demoEntry === 'harbour') for (const level of CAMPAIGN.slice(0, CHAPTER_LEVELS)) completed.add(level.id);
+    return worldProgress(extraTrial ? CAMPAIGN.slice(0, -1) : CAMPAIGN, completed);
   }
 
   constructor(canvas: HTMLCanvasElement, private readonly workshopLevels: readonly GameLevel[] = []) {
@@ -134,7 +137,8 @@ export class App {
     });
     button('map-open').addEventListener('click', () => {
       sfx.unlock();
-      if (this.source === 'workshop' && this.screen === 'game') this.showWorkshop();
+      if (demoEntry) location.assign('./demo.html');
+      else if (this.source === 'workshop' && this.screen === 'game') this.showWorkshop();
       else this.showMap(this.menuStop()?.chapter, false, true);
     });
     button('menu-close').addEventListener('click', () => this.showLevels(false));
@@ -147,6 +151,7 @@ export class App {
     button('card-action').addEventListener('click', () => {
       sfx.unlock();
       if (this.runtime.status === 'won') {
+        if (demoEntry) { location.assign('./demo.html'); return; }
         if (this.source === 'workshop') this.showWorkshop();
         else {
           const next = this.nextRoundLevel();
@@ -253,14 +258,19 @@ export class App {
     await physics.init();
     const app = new App(canvas, workshopLevels);
     const saved = currentLevel();
-    const tried = CAMPAIGN.findIndex((level) => level.id === TRY_LEVEL);
+    const tried = CAMPAIGN.findIndex((level) => level.id === (demoEntry ?? TRY_LEVEL));
     const selected = CAMPAIGN.findIndex((level) => level.id === saved && !isCompleted(level.id));
     const open = CAMPAIGN.findIndex((level) => !isCompleted(level.id));
     const workshopId = new URLSearchParams(location.search).get('workshop');
     const workshop = workshopLevels.findIndex(level => level.id === workshopId);
     initializeValley(app.worldProgress().chapters);
     app.loadBoard(tried >= 0 ? tried : selected >= 0 ? selected : Math.max(0, open));
-    if (workshop >= 0) {
+    if (demoEntry) document.body.classList.add('demo');
+    if (demoEntry === 'levels') app.showLevels(true);
+    else if (demoEntry === 'harbour') {
+      app.showMap(0);
+      app.world.playFilm(0);
+    } else if (workshop >= 0) {
       if (canEnterProject(workshopId!, app.worldProgress(), new Set(completedLevels()))) app.loadBoard(workshop, 'workshop');
       else app.showWorkshop(workshopId!);
     }
@@ -522,7 +532,7 @@ export class App {
       this.runtime.celebrate?.(this.helped ? 0.65 : 1);
       this.winTimer = window.setTimeout(() => {
         if (this.screen !== 'game' || this.runtime.status !== 'won') return;
-        if (this.source === 'campaign' && this.nextRoundLevel() === null) {
+        if (!demoEntry && this.source === 'campaign' && this.nextRoundLevel() === null) {
           this.showMap(Math.floor(this.boardIndex / CHAPTER_LEVELS), true, true);
         } else this.endingCard();
       }, 400);
@@ -651,6 +661,10 @@ export class App {
   }
 
   private endingCard(): void {
+    if (demoEntry && this.runtime.status === 'won') {
+      this.showCard(t('Nicely sorted!', 'Bien trié !'), this.levels[this.boardIndex]!.title, t('Back to demos', 'Retour aux démos'), 'win');
+      return;
+    }
     if (this.source === 'workshop' && this.runtime.status === 'won') {
       const project = workshopProject(this.levels[this.boardIndex]!.id);
       this.showCard(project?.title ?? t('Nicely sorted!', 'Bien trié !'), t('Your village addition is ready.', 'Votre nouvelle construction est prête.'), t('Back to workshop', 'Retour à l’atelier'), 'win');
@@ -689,7 +703,7 @@ export class App {
     if (open) {
       this.pointer.cancel();
       this.setFast(false);
-      this.renderChips();
+      this.renderChips(true);
       this.showMenuSettings(false, false);
     }
     element('levels').hidden = !open;
@@ -703,7 +717,7 @@ export class App {
   private showMenuSettings(settings: boolean, focus = true): void {
     element('menu-main').hidden = settings;
     element('menu-secondary').hidden = !settings;
-    button('map-open').hidden = settings || this.screen === 'map';
+    button('map-open').hidden = settings || (!demoEntry && this.screen === 'map');
     button('menu-settings').hidden = settings;
     button('menu-back').hidden = !settings;
     element('menu-heading').hidden = !settings;
@@ -721,7 +735,15 @@ export class App {
   }
 
   /** The village owns the campaign; this menu only selects among one stop's three puzzles. */
-  private renderChips(): void {
+  private renderChips(opening = false): void {
+    if (demoEntry && this.source === 'campaign') {
+      if (opening || !element('levels').hidden) {
+        element('map-label').textContent = t('Back to demos', 'Retour aux démos');
+        element('menu-round').textContent = t('All levels', 'Tous les niveaux');
+        this.chips.replaceChildren(...CAMPAIGN.map((_, index) => this.chip(index)));
+      }
+      return;
+    }
     const stop = this.menuStop();
     const project = this.source === 'workshop' && this.screen === 'game';
     element('map-label').textContent = project ? t('Back to workshop', 'Retour à l’atelier') : t('Back to village', 'Retour au village');

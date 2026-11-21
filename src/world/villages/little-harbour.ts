@@ -45,7 +45,7 @@ const terrain: VillageTerrainSpec = {
 };
 const { at } = groundOf(terrain);
 const beats = schedule(1.0, [[1.4, 0.4], [1.0, 2.2], [1.4, 0.4], [1.0, 0.3], [1.2, 0.3], [0.8, 0.3], [2.0, 2.5], [1.2, 0.3], [1.0, 0.3], [1.2, 0]]);
-const plank = 0xd6b27a;
+const plank = 0xb88553;
 const FLOOR = 0.3 + 0.1;
 /** Fixed deck grade shared by the three held carriers (the first-three declaration). */
 const DECK_PITCH = -.18;
@@ -463,7 +463,7 @@ const connectors = [
   connect(boom, chute, 0.15, 0.15, [0, 0], { supports: [[8.4, BELL_Y - 0.4, BERTH_Z]], terrainFeet: [0], steps: 16 }),
 ];
 const scenery = [
-  piece('warehouse', [-4.5, at(-4.5, -9.5), -9.5], 0, 1.0), piece('warehouse', [1.5, at(1.5, -10.0), -10.0], 0.1, 1.0),
+  piece('warehouse', [-4.5, at(-4.5, -9.5), -9.5], 0, 1.0), piece('harbour-beacon', [1.5, at(1.5, -10.0), -10.0], 0.1, 1.0),
   piece('warehouse', [6.8, at(6.8, -9.0), -9.0], -0.1, 0.95),
   piece('house-b', [-8.6, at(-8.6, -6.0), -6.0], 0.2, 1.0), piece('house-a', [-8.0, at(-8.0, 12.5), 12.5], -0.2, 1.1),
   // Moored at z 10 (Harbour94). Its packed hull did not cross the chute at the old z 10.9
@@ -486,5 +486,5 @@ export const LITTLE_HARBOUR: VillageScenePlan = {
     { project: 'board-210', position: [-3.6, at(-3.6, -5.6), -5.6], yaw: 0 },
     { project: 'board-212', position: [-7.2, at(-7.2, -2.0), -2.0], yaw: 0 },
   ],
-  overview: [piece('warehouse', [-4, at(-4, -9.5), -9.5], 0, 1.3), piece('boat', [-0.3, -0.25, 9], -0.3, 1.5), piece('house-a', [-7.5, at(-7.5, 5), 5], 0.3, 1.2)],
+  overview: [piece('harbour-beacon', [-4, at(-4, -9.5), -9.5], 0, 1.3), piece('boat', [-0.3, -0.25, 9], -0.3, 1.5), piece('house-a', [-7.5, at(-7.5, 5), 5], 0.3, 1.2)],
 };

@@ -65,17 +65,17 @@
       @media (max-width: 420px) { #top { gap: 5px; left: 8px; right: 8px; } .pill { font-size: 12px; padding: 0 9px; gap: 4px; } }
       @media (prefers-reduced-motion: reduce) { #confetti { display: none; } #focus-ring, #undo.attention { animation: none; } }
       /* The controls sit on the same dark enamel and amber buttons as the arcade machines. */
-      #top .pill, #hud #mute { background: #1b1a52; color: #f4f2ff; border: 1px solid #6258dc; box-shadow: 0 3px 0 #0c0b2e, 0 5px 14px #0005; }
-      #load { color: #81ffe2 !important; letter-spacing: .02em; }
+      #top .pill, #hud #mute { background: #293343; color: #f4f2ff; border: 1px solid #ae8a62; box-shadow: 0 3px 0 #18232e, 0 5px 14px #0005; }
+      #load { color: #f0d3a1 !important; letter-spacing: .02em; }
       #load.full { color: #ffd98a !important; border-color: #b58a3c; }
       #load.jammed { color: #ffe1a3 !important; border-color: #ff9c54; }
-      #instruction { background: #1b1a52f2; color: #ecebff; border: 1px solid #4a44b0; border-radius: 12px; }
-      .action { background: #ffce65; box-shadow: 0 4px 0 #a56b29, 0 7px 12px #0006; }
-      .action:active { box-shadow: 0 1px 0 #a56b29, 0 4px 8px #0006; }
-      #hint { background: #80ead8; box-shadow: 0 4px 0 #267c79, 0 7px 12px #0006; }
-      .fast { background: #d9e3ff; color: var(--ink); box-shadow: 0 4px 0 #5e6fb0, 0 7px 12px #0006; touch-action: none; font-size: 20px; font-weight: 700; }
-      #faster { background: #b9c8ff; }
-      .fast.active, .fast:active { transform: translateY(3px); box-shadow: 0 1px 0 #5e6fb0, 0 4px 8px #0006; background: #fff; }
+      #instruction { background: #293343f2; color: #ecebff; border: 1px solid #887b6b; border-radius: 12px; }
+      .action { background: #f6e8c9; box-shadow: 0 4px 0 #92734f, 0 7px 12px #0006; }
+      .action:active { box-shadow: 0 1px 0 #92734f, 0 4px 8px #0006; }
+      #hint { background: #a2c9be; box-shadow: 0 4px 0 #267c79, 0 7px 12px #0006; }
+      .fast { background: #ecddc2; color: var(--ink); box-shadow: 0 4px 0 #847356, 0 7px 12px #0006; touch-action: none; font-size: 20px; font-weight: 700; }
+      #faster { background: #ecddc2; }
+      .fast.active, .fast:active { transform: translateY(3px); box-shadow: 0 1px 0 #847356, 0 4px 8px #0006; background: #fff; }
       .fast:disabled { opacity: 0.45; }
       /* Candy finish: a soft sheen on every round button, and a card that sits up off the board. */
       .action, #top .pill, #hud #mute { background-image: linear-gradient(rgb(255 255 255 / 0.4), rgb(255 255 255 / 0) 58%); }
@@ -84,10 +84,10 @@
       #card-action { border-radius: 18px; box-shadow: 0 5px 0 #15143f; }
       #card[data-kind='win'] #card-action { background: linear-gradient(#ff8a52, #f2542a); box-shadow: 0 5px 0 #a83c1b; }
       #card[data-kind='win'] #card-title { color: #f2542a; }
-      #guide { padding: 2px 10px; background: #1b1a52d9; border-radius: 12px; text-align: center; }
+      #guide { padding: 2px 10px; background: #293343d9; border-radius: 12px; text-align: center; }
       #guide-text { margin: 0 0 5px; }
       #hud #guide-skip { color: #c5c1ff; background: none; font-size: 12px; text-decoration: underline; padding: 5px 10px; }
-      #guide-pointer { position: fixed; width: 62px; height: 62px; border: 3px solid #ffce65; border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 0 3px #10283e; pointer-events: none; }
+      #guide-pointer { position: fixed; width: 62px; height: 62px; border: 3px solid #f6e8c9; border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 0 3px #10283e; pointer-events: none; }
       #guide-pointer svg { position: absolute; width: 42px; height: 48px; left: 35px; top: 34px; filter: drop-shadow(0 2px 2px #0009); transform-origin: 15px 7px; animation: guide-tap 1.6s ease-in-out infinite; }
       @keyframes guide-tap { 0%, 65%, 100% { transform: translate(3px, 7px) rotate(-18deg); } 30%, 40% { transform: translate(-3px, -4px) rotate(-26deg) scale(.94); } }
       @media (prefers-reduced-motion: reduce) { #guide-pointer svg { animation: none; } }

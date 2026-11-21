@@ -41,3 +41,5 @@
 #hud #guide-replay, #hud #copy-replay { display: block; width: 100%; min-height: 44px; padding: 8px 0; text-align: left; background: none; border-top: 1px solid #dfd1bc; font-size: 13px; }
 @keyframes menu-reveal { from { opacity: 0; transform: translateY(-5px); } }
 @media (prefers-reduced-motion: reduce) { #hud #levels { animation: none; } }
+
+.demo #chips { max-height: calc(100dvh - 235px); overflow-y: auto; overscroll-behavior: contain; padding: 0 2px 5px; }

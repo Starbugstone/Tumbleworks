@@ -8,8 +8,8 @@ import { type Bay, bays, DECK_TOP, LIFT_OFF, LOOP, RIDE_Y, ROW_PITCH, ROW_WIDTH,
 export type LoopMachineEvent =
   | { readonly type: 'pour'; readonly lane: number; readonly color: Color }
   | { readonly type: 'enter'; readonly unit: number }
-  | { readonly type: 'absorb'; readonly unit: number; readonly lane: number; readonly fill: number }
-  | { readonly type: 'complete'; readonly lane: number; readonly color: Color }
+  | { readonly type: 'absorb'; readonly unit: number; readonly truck: number; readonly lane: number; readonly fill: number }
+  | { readonly type: 'complete'; readonly truck: number; readonly lane: number; readonly color: Color }
   | { readonly type: 'gone'; readonly lane: number; readonly truck: number }
   | { readonly type: 'won' }
   | { readonly type: 'jammed' };
@@ -27,6 +27,7 @@ interface UnitControl {
   fromX: number;
   fromY: number;
   fromZ: number;
+  reservedFill?: number;
   /** Per-marble wobble, so three abreast never look like a grid. */
   readonly jitter: readonly number[];
   lane: number;
@@ -299,6 +300,8 @@ export class LoopMachine implements Replayable {
       if (unit.time >= STREAM.absorbSeconds) {
         unit.phase = 'landed';
         this.rules.captured(unit.id);
+        this.events.push({ type: 'absorb', unit: unit.id, lane: unit.lane, truck: this.rules.state.marbles[unit.id]!.truck!, fill: unit.reservedFill! });
+        delete unit.reservedFill;
       }
       return;
     }
@@ -315,7 +318,7 @@ export class LoopMachine implements Replayable {
       unit.time = 0;
       unit.lane = lane;
       unit.fromX = point.x; unit.fromY = RIDE_Y + point.y; unit.fromZ = point.z;
-      this.events.push({ type: 'absorb', unit: unit.id, lane, fill: result.fill });
+      unit.reservedFill = result.fill;
       for (const event of result.events) this.afterRulesEvent(event);
       return;
     }
@@ -325,7 +328,6 @@ export class LoopMachine implements Replayable {
     if (event.type !== 'complete') return;
     const truck = this.control.trucks.find((candidate) => candidate.lane === event.lane && candidate.index === event.truck);
     if (truck) truck.complete = true;
-    this.events.push({ type: 'complete', lane: event.lane, color: event.color });
   }
 
   /** Bed centre for a lane's docked truck; a leaving truck lifts away over the belt; a new one rises into place. */
@@ -342,7 +344,11 @@ export class LoopMachine implements Replayable {
       const docked = this.control.trucks.find((truck) => truck.lane === lane && truck.phase === 'docked');
       if (docked?.complete) {
         const landing = this.control.units.some((unit) => unit.phase === 'flying' && unit.lane === lane);
-        if (!landing) this.startMotion(docked, 'leaving', TRUCK.leaveSeconds);
+        if (!landing) {
+          const color = this.board.lanes[lane]![docked.index]!.segments.at(-1)!.color;
+          this.events.push({ type: 'complete', lane, truck: docked.index, color });
+          this.startMotion(docked, 'leaving', TRUCK.leaveSeconds);
+        }
       }
       if (!this.control.trucks.some((truck) => truck.lane === lane && (truck.phase === 'docked' || truck.phase === 'arriving'))) {
         const next = this.control.trucks.find((truck) => truck.lane === lane && truck.phase === 'queued');

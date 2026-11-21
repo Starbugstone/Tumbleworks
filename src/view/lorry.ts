@@ -95,9 +95,11 @@ export function lorry(target: Color, dimensions: Dimensions, materials: LorryMat
   const bed = new THREE.BoxGeometry(w - 0.04, h * 0.55, length, 8, 1, 1).toNonIndexed();
   const bedAt = bed.getAttribute('position');
   const shade = new Float32Array(bedAt.count * 3);
+  const enamel = new THREE.Color(0x4a5967);
   for (let i = 0; i < bedAt.count; i++) {
     const fromWall = Math.max(0, (w / 2 - TUB.inset - Math.abs(bedAt.getX(i))) / 0.14);
-    shade.fill(bedAt.getY(i) > 0 ? 0.8 + 0.2 * Math.min(1, fromWall) : 0.7, i * 3, i * 3 + 3);
+    const light = bedAt.getY(i) > 0 ? 0.8 + 0.2 * Math.min(1, fromWall) : 0.7;
+    shade.set([enamel.r * light, enamel.g * light, enamel.b * light], i * 3);
   }
   bed.setAttribute('color', new THREE.BufferAttribute(shade, 3));
   const floor = new THREE.Mesh(bed, ivory);

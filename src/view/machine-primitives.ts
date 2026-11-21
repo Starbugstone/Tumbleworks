@@ -280,6 +280,7 @@ export function villageChannelGeometry(points: readonly VillagePort[], style: Vi
   }
   const geometry = new THREE.BufferGeometry(); geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geometry.setIndex(indices);
+  if (style === 'plank') geometry.userData.plankRingVertices = points.length * profile.length;
   if (lip) {
     try { trimChannelLip(geometry, points, points.map(p => originalPoints.indexOf(p)), originalPoints.length, lip, refineFloor); }
     catch (error) { geometry.dispose(); throw error; }

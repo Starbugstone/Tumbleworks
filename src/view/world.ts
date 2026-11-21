@@ -1,3 +1,4 @@
+import { demoEntry } from '../demo';
 import * as THREE from 'three';
 import { separateMapPins } from './map-pins';
 import { confetti } from './confetti';
@@ -158,7 +159,12 @@ export class WorldView {
       }
     }
     nav.append(previous, makeButton(t('The valley', 'La vallée'), () => this.overview(), 'wv-soft'), atelier, next);
-    this.footer.replaceChildren(primary, nav);
+    if (demoEntry === 'harbour') {
+      const back = makeButton(t('Back to demos', 'Retour aux démos'), () => window.location.assign('./demo.html'), 'wv-soft');
+      const replay = makeButton(t('Replay film', 'Revoir le film'), () => this.playFilm(this.chapter), 'wv-film-button');
+      primary.replaceChildren(back, replay);
+      this.footer.replaceChildren(primary);
+    } else this.footer.replaceChildren(primary, nav);
     this.nodes.hidden = this.workshopMarker.hidden = !this.scene;
     this.resetView.hidden=!this.scene?.orbit.changed;this.positions(); this.dirty = true;
     if (this.scene) this.scene.draw(); else this.drawBlank();

@@ -53,7 +53,7 @@ function grade(terrain: VillageTerrain, column: number, row: number): number {
  * line follows the slope's contour across the triangles instead of stepping cell by cell; geometry,
  * triangle count and the land's ownership are untouched. Meshes without a `grade` attribute read 0.
  */
-export function rockContour(material: THREE.Material, rock: THREE.Color): void {
+export function rockContour(material: THREE.Material, rock: THREE.Color, harbourGrass?: THREE.Color): void {
   const uniform = { value: rock.clone() };
   material.onBeforeCompile = shader => {
     shader.uniforms['uRock'] = uniform;
@@ -64,7 +64,28 @@ export function rockContour(material: THREE.Material, rock: THREE.Color): void {
       float rockEdge = max(fwidth(vGrade), 1e-4);
       diffuseColor.rgb = mix(diffuseColor.rgb, uRock, smoothstep(${ROCK_GRADE.toFixed(4)} - rockEdge, ${ROCK_GRADE.toFixed(4)} + rockEdge, vGrade));`);
   };
-  material.customProgramCacheKey = () => 'rock-contour';
+  if (harbourGrass) {
+    const contour = material.onBeforeCompile;
+    material.onBeforeCompile = (shader, renderer) => {
+      contour.call(material, shader, renderer);
+      shader.uniforms.uHarbourGrass = { value: harbourGrass };
+      shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vQuay;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvQuay = (modelMatrix * vec4(position, 1.0)).xz;');
+      shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uHarbourGrass; varying vec2 vQuay;')
+        .replace('#include <color_fragment>', `#include <color_fragment>
+          if (distance(vColor.rgb, uHarbourGrass) < .007) {
+            float promenade = min(max(abs(vQuay.y + 8.15) - .57, abs(vQuay.x) - 8.5),
+                                  max(abs(vQuay.x + 7.55) - .47, abs(vQuay.y - 1.8) - 10.5));
+            float row = floor(vQuay.y / .42);
+            vec2 cell = fract(vec2(vQuay.x / .85 + mod(row, 2.0) * .5, vQuay.y / .42));
+            vec2 border = min(cell, 1.0 - cell);
+            float mortar = 1.0 - smoothstep(.01, .09, min(border.x, border.y));
+            vec3 paving = mix(vec3(.59,.47,.34), vec3(.38,.34,.29), mortar);
+            diffuseColor.rgb = mix(diffuseColor.rgb, paving, 1.0 - smoothstep(-.065,.025,promenade));
+          }`);
+    };
+  }
+  material.customProgramCacheKey = () => harbourGrass ? 'harbour-promenade' : 'rock-contour';
   material.needsUpdate = true;
 }
 

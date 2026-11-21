@@ -72,13 +72,40 @@ export function parseWorldAsset(raw: string): Asset {
 let kit: Asset | undefined = parseWorldAsset(kitRaw);
 export function registerWorldKit(raw: string): void { kit = parseWorldAsset(raw); }
 
+/** A turned timber tower with painted bands and a twelve-sided lantern. */
+function harbourBeacon(): THREE.BufferGeometry {
+  const section = [[.86, 0], [.86, .20], [.70, .30], [.63, 1.18], [.57, 1.92], [.51, 2.65],
+    [.69, 2.70], [.69, 2.82], [.46, 2.88], [.46, 3.38], [.67, 3.42], [0, 3.94]];
+  const lathe = new THREE.LatheGeometry(section.map(([r, y]) => new THREE.Vector2(r, y)), 12);
+  const mesh = lathe.toNonIndexed();
+  lathe.dispose();
+  const points = mesh.getAttribute('position');
+  const colors = new Float32Array(points.count * 3);
+  for (let i = 0; i < points.count; i += 3) {
+    const y = (points.getY(i) + points.getY(i + 1) + points.getY(i + 2)) / 3;
+    const pane = Math.floor(i / (6 * (section.length - 1)));
+    let paint = 0xf1dbaf;
+    if (y <= .25 || (y >= 2.65 && y <= 2.88) || y >= 3.38) paint = 0x354754;
+    else if (y > 1.18 && y < 1.92) paint = 0xb94636;
+    else if (y > 2.88) paint = pane % 3 === 0 ? 0x455664 : 0xffbe60;
+    const color = new THREE.Color(paint);
+    for (let j = i; j < i + 3; j++) color.toArray(colors, j * 3);
+  }
+  mesh.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  mesh.deleteAttribute('uv');
+  return mesh;
+}
+
 /** Geometry belongs to one scene; repeated village pieces share it only inside that scene. */
 export class WorldKitAssets {
-  constructor(private readonly tropical = false) {}
+  constructor(private readonly tropical = false, private readonly harbour = false) {}
   private readonly geometries = new Map<AssetMesh, THREE.BufferGeometry>();
+  private beacon?: THREE.BufferGeometry;
+  /** Names exported by the village asset kit. */
   get modelNames(): readonly string[] { return [...new Set(kit?.meshes.map(mesh => mesh.model) ?? [])]; }
   model(name: string, material: THREE.Material): THREE.Group {
     const group = kit ? this.group(kit, kit.meshes.filter(mesh => mesh.model === name), material) : new THREE.Group();
+    if (name === 'harbour-beacon') group.add(new THREE.Mesh(this.beacon ??= harbourBeacon(), material));
     group.name = name;
     return group;
   }
@@ -93,6 +120,7 @@ export class WorldKitAssets {
         geometry.setAttribute('color', new THREE.Float32BufferAttribute(source.colors.flatMap(index => {
           if (this.tropical && ['house-a', 'house-b', 'warehouse'].includes(source.model)) {
             const paint: Record<number, number> = { 0: 0xf7e9c7, 1: 0xe7bb86, 7: source.model === 'warehouse' ? 0x398d8c : 0x329b9c };
+            if (this.harbour && index === 7) paint[index] = source.model === 'warehouse' ? 0xa54e3b : 0x496778;
             if (paint[index] !== undefined) return new THREE.Color(paint[index]).toArray();
           }
           return asset.palette[index]!;
@@ -108,5 +136,5 @@ export class WorldKitAssets {
     }
     return group;
   }
-  dispose(): void { this.geometries.forEach(geometry => geometry.dispose()); this.geometries.clear(); }
+  dispose(): void { this.beacon?.dispose(); this.beacon = undefined; this.geometries.forEach(geometry => geometry.dispose()); this.geometries.clear(); }
 }

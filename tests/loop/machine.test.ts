@@ -45,6 +45,25 @@ describe('the rounded loop track', () => {
 });
 
 describe('the Loop Sort machine agrees with the rules', () => {
+  it('plays delivery and departure feedback on contact with the receiving truck', () => {
+    const machine = new LoopMachine(LOOP_1);
+    let delivered = 0;
+    for (let frame = 0; frame < 3000; frame++) {
+      for (const event of machine.step()) {
+        if (event.type === 'absorb') {
+          expect(machine.rules.state.marbles[event.unit]?.status).toBe('in-truck');
+          delivered++;
+        }
+        if (event.type === 'complete') {
+          expect(delivered).toBe(12);
+          expect(machine.readTrucks().find(truck => truck.lane === event.lane && truck.index === event.truck)?.departing).toBe(true);
+          return;
+        }
+      }
+    }
+    throw new Error('The yellow truck never departed');
+  });
+
   for (const board of LOOP_BOARDS.slice(0, 2)) {
     it(`${board.id}: the introductory exchange never waits for belt capacity`, () => {
       const machine = new LoopMachine(board);

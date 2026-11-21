@@ -4,7 +4,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { Sparks } from '../engine/sparks';
 import { Glass } from '../engine/glass';
 import { COLORS, containerSymbolTexture } from './art';
-import { ARCADE, ArcadeYard, bodyPlastic, fuse, hull, plate } from './arcade';
+import { ARCADE, ArcadeYard, bodyPlastic, fuse, plate } from './arcade';
 import type { Color } from '../sim/types';
 import { FIXED_SECONDS } from '../engine/physics';
 import { BoardView } from '../engine/board-view';
@@ -56,17 +56,24 @@ export class TubeView extends BoardView {
     const rows = Math.ceil(definition.tubes.length / 2);
     const depth = rows * 4.8 + 0.8;
     const centerZ = (rows - 1) * 2.4 - 4.8 + 0.3;
-    // One fused body: the hull with its rail, a deeper keel that reaches the water, and the dark deck the tubes stand on.
-    const parts = [...hull(4.1, depth / 2, centerZ), plate(4.15, depth / 2 + 0.05, -0.55, 1.3, 0.6, 0.08, ARCADE.edge, centerZ)];
-    for (const part of parts) part.translate(0, 0.55, 0);
-    parts.push(plate(3.8, depth / 2 - 0.3, 0.61, 0.08, 0.3, 0.025, ARCADE.track, centerZ));
+    // Individual enamel shoes leave open space between the tube rows.
+    const parts = definition.tubes.flatMap((_, index) => {
+      const at = this.position(index, 0);
+      const wide = tubeContainer(definition, index).role === 'cup';
+      const half = wide ? 1.57 : 1.31;
+      return [
+        plate(half, 1.58, 0.51, 0.34, 0.52, 0.08, ARCADE.shell, at.z + 0.16),
+        plate(half - 0.025, 1.55, 0.61, 0.10, 0.50, 0.035, ARCADE.edge, at.z + 0.16),
+      ].map(part => part.translate(at.x + 0.16, 0, 0));
+    });
     const plinth = new THREE.Mesh(fuse(parts), bodyPlastic());
     plinth.castShadow = true;
     plinth.receiveShadow = true;
     this.board.add(plinth);
     bakeOcclusion(services.stage.renderer, [plinth], { minX: -4.6, maxX: 4.6, minZ: centerZ - depth / 2 - 0.4, maxZ: centerZ + depth / 2 + 0.4 });
     // The scene owns the lagoon and disposes of it with everything else.
-    this.yard = new ArcadeYard(this.scene, 4.1, centerZ - depth / 2, centerZ + depth / 2);
+    this.yard = new ArcadeYard(this.scene, 4.1, centerZ - depth / 2, centerZ + depth / 2, false);
+    this.yard.group.position.y = 1.34;
     const glass = new Glass(new THREE.MeshStandardMaterial({ color: 0xe4f5ff, transparent: true,
       opacity: 0.2, roughness: 0.08, depthWrite: false, envMapIntensity: 1.5 }));
     const plaques = homePlaques(definition);
@@ -102,7 +109,7 @@ export class TubeView extends BoardView {
       light.position.set(at.x, 0.67, at.z + 1);
       this.lights.push(light);
       this.board.add(light);
-      const number = label(String(index + 1), 0.75, '#cfc8ff');
+      const number = label(String(index + 1), 0.75, '#fff1ce');
       number.position.set(at.x, 0.64, at.z + 1.35);
       this.board.add(number);
       const rail = toyBox(0.46, height, 0.1, ARCADE.lane, 0.04);

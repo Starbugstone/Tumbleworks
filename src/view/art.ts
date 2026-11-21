@@ -122,9 +122,9 @@ export function containerSymbolTexture(color: Color): THREE.CanvasTexture {
     ctx.fillStyle = '#202335';
     ctx.beginPath(); ctx.arc(64, 64, 62, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#fff9ee';
-    ctx.beginPath(); ctx.arc(64, 64, 57, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(64, 64, 55, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#202335';
-    drawSymbol(ctx, color, 64, 64, 39);
+    drawSymbol(ctx, color, 64, 64, 43);
   }));
 }
 

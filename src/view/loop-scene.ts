@@ -21,7 +21,7 @@ const CAMERA_DIRECTION = new THREE.Vector3(0, 0.84, 0.54).normalize();
 const PLATFORM = ARCADE.deck;
 const PLATFORM_DARK = ARCADE.edge;
 const CHANNEL = ARCADE.track;
-const BAY = 0x8a66b4;
+const BAY = 0x82949e;
 const MAX_BLOCKS = 6;
 const plastic = (color: number, roughness = 0.42): THREE.MeshStandardMaterial =>
   candy(new THREE.MeshStandardMaterial({ color, roughness, metalness: 0, envMapIntensity: 0.7 }));
@@ -139,11 +139,11 @@ export class LoopScene {
     // The loop's own lilac rim is this toy's rail, so the hull adds none and stays within the old base's outline.
     const halfWidth = width / 2 - 0.2, back = -outerD - 0.1, edge = front - 0.05;
     // The hull, every lane's dark tray, its gold stop and an eight's raised strips are one fused body: one draw.
-    const parts = hull(halfWidth, (edge - back) / 2, (edge + back) / 2, 0.7, false);
+    const parts: THREE.BufferGeometry[] = eight ? hull(halfWidth, (edge - back) / 2, (edge + back) / 2, 0.7, false) : [];
     const part = (width: number, height: number, depth: number, radius: number, hex: number, x: number, y: number, z: number): void => {
       parts.push(tinted(new RoundedBoxGeometry(width, height, depth, 3, Math.min(radius, height / 2)).translate(x, y, z), hex));
     };
-    this.yard = new ArcadeYard(this.scene, halfWidth, back, edge);
+    this.yard = new ArcadeYard(this.scene, halfWidth, back, edge, false);
     machine.bays.forEach((bay, lane) => {
       const mouth = machine.mouthZ(lane);
       const end = ends[lane]!;
@@ -303,7 +303,7 @@ export class LoopScene {
     if (!this.machine) return;
     for (const event of events) {
       if (event.type !== 'pour' && event.type !== 'absorb' && event.type !== 'complete') continue;
-      const truck = this.machine.readTrucks().find((truck) => truck.lane === event.lane && truck.docked);
+      const truck = this.machine.readTrucks().find((truck) => truck.lane === event.lane && (event.type === 'pour' ? truck.docked : truck.index === event.truck));
       if (!truck) continue;
       const visual = this.trucks.get(`${truck.lane}:${truck.index}`);
       if (visual) visual.pulse = event.type === 'complete' ? 1 : event.type === 'pour' ? 0.65 : 0.4;

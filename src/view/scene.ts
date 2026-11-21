@@ -179,7 +179,7 @@ export class MachineScene {
   private readonly raycaster = new THREE.Raycaster();
   private readonly lightOff = plastic(0x2c3366, 0.6);
   private readonly lightOn = new THREE.MeshStandardMaterial({ color: 0xfff1b0, emissive: 0xffd45e, emissiveIntensity: 1.6 });
-  private readonly glass = new Glass(new THREE.MeshStandardMaterial({ color: 0xd6ecff, transparent: true, opacity: 0.18, roughness: 0.08, metalness: 0, depthWrite: false, envMapIntensity: 1.6 }));
+  private readonly glass = new Glass(new THREE.MeshStandardMaterial({ color: 0xd6ecff, transparent: true, opacity: 0.30, roughness: 0.10, metalness: 0, depthWrite: false, envMapIntensity: 1.6 }));
   /** The chute is a pipe the eye should follow, so it is a little milkier than the dish. */
   private readonly chuteGlass = new Glass(new THREE.MeshStandardMaterial({ color: 0xcfe9ff, transparent: true, opacity: 0.36, roughness: 0.12, metalness: 0, depthWrite: false, envMapIntensity: 1.8 }));
   /** Materials that outlive a level, shared by every level this scene draws. */
@@ -247,14 +247,14 @@ export class MachineScene {
    */
   private buildBody(halfWidth: number, backZ: number, frontZ: number, half: number, rows: number, docks: number, queueEnd: number): void {
     const parts = hull(halfWidth, (frontZ - backZ) / 2, (frontZ + backZ) / 2);
-    const top = STACK.y + STACK.stepY * (rows - 1) + CRATE.floorThickness + CRATE.wallHeight + 0.4;
+    const top = STACK.y + STACK.stepY * (rows - 1) + CRATE.floorThickness + CRATE.wallHeight + 0.16;
     const front = Math.min(STACK.z + STACK.stepZ * (rows - 1) - CRATE.halfDepth - 0.2, FUNNEL.mouth.back - 0.3);
     const box = (width: number, height: number, depth: number, radius: number, hex: number, x: number, y: number, z: number): void => {
       parts.push(tinted(new RoundedBoxGeometry(width, height, depth, 3, Math.min(radius, width / 2, height / 2, depth / 2)).translate(x, y, z), hex));
     };
     box(half * 2 + 0.9, top, 0.5, 0.2, CHANNEL, 0, top / 2 - 0.02, front - 0.25);
-    box(half * 2 + 1.14, 0.26, 0.74, 0.12, ARCADE.rim, 0, top + 0.07, front - 0.25);
-    box(half * 2 + 1.0, 0.1, 0.62, 0.05, ARCADE.trim, 0, top - 0.14, front - 0.25);
+    box(half * 2 + 0.94, 0.09, 0.54, 0.04, ARCADE.rim, 0, top + 0.07, front - 0.25);
+    box(half * 2 + 0.94, 0.05, 0.54, 0.02, ARCADE.trim, 0, top, front - 0.25);
     for (const side of [-1, 1]) box(0.34, top + 0.1, 0.66, 0.14, ARCADE.deck, side * (half + 0.5), top / 2 - 0.02, front - 0.25);
     // Each dock's lane is its own dark inlay with round ends, so the violet deck shows between the lanes.
     const length = queueEnd - BOX.z + 0.9, middle = (queueEnd + BOX.z) / 2 - 0.15;
@@ -275,15 +275,26 @@ export class MachineScene {
     const midZ = (mouth.back + mouth.front) / 2;
     const depth = mouth.front - mouth.back;
     const group = new THREE.Group();
+    const glassEdges: THREE.BufferGeometry[] = [];
     for (const face of funnelFaces(columns)) {
       const geometry = new THREE.BufferGeometry();
       geometry.setAttribute('position', new THREE.Float32BufferAttribute(face.flatMap((p) => [p.x, p.y, p.z]), 3));
       geometry.setIndex([0, 1, 2, 0, 2, 3]);
       geometry.computeVertexNormals();
       group.add(new THREE.Mesh(geometry, this.glass.flat));
+      const outer = face[0]!, inner = face[3]!;
+      const start = new THREE.Vector3(outer.x, outer.y, outer.z);
+      const end = new THREE.Vector3(inner.x, inner.y, inner.z);
+      const direction = end.clone().sub(start);
+      const edge = new THREE.CylinderGeometry(0.028, 0.028, direction.length(), 6);
+      edge.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.normalize()));
+      edge.translate(...start.lerp(end, 0.5).toArray());
+      glassEdges.push(edge);
     }
+    const edgeGeometry = mergeGeometries(glassEdges)!;
+    glassEdges.forEach(edge => edge.dispose());
+    group.add(new THREE.Mesh(edgeGeometry, shiny(0xb3d1d5)));
     const rimHeight = rimY - mouthY;
-    // Lilac, not the old gold: a yellow crate stands right behind this rim.
     const rimMaterial = shiny(ARCADE.rim);
     const lips: THREE.BufferGeometry[] = [];
     for (const [x, z, w, d] of [[-half, midZ, 0.14, depth + 0.14], [half, midZ, 0.14, depth + 0.14], [0, mouth.back, half * 2 + 0.14, 0.14], [0, mouth.front, half * 2 + 0.14, 0.14]] as const) {
@@ -291,7 +302,7 @@ export class MachineScene {
       wall.position.set(x, mouthY + rimHeight / 2, z);
       wall.scale.y = rimHeight / 0.06;
       group.add(wall);
-      const lip = rounded(w + 0.1, 0.16, d + 0.1, rimMaterial, 0.06);
+      const lip = rounded(w + 0.05, 0.10, d + 0.05, rimMaterial, 0.04);
       lip.position.set(x, rimY + 0.06, z);
       lip.updateMatrix();
       lips.push(lip.geometry.applyMatrix4(lip.matrix));
@@ -302,8 +313,7 @@ export class MachineScene {
     const rim = new THREE.Mesh(rimGeometry, rimMaterial);
     rim.castShadow = true;
     group.add(rim);
-    const neckRing = new THREE.Mesh(new THREE.TorusGeometry(neck.halfX + 0.16, 0.07, 10, 28), shiny(ARCADE.gold));
-    neckRing.rotation.x = Math.PI / 2;
+    const neckRing = new THREE.Mesh(new THREE.CylinderGeometry(neck.halfX + 0.17, neck.halfX + 0.12, 0.24, 28, 1, true), shiny(ARCADE.gold));
     neckRing.position.set(0, neckY + 0.02, neck.z);
     group.add(neckRing);
     this.level.add(group);
@@ -328,7 +338,7 @@ export class MachineScene {
     const shell = new THREE.Mesh(this.crateShell, this.paint(color));
     shell.castShadow = true;
     group.add(shell);
-    const badge = decal(color, 0.42, this.decals);
+    const badge = decal(color, 0.60, this.decals);
     badge.position.set(0, ft + wh / 2, hd + 0.01);
     group.add(badge);
     return group;
@@ -340,7 +350,7 @@ export class MachineScene {
     moulded(body.geometry, 0.55, 1.12);
     body.position.y = BOX.height / 2;
     group.add(body);
-    const badge = decal(color, 0.34, this.decals);
+    const badge = decal(color, 0.44, this.decals);
     badge.position.set(0, BOX.height / 2, BOX.halfDepth + 0.01);
     group.add(badge);
     return { group, badge, machineScale: 1, shakeAge: BOX_SHAKE_SECONDS, hopAge: BOX_HOP_SECONDS, landAge: BOX_LAND_SECONDS, bounce: 0, spin: 0, offsetX: 0, offsetY: 0 };

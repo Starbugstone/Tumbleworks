@@ -22,7 +22,7 @@ const WORLD = /* glsl */`
 
 const SHADE = /* glsl */`
   float candyFacing = normalize(vCandyUp).y;
-  diffuseColor.rgb *= mix(0.8, 1.0, smoothstep(-0.2, 0.85, candyFacing));
+  diffuseColor.rgb *= mix(0.72, 1.0, smoothstep(0.26, 0.41, candyFacing));
   #ifdef CANDY_GROUND
     vec2 candyUv = (vCandyAt.xz - uCandyArea.xy) * uCandyArea.zw;
     float candyInside = step(0.0, candyUv.x) * step(candyUv.x, 1.0) * step(0.0, candyUv.y) * step(candyUv.y, 1.0);
@@ -32,7 +32,7 @@ const SHADE = /* glsl */`
 
 const RIM = /* glsl */`
   float candyRim = pow(1.0 - saturate(dot(normalize(vViewPosition), normal)), 3.0);
-  outgoingLight += candyRim * 0.2 * (diffuseColor.rgb * 0.6 + 0.4);`;
+  outgoingLight = mix(outgoingLight, vec3(0.024, 0.031, 0.047), smoothstep(0.22, 0.62, candyRim) * 0.76);`;
 
 /** Gives a standard material the toy shading. `ground` also takes the baked floor shading: fixed bodies only. */
 export function candy<T extends THREE.MeshStandardMaterial>(material: T, ground = false): T {

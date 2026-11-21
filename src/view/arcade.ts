@@ -3,11 +3,8 @@ import { candy } from '../engine/candy';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Point3 } from '../engine/physics';
 
-/**
- * Indigo and violet under every toy: a hue none of the seven cargo colours uses, kept dark so yellow, orange
- * and white stand well clear of it. Rims are the light step, so edges catch the eye and fields stay quiet.
- */
-export const ARCADE = { deck: 0x56316f, edge: 0x2e1846, track: 0x1c0f2e, lane: 0x3b2152, rim: 0xf8eedb, ground: 0x0e5578, cyan: 0x66ffe3, gold: 0xf0b93a, trim: 0xf0b93a, shell: 0xfbf3e3 } as const;
+/** Inked enamel wells, laminated beech cut edges, and bronze at working joints. */
+export const ARCADE = { deck: 0x4b5567, edge: 0x23283e, track: 0x26283a, lane: 0x354059, rim: 0xe9c181, ground: 0x758d94, cyan: 0x99c5ba, gold: 0xb98650, trim: 0x805739, shell: 0xc69a65 } as const;
 
 function texture(width: number, height: number, draw: (ctx: CanvasRenderingContext2D) => void): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
@@ -53,7 +50,7 @@ export function fuse(parts: THREE.BufferGeometry[]): THREE.BufferGeometry {
 }
 /** The one glossy plastic every fused toy body is moulded in; its colours come from the parts. */
 export const bodyPlastic = (): THREE.MeshStandardMaterial =>
-  candy(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.14, metalness: 0, envMapIntensity: 1.5 }), true);
+  candy(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.43, metalness: 0, envMapIntensity: 1.5 }), true);
 
 /** A slab with round corners and a rolled edge, its top face at `top`. */
 export function plate(halfWidth: number, halfDepth: number, top: number, height: number, corner: number, bevel: number, hex: number, centerZ = 0): THREE.BufferGeometry {
@@ -66,14 +63,13 @@ export function plate(halfWidth: number, halfDepth: number, top: number, height:
 }
 
 /**
- * The toy's body, as stacked mouldings: a dark hull that sits in the water, a cream band, and the violet
- * deck with a rolled edge that catches the key light. The deck's top is at y = 0. Returned as tinted parts,
+ * The toy's timber lip, narrow dark moulding and enamel deck. The deck's top is at y = 0. Returned as tinted parts,
  * so a scene fuses them with its own wells and towers into one draw.
  */
 export function hull(halfWidth: number, halfDepth: number, centerZ: number, corner = 0.5, railed = true): THREE.BufferGeometry[] {
-  // A raised lilac rail runs round the deck like the lip of a tray: seen from above it is what gives the
+  // A raised rail runs round the deck like the lip of a tray: seen from above it is what gives the
   // flat top its depth.
-  const ring = new THREE.Shape(), hole = new THREE.Path(), RAIL = 0.22, lip = 0.035, out = railed ? 0.34 : 0.14;
+  const ring = new THREE.Shape(), hole = new THREE.Path(), RAIL = 0.12, lip = 0.025, out = railed ? 0.13 : 0.06;
   roundRect(ring, halfWidth - 0.03, halfDepth - 0.03, corner);
   roundRect(hole, halfWidth - RAIL, halfDepth - RAIL, Math.max(0.05, corner - RAIL));
   ring.holes.push(hole);
@@ -81,9 +77,8 @@ export function hull(halfWidth: number, halfDepth: number, centerZ: number, corn
   rail.rotateX(-Math.PI / 2);
   rail.translate(0, 0, centerZ);
   return [
-    // A thick ivory shell with a deep rolled edge, then a thin gold step, then the deck: three clean levels.
-    plate(halfWidth + out, halfDepth + out, -0.1, 0.9, corner + out, Math.min(0.16, out * 0.6), ARCADE.shell, centerZ),
-    plate(halfWidth + 0.07, halfDepth + 0.07, -0.04, 0.3, corner + 0.07, 0.03, ARCADE.trim, centerZ),
+    plate(halfWidth + out, halfDepth + out, -0.1, 0.52, corner + out, Math.min(0.16, out * 0.6), ARCADE.shell, centerZ),
+    plate(halfWidth + 0.035, halfDepth + 0.035, -0.04, 0.3, corner + 0.07, 0.03, ARCADE.trim, centerZ),
     plate(halfWidth, halfDepth, 0, 0.5, corner, 0.1, ARCADE.deck, centerZ),
     ...(railed ? [tinted(rail, ARCADE.rim)] : (rail.dispose(), [])),
   ];
@@ -153,17 +148,17 @@ export class ArcadeYard {
   /** Just inside the hull's four corners, where the end-of-level fountains stand. */
   readonly corners: readonly Point3[];
 
-  constructor(parent: THREE.Object3D, halfWidth: number, back: number, front: number) {
+  constructor(parent: THREE.Object3D, halfWidth: number, back: number, front: number, hullFoam = true) {
     this.corners = [-1, 1].flatMap((side) => [back, front].map((z) => ({ x: side * (halfWidth - 0.7), y: 0.4, z: z + (z === back ? 0.7 : -0.7) })));
     parent.add(this.group);
     const center = (back + front) / 2, depth = (front - back) / 2;
     const SIZE = 256;
     const map = texture(SIZE, SIZE, (ctx) => {
       const sea = ctx.createRadialGradient(SIZE / 2, SIZE / 2, SIZE * 0.05, SIZE / 2, SIZE / 2, SIZE * 0.62);
-      sea.addColorStop(0, '#2eaabd');
-      sea.addColorStop(0.3, '#1f8fae');
-      sea.addColorStop(0.62, '#16749b');
-      sea.addColorStop(1, '#0e5578');
+      sea.addColorStop(0, '#7494a5');
+      sea.addColorStop(0.3, '#708d9d');
+      sea.addColorStop(0.62, '#688597');
+      sea.addColorStop(1, '#617d90');
       ctx.fillStyle = sea; ctx.fillRect(0, 0, SIZE, SIZE);
     });
     const water = new THREE.MeshStandardMaterial({ map, roughness: 0.4, envMapIntensity: 0.7 });
@@ -180,12 +175,12 @@ export class ArcadeYard {
           float netA = texture2D(uCaustic, sea * 0.07 + vec2(uTime * 0.011, uTime * 0.007)).r;
           float netB = texture2D(uCaustic, sea * 0.1 - vec2(uTime * 0.009, -uTime * 0.006) + 0.37).r;
           float net = min(netA, netB);
-          diffuseColor.rgb += vec3(0.5, 0.82, 0.9) * net * 0.3;
+          diffuseColor.rgb += vec3(0.5, 0.82, 0.9) * net * 0.022;
           vec2 edge = abs(sea) - uBoard.xy + uBoard.z;
           float shore = length(max(edge, 0.0)) + min(max(edge.x, edge.y), 0.0) - uBoard.z;
           float lap = 0.5 + 0.5 * sin(shore * 7.0 - uTime * 1.1 + netA * 3.0);
           float foam = smoothstep(0.34, 0.1, shore) + smoothstep(0.75, 0.45, shore) * step(0.62, lap) * 0.55;
-          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.86, 0.97, 0.98), clamp(foam, 0.0, 1.0) * step(0.0, shore) * 0.7);`);
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.86, 0.97, 0.98), clamp(foam, 0.0, 1.0) * step(0.0, shore) * ${hullFoam ? '0.08' : '0.0'});`);
     };
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(SPAN, SPAN), water);
     floor.rotation.x = -Math.PI / 2; floor.position.set(0, WATER_LEVEL, center); floor.receiveShadow = true;

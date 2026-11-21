@@ -312,6 +312,15 @@ export class VillageMachine {
     geometry.deleteAttribute('uv');
     const count = geometry.getAttribute('position').count, values = new Float32Array(count * 3), rgb = new THREE.Color(color);
     for (let i = 0; i < count; i++) rgb.toArray(values, i * 3);
+    // The two inner floor vertices in each eight-point plank ring take enamel.
+    // Both narrow top rails keep the station's timber finish.
+    if (this.plan.chapter === 0 && geometry.userData.plankRingVertices) {
+      const enamel = new THREE.Color(0x415666);
+      const end = geometry.userData.plankRingVertices as number;
+      for (let i = 0; i < count; i++) {
+        if (i >= end || i % 8 === 5 || i % 8 === 6) enamel.toArray(values, i * 3);
+      }
+    }
     geometry.setAttribute('color', new THREE.BufferAttribute(values, 3)); this.geometries.add(geometry);
     const mesh = new THREE.Mesh(geometry, this.material); mesh.name = `${parent.name}-${geometry.type}-${parent.children.length}`; parent.add(mesh); return mesh;
   }

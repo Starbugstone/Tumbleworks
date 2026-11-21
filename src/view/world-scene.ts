@@ -61,7 +61,7 @@ export class WorldScene {
   get machine(): VillageMachine { if (!this.sceneMachine) throw new Error('Village scene is still being built'); return this.sceneMachine; }
   get plan(): VillagePlan { if (!this.scenePlanned) throw new Error('Village scene is still being built'); return this.scenePlanned; }
   private readonly scenePlan: VillageScenePlan;
-  private readonly assets = new WorldKitAssets(true);
+  private readonly assets: WorldKitAssets;
   private readonly material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 });
   private readonly builds: THREE.Group[] = [];
   private readonly foundations: THREE.Group[] = [];
@@ -96,6 +96,7 @@ export class WorldScene {
   get constructionProgress(): number { return this.growth; }
 
   constructor(private readonly stage: Stage, readonly chapter: number, options: WorldSceneOptions = {}, mode?: typeof STAGED) {
+    this.assets = new WorldKitAssets(true, chapter === 0);
     this.scenePlan = villageScenePlan(chapter);
     this.hasAxle=this.scenePlan.plan.stations.some(s=>s.mechanism.kind==='wheelbucket'&&s.mechanism.axleCarry);
     this.scene = stage.createScene('village');
@@ -116,8 +117,8 @@ export class WorldScene {
     yield 'terrain';
     const landscape = new THREE.Group(); landscape.name = `village-landscape-${chapter}`;
     // The land as drawn: dressing beside it (river banks) continues these colours.
-    const drawn = { ...terrain, spec: { ...terrain.spec, mergeFlatLand:true, rockContour:true, palette: { ...terrain.spec.palette, grass: 0x7b917c, grassAlt: 0x7b917c, cliff: 0xa1a38a, rock: 0xb0ac91, shore: 0xecd5a3 } } };
-    rockContour(this.material, sunny(drawn.spec.palette.rock, new THREE.Color()));
+    const drawn = { ...terrain, spec: { ...terrain.spec, mergeFlatLand:true, rockContour:true, palette: chapter === 0 ? { ...terrain.spec.palette, grass: 0x82a397, grassAlt: 0x82a397, cliff: 0x626f74, rock: 0x869492, shore: 0xe4c899 } : { ...terrain.spec.palette, grass: 0x7b917c, grassAlt: 0x7b917c, cliff: 0xa1a38a, rock: 0xb0ac91, shore: 0xecd5a3 } } };
+    rockContour(this.material, sunny(drawn.spec.palette.rock, new THREE.Color()), chapter === 0 ? sunny(drawn.spec.palette.grass, new THREE.Color()) : undefined);
     const ground = createVillageTerrain(drawn, this.material, 'full', true); landscape.add(ground);
     this.detachedGround = ground.geometry;
     yield 'ground';
@@ -230,8 +231,9 @@ export class WorldScene {
     this.stage.refreshShadows?.(this.scene);
   }
   private model(name: string): THREE.Group {
-    if (!this.assets.modelNames.includes(name)) throw new Error(`Village model is missing: ${name}`);
-    return this.assets.model(name, this.material);
+    const model = this.assets.model(name, this.material);
+    if (!model.children.length) throw new Error(`Village model is missing: ${name}`);
+    return model;
   }
   private installProjects(): void {
     for (const project of earnedProjects(new Set(completedLevels()))) {
