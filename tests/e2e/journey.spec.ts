@@ -180,6 +180,7 @@ test.describe('the whole campaign completes through real touch input', () => {
       test.setTimeout(1_500_000);
       const errors: string[] = [];
       page.on('pageerror', (error) => errors.push(error.message));
+      await page.clock.install();
       await seedCampaignPrefix(page, first);
       await page.goto('/');
       await ready(page, 'map');
@@ -196,6 +197,8 @@ test.describe('the whole campaign completes through real touch input', () => {
         const levelId = CAMPAIGN[index]!.id;
         const saved = await page.evaluate(id => JSON.parse(localStorage.getItem('tumbleworks.progress.v1')!).completed.includes(id), levelId);
         expect(saved, `${levelId} saved after settling the win`).toBe(true);
+        // Give the real win callback its browser time, as settle does for simulation ticks.
+        await page.clock.fastForward(1_250);
         if ((index + 1) % 3 === 0) {
           await expect.poll(async () => (await state(page)).screen).not.toBe('game');
           if ((await state(page)).screen === 'film') await page.locator('#film-skip').click();
