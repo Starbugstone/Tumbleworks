@@ -1,4 +1,4 @@
-import { expect, test, type Page, type TestInfo } from '@playwright/test';
+import { expect, type Page, type TestInfo } from '@playwright/test';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { cpus, loadavg } from 'node:os';
@@ -8,6 +8,7 @@ import type { WorldScene } from '../../src/view/world-scene';
 import { LEVELS_PER_STOP, STOPS_PER_CHAPTER, worldProgress, type WorldProgress } from '../../src/world/progression';
 import { WORKSHOP_PROJECTS } from '../../src/world/workshop-projects';
 import { PHONE } from '../fixtures/viewports';
+import { test } from '../fixtures/performance-host';
 
 // Measurement and activity guards only. Timing ceilings need a separately recorded baseline.
 // Run alone with --project=performance --no-deps --workers=1; two performance files can otherwise overlap.
