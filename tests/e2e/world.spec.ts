@@ -268,8 +268,16 @@ test('desktop and French map navigation preserve the campaign and phone-independ
   await page.setViewportSize(DESKTOP); await page.goto('/'); await ready(page);
   await page.screenshot({ path: 'output/current/world/map-desktop.png' });
   await page.getByRole('button', { name: 'Islands', exact: true }).click();
-  await expect(page.locator('.wv-location')).toHaveCount(Math.ceil(CAMPAIGN.length / 30));
-  await page.locator('.wv-location[data-chapter="0"]').click();
+  const islands = page.locator('.wv-location');
+  await expect(islands).toHaveCount(6);
+  await expect(islands.last()).toHaveAttribute('data-chapter', '5');
+  await islands.last().press('ArrowUp');
+  await expect(islands).toHaveCount(6);
+  await expect(islands.last()).toHaveAttribute('data-chapter', '7');
+  await expect(islands.last()).toBeFocused();
+  await islands.first().press('ArrowDown');
+  await expect(islands.first()).toHaveAttribute('data-chapter', '0');
+  await islands.first().click();
   await page.locator('#levels-toggle').click();
   await openMenuSettings(page);
   await page.getByRole('button', { name: 'Français', exact: true }).click();

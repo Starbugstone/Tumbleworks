@@ -23,6 +23,26 @@ clearance, full-width track checks, and visibility checks in four views.
 The [headframe regressions](../tests/world/island-hoists.test.ts) cover grounded
 feet and moving-shaft clearance, including a brace deliberately moved into the shaft.
 
+At gameplay commit `947d387`, 2,850 unit tests passed across 91 files. The
+Chromium game suite passed 172 of 178 cases in its initial three-worker run.
+All six affected cases then passed with one fresh worker on the frozen server.
+Two traces stopped during startup. Two campaign journeys and the island 8
+roster check ran with pre-freeze board expectations. The desktop map test
+expected all eight labels at once. Its corrected assertion checks six labels
+in each window and follows keyboard focus to island 8 and back to island 1.
+All four [touch journeys](../tests/e2e/journey.spec.ts) for levels 181–240
+completed and saved their progress, including `loop-108` at 215, `board-110`
+at 232 and `loop-115` at 236.
+
+Both new films completed in their own village at 375×690 on the natural clock,
+in normal and reduced motion (4/4). All ten isolated Chromium performance
+tests passed at their original limits, including six gameplay frame-budget
+cases and four World cases. These measurements used SwiftShader software
+rendering. Physical-phone performance remains unmeasured. The local run logs
+under `output/current/island-expansion/` are `final-unit-stable.log`,
+`full-game.log`, `serial-game.log`, `natural-films.log` and
+`isolated-performance.log`.
+
 ## Blender world and Atelier integration — 7 November 2026
 
 The current 3D world passed 100 focused unit checks, 25 distinct UI journeys and
