@@ -82,7 +82,8 @@ const state = (page: Page): Promise<State> => page.evaluate(() => {
 async function evidence(page: Page, label: string): Promise<State> {
   const now = await state(page);
   const name = `${String(++step).padStart(2, '0')}-${label}`;
-  await page.screenshot({ path: `${dir}/${name}.png` });
+  // Software rendering and PNG capture can contend with each other on a busy host.
+  await page.screenshot({ path: `${dir}/${name}.png`, timeout: 90_000 });
   appendFileSync(`${dir}/steps.jsonl`, `${JSON.stringify({ step: name, ...now })}\n`);
   return now;
 }
@@ -119,11 +120,17 @@ async function touchReady(page: Page): Promise<void> {
   await page.locator('#journey-transition').waitFor({ state: 'hidden' });
 }
 
-async function enterGame(page: Page): Promise<void> {
+function firstLevelInRound(index: number): number {
+  return index - index % LEVELS_PER_STOP;
+}
+
+async function enterGame(page: Page, index = 0): Promise<void> {
   if ((await state(page)).screen === 'game') return;
   if ((await state(page)).screen !== 'map') throw new Error('Gameplay entry requires the village map');
   await page.locator('canvas[data-world-scene="ready"]').waitFor({ state: 'visible', timeout: 120_000 });
-  await page.locator('.map-stop:not(:disabled)').first().tap();
+  await touchReady(page);
+  const round = Math.floor(index / LEVELS_PER_STOP);
+  await page.locator(`.map-stop[data-round="${round}"]:not(:disabled)`).tap();
   await page.waitForFunction(() => (window as unknown as GameWindow).tumbleworks!.app.debugState().screen === 'game');
   await touchReady(page);
 }
@@ -140,24 +147,32 @@ async function open(browser: Browser, level?: Target, fixtureProjectId?: string)
   const context = await browser.newContext(flag('desktop') ? { viewport: { width: 1365, height: 900 }, hasTouch: true }
     : { ...devices['Pixel 7'], viewport: { width: 375, height: 690 } });
   const page = await context.newPage();
+  page.setDefaultNavigationTimeout(90_000);
   page.on('pageerror', (error) => failures.push(`page error: ${error.message}`));
-  // Disposable campaign milestone fixture for ordinary project gameplay/presentation only.
-  // The dedicated boundary spec must prove unlocking from actual play without this fixture.
   const projectId = fixtureProjectId ?? (level?.source === 'workshop' ? level.id : undefined);
+  let fixture: { kind: string; purpose: string; completed: string[]; projectId?: string;
+    chapter?: number; localBuiltStops?: number; levelId?: string; round?: number } | undefined;
   if (projectId) {
     const project = workshopProject(projectId);
     if (!project) throw new Error(`No project milestone for ${projectId}`);
     const count = (project.chapter * STOPS_PER_CHAPTER + project.stops) * LEVELS_PER_STOP;
     if (count > CAMPAIGN.length) throw new Error(`Project ${projectId} needs unregistered campaign levels`);
-    const completed = CAMPAIGN.slice(0, count).map(item => item.id);
+    fixture = { kind: 'campaign-milestone-only', projectId, chapter: project.chapter,
+      localBuiltStops: project.stops, completed: CAMPAIGN.slice(0, count).map(item => item.id),
+      purpose: 'Disposable ordinary-gameplay fixture; not unlock proof; no Workshop completion seeded' };
+  } else if (level?.index != null && level.index >= LEVELS_PER_STOP) {
+    const count = firstLevelInRound(level.index);
+    fixture = { kind: 'prior-rounds-only', levelId: level.id, round: count / LEVELS_PER_STOP + 1,
+      completed: CAMPAIGN.slice(0, count).map(item => item.id),
+      purpose: 'Opens the target round without pre-completing any puzzle in that round' };
+  }
+  if (fixture) {
     await page.addInitScript(ids => {
       if (!localStorage.getItem('tumbleworks.progress.v1')) {
         localStorage.setItem('tumbleworks.progress.v1', JSON.stringify({ completed: ids }));
       }
-    }, completed);
-    writeFileSync(`${dir}/fixture.json`, JSON.stringify({ kind: 'campaign-milestone-only', projectId,
-      chapter: project.chapter, localBuiltStops: project.stops, completed,
-      purpose: 'Disposable ordinary-gameplay fixture; not unlock proof; no Workshop completion seeded' }, null, 2));
+    }, fixture.completed);
+    writeFileSync(`${dir}/fixture.json`, JSON.stringify(fixture, null, 2));
   }
   await page.goto(level?.source === 'workshop' ? `${URL}/?workshop=${level.id}`
     : level?.source === 'bank' ? `${URL}/?try=${level.id}` : URL);
@@ -183,10 +198,10 @@ async function pickerSettled(page: Page): Promise<void> {
 
 /** The level picker, as a player opens it: the level pill, then the level's chip. */
 async function choose(page: Page, index: number): Promise<void> {
-  await enterGame(page);
-  if (await page.locator('#levels').isHidden()) await page.locator('#levels-toggle').click();
+  await enterGame(page, index);
+  if (await page.locator('#levels').isHidden()) await page.locator('#levels-toggle').tap();
   await pickerSettled(page);
-  await page.locator(`.chip[data-level="${index}"]`).click();
+  await page.locator(`.chip[data-level="${index}"]`).tap();
   await page.waitForFunction((wanted) => {
     const now = (window as unknown as GameWindow).tumbleworks!.app.debugState();
     return now.screen === 'game' && now.source === 'campaign' && now.levelIndex === wanted;
@@ -216,9 +231,14 @@ const journeys: Record<string, (browser: Browser) => Promise<void>> = {
     check(await page.locator('#boot').isHidden(), 'the boot message cleared');
     check(now.screen === 'map' && await page.locator('#world').isVisible(), 'normal boot shows the village map');
     await enterGame(page);
-    await evidence(page, 'entered-first-stop');
-    await page.locator('#levels-toggle').click();
-    check(await page.locator('.chip').count() === CAMPAIGN.length, `the picker lists all ${CAMPAIGN.length} levels`);
+    const entered = await evidence(page, 'entered-first-stop');
+    check(entered.screen === 'game' && entered.levelId === CAMPAIGN[0]!.id, 'the first stop opens the first campaign puzzle');
+    await page.locator('#levels-toggle').tap();
+    await pickerSettled(page);
+    const chips = await page.locator('.chip').evaluateAll(rows => rows.map(row => row.getAttribute('data-level')));
+    const expected = CAMPAIGN.slice(0, LEVELS_PER_STOP).map((_, index) => String(index));
+    check(JSON.stringify(chips) === JSON.stringify(expected), 'the menu lists exactly the first round’s puzzles');
+    await evidence(page, 'first-round-menu');
     console.log(JSON.stringify({ url: URL, level: now.levelId, kind: now.kind, status: now.status, campaign: CAMPAIGN.length }));
   },
 
@@ -238,17 +258,21 @@ const journeys: Record<string, (browser: Browser) => Promise<void>> = {
     }
     const end = await evidence(page, 'won');
     check(end.status === 'won', `${level.id} is won (status ${end.status})`);
-    await page.waitForTimeout(600);
     const completed = await completedIds(page);
-    const stopStart = level.index === null ? null : Math.floor(level.index / 3) * 3;
-    const stopDone = stopStart === null || CAMPAIGN.slice(stopStart, stopStart + 3).every(item => completed.includes(item.id));
+    const stopStart = level.index === null ? null : firstLevelInRound(level.index);
+    const stopDone = stopStart !== null && CAMPAIGN.slice(stopStart, stopStart + LEVELS_PER_STOP).every(item => completed.includes(item.id));
+    if (level.source === 'bank' || stopDone) {
+      await page.locator('body[data-screen="map"]').waitFor();
+    } else {
+      await page.locator('#card').waitFor({ state: 'visible' });
+    }
     if (level.source === 'workshop') {
       check((await state(page)).source === 'workshop', 'the win stays in the Workshop source');
       check(await page.getByRole('button', { name: 'Back to workshop', exact: true }).isVisible(), 'the win offers Back to workshop');
       check(JSON.stringify(completed.filter(id => campaignIds.has(id))) === JSON.stringify(campaignBefore), 'the Workshop win leaves campaign completion unchanged');
-    } else if (stopDone) {
-      check((await state(page)).screen === 'map', 'a finished stop returns to the map without crossing into another stop');
-      check(await page.locator('#card').isHidden(), 'the round return clears the ending card');
+    } else if (level.source === 'bank' || stopDone) {
+      check((await state(page)).screen === 'map', level.source === 'bank' ? 'the finished trial returns to the map' : 'a finished stop returns to the map');
+      check(await page.locator('#card').isHidden(), 'the map return clears the ending card');
     } else {
       check(await page.locator('#card').isVisible(), 'the ending card is up');
       check(await page.getByRole('button', { name: 'Next level', exact: true }).isVisible(), 'the card offers Next level within this stop');
@@ -264,18 +288,21 @@ const journeys: Record<string, (browser: Browser) => Promise<void>> = {
     await page.reload();
     await page.waitForFunction(() => Boolean((window as unknown as GameWindow).tumbleworks?.app?.runtime), undefined, { timeout: 90_000, polling: 250 });
     await page.evaluate(() => { (window as unknown as GameWindow).tumbleworks!.app.manualClock = true; });
-    if (level.index !== null) await enterGame(page);
-    await page.locator('#levels-toggle').click();
-    await pickerSettled(page);
     if (level.source === 'workshop') {
-      await page.locator('#map-open').tap();
+      check((await state(page)).screen === 'map', 'reloading after leaving the project opens the map');
       await touchReady(page);
       await page.locator('#world-workshop').tap();
       check(await page.locator(`[data-workshop="${level.id}"] .wv-workshop-check`).textContent() === '✓', 'its Workshop chooser badge survives reload');
       check((await completedIds(page)).includes(level.id), 'Workshop completion remains stored after reload');
       await evidence(page, 'workshop-after-reload');
     } else {
-      check(await page.locator(`.chip[data-level="${end.levelIndex}"]`).textContent() === '✓', 'its chip shows ✓ after a reload');
+      if (level.index !== null) await enterGame(page, level.index);
+      else check((await state(page)).levelId === level.id && (await state(page)).screen === 'game', 'reloading opens the same trial');
+      await touchReady(page);
+      await page.locator('#levels-toggle').tap();
+      await pickerSettled(page);
+      check((await completedIds(page)).includes(level.id), `${level.id} remains stored after reload`);
+      check(await page.locator(`.chip.completed[data-level="${end.levelIndex}"]`).isVisible(), 'its menu row shows completion after reload');
       await evidence(page, 'picker-after-reload');
     }
   },
@@ -347,18 +374,24 @@ const journeys: Record<string, (browser: Browser) => Promise<void>> = {
   async picker(browser) {
     const page = await open(browser);
     await enterGame(page);
-    await page.locator('#levels-toggle').click();
+    await page.locator('#levels-toggle').tap();
+    await pickerSettled(page);
     await evidence(page, 'picker-open');
-    check(await page.locator('.chip').count() === CAMPAIGN.length, `all ${CAMPAIGN.length} levels are listed`);
-    check((await page.locator('#patterns').locator('span').count()) >= 7, 'the pattern legend lists every colour');
+    check((await page.locator('.chip .level-game').allTextContents()).join(', ') === 'Funnel Sort, Loop Sort, Tube Sort',
+      'the current round lists the three permanent game names');
+    await page.locator('#menu-settings').tap();
+    check((await page.locator('#patterns [role="img"]:visible').count()) === 7, 'Settings and help shows all seven container patterns');
     const before = await state(page);
-    await page.locator('#language-fr').click();
+    await page.locator('#language-fr').tap();
     check(await page.getByRole('button', { name: 'Annuler', exact: true }).count() === 1, 'French relabels the controls');
     await evidence(page, 'french');
-    await page.locator('#language-en').click();
-    check((await state(page)).gameFingerprint === before.gameFingerprint, 'changing language preserves the complete puzzle state');
+    await page.locator('#language-en').tap();
+    const after = await state(page);
+    check(after.levelId === before.levelId && after.gameFingerprint === before.gameFingerprint, 'changing language preserves the level and complete puzzle state');
+    await page.locator('#menu-back').tap();
     await pickerSettled(page);
-    await page.locator('.chip[data-level="2"]').click();
+    await page.locator('.chip[data-level="2"]').tap();
+    await touchReady(page);
     await settle(page);
     check((await state(page)).levelIndex === 2, 'a chip opens its level');
     await evidence(page, 'chosen');
@@ -379,13 +412,17 @@ const journeys: Record<string, (browser: Browser) => Promise<void>> = {
       if (!taps.length) throw new Error(`No winning order for ${level.id}`);
       for (const piece of taps) await tap(page, piece);
       check((await state(page)).status === 'won', `${level.id} wins inside the stop`);
-      await evidence(page, `won-${level.id}`);
       if (index < 2) {
-        await page.getByRole('button', { name: 'Next level', exact: true }).tap();
+        const next = page.getByRole('button', { name: 'Next level', exact: true });
+        await next.waitFor({ state: 'visible' });
+        await evidence(page, `won-${level.id}`);
+        await next.tap();
         await touchReady(page);
       }
     }
     await page.waitForFunction(() => (window as unknown as GameWindow).tumbleworks!.app.debugState().screen === 'map');
+    await page.locator('canvas[data-world-scene="ready"]').waitFor({ state: 'visible', timeout: 120_000 });
+    await touchReady(page);
     check(await page.locator('.map-stop[data-round="0"]').getAttribute('data-status') === 'built', 'all three completions build the first stop');
     check(await page.locator('.map-stop[data-round="1"]').isEnabled(), 'the next stop opens for an explicit tap');
     const resting = await state(page);
@@ -395,8 +432,7 @@ const journeys: Record<string, (browser: Browser) => Promise<void>> = {
     await page.reload();
     await page.waitForFunction(() => (window as unknown as GameWindow).tumbleworks?.app?.debugState().screen === 'map', undefined, { timeout: 90_000 });
     check(await page.locator('.map-stop[data-round="0"]').getAttribute('data-status') === 'built', 'the built stop survives reload');
-    await page.locator('.map-stop[data-round="1"]').tap();
-    await touchReady(page);
+    await enterGame(page, LEVELS_PER_STOP);
     check((await state(page)).levelId === CAMPAIGN[3]!.id, 'tapping the next stop enters its first puzzle');
     await evidence(page, 'entered-next-stop');
   },
@@ -416,8 +452,12 @@ const journeys: Record<string, (browser: Browser) => Promise<void>> = {
     check(now.levelId === level.id && now.source === 'workshop' && now.screen === 'game', 'a real chooser touch opens the exact Workshop source and stable ID');
     await page.locator('#levels-toggle').tap();
     await pickerSettled(page);
+    check(await page.locator('.chip').count() === 1, 'the Workshop menu lists only the current project');
     await page.locator('#map-open').tap();
-    check((await state(page)).screen === 'map', 'Valley map returns from Workshop to the village');
+    await touchReady(page);
+    check((await state(page)).screen === 'workshop', 'Back to workshop returns from the project to the chooser');
+    await page.getByRole('button', { name: '‹ Back to the village', exact: true }).tap();
+    check((await state(page)).screen === 'map', 'Back to the village returns from the chooser to the map');
     check(JSON.stringify(await completedIds(page)) === JSON.stringify(completedBefore),
       'browsing Workshop leaves the campaign milestone fixture unchanged');
     await evidence(page, 'workshop-return-to-map');

@@ -5,7 +5,7 @@ The player taps a crate of marbles; it tips into a clear funnel, the neck feeds 
 ## Sub-features
 
 - `funnel-pour` a tapped front crate pours within a tenth of a second and the next crate in its column becomes tappable.
-- `funnel-fill` boxes fill left → right → middle. The first two landings have light contact sounds, dip the box briefly and glint in their pocket while the marbles already seated hop; only the third landing triggers the box shake, a cloud of fine dust with small twinkles and a rounded resolving sound. A full box jumps, turns once in the air with its cargo and accelerates out while its replacement remains usable. There are no arrival rings, completion-word stamps or pattern icons.
+- `funnel-fill` boxes fill left → right → middle. The first two landings have light contact sounds, dip the box briefly and glint in their pocket while the marbles already seated hop; only the third landing triggers the box shake, a cloud of fine dust with small twinkles and a rounded resolving sound. An ordinary full box jumps, turns once in the air with its cargo and accelerates out while its replacement remains usable. Shared-pallet boxes lift together.
 - `funnel-look` the toy is an ivory shell with a gold step, a plum deck and near-black wells, seen on a phone from a lower camera that shows the sides of crates and the belt wall. A marble quicker than the belt is drawn slightly long and leaves a short trail. A docked box one marble from done has a steady warm glow behind it. A second finish within two seconds is a streak: bigger dust, a ribbon of dust from the last finished box, a brighter belt for about two seconds, and one short camera jolt on the third finish only. Reduced motion suppresses all of these except the steady glow.
 - `funnel-win` the authored winning order empties every crate and fills every box.
 - `funnel-jam` the authored losing order fills the belt with colours no dock wants.
@@ -15,8 +15,7 @@ The player taps a crate of marbles; it tips into a clear funnel, the neck feeds 
 ## How to get to it (user POV)
 
 - Tap the first village stop to open level 1, Funnel Sort, with a tap-hand guide on the first crate.
-- Any `board-n` chip in the level picker.
-- Choose `board-200` or `board-201` through the picker for campaign lessons. `tw win board-202` uses `/?try=board-202` for the bank-only sealed-dock lesson.
+- Open the matching unlocked village stop and choose its Funnel Sort row. Paired release and forked shelves are in rounds 41 and 57. `tw win board-202` uses `/?try=board-202` for the bank-only sealed-dock lesson.
 
 ## Driving it with tw
 
@@ -25,12 +24,12 @@ Preconditions:
 - `scripts/doctor.sh` passes.
 - The level has an entry in `FUNNEL_WITNESSES` / `FUNNEL_JAMS` in `tests/witnesses.ts`, or `VARIETY_FUNNEL_WITNESSES` / `VARIETY_FUNNEL_JAMS` in `tests/variety-witnesses.ts`. Exported Workshop levels require `--workshop`.
 
-- **Win.** Run `tw win board-1 --run <id>`. The steps show each pour; `result.json` is `ok`, the last state has `status: "won"`, the card offers `Next level` within its stop, and the picker shows ✓ after reload. A completed stop returns to the map instead.
-- **Jam.** Run `tw jam board-1 --run <id>`. The last state has `status: "jammed"`, the card reads `A little tangled!`, Undo carries the `attention` class, and after Undo the status is `playing`.
+- **Win.** Run `tw win board-1 --run <id>`. The screenshots sample the pours. The `won` step records `status: "won"`, the card offers `Next level`, and the menu row is completed after reload. Completing the stop returns to the map.
+- **Jam.** Run `tw jam board-1 --run <id>`. The `jammed` step shows the card and Undo draws attention. The `after-undo` step records `playing`.
 - **Settled scene census.** Run `tw render board-57 --run <id>` for draw calls and triangles after up to three pours, settling after each (`render.json`). It does not measure moving marbles or frame time.
 - **Landing payoff.** Run `tw payoff board-31 --run <id>` for touch-driven screenshots of the first three landings and the departure. Check the front box in the middle dock: left, then right, then middle. `tests/e2e/funnel-payoff.spec.ts` checks rendered positions, contact-time audio events, reduced motion and cancellation on Undo.
-- **Shared-pallet payoff.** [`variety-motion.spec.ts`](../../../../tests/e2e/variety-motion.spec.ts) checks the joint normal lift and local burst, then suppression of lift/shake/sparks under reduced motion without changing joint departure. Mechanics reported these motion checks passed and delivered real grayscale-checked Funnel cue crops. Chooser checks and the bounded `board-212` win/reload-badge/jam-Undo run passed on the earlier snapshot, alongside its combined units/hygiene/gameplay budgets. These passes do not cover the new VillagePlans tree; see [`../integration.md`](../integration.md) for implemented/pending-proof status.
-- **Variants.** Run `tw controls board-200 --run <id>` for paired release and exact physics Undo, `tw win board-201 --run <id>` for shelf access, and `tw win board-202 --run <id>` for the sealed-dock bank route. [`tests/e2e/funnel-features.spec.ts`](../../../../tests/e2e/funnel-features.spec.ts) exercises refused endpoints, immediate shelf access and seal timing. `tw win board-212 --workshop --run <id>` uses the new source; its held-box and joint-departure moments need the causal checks in [`workshop-variety.spec.ts`](../../../../tests/e2e/workshop-variety.spec.ts). Record those results separately in [`../integration.md`](../integration.md).
+- **Shared-pallet payoff.** [`variety-motion.spec.ts`](../../../../tests/e2e/variety-motion.spec.ts) checks the joint normal lift and local burst, then suppression of lift/shake/sparks under reduced motion without changing joint departure. Use the associated phone captures for pattern and grayscale review.
+- **Variants.** Run `tw controls board-200 --run <id>` for paired release and exact physics Undo, `tw win board-201 --run <id>` for shelf access, and `tw win board-202 --run <id>` for the sealed-dock bank route. [`tests/e2e/funnel-features.spec.ts`](../../../../tests/e2e/funnel-features.spec.ts) exercises refused endpoints, immediate shelf access and seal timing. `tw win board-212 --workshop --run <id>` opens the project; its held-box and joint-departure moments need the causal checks in [`workshop-variety.spec.ts`](../../../../tests/e2e/workshop-variety.spec.ts).
 - **Proof.** Look at the screenshots: crates and boxes carry their pattern badges, the belt is visibly full when `occupancy` equals capacity.
 
 ## Gotchas
@@ -38,6 +37,6 @@ Preconditions:
 - Taps settle the machine before the next tap; a real player can tap faster. `tests/e2e/reservoir.spec.ts` covers rapid taps.
 - The first three levels show a guide; it follows real taps and doesn't block them.
 - Witness letters are columns (`A` is `supply0`), or stable crate IDs on paired and fork boards. Do not infer accessibility from a column on those boards.
-- A win needs zero physics recoveries; `scripts/machine-soak.ts` checks that outside the browser.
+- Authoring witnesses require zero physics recoveries. `scripts/machine-soak.ts` checks that outside the browser.
 - The drawn slots and departure curve are projected from the original machine poses; rule allocation, physics and replay fingerprints retain their original order and timing.
-- Shared-pallet queued boxes use a larger, top-facing existing pattern decal while empty. The current phone/grayscale proof belongs to `workshop-variety.spec.ts`; earlier maintenance screenshots predate that adjustment.
+- Empty waiting boxes show a larger top-facing pattern. The shared-pallet boxes use an even larger decal. Check the phone and grayscale views in `workshop-variety.spec.ts`.

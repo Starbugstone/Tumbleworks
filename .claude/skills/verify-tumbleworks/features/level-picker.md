@@ -1,38 +1,30 @@
-# Level picker and progress
+# Level menu and progress
 
-The level pill opens the picker: the campaign's chips grouped into chapters with completion counts, the level's title and difficulty, the pattern legend, the language switch and a button that copies the current game for a bug report. Completion is stored by stable ID. Next level resumes an unfinished puzzle within the accepted stop, or steps to the next game in order when a completed stop is being replayed; finishing that stop returns to the village map. A win fires confetti together with the board's own corner fountains.
+The level pill opens a compact menu with the village and round and its three named puzzles. Settings and help contains the pattern legend, language switch, How to play, and a button to copy the current game for a bug report. Wins are stored by stable ID. Next level resumes an unfinished puzzle within the current stop, or steps to the next puzzle when replaying a built stop. Finishing the stop returns to the village.
 
 ## Sub-features
 
-- `picker-open` the pill opens and closes the picker.
-- `picker-choose` a chip opens its level.
-- `progress-store` a win marks the chip ✓ and survives a reload.
-- `next-level` the win card's Next level continues within the accepted three-game stop. It cannot cross into the next stop; that needs a map tap.
-- `return-map` Valley map (`#map-open`) in the picker returns to the village.
-- `map-peek` returning from the village to the current unfinished campaign puzzle retains its accepted moves and Undo in memory. Reloading the page still restarts that unfinished puzzle.
-- `play-frontier` the map's Play next level button resumes the campaign frontier, including when viewing an earlier location; the picker remains free-browse access.
-- `language` English and French switch without restarting the puzzle; the game names stay as brands.
-- `replay-copy` "Copy this game for a bug report" copies a replay log that `scripts/replay.ts` plays back.
+- The level pill opens the menu. The close button, Escape, an outside touch and tapping the current row dismiss it while preserving the puzzle.
+- Each row opens its puzzle in the current round. A Workshop project or development trial has a single row.
+- An inactive completed row shows ✓. The active completed row keeps its number and exposes completion in its accessible name. Both carry `.completed`.
+- Back to village returns to the current round’s village. In a Workshop project, Back to workshop returns to the chooser.
+- A village visit preserves the in-page puzzle and Undo when returning to that unfinished game. Reload starts the puzzle again.
+- Switching English and French preserves the puzzle and the game names. How to play reveals the authored title, difficulty and instructions. The replay copy produces a log that `scripts/replay.ts` can play back.
 
 ## How to get to it (user POV)
 
-- Tap the level pill (top left, `#levels-toggle`).
-- Win a level and press `Next level` on the card.
+- Tap Open level menu (`#levels-toggle`). To change rounds, return to the village and tap another available stop.
+- Tap Settings and help (`#menu-settings`) for language, patterns and replay copy. Back to levels (`#menu-back`) returns to the rows.
 
 ## Driving it with tw
 
-Preconditions:
-
-- `scripts/doctor.sh` passes.
-
-- **Picker and language.** Run `tw picker --run <id>`. Every level is listed, the legend has a pattern per colour, `Français` relabels Undo as `Annuler`, and a chip opens its level.
-- **Stored completion.** Run `tw win board-1 --run <id>`. `localStorage["tumbleworks.progress.v1"]` lists `board-1`, and after a reload its chip reads ✓.
-- **Replay.** Not scripted in `tw` yet: `tests/e2e/replay.spec.ts` copies a game by touch and replays it in Node.
-- **Finger scrolling.** [`tests/e2e/input-regressions.spec.ts`](../../../../tests/e2e/input-regressions.spec.ts) swipes the picker's actual scroll area with touch. `tw picker` checks chips and language; clicking a chip through a locator does not prove finger scrolling.
+- Run `tw picker --run <id>` after doctor. It checks the three game names, opens Settings and help, checks all seven patterns, switches to French and back without changing the puzzle, then opens the Tube Sort row by touch.
+- Run `tw win board-1 --run <id>` for persistence. Check the stable ID in `tumbleworks.progress.v1` and its completed row after reload. Run `tw map --run <id>` to follow Next level through a full stop.
+- [`picker.spec.ts`](../../../../tests/e2e/picker.spec.ts) covers late rounds, French row readability, dismissal, keyboard focus and the trial menu. [`input-regressions.spec.ts`](../../../../tests/e2e/input-regressions.spec.ts) swipes the compact menu, checks that the underlying board stays unchanged and then selects a row by touch.
+- [`replay.spec.ts`](../../../../tests/e2e/replay.spec.ts) copies a game through Settings and help and replays it in Node.
 
 ## Gotchas
 
-- Each journey starts from empty storage. If a picker visit opens a later puzzle within a stop, Next level can return to that stop's earlier unfinished puzzle. Never assume the next numeric campaign index or cross-stop progression.
-- Language switching relabels the open picker in place and leaves it open. Check `#levels` visibility before another toggle all the same; paused UI clocks must let the picker animation finish. Final corrected regression evidence is linked in [`../integration.md`](../integration.md).
-- French is chosen automatically when the browser prefers it; the journeys run with an English browser.
-- The level pill's accessible name includes the current number, campaign count and game name (for example `1 / 180 · Funnel Sort`); the authored title is separate. Use `#levels-toggle`.
+- The three-row menu fits without scrolling. Settings and help can scroll if its contents overflow.
+- The pill's visible text includes the number, count and game name. Its accessible name is Open level menu or Ouvrir le menu des niveaux. Use `#levels-toggle`.
+- Next level follows the stop’s remaining puzzles, so playing a later row first can send the player back to an earlier unfinished row.
