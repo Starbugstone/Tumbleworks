@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Read-only: is the running instance worth driving? Service up, port answering, what code it serves,
-# and a real browser boot whose map opens a playable board with the whole campaign listed.
+# and a real browser boot whose map opens a playable board with the first round's levels listed.
 set -uo pipefail
 root="$(cd "$(dirname "$0")/../../../.." && pwd)"
 cd "$root"
