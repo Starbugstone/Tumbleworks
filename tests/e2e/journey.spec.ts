@@ -173,6 +173,7 @@ test('a campaign prefix makes the final Gardens stop playable from the map', asy
 });
 
 test.describe('the whole campaign completes through real touch input', () => {
+  test.use({ viewport: PHONE, deviceScaleFactor: 1 });
   test.describe.configure({ mode: 'parallel' });
   for (let slice = 0; slice < SLICES; slice++) {
     const [first, last] = sliceBounds(slice);
