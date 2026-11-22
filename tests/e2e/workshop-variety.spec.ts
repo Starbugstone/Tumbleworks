@@ -8,6 +8,7 @@ import { TUBE_VARIETY_JAMS } from '../puzzles/tube-variety-fixtures';
 import { VARIETY_FUNNEL_JAMS, VARIETY_FUNNEL_WITNESSES, VARIETY_LOOP_JAMS, VARIETY_LOOP_WITNESSES } from '../variety-witnesses';
 import { replayed } from '../replay-target';
 import { CAMPAIGN } from '../../src/campaign';
+import { worldProgress } from '../../src/world/progression';
 import { WORKSHOP_PROJECTS } from '../../src/world/workshop-projects';
 
 type GameWindow = Window & { tumbleworks: { app: App } };
@@ -49,10 +50,11 @@ const milestoneIds = (id: string): string[] => {
 };
 async function seedMilestone(page: Page, id: string): Promise<string[]> {
   const ids = milestoneIds(id);
-  await page.addInitScript(({ ids, first }) => {
+  const seen = worldProgress(CAMPAIGN, new Set(ids)).chapters.filter(chapter => chapter.complete).map(chapter => chapter.key);
+  await page.addInitScript(({ ids, first, seen }) => {
     if (!localStorage.getItem('tumbleworks.progress.v1')) localStorage.setItem('tumbleworks.progress.v1', JSON.stringify({ completed: ids, current: first, muted: true }));
-    if (!localStorage.getItem('tumbleworks.valley.v1')) localStorage.setItem('tumbleworks.valley.v1', JSON.stringify({ seen: [], chapter: 0 }));
-  }, { ids, first: CAMPAIGN[0]!.id });
+    if (!localStorage.getItem('tumbleworks.valley.v1')) localStorage.setItem('tumbleworks.valley.v1', JSON.stringify({ seen, chapter: 0 }));
+  }, { ids, first: CAMPAIGN[0]!.id, seen });
   return ids;
 }
 /** The chooser is ready once its screen is set, the journey curtain has faded and the project's card exists. */
@@ -186,7 +188,8 @@ for (const id of ids) test(`${id} Workshop real input, causal rules, undo, jam a
   await causalMoment(page, id);
   await page.locator('#restart').click(); await play(page, id, true);
   expect((await state(page)).status).toBe('jammed'); await capture(page, id, 'jam');
-  await page.locator('#undo').click(); expect((await state(page)).status).toBe('playing');
+  await page.locator('#card[data-kind="jam"]').getByRole('button', { name: 'Undo', exact: true }).tap();
+  expect((await state(page)).status).toBe('playing');
   await page.locator('#restart').click(); await page.locator('#hint').click(); await expect(page.locator('#message')).not.toBeEmpty();
   await play(page, id); expect((await state(page)).status).toBe('won');
   const log = await page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.replay());

@@ -19,6 +19,8 @@ export interface TubeDef {
   readonly capacity: number;
   /** Whole-colour counts and final home sizes; omitted colours use capacity. */
   readonly colorCapacities?: Readonly<Partial<Record<Color, number>>>;
+  /** Number of tubes in each row, back to front. Omitted boards use pairs. */
+  readonly rows?: readonly number[];
   /** Bottom marble first. */
   readonly tubes: readonly (readonly Color[])[];
   readonly solution: readonly TubeMove[];

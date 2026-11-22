@@ -1,5 +1,5 @@
-import type { VillageScenePlan } from '../village-plans';
-import type { VillageTerrainSpec } from '../village-terrain';
+import type { VillageSceneryPiece, VillageScenePlan } from '../village-plans';
+import type { TerrainVec2, VillageTerrainSpec } from '../village-terrain';
 import { workshopSite } from '../workshop-building';
 import { along, connect, groundOf, join, piece, schedule, shots, station, straight, track, turn, UP } from './author';
 import { villagePort, type VillageBearingSeat, type VillageConnector, type VillagePort, type VillageVec3 } from '../village-plan';
@@ -45,7 +45,7 @@ const terrain: VillageTerrainSpec = {
 };
 const { at } = groundOf(terrain);
 const beats = schedule(1.0, [[1.4, 0.4], [1.0, 2.2], [1.4, 0.4], [1.0, 0.3], [1.2, 0.3], [0.8, 0.3], [2.0, 2.5], [1.2, 0.3], [1.0, 0.3], [1.2, 0]]);
-const plank = 0xd6b27a;
+const plank = 0xb88553;
 const FLOOR = 0.3 + 0.1;
 /** Fixed deck grade shared by the three held carriers (the first-three declaration). */
 const DECK_PITCH = -.18;
@@ -462,29 +462,103 @@ const connectors = [
   // The splice pile's foot crosses the cut floor's edge at x 8.5 (Harbour102).
   connect(boom, chute, 0.15, 0.15, [0, 0], { supports: [[8.4, BELL_Y - 0.4, BERTH_Z]], terrainFeet: [0], steps: 16 }),
 ];
+const surveyedSlipwayTree = piece('tree-a', [6, at(6, 4.8), 4.8], 0, .8);
 const scenery = [
-  piece('warehouse', [-4.5, at(-4.5, -9.5), -9.5], 0, 1.0), piece('warehouse', [1.5, at(1.5, -10.0), -10.0], 0.1, 1.0),
+  piece('warehouse', [-4.5, at(-4.5, -9.5), -9.5], 0, 1.0), piece('harbour-beacon', [1.5, at(1.5, -10.0), -10.0], 0.1, 1.0),
   piece('warehouse', [6.8, at(6.8, -9.0), -9.0], -0.1, 0.95),
   piece('house-b', [-8.6, at(-8.6, -6.0), -6.0], 0.2, 1.0), piece('house-a', [-8.0, at(-8.0, 12.5), 12.5], -0.2, 1.1),
   // Moored at z 10 (Harbour94). Its packed hull did not cross the chute at the old z 10.9
   // either (harbour-live94 feet-boat3), so no old-mooring collision is claimed.
   piece('boat', [9.6, -0.25, 10.0], Math.PI / 2, 1.0), piece('boat', [-0.3, -0.25, 12.0], -0.4, 1.1),
-  piece('tree-a', [-9.2, at(-9.2, 1.0), 1.0], 0, 0.85), piece('tree-a', [6.0, at(6.0, 4.8), 4.8], 0, 0.8),
+  piece('tree-a', [-9.2, at(-9.2, 1.0), 1.0], 0, 0.85), surveyedSlipwayTree,
   piece('tree-a', [-1.5, at(-1.5, -8.0), -8.0], 0, 0.75), piece('tree-a', [9.8, at(9.8, 1.5), 1.5], 0, 0.8),
 ];
+/** Two streets converge at the pilot beacon. The lower quay has its own work yard by the inlet. */
+const harbourTown = [
+  piece('fisher-row', [-7.28, 4.20, -10.62], .14, .95),
+  piece('pilot-house', [-5.31, 4.20, -11.62], -.09, 1.06),
+  piece('salt-cottage', [-3.51, 4.20, -11.50], .14, .96),
+  piece('fisher-row', [-1.42, 4.20, -10.95], -.12, .91),
+  piece('chandlery', [-5.63, 4.20, -8.59], Math.PI+.14, 1.08),
+  piece('coastal-thicket', [-7.92, 4.20, -8.42], -.11, .86),
+  piece('coastal-thicket', [-3.19, 4.20, -8.34], .44, .86),
+  piece('harbour-beacon', [1.50, 4.20, -10.0], .1, 1.00),
+  piece('salt-cottage', [3.08, 4.20, -11.15], -.13, .91),
+  piece('pilot-house', [4.88, 4.20, -11.66], .04, 1.09),
+  piece('fisher-row', [6.94, 4.20, -10.76], .22, .88),
+  piece('sail-loft', [7.16, 4.20, -8.19], -.23, .98),
+  piece('fish-stall', [3.83, 4.20, -8.06], -.18, .91),
+  piece('crew-gold', [3.57, 4.20, -7.47], 2.8, 1.09),
+  piece('fish-trays', [5.02, 4.20, -8.19], -.18, .68),
+  piece('drying-line', [5.10, 4.20, -7.12], .11, .81),
+  piece('coastal-thicket', [8.94, 4.20, -7.98], .18, .79),
+  piece('coastal-thicket', [-9.05, 3.60, .78], .45, .98),
+  piece('salt-cottage', [-7.35, 3.60, -4.90], -1.55, .88),
+  piece('coastal-thicket', [9.12, at(9.12, 2.64), 2.64], .21, .89),
+  piece('crew-blue', [8.79, at(8.79, 3.74), 3.74], -1.7, 1.12),
+
+  piece('chandlery', [-9.16, 3.60, 10.41], 1.48, .97),
+  piece('smokehouse', [-8.55, 3.60, 13.03], 1.29, .91),
+  piece('stone-wall', [-7.18, 3.60, 14.00], .03, .56),
+  piece('net-rack', [-5.92, 3.60, 12.18], 1.31, .84),
+  piece('lobster-pots', [-5.79, 3.60, 13.78], .22, .75),
+  piece('fish-trays', [-5.93, 3.60, 10.94], .53, .84),
+  piece('crew-blue', [-6.44, 3.60, 11.92], 1.53, 1.12),
+  piece('coastal-thicket', [-9.71, 3.60, 11.99], -.39, .65),
+];
+const coastalScenery = [...scenery.filter(site => site.model === 'boat'),
+  piece('harbour-dinghy', [-2.85, -.04, 10.92], Math.PI*.49, 1.13), ...harbourTown];
+const workshop = workshopSite({ position: [-7.4, at(-7.4, 4.6), 4.6], scale: 1.1, yaw: 0.3 },
+  [-7.6, at(-7.4, 4.6) + 3.3, 4.8], { from: 8, to: 7 });
+const rewards = [
+  { project: 'board-210', position: [-3.6, at(-3.6, -5.6), -5.6], yaw: 0 },
+  { project: 'board-212', position: [-7.2, at(-7.2, -2.0), -2.0], yaw: 0 },
+] satisfies VillageScenePlan['rewards'];
+
+// Half-width, back and front of the kit's load-bearing base, including doorsteps.
+const harbourBases: Record<string, readonly [number, number, number]> = {
+  'house-a': [1.05, -.95, 1.25],
+  'sail-loft': [1.45,-.86,.86], 'crew-blue': [.135,-.08,.12], 'crew-gold': [.135,-.08,.12],
+  'fisher-row': [1.10,-.62,.815], 'pilot-house': [.785,-.715,.91], 'salt-cottage': [.865,-.685,.88],
+  smokehouse: [1.19,-.745,.94], chandlery: [1.16,-.71,.905], 'fish-stall': [.68,-.4,.4],
+  'coastal-thicket': [.55,-.50,.31], 'net-rack': [.94,-.065,.065], 'lobster-pots': [.70,-.48,.43],
+  'fish-trays': [.75,-.565,.435], 'drying-line': [.95,-.04,.04], 'stone-wall': [1.12,-.135,.135],
+  'harbour-beacon': [.86, -.86, .86],
+  'board-210': [1.25,-1.0,1.0], 'board-212': [1.05,-1.0,1.0],
+};
+function buildingPad(site: VillageSceneryPiece) {
+  const [w, back, front] = harbourBases[site.model]!;
+  const [cx, y, cz] = site.position, c = Math.cos(site.yaw), s = Math.sin(site.yaw);
+  // Cover the corners of the interpolation triangles under the fitted footprint.
+  const margin = Math.hypot(terrain.size[0]/terrain.cells[0], terrain.size[1]/terrain.cells[1]);
+  const left = -w*site.scale-margin, right = -left, near = front*site.scale+margin, far = back*site.scale-margin;
+  const outline: TerrainVec2[] = [[left,far],[right,far],[right,near],[left,near]].map(([x,z]) =>
+    [cx + x!*c + z!*s, cz - x!*s + z!*c]);
+  const apron = site.model === 'house-a' || site.model.startsWith('board-') ? 1.25 : .50;
+  return { outline, height: y, apron };
+}
+// The inner shore winds between the crane quay and the slipway. The waterline
+// falls away on the land side as well as on the underwater apron.
+const harbourCoast: VillageTerrainSpec = {
+  ...terrain,
+  beachWidth: 2.45,
+  buildingPads: [{ ...workshop.house, model: 'house-a' }, ...rewards.map(site=>({ ...site, model:site.project, scale:1 })), ...harbourTown].map(buildingPad),
+  outline: [[-10,-9],[-9.5,-12],[-7.8,-13.6],[-4.2,-14.2],[-1.5,-13.8],[1.8,-14.7],[5.3,-14.4],[8.3,-13.1],[10.6,-10.8],[11,-7.7],[10.6,-5.3],[11.6,-2.3],[11.4,1.4],[10.6,4.7],[11.25,7.4],[10.9,11.7],[10.4,13.6],[9.45,13.55],[8.65,13.68],[7.86,14.04],[7.16,14.66],[6.43,15.25],[5.75,15.48],[5.05,15.35],[4.40,14.98],[3.71,14.30],[3.02,13.94],[2.36,13.31],[1.88,12.98],[.96,14.07],[-1,14.7],[-4.3,15.7],[-5.75,15.82],[-6.62,15.99],[-7.52,15.98],[-8.25,15.8],[-10.95,14.65],[-11.65,12.3],[-11.25,9.8],[-11.35,7.5],[-11.55,4.6],[-10.9,2.3],[-11.6,-.7],[-11.4,-4.1],[-11.15,-7.5]],
+  features: [
+    ...terrain.features.filter(f => f.kind !== 'hole'),
+    { kind: 'hole', polygon: [[-.4,2.15],[.55,2.3],[1.25,3.1],[1.65,4.5],[1.85,6.6],[1.48,8.5],[1.72,10.2],[2.15,11.6],[2.2,13.2],[1.6,16.5],[-3.8,16.5],[-3.5,14.3],[-3.2,13],[-3.7,11],[-3.65,9.3],[-3.05,8],[-2.25,6.9],[-1.85,5.4],[-1.97,4.1],[-1.7,3.1],[-1.12,2.45]] },
+    { kind: 'hole', polygon: [[10.6,5.6],[12.5,4.8],[12.5,16.5],[8.7,16.5],[8.8,13.6],[9.1,12.4],[8.85,11],[8.9,9.5],[9.45,7.85],[9.65,6.55]] },
+  ],
+};
 export const LITTLE_HARBOUR: VillageScenePlan = {
-  chapter: 0, construction: 'rise', terrain, scenery,
+  chapter: 0, construction: 'rise', terrain, cinematicTerrain: harbourCoast, cinematicScenery: coastalScenery, scenery,
   // Shot times are unchanged authored metadata; retime against route.duration at the camera stage.
-  plan: { chapter: 0, profile: 'plank', staticSupports:'harbour-static-112', stations: physical, connectors, camera: shots([0, 2.4, 0], [
+  plan: { chapter: 0, profile: 'plank', pierBell: { launchStop: 9, slipwayStop: 2 }, staticSupports:'harbour-static-112', stations: physical, connectors, camera: shots([0, 2.4, 0], [
     { at: 2.6, target: [-3.6, 4.8, 5.0], radius: 22 }, { at: 5.0, target: [-1.3, 4.6, 1.0], radius: 22 },
     { at: 7.6, target: [3.0, 3.8, -0.2], radius: 24 }, { at: 10.45, target: [6.6, 2.8, 0.6], radius: 22 },
     // The bell shot's target moves with the berth; its time, radius and the zoom count are unchanged.
     { at: 14.9, target: [4.0, 2.0, 4.6], radius: 26 }, { at: 17.55, target: [7.6, 1.5, 7.6], radius: 22 },
   ]) },
-  workshop: workshopSite({ position: [-7.4, at(-7.4, 4.6), 4.6], scale: 1.1, yaw: 0.3 }, [-7.6, at(-7.4, 4.6) + 3.3, 4.8], { from: 8, to: 7 }),
-  rewards: [
-    { project: 'board-210', position: [-3.6, at(-3.6, -5.6), -5.6], yaw: 0 },
-    { project: 'board-212', position: [-7.2, at(-7.2, -2.0), -2.0], yaw: 0 },
-  ],
-  overview: [piece('warehouse', [-4, at(-4, -9.5), -9.5], 0, 1.3), piece('boat', [-0.3, -0.25, 9], -0.3, 1.5), piece('house-a', [-7.5, at(-7.5, 5), 5], 0.3, 1.2)],
+  workshop, rewards,
+  overview: [piece('harbour-beacon', [-4, at(-4, -9.5), -9.5], 0, 1.3), piece('boat', [-0.3, -0.25, 9], -0.3, 1.5), piece('house-a', [-7.5, at(-7.5, 5), 5], 0.3, 1.2)],
 };

@@ -1,3 +1,4 @@
+import { inlandSettlement } from './inland-settlements';
 import { villagePort } from '../village-plan';
 import type { VillageScenePlan } from '../village-plans';
 import type { VillageTerrainSpec } from '../village-terrain';
@@ -37,13 +38,15 @@ const connectors=stations.slice(0,-1).map((from,i)=>from.stop===6 ? connectVia(f
   {out:1.2,in:1.2,steps:64},
 ]) : from.stop===9 ? connect(from,stations[i+1]!,2,2,[0,0],{steps:64})
   : connect(from,stations[i+1]!,from.stop===2?.4:[8,7,6,5,1].includes(from.stop)?1.2:3.2,from.stop===2?.4:[8,7,6,5,1].includes(from.stop)?1.2:3.2,[0,0],{lead:0.8,steps:64}));
+const scenery = [piece('house-b',[10,at(10,-5),-5],-.4,.7),piece('house-a',[-11,at(-11,11),11],.3,.7),piece('tree-a',[11,at(11,-12),-12],0,.65)];
 export const CLOUD_BRIDGE: VillageScenePlan={chapter:4,construction:'drop',terrain,
+  cinematicScenery: [...scenery, ...inlandSettlement(4, at)],
   plan:{chapter:4,profile:'girder',stations,connectors,camera:shots([0,2.5,0],[
     {at:2.7,target:[5,6,-9],radius:30},{at:6.2,target:[0,5,-4],radius:32},
     {at:11.1,target:[-5,4,2],radius:28},{at:14.6,target:[1,3,6],radius:30},{at:18.7,target:[0,2.5,0],radius:66},
   ])},
-  scenery:[piece('house-b',[10,at(10,-5),-5],-.4,.7),piece('house-a',[-11,at(-11,11),11],.3,.7),piece('tree-a',[11,at(11,-12),-12],0,.65)],
+  scenery,
   workshop:workshopSite({position:[-12.25,at(-12.25,2.5),2.5],scale:.65,yaw:Math.PI/2},[-13, 5.5, 1.5],{from:4,to:3}),
   rewards:[{project:'loop-211',position:[10,at(10,10),10],yaw:0}],
-  overview:[piece('house-b',[7,at(7,-8),-8],0,1),piece('bridge',[0,-.5,0],-.65,1.2),piece('house-a',[-7,at(-7,8),8],0,1)],
+  overview:[piece('fell-cottage',[7,at(7,-8),-8],0,1),piece('bridge',[0,-.5,0],-.65,1.2),piece('fell-cottage',[-7,at(-7,8),8],0,1)],
 };

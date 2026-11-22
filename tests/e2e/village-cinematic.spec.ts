@@ -1,3 +1,4 @@
+import { STOPS_PER_CHAPTER, LEVELS_PER_STOP } from '../../src/world/progression';
 import {test,expect,type Page} from '@playwright/test';
 import {CAMPAIGN} from '../../src/campaign';
 import type {App} from '../../src/view/App';
@@ -12,7 +13,7 @@ async function read(page:Page){return page.evaluate(()=>{
  return{state:app.debugState(),chapter:scene?.chapter,time:world.filmTime,duration:world.playback?.duration,routeDuration:scene?.machine.route.duration,mode:scene?.machine.route.mode,physicalProgram:!!scene?.machine.program,entities:app.stage.marbles.count,steps:app.runtime.game.steps,fingerprint:app.runtime.game.fingerprint(),progress:localStorage.getItem('tumbleworks.progress.v1'),manual:app.manualClock};
 });}
 test.use({viewport:{width:375,height:690},deviceScaleFactor:1});
-for(let chapter=0;chapter<6;chapter++)for(const reduced of[false,true])test(`cinematic ${chapter}: phone ${reduced?'reduced':'normal'} and desktop replay`,async({page})=>{
+for(let chapter=0;chapter < CAMPAIGN.length / (STOPS_PER_CHAPTER * LEVELS_PER_STOP);chapter++)for(const reduced of[false,true])test(`cinematic ${chapter}: phone ${reduced?'reduced':'normal'} and desktop replay`,async({page})=>{
  test.setTimeout(240000);mkdirSync(output,{recursive:true});const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
  await page.emulateMedia({reducedMotion:reduced?'reduce':'no-preference'});
  // Disposable presentation fixture; this does not claim actual puzzle or project wins.

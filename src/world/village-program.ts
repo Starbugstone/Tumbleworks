@@ -93,7 +93,7 @@ function validateFixedEnds(plan:VillagePlan,link:VillageConnector):void{
 export function validateVillagePlan(plan: VillagePlan): void {
  if(plan.staticSupports!==undefined&&(plan.staticSupports!=='harbour-static-112'||plan.chapter!==0||plan.profile!=='plank'))throw Error('Invalid static support model');
 
-  if (!['plank', 'terracotta', 'timber', 'twinrail', 'girder', 'steel'].includes(plan.profile)) throw new Error('Village requires an explicit track profile');
+  if (!['plank', 'terracotta', 'timber', 'twinrail', 'girder', 'steel', 'brine', 'stoneware'].includes(plan.profile)) throw new Error('Village requires an explicit track profile');
   if (!Number.isInteger(plan.chapter) || plan.chapter < 0) throw new Error('Invalid numeric chapter');
   if (plan.stations.length !== 10 || new Set(plan.stations.map(s => s.stop)).size !== 10) throw new Error('Village requires ten stable stops');
   const ordered = [...plan.stations].sort((a, b) => b.stop - a.stop);

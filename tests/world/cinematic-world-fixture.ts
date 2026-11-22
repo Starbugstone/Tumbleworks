@@ -9,6 +9,37 @@ import { WorldScene } from "../../src/view/world-scene";
 import { worldProgress } from "../../src/world/progression";
 import { WORKSHOP_PROJECTS } from "../../src/world/workshop-projects";
 
+/** Native route and envelopes from the normal construction, before unrelated coastal dressing. */
+export function cinematicMachine(chapter: number) {
+  const stage = {
+    createScene: () => new Scene(),
+    disposeScene: (scene: Scene) => scene.clear(),
+  } as unknown as Stage;
+  const scene = WorldScene.construct(stage, chapter, { motion: "cinematic" });
+  const construct = VillageMachine.prototype.construction;
+  let machine: VillageMachine | undefined;
+  const capture = vi.spyOn(VillageMachine.prototype, "construction").mockImplementation(function* (this: VillageMachine) {
+    yield* construct.call(this);
+    machine = this;
+  });
+  const dispose = () => { scene.return(undefined as never); };
+  try {
+    while (!machine) {
+      const step = scene.next();
+      if (step.done) {
+        step.value.dispose();
+        throw new Error("Village construction did not build a machine");
+      }
+    }
+    return { machine, dispose };
+  } catch (error) {
+    dispose();
+    throw error;
+  } finally {
+    capture.mockRestore();
+  }
+}
+
 /** Actual production scene/earned additions; no WebGL renderer or physical certificate. */
 export function cinematicWorld(chapter: number, unbatched = false) {
   const ids = [

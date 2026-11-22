@@ -16,6 +16,9 @@ function plateTexture(base: string, seam: string, bevel: string, edge: string): 
   // A quiet chevron in the middle of the plate shows the direction of travel.
   ctx.strokeStyle = bevel; ctx.lineWidth = 5; ctx.lineCap = 'round';
   ctx.beginPath(); ctx.moveTo(118, 40); ctx.lineTo(142, 64); ctx.lineTo(118, 88); ctx.stroke();
+  // Fine raised shoulders leave the middle free for cargo and its travelling seam.
+  ctx.fillStyle = bevel;
+  ctx.fillRect(12, 9, 225, 3); ctx.fillRect(12, 116, 225, 3);
   const map = new THREE.CanvasTexture(canvas);
   map.colorSpace = THREE.SRGBColorSpace;
   map.wrapS = THREE.RepeatWrapping;
@@ -38,7 +41,7 @@ export class BeltSurface {
   setEnergy(value: number): void { this.mesh.material.emissiveIntensity = this.still ? 0 : value * 0.85; }
 
   constructor(path: BeltPath, halfWidth: number, floorY: number, readonly plateLength: number,
-    palette = { base: '#2a1742', seam: '#170b27', bevel: '#40245f', edge: '#1c0f2e' }) {
+    palette = { base: '#25383f', seam: '#17262d', bevel: '#435960', edge: '#202d32' }) {
     this.map = plateTexture(palette.base, palette.seam, palette.bevel, palette.edge);
     const samples = 320;
     const positions: number[] = [], uvs: number[] = [], indices: number[] = [];

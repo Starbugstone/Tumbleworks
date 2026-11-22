@@ -1,3 +1,4 @@
+import { inlandSettlement } from './inland-settlements';
 import type { VillageScenePlan } from '../village-plans';
 import type { VillageTerrainSpec } from '../village-terrain';
 import { workshopSite } from '../workshop-building';
@@ -305,8 +306,18 @@ const scenery = [
   piece('house-a', [6.6, at(6.6, -6.4), -6.4], 0.1, 1.0), piece('house-b', [-8.8, at(-8.8, -12.6), -12.6], -0.2, 1.0),
   piece('tree-a', [9.6, at(9.6, -11.0), -11.0], 0, 0.85), piece('tree-a', [1.8, at(1.8, 12.8), 12.8], 0, 0.8),
 ];
+// Face the mill toward the river. The camera can see the wall under the aqueduct as it rounds the bend.
+const quayMill = piece('mill', [-3.83, at(-3.83, .45), .45], 0, .74);
+const cinematicTerrain: VillageTerrainSpec = {
+  ...terrain,
+  features: [...terrain.features,
+    // The low bank below the aqueduct meets the water without exposing the survey cell's vertical toe.
+    { kind: 'cut', polygon: [[-2.75, 2.68], [-1.95, 2.68], [-3.15, 4.42], [-3.95, 4.42]], depth: .41, skirt: .65 },
+  ],
+};
 export const WILLOW_MILL: VillageScenePlan = {
-  chapter: 2, construction: 'rise', terrain, scenery,
+  chapter: 2, construction: 'rise', terrain, cinematicTerrain, scenery,
+  cinematicScenery: [quayMill, ...scenery.filter(s => s.model !== 'willow' && s.model !== 'mill'), ...inlandSettlement(2, at)],
   plan: { chapter: 2, profile: 'timber', stations, connectors, camera: shots([0, 2.4, 0], [
     { at: 2.7, target: [-3.0, 2.8, -5.5], radius: 24 }, { at: 5.85, target: [-0.6, 3.0, -3.2], radius: 22 },
     { at: 10.9, target: [-2.4, 3.9, 0.4], radius: 24 }, { at: 15.25, target: [4.8, 2.6, 4.2], radius: 22 },
@@ -314,5 +325,5 @@ export const WILLOW_MILL: VillageScenePlan = {
   ]) },
   workshop: workshopSite({ position: [8.7, at(8.7, 3.6), 3.6], scale: 1.1, yaw: -0.2 }, [9.6, at(8.7, 3.6) + 2.3, 4.8], { from: 2, to: 1 }),
   rewards: [{ project: 'tube-210', position: [-8.0, at(-8.0, 8.6), 8.6], yaw: 0 }],
-  overview: [piece('mill', [-3.9, at(-3.9, -0.5), -0.5], 0, 1.1), piece('willow', [-6, at(-6, 5), 5], 0, 1.3), piece('house-b', [6, at(6, -5), -5], 0, 1.0)],
+  overview: [piece('mill', [-3.9, at(-3.9, -0.5), -0.5], 0, 1.1), piece('pollard', [-6, at(-6, 5), 5], 0, 1.3), piece('grain-barn', [6, at(6, -5), -5], 0, 1.0)],
 };

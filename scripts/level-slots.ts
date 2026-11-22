@@ -18,4 +18,17 @@ export const SLOTS: Readonly<Record<string, Slot>> = {
   'board-200': 'lesson', 'board-79': 'ordinary', 'board-76': 'ordinary', 'board-80': 'peak', 'board-81': 'ordinary', 'board-77': 'relief', 'board-82': 'ordinary', 'board-83': 'ordinary', 'board-84': 'peak', 'board-85': 'ordinary', 'board-86': 'relief', 'board-87': 'ordinary', 'board-88': 'ordinary', 'board-89': 'peak', 'board-90': 'ordinary', 'board-91': 'relief', 'board-201': 'lesson', 'board-92': 'ordinary', 'board-78': 'peak', 'board-93': 'relief',
   'loop-78': 'ordinary', 'loop-79': 'relief', 'loop-200': 'lesson', 'loop-80': 'relief', 'loop-81': 'peak', 'loop-82': 'ordinary', 'loop-83': 'relief', 'loop-84': 'ordinary', 'loop-85': 'ordinary', 'loop-86': 'peak', 'loop-87': 'ordinary', 'loop-88': 'relief', 'loop-89': 'ordinary', 'loop-90': 'ordinary', 'loop-91': 'peak', 'loop-92': 'ordinary', 'loop-93': 'relief', 'loop-94': 'ordinary', 'loop-95': 'lesson', 'loop-96': 'peak',
   'tube-75': 'ordinary', 'tube-76': 'peak', 'tube-77': 'ordinary', 'tube-78': 'relief', 'tube-200': 'lesson', 'tube-79': 'ordinary', 'tube-80': 'peak', 'tube-81': 'ordinary', 'tube-82': 'relief', 'tube-83': 'ordinary', 'tube-84': 'ordinary', 'tube-85': 'peak', 'tube-86': 'ordinary', 'tube-87': 'relief', 'tube-88': 'ordinary', 'tube-89': 'ordinary', 'tube-90': 'peak', 'tube-91': 'ordinary', 'tube-92': 'relief', 'tube-93': 'ordinary',
+  // Rounds 61–80.
+  'board-94': 'relief', 'board-95': 'ordinary', 'board-96': 'ordinary', 'board-97': 'peak', 'board-98': 'relief',
+  'board-99': 'relief', 'board-100': 'ordinary', 'board-101': 'ordinary', 'board-102': 'peak', 'board-103': 'relief',
+  'board-104': 'relief', 'board-105': 'ordinary', 'board-202': 'lesson', 'board-106': 'peak', 'board-107': 'ordinary',
+  'board-108': 'relief', 'board-109': 'ordinary', 'board-110': 'ordinary', 'board-111': 'peak', 'board-112': 'relief',
+  'loop-97': 'ordinary', 'loop-98': 'relief', 'loop-99': 'ordinary', 'loop-100': 'ordinary', 'loop-101': 'peak',
+  'loop-102': 'ordinary', 'loop-103': 'relief', 'loop-104': 'ordinary', 'loop-105': 'ordinary', 'loop-106': 'peak',
+  'loop-107': 'ordinary', 'loop-108': 'relief', 'loop-109': 'ordinary', 'loop-110': 'ordinary', 'loop-111': 'lesson',
+  'loop-112': 'peak', 'loop-113': 'relief', 'loop-114': 'ordinary', 'loop-115': 'ordinary', 'loop-116': 'peak',
+  'tube-94': 'lesson', 'tube-95': 'peak', 'tube-96': 'ordinary', 'tube-97': 'relief', 'tube-98': 'ordinary',
+  'tube-99': 'ordinary', 'tube-100': 'peak', 'tube-101': 'ordinary', 'tube-102': 'relief', 'tube-103': 'ordinary',
+  'tube-104': 'ordinary', 'tube-105': 'peak', 'tube-106': 'ordinary', 'tube-107': 'relief', 'tube-108': 'ordinary',
+  'tube-109': 'ordinary', 'tube-110': 'peak', 'tube-111': 'ordinary', 'tube-112': 'relief', 'tube-113': 'ordinary',
 };

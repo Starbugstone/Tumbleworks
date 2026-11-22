@@ -16,6 +16,8 @@ function fixture() {
   const previews = join(root, 'public/models/projects');
   const site = join(root, 'dist');
   for (const directory of [geometry, previews, join(site, 'assets')]) mkdirSync(directory, { recursive: true });
+  writeFileSync(join(site, 'village-shell.js'), '');
+  writeFileSync(join(site, 'village-themes.json'), '[{}]');
   writeFileSync(join(site, 'index.html'), '<script src="/assets/index.js"></script>');
   writeFileSync(join(site, 'assets/index.js'), 'console.log("fixture")');
   writeFileSync(join(site, 'assets/static-proof.worker-fixture.js'), 'self.onmessage=()=>{};');

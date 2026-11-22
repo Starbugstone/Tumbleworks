@@ -12,6 +12,8 @@ import { GLASSHOUSE_GARDENS } from './villages/glasshouse-gardens';
 import { WILLOW_MILL } from './villages/willow-mill';
 import { CLOCKMAKERS_HILL } from './villages/clockmakers-hill';
 import { CLOUD_BRIDGE } from './villages/cloud-bridge';
+import { SALTWORKS } from './villages/saltworks';
+import { POTTERS_REACH } from './villages/potters-reach';
 import { HIGH_GLASSWORKS } from './villages/high-glassworks';
 
 /** One kit template instance. Only uniform scale, so corrected proportions and surface gaps survive. */
@@ -38,8 +40,12 @@ export interface VillageScenePlan {
   readonly plan: VillagePlan;
   readonly construction: VillageConstruction;
   readonly terrain: VillageTerrainSpec;
-  /** Houses, trees, warehouses, boats: fixed dressing baked with the terrain. */
+  /** Scenic terrain for the shipping map and film when the research machine retains its surveyed ground. */
+  readonly cinematicTerrain?: VillageTerrainSpec;
+  /** Fixed dressing on the surveyed terrain. */
   readonly scenery: readonly VillageSceneryPiece[];
+  /** A complete replacement when the cinematic coast needs different placements. */
+  readonly cinematicScenery?: readonly VillageSceneryPiece[];
   readonly workshop: WorkshopSite;
   readonly rewards: readonly VillageRewardSlot[];
   /** Pieces for the wider-world miniature; the overview draws them over the 8 × 8 terrain sample. */
@@ -47,7 +53,7 @@ export interface VillageScenePlan {
 }
 
 export const VILLAGE_SCENE_PLANS: readonly VillageScenePlan[] = [
-  LITTLE_HARBOUR, GLASSHOUSE_GARDENS, WILLOW_MILL, CLOCKMAKERS_HILL, CLOUD_BRIDGE, HIGH_GLASSWORKS,
+  LITTLE_HARBOUR, GLASSHOUSE_GARDENS, WILLOW_MILL, CLOCKMAKERS_HILL, CLOUD_BRIDGE, HIGH_GLASSWORKS, SALTWORKS, POTTERS_REACH,
 ];
 
 /** Explicit lookup by registered chapter index. There is no modulo or kind fallback. */

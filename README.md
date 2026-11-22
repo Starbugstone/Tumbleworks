@@ -1,6 +1,6 @@
 # Tumbleworks
 
-Tumbleworks is a browser marble game with 180 campaign levels across Funnel Sort, Loop Sort and Tube Sort. A valley map groups them into 60 construction stops: each stop plays one level of each game in that order. Finishing a stop builds part of the local marble machine; ten stops finish a location. The original 120 levels keep their IDs, content and order. The target is 360 levels; later rounds are not registered yet.
+Tumbleworks is a browser marble game with 240 campaign levels across Funnel Sort, Loop Sort and Tube Sort. A valley map groups them into 80 construction stops. Each stop plays one level of each game in that order. Finishing a stop builds part of the local marble machine; ten stops finish a location. The first 180 levels keep their IDs, content and order. Saltmere Pans and Potters’ Reach add 30 levels each. The target is 360 levels; later rounds are not registered yet.
 
 Funnel Sort uses physics for the fall from a crate and for the pile in the funnel. A script moves marbles through the neck, along the belt and into the boxes. Loop Sort is fully scripted. Tube Sort uses the shared physics landing for its transfers.
 

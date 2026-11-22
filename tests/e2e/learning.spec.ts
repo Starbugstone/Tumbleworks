@@ -72,7 +72,7 @@ test('French is detected, changing language preserves the live puzzle, and the c
   await page.getByRole('button', { name: 'Français', exact: true }).click();
   await expect(page.locator('#card-title')).toHaveText('Bien trié !');
   await page.locator('#levels-toggle').click();
-  await expect(page.getByRole('button', { name: 'Niveau suivant', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Jouer au niveau suivant', exact: true })).toBeVisible();
   expect(await page.evaluate(() => (window as unknown as GameWindow).tumbleworks.app.debugState().status)).toBe('won');
   await context.close();
 });
@@ -80,10 +80,11 @@ test('French is detected, changing language preserves the live puzzle, and the c
 test('the written instruction shows only during onboarding and stays readable behind the level pill', async ({ page }) => {
   // The instruction hides six seconds after a level loads. A software-rendered boot under parallel workers
   // can take longer than that before the test looks, so the page's clock stands still for this test.
+  await ready(page);
   await page.clock.install();
   await page.clock.pauseAt(Date.now() + 1000);
   pausedUiClocks.add(page);
-  await ready(page);
+  await page.locator('#restart').click();
   const instruction = page.locator('#instruction');
   // The first level's guide is unseen, so its instruction shows until the player acts.
   await expect(instruction).toBeVisible();
@@ -106,9 +107,10 @@ test('the written instruction shows only during onboarding and stays readable be
   await expect(instruction).toBeVisible();
   await page.locator('#guide-skip').click();
   await expect(instruction).toBeHidden();
+  await page.clock.resume();
   await page.reload();
-  await page.waitForFunction(() => Boolean((window as unknown as Partial<GameWindow>).tumbleworks?.app?.runtime), undefined, { polling: 100 });
-  await enterGame(page, true);
+  await page.waitForFunction(() => Boolean((window as unknown as Partial<GameWindow>).tumbleworks?.app?.runtime));
+  await enterGame(page);
   await expect(instruction).toBeHidden();
 });
 

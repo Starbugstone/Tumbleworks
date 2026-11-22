@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { CAMPAIGN } from '../../src/campaign';
 import { LOOP_BOARDS } from '../../src/loop/boards';
@@ -8,6 +8,7 @@ import type { BoardDef } from '../../src/sim/types';
 import type { ReplayAction } from '../../src/engine/replay';
 import { busyTouches } from '../../scripts/busy-touches';
 import { chooseLevel } from '../fixtures/picker';
+import { test } from '../fixtures/performance-host';
 
 /**
  * Real clock and real rendering on the busiest levels, with a 4x CPU slowdown standing in for a mid-range

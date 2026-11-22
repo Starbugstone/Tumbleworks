@@ -1,10 +1,11 @@
+import {VILLAGE_SCENE_PLANS} from '../../src/world/village-plans';
 import {it,expect,vi} from 'vitest';
 import {BoxGeometry,Mesh,MeshBasicMaterial,Vector3} from 'three';
 import {cinematicWorld} from './cinematic-world-fixture';
 import {CinematicHardwareAudit} from './cinematic-hardware';
 import type {VillageCinematic} from '../../src/world/village-cinematic';
 
-for(let chapter=0;chapter<6;chapter++)it(`cinematic ${chapter}: all moving hardware clears foreign solids at 60Hz and event knots`,()=>{
+for(const {chapter} of VILLAGE_SCENE_PLANS)it(`cinematic ${chapter}: all moving hardware clears foreign solids at 60Hz and event knots`,()=>{
  const f=cinematicWorld(chapter,true);try{
   const r=f.machine.route as VillageCinematic,audit=new CinematicHardwareAudit(f.machine,f.world.scene),times=new Set([0,r.duration,...r.phases.flatMap(p=>[p.start,p.end])]);
   for(let i=0;i<r.duration*60;i++)times.add(i/60);

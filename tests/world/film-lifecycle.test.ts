@@ -14,12 +14,13 @@ it.each([3.137, 31.019])('ends the film in its own village after the authoritati
       disposeScene: (scene: THREE.Scene) => scene.clear(),
     } as unknown as Stage;
     // Borrow the presentation boundary only; physical route correctness has its own guards.
-    const current = { machine: { route: { duration } }, finishConstruction: vi.fn(), resize: vi.fn(),
+    const current = { machine: { route: { duration, transfers: [{ kind: 'strike', start: duration / 2 }] } }, finishConstruction: vi.fn(), resize: vi.fn(),
       filmReadiness: () => 'ready', beginFilm: vi.fn(), film: vi.fn(), stopFilm: vi.fn(), dispose: vi.fn() } as unknown as WorldScene;
     const film = new WorldFilm(stage, chapter, current);
     try {
       // The owner took the old 2.5-second glimpse of the preceding village for another level.
       expect(film.duration).toBe(duration);
+      expect(film.bellStrike).toBe(chapter === 0 ? duration / 2 : undefined);
       film.render(duration - 0.000001);
       expect(current.film).toHaveBeenLastCalledWith(duration - 0.000001, true);
       film.render(duration + 1);

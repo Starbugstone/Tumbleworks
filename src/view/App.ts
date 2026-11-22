@@ -1,5 +1,7 @@
+import { setBoardVillage } from './yard-backdrop';
+import { boardChapter } from '../world/board-village';
+import { demoEntry, demoFilmChapter, readDemoRoute, returnToDemoMenu } from '../demo';
 import { sfx } from '../audio';
-import { confetti } from './confetti';
 import { CAMPAIGN, TRY_LEVEL } from '../campaign';
 import { canEnterProject, workshopProject } from '../world/workshop-projects';
 import type { Feedback, GameLevel, GameRuntime, GameServices, ScreenPoint } from '../engine/contracts';
@@ -16,7 +18,7 @@ import { guideSeen, locale, onLocaleChange, setGuideSeen, setLocale } from '../p
 import { enterStop, nextInStop, worldProgress, type WorldProgress } from '../world/progression';
 import { filmSeen, initializeValley, markFilmSeen } from '../world/film-progress';
 import { WorldView } from './world';
-import { worldLocation } from '../world/locations';
+import { showVillageTheme, worldLocation } from '../world/locations';
 import { levelIcon } from './level-icon';
 import './level-menu.css';
 import './world.css';
@@ -35,6 +37,7 @@ const button = (id: string): HTMLButtonElement => {
 /** Campaign, controls and feedback only. Gameplay rules and entities belong to registered runtimes. */
 /** Ten rounds of the three games. */
 const CHAPTER_LEVELS = 30;
+const WIN_HOLD_SECONDS = 1.25;
 
 export class App {
   /** Held fast forward runs this many ticks per real tick: a lap of a full belt in a third or a fifth of the time. */
@@ -47,6 +50,8 @@ export class App {
   runtime!: GameRuntime;
   boardIndex = 0;
   manualClock = false;
+  /** Startup resolves after the first screen is visible and can accept input. */
+  private onFirstScreen?: () => void;
   private accumulator = 0;
   private lastFrame = performance.now();
   private slowTime = 0;
@@ -55,7 +60,10 @@ export class App {
   private redraw = true;
   private ending: 'none' | 'won' | 'jammed' = 'none';
   private messageTimer = 0;
+  private quietWin = false;
   private winTimer = 0;
+  private winStarted = 0;
+  private winElapsed = 0;
   private hintTimer = 0;
   private instructionTimer = 0;
   private previewKey = '';
@@ -81,6 +89,8 @@ export class App {
   private readonly pointer: BoardPointer;
   private readonly world: WorldView;
   private screen: 'game' | 'map' | 'film' | 'workshop' = 'game';
+  private demoMenuOpen = false;
+  private restoringOverlay = false;
   private source: 'campaign' | 'workshop' = 'campaign';
   private activeStop: { index: number; replay: boolean } | null = null;
 
@@ -88,7 +98,9 @@ export class App {
   private worldProgress(): WorldProgress {
     // Only the explicitly appended development trial is outside the registered triples.
     const extraTrial = TRY_LEVEL !== null && CAMPAIGN.length % 3 === 1 && CAMPAIGN.at(-1)?.id === TRY_LEVEL;
-    return worldProgress(extraTrial ? CAMPAIGN.slice(0, -1) : CAMPAIGN, new Set(completedLevels()));
+    const completed = new Set(completedLevels());
+    if (demoFilmChapter >= 0) for (const level of CAMPAIGN.slice(0, (demoFilmChapter + 1) * CHAPTER_LEVELS)) completed.add(level.id);
+    return worldProgress(extraTrial ? CAMPAIGN.slice(0, -1) : CAMPAIGN, completed);
   }
 
   constructor(canvas: HTMLCanvasElement, private readonly workshopLevels: readonly GameLevel[] = []) {
@@ -97,6 +109,7 @@ export class App {
     this.pointer = new BoardPointer(canvas, {
       unlock: () => sfx.unlock(),
       pick: (point) => this.screen === 'game' ? this.runtime.pick(point.x, point.y) : null,
+      press: target => { if (this.screen === 'game') this.runtime.press?.(target); },
       tap: (target) => this.activate(target),
       start: (target, point) => {
         const started = this.screen === 'game' && (this.runtime.drag?.start(target, point) ?? false);
@@ -109,15 +122,19 @@ export class App {
     });
     this.world = new WorldView(this.stage, {
       screen: mode => {
+        sfx.boardAmbience(false);
         this.pointer.cancel(); this.setFast(false);
         this.screen = mode === 'overview' ? 'map' : mode;
         document.body.dataset['screen'] = this.screen;
+        if (mode === 'map' || mode === 'film') showVillageTheme(this.world.currentChapter);
+        if (mode === 'film') {
+          button('mute').classList.toggle('muted', !sfx.isUnlocked || sfx.isMuted);
+          button('mute').setAttribute('aria-label', !sfx.isUnlocked ? t('Enable sound','Activer le son') : t('Sound','Son'));
+        } else button('mute').classList.toggle('muted',sfx.isMuted);
         element('load').classList.remove('full', 'jammed');
         element('scene').setAttribute('aria-label', mode === 'film' ? t('Completed marble machine', 'Machine à billes terminée') : t('Village construction map', 'Carte de construction du village'));
         if (this.screen === 'map') {
-          const progress = this.worldProgress();
-          element('level-name').textContent = t('Valley map', 'Carte de la vallée');
-          element('load').textContent = `${progress.stops.filter(stop => stop.status === 'built').length}/${progress.stops.length}`;
+          element('level-name').textContent = t('Levels', 'Niveaux');
         }
       },
       enter: index => this.startStop(index),
@@ -134,7 +151,8 @@ export class App {
     });
     button('map-open').addEventListener('click', () => {
       sfx.unlock();
-      if (this.source === 'workshop' && this.screen === 'game') this.showWorkshop();
+      if (demoEntry) returnToDemoMenu();
+      else if (this.source === 'workshop' && this.screen === 'game') this.showWorkshop();
       else this.showMap(this.menuStop()?.chapter, false, true);
     });
     button('menu-close').addEventListener('click', () => this.showLevels(false));
@@ -147,23 +165,49 @@ export class App {
     button('card-action').addEventListener('click', () => {
       sfx.unlock();
       if (this.runtime.status === 'won') {
+        if (demoEntry) { returnToDemoMenu(); return; }
         if (this.source === 'workshop') this.showWorkshop();
         else {
           const next = this.nextRoundLevel();
           if (next === null) this.showMap(); else this.loadBoard(next);
         }
       }
-      else this.card.hidden = true;
+      else {
+        if (demoEntry && history.state?.overlay === 'result') history.back();
+        this.undo();
+      }
+    });
+    button('card-restart').addEventListener('click', () => {
+      sfx.unlock();
+      if (demoEntry && history.state?.overlay === 'result') history.back();
+      this.loadBoard(this.boardIndex);
+    });
+    canvas.addEventListener('pointerup', () => {
+      if (this.ending !== 'won' || !this.card.hidden || this.screen !== 'game') return;
+      window.clearTimeout(this.winTimer);
+      this.finishWin('skip');
     });
     this.bindFastForward();
     const toggle = button('levels-toggle');
-    toggle.addEventListener('click', () => { sfx.unlock(); this.showLevels(element('levels').hidden !== false); });
+    toggle.addEventListener('click', () => {
+      sfx.unlock();
+      const open = element('levels').hidden !== false;
+      if (open && demoEntry && !history.state?.overlay) history.pushState({ ...history.state, overlay: 'levels' }, '');
+      this.showLevels(open);
+    });
     const mute = button('mute');
     mute.classList.toggle('muted', sfx.isMuted);
     mute.addEventListener('click', () => {
+      const enableFilm = this.screen === 'film' && !sfx.isUnlocked && !sfx.isMuted;
       sfx.unlock();
-      mute.classList.toggle('muted', sfx.toggleMute());
+      mute.classList.toggle('muted', enableFilm ? false : sfx.toggleMute());
+      mute.setAttribute('aria-label', t('Sound', 'Son'));
       mute.setAttribute('aria-pressed', String(sfx.isMuted));
+    });
+    this.world.element.addEventListener('pointerdown', () => {
+      sfx.unlock();
+      mute.classList.toggle('muted', sfx.isMuted);
+      mute.setAttribute('aria-label', t('Sound', 'Son'));
     });
     window.addEventListener('resize', () => { this.pointer.cancel(); this.stage.resized(); this.redraw = true; if (this.screen === 'game') { this.runtime?.resize(); this.refresh(); } else this.world.resize(); });
     document.addEventListener('visibilitychange', () => { this.pointer.cancel(); this.setFast(false); if (document.hidden) sfx.cancel(); this.lastFrame = performance.now(); this.accumulator = 0; this.redraw = true; });
@@ -242,6 +286,8 @@ export class App {
     const playing = this.screen === 'game' && Boolean(this.runtime) && this.runtime.status === 'playing';
     if (!playing) this.heldSpeeds.clear();
     this.speed = Math.max(1, ...this.heldSpeeds.values());
+    sfx.boardFastForward(this.speed > 1);
+    if (this.runtime) this.runtime.pace?.(this.speed);
     for (const { speed, element: fast } of this.fastButtons) {
       const active = this.speed === speed;
       fast.classList.toggle('active', active);
@@ -253,21 +299,56 @@ export class App {
     await physics.init();
     const app = new App(canvas, workshopLevels);
     const saved = currentLevel();
-    const tried = CAMPAIGN.findIndex((level) => level.id === TRY_LEVEL);
+    const tried = CAMPAIGN.findIndex((level) => level.id === (demoEntry ?? TRY_LEVEL));
     const selected = CAMPAIGN.findIndex((level) => level.id === saved && !isCompleted(level.id));
     const open = CAMPAIGN.findIndex((level) => !isCompleted(level.id));
     const workshopId = new URLSearchParams(location.search).get('workshop');
     const workshop = workshopLevels.findIndex(level => level.id === workshopId);
     initializeValley(app.worldProgress().chapters);
     app.loadBoard(tried >= 0 ? tried : selected >= 0 ? selected : Math.max(0, open));
-    if (workshop >= 0) {
+    if (demoEntry) document.body.classList.add('demo');
+    if (demoEntry === 'levels') app.showLevels(true);
+    else if (demoFilmChapter >= 0 && demoFilmChapter < app.worldProgress().chapters.length) {
+      app.showMap(demoFilmChapter);
+      app.world.playFilm(demoFilmChapter);
+    } else if (workshop >= 0) {
       if (canEnterProject(workshopId!, app.worldProgress(), new Set(completedLevels()))) app.loadBoard(workshop, 'workshop');
       else app.showWorkshop(workshopId!);
     }
     else if (tried < 0) app.showMap(undefined, false, true);
-    element('boot').hidden = true;
-    requestAnimationFrame(app.frame);
+    await new Promise<void>(resolve => {
+      app.onFirstScreen = resolve;
+      requestAnimationFrame(app.frame);
+    });
     return app;
+  }
+
+  restoreDemoOverlay(overlay: unknown): void {
+    this.restoringOverlay = true;
+    this.showLevels(overlay === 'levels');
+    if (overlay === 'result' && this.ending !== 'none') this.endingCard();
+    else this.card.hidden = true;
+    this.restoringOverlay = false;
+  }
+
+  pauseForDemos(): void {
+    this.leaveBoard();
+    this.world.hide();
+    this.demoMenuOpen = true;
+  }
+
+  openDemoRoute(): void {
+    readDemoRoute();
+    this.demoMenuOpen = false;
+    this.activeStop = null;
+    const index = CAMPAIGN.findIndex(level => level.id === demoEntry);
+    if (demoFilmChapter >= 0 && demoFilmChapter < this.worldProgress().chapters.length) {
+      this.showMap(demoFilmChapter);
+      this.world.playFilm(demoFilmChapter);
+    } else {
+      this.loadBoard(Math.max(0, index), 'campaign');
+      if (demoEntry === 'levels') this.showLevels(true);
+    }
   }
 
   private loadBoard(index: number, source = this.source): void {
@@ -280,7 +361,7 @@ export class App {
     window.clearTimeout(this.hintTimer);
     this.setFast(false);
     const transition = Boolean(this.runtime) && (index !== this.boardIndex || source !== this.source || this.screen !== 'game');
-    if (transition) { if (this.screen === 'game') this.runtime.render(0, 0); this.world.cover(); }
+    if (transition && element('boot').hidden) { if (this.screen === 'game') this.runtime.render(0, 0); this.world.cover(); }
     this.world.hide();
     if (source === 'workshop') this.workshopRoute(level.id);
     else if (this.source === 'workshop') this.workshopRoute(null);
@@ -288,7 +369,13 @@ export class App {
     this.screen = 'game'; document.body.dataset['screen'] = 'game';
     this.runtime?.dispose();
     this.boardIndex = index;
+    // The board stands in its own village: a campaign level in the chapter it belongs to, a Workshop project in the village it builds for.
+    const chapter = boardChapter(source,index,level.id);
+    setBoardVillage(chapter);
+    sfx.boardAmbience(true, chapter ?? 0);
+    if (chapter !== null) showVillageTheme(chapter);
     this.runtime = level.create(this.services);
+    this.runtime.pace?.(this.speed);
     this.helped = false;
     this.stage.resized();
     this.redraw = true;
@@ -297,6 +384,7 @@ export class App {
     this.accumulator = 0;
     this.lastFrame = performance.now();
     this.ending = 'none';
+    this.quietWin = false;
     this.chain = 0;
     this.previewKey = '';
     this.targetKey = '';
@@ -312,8 +400,8 @@ export class App {
     this.showLevels(false);
     this.renderChips();
     this.runtime.resize();
-    this.runtime.render(0, 0);
-    // The first draw compiles the level's shaders; reading time and the clock start once it is on screen.
+    // During boot the first frame draws the selected destination, which may be the village.
+    if (element('boot').hidden) this.runtime.render(0, 0);
     this.lastFrame = performance.now();
     this.instructionTimer = window.setTimeout(() => { element('instruction').hidden = true; }, 6000);
     this.refresh();
@@ -329,6 +417,7 @@ export class App {
     sfx.unlock(); this.activeStop = { index, replay: entry.replay };
     if (!entry.replay && this.source === 'campaign' && entry.index === this.boardIndex && this.runtime.game.actions.length > 0) {
       this.world.cover(); this.world.hide();
+      sfx.boardAmbience(true, stop.chapter);
       this.screen = 'game'; document.body.dataset['screen'] = 'game';
       this.accumulator = 0; this.redraw = true;
       this.localize(); this.runtime.resize(); this.runtime.render(0, 0);
@@ -347,26 +436,28 @@ export class App {
     return nextInStop(stop, this.boardIndex, new Set(completedLevels()), this.activeStop?.replay ?? false);
   }
 
-  private leaveBoard(): void {
-    this.pointer.cancel(); this.setFast(false); sfx.cancel();
+  private leaveBoard(preserveFinalLoad = false): void {
+    this.pointer.cancel(); this.setFast(false);
+    if (!preserveFinalLoad) sfx.cancel();
+    sfx.boardAmbience(false);
     window.clearTimeout(this.winTimer); window.clearTimeout(this.hintTimer); window.clearTimeout(this.instructionTimer);
     this.card.hidden = true; this.ring.hidden = true; this.setMessage('');
     element('guide').hidden = element('guide-pointer').hidden = element('instruction').hidden = true;
     element('confetti').replaceChildren(); this.showLevels(false);
-    if (this.screen === 'game') this.runtime.render(0, 0);
-    // Boot has not exposed a game frame to preserve in a transition snapshot.
-    if (element('boot').hidden) this.world.cover();
+    if (element('boot').hidden) {
+      if (this.screen === 'game') this.runtime.render(0, 0);
+      this.world.cover();
+    }
     this.accumulator = 0; this.lastFrame = performance.now();
   }
 
-  private showMap(chapter?: number, construct = false, earnedFilm = false): void {
+  private showMap(chapter?: number, construct = false, earnedFilm = false, preserveFinalLoad = false): void {
     this.workshopRoute(null);
-    this.leaveBoard();
+    this.leaveBoard(preserveFinalLoad);
     const progress = this.worldProgress();
     const current = chapter ?? Math.floor(Math.min(progress.frontier, Math.max(0, progress.stops.length - 1)) / 10);
     this.world.show(progress, current, construct);
-    element('level-name').textContent = t('Valley map', 'Carte de la vallée');
-    element('load').textContent = `${progress.stops.filter(stop => stop.status === 'built').length}/${progress.stops.length}`;
+    element('level-name').textContent = t('Levels', 'Niveaux');
     if (earnedFilm) {
       const pending = progress.chapters.find(item => item.complete && !filmSeen(item.key));
       if (pending) this.world.playFilm(pending.index, true);
@@ -377,8 +468,7 @@ export class App {
   private showWorkshop(focusId?: string): void {
     this.workshopRoute(null);
     this.leaveBoard(); this.world.workshop(this.workshopLevels, this.worldProgress(), focusId);
-    element('level-name').textContent = t('Workshop', 'Atelier');
-    element('load').textContent = `${this.workshopLevels.filter(level => isCompleted(level.id)).length}/${this.workshopLevels.length}`;
+    element('level-name').textContent = t('Levels', 'Niveaux');
     this.world.reveal();
   }
 
@@ -393,8 +483,16 @@ export class App {
     if (!frameDue(now, this.lastFrame)) return;
     const seconds = Math.min(Math.max((now - this.lastFrame) / 1000, 0), 0.25);
     this.lastFrame = now;
-    if (!this.manualClock && !document.hidden) {
-      const drawn = this.advance(seconds);
+    if (!this.manualClock && !this.demoMenuOpen && !document.hidden) {
+      const drawn = this.advance(seconds, true, now);
+      if (this.onFirstScreen && (this.screen === 'game' || this.screen === 'workshop' ||
+          (this.screen === 'film' ? ['ready','unavailable'].includes(this.stage.canvas.dataset.worldFilm ?? '') :
+            ['ready','unavailable'].includes(this.stage.canvas.dataset.worldScene ?? '')))) {
+        element('boot').hidden = true;
+        element('hud').removeAttribute('inert');
+        this.onFirstScreen();
+        this.onFirstScreen = undefined;
+      }
       // Only drawn frames say anything about the device: a still board skips drawing and costs nothing.
       if (drawn && this.screen === 'game') {
         this.slowTime += seconds;
@@ -409,9 +507,13 @@ export class App {
   };
 
   /** Runs the ticks due and draws, unless the board was still before and after; true when it drew. */
-  advance(seconds: number, draw = true): boolean {
+  advance(seconds: number, draw = true, frameTime?: number): boolean {
     if (this.screen !== 'game') return draw && this.world.advance(this.screen === 'film' ? seconds : Math.min(seconds, 0.05));
     const wasStill = this.runtime.still === true;
+    if (this.ending === 'won' && this.card.hidden) {
+      // RAF and the footer share a wall-clock deadline. Manual playback advances by supplied intervals.
+      this.advanceWinTo(frameTime === undefined ? this.winElapsed + seconds : (frameTime - this.winStarted) / 1000);
+    }
     this.accumulator += Math.min(seconds * this.speed, 0.25);
     const limit = 8 * this.speed;
     let steps = 0;
@@ -500,6 +602,7 @@ export class App {
     window.clearTimeout(this.winTimer);
     sfx.undo();
     this.ending = 'none';
+    this.quietWin = false;
     this.chain = 0;
     this.card.hidden = true;
     this.ring.hidden = true;
@@ -516,18 +619,36 @@ export class App {
       const level = this.levels[this.boardIndex];
       if (!level) return;
       markCompleted(level.id);
-      sfx.win();
+      sfx.finalLoad();
       this.renderChips();
-      this.confetti();
-      this.runtime.celebrate?.(this.helped ? 0.65 : 1);
-      this.winTimer = window.setTimeout(() => {
-        if (this.screen !== 'game' || this.runtime.status !== 'won') return;
-        if (this.source === 'campaign' && this.nextRoundLevel() === null) {
-          this.showMap(Math.floor(this.boardIndex / CHAPTER_LEVELS), true, true);
-        } else this.endingCard();
-      }, 400);
+      element('guide').hidden = element('instruction').hidden = true;
+      this.runtime.celebrate?.(this.quietWin || this.speed > 1 ? .45 : this.helped ? .65 : 1);
+      this.winStarted = performance.now();
+      this.winElapsed = 0;
+      this.winTimer = window.setTimeout(() => this.finishWin('timeout'), WIN_HOLD_SECONDS * 1000);
     } else {
       sfx.jam();
+      this.endingCard();
+    }
+  }
+
+  private advanceWinTo(seconds: number): void {
+    const elapsed = Math.min(seconds, WIN_HOLD_SECONDS);
+    if (elapsed <= this.winElapsed) return;
+    this.runtime.advanceCelebration?.(elapsed - this.winElapsed);
+    this.winElapsed = elapsed;
+  }
+
+  private finishWin(reason: 'timeout' | 'skip'): void {
+    if (this.screen !== 'game' || this.runtime.status !== 'won') return;
+    if (reason === 'timeout') this.advanceWinTo(WIN_HOLD_SECONDS);
+    this.runtime.finishCelebration?.();
+    if (!demoEntry && this.source === 'campaign' && this.nextRoundLevel() === null) {
+      this.showMap(Math.floor(this.boardIndex / CHAPTER_LEVELS), true, true, reason === 'timeout');
+    } else {
+      if (reason === 'skip') sfx.cancel();
+      this.redraw = document.hidden;
+      if (!document.hidden) this.runtime.render(this.accumulator / FIXED_SECONDS, 0);
       this.endingCard();
     }
   }
@@ -545,6 +666,7 @@ export class App {
     button('hint').disabled = this.runtime.status !== 'playing';
     const ended = this.runtime.status !== 'playing';
     for (const { element: fast } of this.fastButtons) fast.disabled = ended;
+    if (this.runtime.status === 'won' && this.speed > 1) this.quietWin = true;
     if (ended) this.setFast(false);
     const key = this.runtime.preview.join(',');
     if (key !== this.previewKey) {
@@ -590,7 +712,7 @@ export class App {
   }
 
   private refreshGuide(targets: Record<string, ScreenPoint>): void {
-    const step = this.guiding ? this.runtime.guide?.() : undefined;
+    const step = this.screen === 'game' && this.guiding ? this.runtime.guide?.() : undefined;
     const panel = element('guide');
     const pointer = element('guide-pointer');
     if (!step) {
@@ -615,9 +737,10 @@ export class App {
     })) element(id).setAttribute('aria-label', label);
     element('language-label').textContent = t('Language', 'Langue');
     for (const language of ['en', 'fr'] as const) button(`language-${language}`).setAttribute('aria-pressed', String(locale() === language));
-    button('guide-skip').textContent = t('Skip guide', 'Passer le guide');
+    button('guide-skip').setAttribute('aria-label', t('Skip guide', 'Passer le guide'));
+    element('skip-label').textContent = t('Skip guide', 'Passer le guide');
     element('levels').setAttribute('aria-label', t('Levels', 'Niveaux'));
-    button('levels-toggle').setAttribute('aria-label', t('Open level menu', 'Ouvrir le menu des niveaux'));
+    button('levels-toggle').setAttribute('aria-label', t('Levels', 'Niveaux'));
     button('menu-close').setAttribute('aria-label', t('Close menu', 'Fermer le menu'));
     button('menu-settings').setAttribute('aria-label', t('Settings and help', 'Réglages et aide'));
     button('menu-back').setAttribute('aria-label', t('Back to levels', 'Retour aux niveaux'));
@@ -625,17 +748,23 @@ export class App {
     element('help-label').textContent = t('How to play', 'Comment jouer');
     button('guide-replay').textContent = t('Restart with guide', 'Recommencer avec le guide');
     button('guide-replay').hidden = !this.runtime.guideId;
+    button('copy-replay').hidden = !new URLSearchParams(location.search).has('diagnostics');
     button('copy-replay').textContent = t('Copy this game for a bug report', 'Copier cette partie pour signaler un bug');
     element('guide-pointer-label').textContent = t('Tap here', 'Touchez ici');
     element('patterns').replaceChildren(...PALETTE.map((color) => {
       const item = document.createElement('span');
       const icon = document.createElement('canvas');
       icon.width = icon.height = 64;
-      icon.style.width = icon.style.height = '16px';
+      icon.style.width = icon.style.height = '24px';
       icon.style.verticalAlign = 'middle';
       icon.setAttribute('aria-hidden', 'true');
       const context = icon.getContext('2d');
-      if (context) { context.fillStyle = '#202335'; drawSymbol(context, color, 32, 32, 26); }
+      if (context) {
+        context.fillStyle = COLORS[color].base;
+        context.fillRect(0, 0, 64, 64);
+        context.fillStyle = cargoInk(color);
+        drawSymbol(context, color, 32, 32, 19);
+      }
       item.append(icon, ` ${colorName(color)}`);
       item.setAttribute('role', 'img');
       item.setAttribute('aria-label', `${patternName(color)} = ${colorName(color)}`);
@@ -643,26 +772,37 @@ export class App {
     }));
     const level = this.levels[this.boardIndex];
     if (!level) return;
-    element('level-name').textContent = `${this.boardIndex + 1} / ${this.levels.length} · ${level.name}`;
+    element('level-name').textContent = `${this.boardIndex + 1} · ${level.name}`;
     element('level-title').textContent = `${level.title} · ${difficultyName(level.difficulty)}`;
     element('level-help').textContent = level.instructions;
-    element('instruction').textContent = level.instructions;
+    element('instruction').textContent = this.runtime.guide?.().prompt ?? t('Follow the hand', 'Suivez la main');
     this.renderChips();
   }
 
   private endingCard(): void {
-    if (this.source === 'workshop' && this.runtime.status === 'won') {
-      const project = workshopProject(this.levels[this.boardIndex]!.id);
-      this.showCard(project?.title ?? t('Nicely sorted!', 'Bien trié !'), t('Your village addition is ready.', 'Votre nouvelle construction est prête.'), t('Back to workshop', 'Retour à l’atelier'), 'win');
+    if (this.runtime.status === 'jammed') {
+      this.showCard(this.runtime.jamSummary ?? t('No moves left', 'Aucun coup possible'), this.runtime.jamReason, t('Undo', 'Annuler'), 'jam');
       return;
     }
-    const index = this.nextRoundLevel();
-    const next = index === null ? undefined : CAMPAIGN[index];
-    if (this.runtime.status === 'won') this.showCard(
-      next ? t('Nicely sorted!', 'Bien trié !') : t('Workshop complete!', 'Atelier terminé !'),
-      next ? t(`Up next: ${next.name}.`, `À suivre : ${next.name}.`) : t('Every puzzle sorted. Pick a level above to play again.', 'Tous les puzzles sont triés. Choisissez un niveau pour rejouer.'),
-      next ? t('Next level', 'Niveau suivant') : t('Play again', 'Rejouer'), 'win');
-    else this.showCard(t('A little tangled!', 'Ça coince !'), this.runtime.jamReason, t('Keep looking', 'Continuer à chercher'), 'jam');
+    const project = this.source === 'workshop' ? workshopProject(this.levels[this.boardIndex]!.id) : undefined;
+    const stop = this.worldProgress().stops[Math.floor(this.boardIndex / 3)];
+    const island = worldLocation(project?.chapter ?? stop?.chapter ?? 0);
+    const progress = project ? island.name : t(`${island.name} · Stop ${(stop?.local ?? 0) + 1}`, `${island.name} · Étape ${(stop?.local ?? 0) + 1}`);
+    const action = demoEntry ? t('Back to demos', 'Retour aux démos') : project
+      ? t('Back to workshop', 'Retour à l’atelier') : t('Play next level', 'Jouer au niveau suivant');
+    this.showCard(t('Nicely sorted!', 'Bien trié !'), progress, action, 'win');
+    const pips = element('stop-progress');
+    pips.hidden = !!project;
+    if (!project && stop) {
+      pips.replaceChildren(...stop.levels.map(level => {
+        const pip = document.createElement('span');
+        pip.textContent = isCompleted(level.id) ? '✓' : '○';
+        return pip;
+      }));
+      pips.setAttribute('role', 'img');
+      pips.removeAttribute('aria-hidden');
+      pips.setAttribute('aria-label', t(`${stop.completed} of 3 puzzles complete`, `${stop.completed} jeux terminés sur 3`));
+    }
   }
 
   replay(): ReplayLog {
@@ -686,10 +826,11 @@ export class App {
 
   private showLevels(open: boolean): void {
     const wasOpen = !element('levels').hidden;
+    if (!open && wasOpen && demoEntry && !this.restoringOverlay && history.state?.overlay === 'levels') history.back();
     if (open) {
       this.pointer.cancel();
       this.setFast(false);
-      this.renderChips();
+      this.renderChips(true);
       this.showMenuSettings(false, false);
     }
     element('levels').hidden = !open;
@@ -703,7 +844,7 @@ export class App {
   private showMenuSettings(settings: boolean, focus = true): void {
     element('menu-main').hidden = settings;
     element('menu-secondary').hidden = !settings;
-    button('map-open').hidden = settings || this.screen === 'map';
+    button('map-open').hidden = settings || (!demoEntry && this.screen === 'map');
     button('menu-settings').hidden = settings;
     button('menu-back').hidden = !settings;
     element('menu-heading').hidden = !settings;
@@ -721,7 +862,15 @@ export class App {
   }
 
   /** The village owns the campaign; this menu only selects among one stop's three puzzles. */
-  private renderChips(): void {
+  private renderChips(opening = false): void {
+    if (demoEntry && this.source === 'campaign') {
+      if (opening || !element('levels').hidden) {
+        element('map-label').textContent = t('Back to demos', 'Retour aux démos');
+        element('menu-round').textContent = t('All levels', 'Tous les niveaux');
+        this.chips.replaceChildren(...CAMPAIGN.map((_, index) => this.chip(index)));
+      }
+      return;
+    }
     const stop = this.menuStop();
     const project = this.source === 'workshop' && this.screen === 'game';
     element('map-label').textContent = project ? t('Back to workshop', 'Retour à l’atelier') : t('Back to village', 'Retour au village');
@@ -786,13 +935,17 @@ export class App {
     if (hold) this.messageTimer = window.setTimeout(() => this.setMessage(''), hold);
   }
   private showCard(title: string, text: string, action: string, kind: 'win' | 'jam'): void {
+    element('guide').hidden = element('instruction').hidden = true;
+    element('stop-progress').hidden = true;
+    button('card-restart').hidden = kind !== 'jam';
+    button('card-restart').textContent = t('Restart', 'Recommencer');
     element('card-title').textContent = title;
     element('card-body').textContent = text;
     button('card-action').textContent = action;
     this.card.dataset['kind'] = kind;
+    if (this.card.hidden && demoEntry && !this.restoringOverlay && !history.state?.overlay) history.pushState({ ...history.state, overlay: 'result' }, '');
     this.card.hidden = false;
   }
-  private confetti(): void { confetti(element('confetti')); }
   private key(event: KeyboardEvent): void {
     if (!element('levels').hidden) {
       if (event.key === 'Escape') { event.preventDefault(); this.showLevels(false); }
@@ -804,7 +957,7 @@ export class App {
       }
       return;
     }
-    if (this.screen !== 'game') return;
+    if (this.demoMenuOpen || this.screen !== 'game') return;
     if (event.ctrlKey || event.metaKey || event.altKey) return;
     if (event.target instanceof HTMLButtonElement && (event.key === 'Enter' || event.key === ' ')) return;
     if (event.key === 'u') this.undo();

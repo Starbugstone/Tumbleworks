@@ -6,9 +6,9 @@ const levels = (rounds: number): WorldLevel[] => Array.from({ length: rounds }, 
 ]).flat();
 
 describe('valley construction follows stable campaign IDs', () => {
-  it('builds six ten-stop locations for the 180-level campaign and twelve for its target', () => {
-    const current = worldProgress(levels(60), new Set());
-    expect(current.chapters).toHaveLength(6);
+  it('builds eight ten-stop locations for the 240-level campaign and twelve for its target', () => {
+    const current = worldProgress(levels(80), new Set());
+    expect(current.chapters).toHaveLength(8);
     expect(current.chapters.every(chapter => chapter.stops.length === 10)).toBe(true);
     expect(worldProgress(levels(120), new Set()).chapters).toHaveLength(12);
     expect(current.stops.filter(stop => stop.status === 'available').map(stop => stop.index)).toEqual([0]);

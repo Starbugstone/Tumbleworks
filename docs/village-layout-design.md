@@ -3,7 +3,7 @@
 The user found the first two villages identical. They currently share one terrain
 layout and one marble machine, with different landmarks. The replacement must
 change landform, route topology, construction composition, track profile and
-causal machinery for each of the six registered chapters. Recolouring, rotating
+causal machinery for each registered chapter. Recolouring, rotating
 or mirroring a shared route does not satisfy this change.
 
 This document records design decisions before implementation. Astra's proposal
@@ -46,7 +46,9 @@ general animation language or a random terrain generator.
 | Willow Mill | Unequal riverbanks, a central millwheel and a long millrace | A trip paddle releases the mill's own bucket wheel, then a roof flume, sluice and sack-hoist payoff | Wide timber millrace on trestles |
 | Clockmaker’s Hill | A broad foot and narrow radial summit; clock tower beside a slim mast | External helix, a marble-struck spinning top driving the escapement, turntable, pendulum striker and hand turning to twelve | Open twin rails on brass brackets |
 | Cloud Bridge | Diagonally separated mesas above a visible low ravine floor, buildings at bridgeheads | Suspended carrier outward, swinging plank crossing back, then a windlass descent raising a banner | Girder deck and cable hangers |
-| High Glassworks | An amphitheatre open toward the camera, chimneys behind the tiers | Opposed ramps, tilting marver, ribbed cooling gallery, the six villages' only vertical loop, gathering bowl and a ladle launch into the cooling rack | Steel channel on lattice supports |
+| High Glassworks | An amphitheatre open toward the camera, chimneys behind the tiers | Opposed ramps, tilting marver, ribbed cooling gallery, the vertical loop, gathering bowl and a ladle launch into the cooling rack | Steel channel on lattice supports |
+| Saltmere Pans | A low grid of evaporation pans with a diagonal dike, salt heaps and a timber windpump | A brine lift raises the marble onto the dike. It rolls through the sluice and crosses the weighbridge into the salt yard. | Flared timber launder on square piers |
+| Potters’ Reach | Two clay knolls around a drying court with blue-roofed workshops and low beehive kilns | The slip bowl feeds an underpass and a potter’s wheel. A hoist lifts the marble onto the return viaduct above its earlier path, then it strikes a chime and joins the glazed ware. | Cream stoneware channel with a glazed rim and a girder across the saddle |
 
 Ten construction stops may build supports and parts of one signature assembly.
 Each step still adds a visible mass of roughly 1.5 world units at map scale.

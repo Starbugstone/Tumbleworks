@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { NativeRayTree } from './native-ray-tree';
 
 export interface SurfaceTriangle {
   a: THREE.Vector3;
@@ -18,24 +19,30 @@ export interface SurfaceOverlap {
 }
 
 /** Capture rendered geometry, including baked/batched faces, in world space. */
-export function surfaceTriangles(root: THREE.Object3D): SurfaceTriangle[] {
+export function surfaceTriangles(root: THREE.Object3D, minimumNormalSquared = 1e-20): SurfaceTriangle[] {
   root.updateWorldMatrix(true, true);
   const result: SurfaceTriangle[] = [];
   root.traverse(object => {
-    if (!(object instanceof THREE.Mesh)) return;
-    const position = object.geometry.getAttribute('position');
-    const indices = object.geometry.getIndex();
-    const count = indices?.count ?? position.count;
-    for (let offset = 0; offset < count; offset += 3) {
-      const vertices = [0, 1, 2].map(corner => new THREE.Vector3().fromBufferAttribute(position,
-        indices ? indices.getX(offset + corner) : offset + corner).applyMatrix4(object.matrixWorld));
-      const a = vertices[0]!, b = vertices[1]!, c = vertices[2]!;
-      const normal = b.clone().sub(a).cross(c.clone().sub(a));
-      if (normal.lengthSq() < 1e-20) continue;
-      result.push({ a, b, c, normal: normal.normalize(), bounds: new THREE.Box3().setFromPoints(vertices), mesh: object, index: offset / 3 });
-    }
+    if (object instanceof THREE.Mesh) appendMeshTriangles(object, result, minimumNormalSquared);
   });
   return result;
+}
+
+/** The caller has already updated the world matrix. */
+export function appendMeshTriangles(object: THREE.Mesh, result: SurfaceTriangle[], minimumNormalSquared = 1e-20): void {
+  const position = object.geometry.getAttribute('position');
+  const indices = object.geometry.getIndex(), count = indices?.count ?? position.count;
+  const vertex = (corner: number) => new THREE.Vector3()
+    .fromBufferAttribute(position, indices ? indices.getX(corner) : corner)
+    .applyMatrix4(object.matrixWorld);
+  const edge = new THREE.Vector3();
+  for (let offset = 0; offset < count; offset += 3) {
+    const a = vertex(offset), b = vertex(offset+1), c = vertex(offset+2);
+    const normal = new THREE.Vector3().subVectors(b, a).cross(edge.subVectors(c, a));
+    if (normal.lengthSq() < minimumNormalSquared) continue;
+    const bounds = new THREE.Box3().set(a, a).expandByPoint(b).expandByPoint(c);
+    result.push({ a, b, c, normal: normal.normalize(), bounds, mesh: object, index: offset / 3 });
+  }
 }
 
 /** Same-facing coplanar triangles must share area, not merely an edge or vertex. */
@@ -75,9 +82,33 @@ export function coplanarOverlap(a: SurfaceTriangle, b: SurfaceTriangle, toleranc
   return { a, b, area, point: point.multiplyScalar(1 / area), polygon };
 }
 
-export function surfaceOverlaps(triangles: readonly SurfaceTriangle[], tolerance = 1e-5): SurfaceOverlap[] {
+/** A subtraction at the opposite box edge can round in a different direction
+ * from the addition in coplanarOverlap's inclusive axis test. */
+export function overlapBounds(bounds: THREE.Box3, tolerance: number, out: THREE.Box3) {
+  const {min, max} = bounds;
+  const magnitude = Math.max(1, Math.abs(min.x), Math.abs(min.y), Math.abs(min.z), Math.abs(max.x), Math.abs(max.y), Math.abs(max.z));
+  return out.copy(bounds).expandByScalar(tolerance + 4 * Number.EPSILON * magnitude);
+}
+
+export function surfaceOverlaps(triangles: readonly SurfaceTriangle[], tolerance = 1e-5, tree?: NativeRayTree): SurfaceOverlap[] {
   const ordered = [...triangles].sort((a, b) => a.bounds.min.x - b.bounds.min.x);
   const overlaps: SurfaceOverlap[] = [];
+  if (tree) {
+    const ranks = new Map(ordered.map((face, rank) => [face, rank]));
+    // Repeated references are supported by the original ordered sweep below.
+    if (ranks.size === ordered.length) {
+      const bounds = new THREE.Box3();
+      for (const [rank, face] of ordered.entries()) {
+        overlapBounds(face.bounds, tolerance, bounds);
+        tree.visitBounds(bounds, other => {
+          if (ranks.get(other)! <= rank) return;
+          const result = coplanarOverlap(face, other, tolerance);
+          if (result) overlaps.push(result);
+        });
+      }
+      return overlaps.sort((a, b) => ranks.get(a.a)! - ranks.get(b.a)! || ranks.get(a.b)! - ranks.get(b.b)!);
+    }
+  }
   for (let index = 0; index < ordered.length; index++) {
     const a = ordered[index]!;
     for (let next = index + 1; next < ordered.length; next++) {

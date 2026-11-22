@@ -1,0 +1,2948 @@
+[
+  {
+    "round": 61,
+    "slot": "relief",
+    "id": "board-94",
+    "source": "output/current/campaign-41-60/funnel/extra-wide.jsonl:4 (seed 1004, capacity 16); requalified as delta in output/current/island-expansion/funnel-belt-layouts/board-94-delta.json",
+    "game": "funnel",
+    "hash": "3e274cb6a5fa2669",
+    "verified": {
+      "states": 18,
+      "winning": 4,
+      "orders": 39,
+      "brisk": {
+        "status": "won",
+        "clean": true,
+        "seconds": 49.483333333333334
+      },
+      "patient": {
+        "status": "won",
+        "clean": true,
+        "seconds": 51.65
+      },
+      "fast": {
+        "gap": 2,
+        "fingerprint": "48f39f6d"
+      },
+      "jam": {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 24.216666666666665
+      },
+      "jitter": 1,
+      "naive": [
+        "jammed",
+        "jammed",
+        "jammed"
+      ]
+    },
+    "generation": {
+      "seed": 1004,
+      "capacity": 16
+    }
+  },
+  {
+    "round": 62,
+    "slot": "ordinary",
+    "id": "board-95",
+    "source": "output/current/island-expansion/funnel/authored.jsonl:2 (seed 1, capacity 14)",
+    "game": "funnel",
+    "hash": "849c2fc3329e016a",
+    "verified": {
+      "states": 19,
+      "winning": 12,
+      "orders": 86,
+      "brisk": {
+        "status": "won",
+        "clean": true,
+        "seconds": 39.35
+      },
+      "patient": {
+        "status": "won",
+        "clean": true,
+        "seconds": 46.4
+      },
+      "fast": {
+        "gap": 2,
+        "fingerprint": "d5797f3f"
+      },
+      "jam": {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 8
+      },
+      "jitter": 1,
+      "naive": [
+        "jammed",
+        "jammed",
+        "jammed"
+      ]
+    },
+    "generation": {
+      "geometry": {
+        "columns": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "colors": 5,
+        "docks": 2,
+        "shorts": 1
+      },
+      "seed": 1,
+      "capacity": 14,
+      "target": "ordinary"
+    }
+  },
+  {
+    "round": 63,
+    "slot": "ordinary",
+    "id": "board-96",
+    "source": "output/current/island-expansion/candidates/fam-f61-fork.jsonl:243 (seed 29, capacity 14)",
+    "trap": 0,
+    "game": "funnel",
+    "hash": "6e8139c0007bd63e",
+    "verified": {
+      "states": 26,
+      "winning": 6,
+      "orders": 40,
+      "brisk": {
+        "status": "won",
+        "clean": true,
+        "seconds": 31.6
+      },
+      "patient": {
+        "status": "won",
+        "clean": true,
+        "seconds": 37.96666666666667
+      },
+      "fast": {
+        "gap": 7,
+        "fingerprint": "f82db1a9"
+      },
+      "jam": {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 4.6
+      },
+      "jitter": 1,
+      "naive": [
+        "jammed",
+        "jammed",
+        "jammed"
+      ],
+      "counterfactual": [
+        {
+          "removed": "fork",
+          "action": 0,
+          "lossStates": 4,
+          "winStates": 15,
+          "winningContinuation": "BFGCDE"
+        }
+      ]
+    },
+    "generation": {
+      "seed": 29,
+      "capacity": 14
+    }
+  },
+  {
+    "round": 64,
+    "slot": "peak",
+    "id": "board-97",
+    "source": "output/current/island-expansion/funnel/authored.jsonl:1 (seed 1, capacity 26)",
+    "game": "funnel",
+    "hash": "2813fb17e5184654",
+    "verified": {
+      "states": 39,
+      "winning": 4,
+      "orders": 113,
+      "brisk": {
+        "status": "won",
+        "clean": true,
+        "seconds": 44.3
+      },
+      "patient": {
+        "status": "won",
+        "clean": true,
+        "seconds": 68.98333333333333
+      },
+      "fast": {
+        "gap": 2,
+        "fingerprint": "2557ac0a"
+      },
+      "jam": {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 15.616666666666667
+      },
+      "jitter": 1,
+      "naive": [
+        "jammed",
+        "jammed",
+        "jammed"
+      ]
+    },
+    "generation": {
+      "geometry": {
+        "columns": [
+          3,
+          3,
+          3
+        ],
+        "colors": 5,
+        "docks": 2,
+        "shape": "eight"
+      },
+      "seed": 1,
+      "capacity": 26,
+      "target": "crossing"
+    }
+  },
+  {
+    "round": 65,
+    "slot": "relief",
+    "id": "board-98",
+    "source": "output/current/levelling/expansion/candidates/fam-f13b.jsonl:25 (seed 9, capacity 16)",
+    "game": "funnel",
+    "hash": "faa69b9f4ff362fe",
+    "verified": {
+      "states": 37,
+      "winning": 58,
+      "orders": 137,
+      "brisk": {
+        "status": "won",
+        "clean": true,
+        "seconds": 46.11666666666667
+      },
+      "patient": {
+        "status": "won",
+        "clean": true,
+        "seconds": 55.06666666666667
+      },
+      "fast": {
+        "gap": 9,
+        "fingerprint": "34a06b11"
+      },
+      "jam": {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 34.03333333333333
+      },
+      "jitter": 1,
+      "naive": [
+        "won",
+        "jammed",
+        "jammed"
+      ]
+    },
+    "generation": {
+      "seed": 9,
+      "capacity": 16
+    }
+  },
+  {
+    "round": 66,
+    "slot": "relief",
+    "id": "board-99",
+    "source": "output/current/levelling/expansion/candidates/fam-f21b.jsonl:12 (seed 5, capacity 19); requalified as kidney in output/current/island-expansion/funnel-belt-layouts/board-99-kidney-22.json",
+    "game": "funnel",
+    "hash": "f1968ea66e7d81ae",
+    "verified": {
+      "states": 45,
+      "winning": 58,
+      "orders": 145,
+      "brisk": {
+        "status": "won",
+        "clean": true,
+        "seconds": 42.4
+      },
+      "patient": {
+        "status": "won",
+        "clean": true,
+        "seconds": 58.11666666666667
+      },
+      "fast": {
+        "gap": 3,
+        "fingerprint": "53faff9d"
+      },
+      "jam": {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 14.05
+      },
+      "jitter": 1,
+      "naive": [
+        "jammed",
+        "jammed",
+        "jammed"
+      ]
+    },
+    "generation": {
+      "seed": 5,
+      "capacity": 22
+    }
+  },
+  {
+    "round": 67,
+    "slot": "ordinary",
+    "id": "board-100",
+    "source": "output/current/island-expansion/candidates/fam-f61-extra.jsonl:1",
+    "game": "funnel",
+    "hash": "5d73fbfc8da727c9",
+    "verified": {
+      "states": 36,
+      "winning": 18,
+      "orders": 73,
+      "brisk": {
+        "status": "won",
+        "clean": true,
+        "seconds": 31.866666666666667
+      },
+      "patient": {
+        "status": "won",
+        "clean": true,
+        "seconds": 41.63333333333333
+      },
+      "fast": {
+        "gap": 5,
+        "fingerprint": "ad8befaa"
+      },
+      "jam": {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 11.65
+      },
+      "jitter": 1,
+      "naive": [
+        "jammed",
+        "jammed",
+        "jammed"
+      ]
+    },
+    "generation": {
+      "capacity": 14,
+      "base": "fam-f13g:27",
+      "edit": "move 3.0>0.0",
+      "target": "ordinary"
+    }
+  },
+  {
+    "round": 68,
+    "slot": "ordinary",
+    "id": "board-101",
+    "source": "output/current/island-expansion/candidates/fam-f61-mixed.jsonl:148 (seed 50, capacity 14)",
+    "game": "funnel",
+    "hash": "584bbe68847208a6",
+    "verified": {
+      "states": 29,
+      "winning": 14,
+      "orders": 70,
+      "brisk": {
+        "status": "won",
+        "clean": true,
+        "seconds": 25.116666666666667
+      },
+      "patient": {
+        "status": "won",
+        "clean": true,
+        "seconds": 35.35
+      },
+      "fast": {
+        "gap": 4,
+        "fingerprint": "3371f0f0"
+      },
+      "jam": {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 5.966666666666667
+      },
+      "jitter": 1,
+      "naive": [
+        "jammed",
+        "jammed",
+        "jammed"
+      ]
+    },
+    "generation": {
+      "seed": 50,
+      "capacity": 14
+    }
+  },
+  {
+    "round": 69,
+    "slot": "peak",
+    "id": "board-102",
+    "source": "output/current/levelling/expansion/candidates/fam-f25d.jsonl:4 (seed 2, capacity 14)",
+    "game": "funnel",
+    "hash": "51b1f12812da0615",
+    "verified": {
+      "states": 80,
+      "winning": 382,
+      "orders": 1031,
+      "brisk": {
+        "status": "won",
+        "clean": true,
+        "seconds": 37.766666666666666
+      },
+      "patient": {
+        "status": "won",
+        "clean": true,
+        "seconds": 47.8
+      },
+      "fast": {
+        "gap": 1,
+        "fingerprint": "5f70e26d"
+      },
+      "jam": {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 20.6
+      },
+      "jitter": 1,
+      "naive": [
+        "jammed",
+        "jammed",
+        "jammed"
+      ]
+    },
+    "generation": {
+      "seed": 2,
+      "capacity": 14
+    }
+  },
+  {
+    "round": 70,
+    "slot": "relief",
+    "id": "board-103",
+    "source": "output/current/levelling/expansion/candidates/fam-f13f.jsonl:1 (seed 1, capacity 14)",
+    "game": "funnel",
+    "hash": "3a408b4d5c48d807",
+    "verified": {
+      "states": 117,
+      "winning": 311,
+      "orders": 914,
+      "brisk": {
+        "status": "won",
+        "clean": true,
+        "seconds": 38.28333333333333
+      },
+      "patient": {
+        "status": "won",
+        "clean": true,
+        "seconds": 44.93333333333333
+      },
+      "fast": {
+        "gap": 2,
+        "fingerprint": "e3839d19"
+      },
+      "jam": {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 16.95
+      },
+      "jitter": 1,
+      "naive": [
+        "jammed",
+        "jammed",
+        "jammed"
+      ]
+    },
+    "generation": {
+      "seed": 1,
+      "capacity": 14
+    }
+  },
+  {
+    "round": 71,
+    "slot": "relief",
+    "id": "board-104",
+    "source": "output/current/campaign-41-60/funnel/pair-context.jsonl:2 (seed 16, capacity 14)",
+    "trap": 5,
+    "game": "funnel",
+    "hash": "b1d5161ae0b952bb",
+    "verified": {
+      "states": 10,
+      "winning": 2,
+      "orders": 12,
+      "brisk": {
+        "status": "won",
+        "clean": true,
+        "seconds": 28.066666666666666
+      },
+      "patient": {
+        "status": "won",
+        "clean": true,
+        "seconds": 31.866666666666667
+      },
+      "fast": {
+        "gap": 4,
+        "fingerprint": "5b9fc0a7"
+      },
+      "jam": {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 15.05
+      },
+      "jitter": 1,
+      "naive": [
+        "jammed",
+        "jammed",
+        "jammed"
+      ],
+      "counterfactual": [
+        {
+          "removed": "pair",
+          "action": 5,
+          "lossStates": 1,
+          "winStates": 22,
+          "winningContinuation": "ABCGDE"
+        }
+      ]
+    },
+    "generation": {
+      "seed": 16,
+      "capacity": 14
+    }
+  },
+  {
+    "round": 72,
+    "slot": "ordinary",
+    "id": "board-105",
+    "source": "output/current/levelling/expansion/candidates/fam-f25b.jsonl:5 (seed 2, capacity 15)",
+    "game": "funnel",
+    "hash": "dbc466b0dc15aa28",
+    "verified": {
+      "states": 72,
+      "winning": 342,
+      "orders": 1246,
+      "brisk": {
+        "status": "won",
+        "clean": true,
+        "seconds": 41.18333333333333
+      },
+      "patient": {
+        "status": "won",
+        "clean": true,
+        "seconds": 53.38333333333333
+      },
+      "fast": {
+        "gap": 4,
+        "fingerprint": "3cab6915"
+      },
+      "jam": {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 9.083333333333334
+      },
+      "jitter": 1,
+      "naive": [
+        "jammed",
+        "jammed",
+        "jammed"
+      ]
+    },
+    "generation": {
+      "seed": 2,
+      "capacity": 15
+    }
+  },
+  {
+    "round": 73,
+    "slot": "lesson",
+    "id": "board-202",
+    "source": "bank:board-202 (src/sim/boards.ts, tests/levelling/scores.json, tests/witnesses.ts)",
+    "trap": 1,
+    "game": "funnel",
+    "hash": "7674893b18ac281b",
+    "verified": {
+      "states": 15,
+      "winning": 6,
+      "orders": 25,
+      "brisk": {
+        "status": "won",
+        "clean": true,
+        "seconds": 20.716666666666665
+      },
+      "patient": {
+        "status": "won",
+        "clean": true,
+        "seconds": 26.133333333333333
+      },
+      "fast": {
+        "gap": 3,
+        "fingerprint": "6b5137df"
+      },
+      "jam": {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 6.916666666666667
+      },
+      "jitter": 1,
+      "naive": [
+        "jammed",
+        "jammed",
+        "jammed"
+      ],
+      "counterfactual": [
+        {
+          "removed": "seal",
+          "action": 1,
+          "lossStates": 3,
+          "winStates": 7,
+          "winningContinuation": "ABCCA"
+        }
+      ]
+    }
+  },
+  {
+    "round": 74,
+    "slot": "peak",
+    "id": "board-106",
+    "source": "output/current/island-expansion/candidates/fam-f61-mixed.jsonl:257 (seed 87, capacity 14)",
+    "game": "funnel",
+    "hash": "2bc594f6138e7221",
+    "verified": {
+      "states": 15,
+      "winning": 4,
+      "orders": 40,
+      "brisk": {
+        "status": "won",
+        "clean": true,
+        "seconds": 22.583333333333332
+      },
+      "patient": {
+        "status": "won",
+        "clean": true,
+        "seconds": 30.583333333333332
+      },
+      "fast": {
+        "gap": 2,
+        "fingerprint": "25913ebe"
+      },
+      "jam": {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 4.75
+      },
+      "jitter": 1,
+      "naive": [
+        "jammed",
+        "jammed",
+        "jammed"
+      ]
+    },
+    "generation": {
+      "seed": 87,
+      "capacity": 14
+    }
+  },
+  {
+    "round": 75,
+    "slot": "ordinary",
+    "id": "board-107",
+    "source": "output/current/island-expansion/funnel/authored.jsonl:4 (seed 3, capacity 19); requalified as kidney in output/current/island-expansion/funnel-belt-layouts/board-107-kidney.json",
+    "trap": 2,
+    "game": "funnel",
+    "hash": "16153bf6399ff4ff",
+    "verified": {
+      "states": 23,
+      "winning": 6,
+      "orders": 75,
+      "brisk": {
+        "status": "won",
+        "clean": true,
+        "seconds": 55.9
+      },
+      "patient": {
+        "status": "won",
+        "clean": true,
+        "seconds": 63.083333333333336
+      },
+      "fast": {
+        "gap": 1,
+        "fingerprint": "2e17279e"
+      },
+      "jam": {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 11.2
+      },
+      "jitter": 1,
+      "naive": [
+        "jammed",
+        "jammed",
+        "jammed"
+      ],
+      "counterfactual": [
+        {
+          "removed": "seal",
+          "action": 2,
+          "lossStates": 5,
+          "winStates": 17,
+          "winningContinuation": "AADDBBC"
+        }
+      ]
+    },
+    "generation": {
+      "geometry": {
+        "columns": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "colors": 5,
+        "docks": 2,
+        "shorts": 1,
+        "seals": [
+          {
+            "dock": 0,
+            "after": {
+              "dock": 1,
+              "box": 0
+            }
+          }
+        ]
+      },
+      "seed": 3,
+      "capacity": 19,
+      "target": "ordinary-seal"
+    }
+  },
+  {
+    "round": 76,
+    "slot": "relief",
+    "id": "board-108",
+    "source": "output/current/levelling/expansion/candidates/fam-f26k.jsonl:28 (seed 10, capacity 14)",
+    "game": "funnel",
+    "hash": "5a55c1f9745cc8a9",
+    "verified": {
+      "states": 27,
+      "winning": 10,
+      "orders": 25,
+      "brisk": {
+        "status": "won",
+        "clean": true,
+        "seconds": 26.716666666666665
+      },
+      "patient": {
+        "status": "won",
+        "clean": true,
+        "seconds": 37.28333333333333
+      },
+      "fast": {
+        "gap": 9,
+        "fingerprint": "dd3563e0"
+      },
+      "jam": {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 4.6
+      },
+      "jitter": 1,
+      "naive": [
+        "jammed",
+        "jammed",
+        "jammed"
+      ]
+    },
+    "generation": {
+      "seed": 10,
+      "capacity": 14
+    }
+  },
+  {
+    "round": 77,
+    "slot": "ordinary",
+    "id": "board-109",
+    "source": "output/current/island-expansion/candidates/fam-f61-extra.jsonl:3",
+    "trap": 0,
+    "game": "funnel",
+    "hash": "01c8d2388d405131",
+    "verified": {
+      "states": 15,
+      "winning": 6,
+      "orders": 21,
+      "brisk": {
+        "status": "won",
+        "clean": true,
+        "seconds": 29.3
+      },
+      "patient": {
+        "status": "won",
+        "clean": true,
+        "seconds": 39.333333333333336
+      },
+      "fast": {
+        "gap": 2,
+        "fingerprint": "27e76bc7"
+      },
+      "jam": {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 9.766666666666667
+      },
+      "jitter": 1,
+      "naive": [
+        "jammed",
+        "jammed",
+        "jammed"
+      ],
+      "counterfactual": [
+        {
+          "removed": "seal",
+          "action": 0,
+          "lossStates": 2,
+          "winStates": 7,
+          "winningContinuation": "DEBFCH"
+        },
+        {
+          "removed": "pair",
+          "action": 0,
+          "lossStates": 2,
+          "winStates": 13,
+          "winningContinuation": "BGDECFH"
+        }
+      ]
+    },
+    "generation": {
+      "capacity": 14,
+      "base": "fam-f13g:27",
+      "edit": "move 0.0>2.0; seal 0 after 1.1; pair 2+6",
+      "target": "pairseal"
+    }
+  },
+  {
+    "round": 78,
+    "slot": "ordinary",
+    "id": "board-110",
+    "source": "output/current/island-expansion/funnel-extra/screen-seal.jsonl:80",
+    "trap": 2,
+    "game": "funnel",
+    "hash": "94bbd43f7651ad4c",
+    "verified": {
+      "states": 17,
+      "winning": 12,
+      "orders": 52,
+      "brisk": {
+        "status": "won",
+        "clean": true,
+        "seconds": 37.96666666666667
+      },
+      "patient": {
+        "status": "won",
+        "clean": true,
+        "seconds": 47.18333333333333
+      },
+      "fast": {
+        "gap": 3,
+        "fingerprint": "a91db9ae"
+      },
+      "jam": {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 4.466666666666667
+      },
+      "jitter": 1,
+      "naive": [
+        "jammed",
+        "jammed",
+        "jammed"
+      ],
+      "counterfactual": [
+        {
+          "removed": "seal",
+          "action": 2,
+          "lossStates": 1,
+          "winStates": 12,
+          "winningContinuation": "ABACBDD"
+        }
+      ]
+    },
+    "generation": {
+      "capacity": 14,
+      "archiveScreenKey": "fam-f13g:27|swap 0.1<>1.0||14|seal 0 after 1.0"
+    }
+  },
+  {
+    "round": 79,
+    "slot": "peak",
+    "id": "board-111",
+    "source": "output/current/island-expansion/candidates/fam-f61-wye.jsonl:61 (seed 21, capacity 14)",
+    "game": "funnel",
+    "hash": "773eec418f6a51eb",
+    "verified": {
+      "states": 78,
+      "winning": 34,
+      "orders": 367,
+      "brisk": {
+        "status": "won",
+        "clean": true,
+        "seconds": 32.1
+      },
+      "patient": {
+        "status": "won",
+        "clean": true,
+        "seconds": 37.11666666666667
+      },
+      "fast": {
+        "gap": 4,
+        "fingerprint": "d88373b8"
+      },
+      "jam": {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 17.083333333333332
+      },
+      "jitter": 1,
+      "naive": [
+        "jammed",
+        "jammed",
+        "jammed"
+      ]
+    },
+    "generation": {
+      "seed": 21,
+      "capacity": 14
+    }
+  },
+  {
+    "round": 80,
+    "slot": "relief",
+    "id": "board-112",
+    "source": "output/current/campaign-41-60/funnel/tube-help-nine-three.jsonl:6 (seed 1001, capacity 20); requalified as delta in output/current/island-expansion/funnel-belt-layouts/board-112-delta.json",
+    "game": "funnel",
+    "hash": "3faa28364a755989",
+    "verified": {
+      "states": 63,
+      "winning": 99,
+      "orders": 485,
+      "brisk": {
+        "status": "won",
+        "clean": true,
+        "seconds": 40.516666666666666
+      },
+      "patient": {
+        "status": "won",
+        "clean": true,
+        "seconds": 52.05
+      },
+      "fast": {
+        "gap": 3,
+        "fingerprint": "b8766349"
+      },
+      "jam": {
+        "status": "jammed",
+        "clean": true,
+        "seconds": 18.983333333333334
+      },
+      "jitter": 1,
+      "naive": [
+        "jammed",
+        "jammed",
+        "jammed"
+      ]
+    },
+    "generation": {
+      "seed": 1001,
+      "capacity": 20
+    }
+  },
+  {
+    "round": 61,
+    "slot": "ordinary",
+    "id": "loop-97",
+    "trap": "AA",
+    "feature": "short",
+    "source": {
+      "family": "short-remix",
+      "shifts": [
+        {
+          "from": {
+            "l": 0,
+            "i": 1,
+            "j": 2,
+            "c": "red"
+          },
+          "to": {
+            "l": 0,
+            "i": 1,
+            "j": 0,
+            "c": "red"
+          },
+          "units": 4
+        }
+      ],
+      "laneOrder": [
+        0,
+        1,
+        2
+      ],
+      "recipe": {
+        "id": "short-island",
+        "title": "Short haul",
+        "fr": "Le petit porteur",
+        "note": "",
+        "colors": 3,
+        "lanes": [
+          2,
+          2,
+          1
+        ],
+        "capacities": [
+          [
+            12,
+            24
+          ],
+          [
+            24,
+            24
+          ],
+          [
+            24
+          ]
+        ],
+        "segments": 3,
+        "capacity": 40,
+        "ringMax": 20,
+        "seed": 78,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false
+      },
+      "seed": 78,
+      "capacity": 22
+    },
+    "signature": "c3 [2,2,1] seg3 ring13-24 oval rules[[[[\"0:0\",12,null],[\"0:1\",24,null]],[[\"1:0\",24,null],[\"1:1\",24,null]],[[\"2:0\",24,null]]],[]]",
+    "game": "loop",
+    "hash": "1e2675093db7f868",
+    "verified": {
+      "states": 18,
+      "orders": 29,
+      "winningOrders": 5,
+      "brisk": {
+        "status": "won",
+        "done": true,
+        "seconds": 50.4
+      },
+      "patient": {
+        "status": "won",
+        "done": true,
+        "seconds": 50.4
+      },
+      "fast": "won",
+      "jam": {
+        "status": "jammed",
+        "done": true,
+        "seconds": 5
+      }
+    }
+  },
+  {
+    "round": 62,
+    "slot": "relief",
+    "id": "loop-98",
+    "trap": null,
+    "feature": null,
+    "source": {
+      "family": "fam-l13f",
+      "archive": "gates: fam-l13f (round 13, ordinary): S 58.7 outside 44-58",
+      "aim": "relief",
+      "recipe": {
+        "id": "fam-l13f",
+        "title": "A loaded loop",
+        "fr": "Un anneau chargé",
+        "note": "The loop starts busy.",
+        "colors": 4,
+        "lanes": [
+          2,
+          2,
+          2
+        ],
+        "segments": 3,
+        "capacity": 56,
+        "ringMax": 24,
+        "seed": 107,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false,
+        "shape": "eight"
+      },
+      "seed": 107,
+      "capacity": 20
+    },
+    "signature": "c4 [2,2,2] seg3 ring13-24 eight",
+    "game": "loop",
+    "hash": "0f24a088f1639a1b",
+    "verified": {
+      "states": 41,
+      "orders": 98,
+      "winningOrders": 60,
+      "brisk": {
+        "status": "won",
+        "done": true,
+        "seconds": 44.55
+      },
+      "patient": {
+        "status": "won",
+        "done": true,
+        "seconds": 52.36666666666667
+      },
+      "fast": "won",
+      "jam": {
+        "status": "jammed",
+        "done": true,
+        "seconds": 2.4
+      }
+    }
+  },
+  {
+    "round": 63,
+    "slot": "ordinary",
+    "id": "loop-99",
+    "trap": null,
+    "feature": null,
+    "source": {
+      "family": "fam-l13f",
+      "archive": "S out of band",
+      "aim": "ordinary",
+      "recipe": {
+        "id": "fam-l13f",
+        "title": "A loaded loop",
+        "fr": "Un anneau chargé",
+        "note": "The loop starts busy.",
+        "colors": 4,
+        "lanes": [
+          2,
+          2,
+          2
+        ],
+        "segments": 3,
+        "capacity": 56,
+        "ringMax": 24,
+        "seed": 41,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false
+      },
+      "seed": 41,
+      "capacity": 34
+    },
+    "signature": "c4 [2,2,2] seg3 ring13-24 oval",
+    "game": "loop",
+    "hash": "ce491043bc7c90ab",
+    "verified": {
+      "states": 27,
+      "orders": 47,
+      "winningOrders": 9,
+      "brisk": {
+        "status": "won",
+        "done": true,
+        "seconds": 91.93333333333334
+      },
+      "patient": {
+        "status": "won",
+        "done": true,
+        "seconds": 96.6
+      },
+      "fast": "won",
+      "jam": {
+        "status": "jammed",
+        "done": true,
+        "seconds": 30.3
+      }
+    }
+  },
+  {
+    "round": 64,
+    "slot": "ordinary",
+    "id": "loop-100",
+    "trap": null,
+    "feature": null,
+    "source": {
+      "family": "fam-l28k",
+      "archive": "S out of band",
+      "aim": "ordinary",
+      "recipe": {
+        "id": "fam-l28k",
+        "title": "A black truck",
+        "fr": "Un camion noir",
+        "note": "Black and its three dots, with three familiar colours.",
+        "colors": 4,
+        "palette": [
+          "black",
+          "red",
+          "blue",
+          "green"
+        ],
+        "lanes": [
+          2,
+          2,
+          2
+        ],
+        "segments": 3,
+        "capacity": 56,
+        "ringMax": 12,
+        "seed": 56,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false,
+        "shape": "kidney"
+      },
+      "seed": 56,
+      "capacity": 28
+    },
+    "signature": "c4 [2,2,2] seg3 ring1-12 kidney",
+    "game": "loop",
+    "hash": "f95448963e366f9f",
+    "verified": {
+      "states": 26,
+      "orders": 107,
+      "winningOrders": 90,
+      "brisk": {
+        "status": "won",
+        "done": true,
+        "seconds": 51.666666666666664
+      },
+      "patient": {
+        "status": "won",
+        "done": true,
+        "seconds": 52.35
+      },
+      "fast": "won",
+      "jam": {
+        "status": "jammed",
+        "done": true,
+        "seconds": 5.783333333333333
+      }
+    }
+  },
+  {
+    "round": 65,
+    "slot": "peak",
+    "id": "loop-101",
+    "trap": "BAAB",
+    "feature": "latch",
+    "source": {
+      "family": "generated-latch",
+      "seed": 268,
+      "capacity": 24,
+      "latch": [
+        "2:0",
+        "1:0"
+      ],
+      "archive": "campaign-41-60/loop/generated/latch-attempts-v3.jsonl",
+      "recipe": {
+        "id": "latch-candidate",
+        "title": "Latch practice",
+        "fr": "Le verrou",
+        "note": "",
+        "colors": 3,
+        "lanes": [
+          2,
+          2,
+          1
+        ],
+        "segments": 3,
+        "capacity": 40,
+        "ringMax": 20,
+        "seed": 268,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false
+      }
+    },
+    "signature": "c3 [2,2,1] seg3 ring1-12 oval rules[[[[\"0:0\",24,null],[\"0:1\",24,null]],[[\"1:0\",24,null],[\"1:1\",24,null]],[[\"2:0\",24,\"1:0\"]]],[]]",
+    "game": "loop",
+    "hash": "99ef09d33d18a26c",
+    "verified": {
+      "states": 27,
+      "orders": 99,
+      "winningOrders": 66,
+      "brisk": {
+        "status": "won",
+        "done": true,
+        "seconds": 37.18333333333333
+      },
+      "patient": {
+        "status": "won",
+        "done": true,
+        "seconds": 39.983333333333334
+      },
+      "fast": "won",
+      "jam": {
+        "status": "jammed",
+        "done": true,
+        "seconds": 9.1
+      }
+    }
+  },
+  {
+    "round": 66,
+    "slot": "ordinary",
+    "id": "loop-102",
+    "trap": null,
+    "feature": null,
+    "source": {
+      "family": "fam-l21a",
+      "archive": "multi-tap gap",
+      "aim": "ordinary",
+      "recipe": {
+        "id": "fam-l21a",
+        "title": "Eight trucks",
+        "fr": "Huit camions",
+        "note": "Three lanes, one of them three deep.",
+        "colors": 5,
+        "lanes": [
+          3,
+          3,
+          2
+        ],
+        "segments": 3,
+        "capacity": 56,
+        "ringMax": 12,
+        "seed": 152,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false,
+        "shape": "delta"
+      },
+      "seed": 152,
+      "capacity": 26
+    },
+    "signature": "c5 [3,3,2] seg3 ring1-12 delta",
+    "game": "loop",
+    "hash": "e89dfa82cffeab83",
+    "verified": {
+      "states": 30,
+      "orders": 58,
+      "winningOrders": 10,
+      "brisk": {
+        "status": "won",
+        "done": true,
+        "seconds": 45.53333333333333
+      },
+      "patient": {
+        "status": "won",
+        "done": true,
+        "seconds": 49.3
+      },
+      "fast": "won",
+      "jam": {
+        "status": "jammed",
+        "done": true,
+        "seconds": 8.766666666666667
+      }
+    }
+  },
+  {
+    "round": 67,
+    "slot": "relief",
+    "id": "loop-103",
+    "trap": null,
+    "feature": null,
+    "source": {
+      "family": "fam-l13a",
+      "archive": "multi-tap gap",
+      "aim": "ordinary",
+      "recipe": {
+        "id": "fam-l13a",
+        "title": "Five colours, six trucks",
+        "fr": "Cinq couleurs, six camions",
+        "note": "Every lane queued, five colours.",
+        "colors": 5,
+        "lanes": [
+          2,
+          2,
+          2
+        ],
+        "segments": 3,
+        "capacity": 56,
+        "ringMax": 12,
+        "seed": 192,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false
+      },
+      "seed": 192,
+      "capacity": 30
+    },
+    "signature": "c5 [2,2,2] seg3 ring1-12 oval",
+    "game": "loop",
+    "hash": "267fd81f7b777027",
+    "verified": {
+      "states": 51,
+      "orders": 645,
+      "winningOrders": 504,
+      "brisk": {
+        "status": "won",
+        "done": true,
+        "seconds": 40.55
+      },
+      "patient": {
+        "status": "won",
+        "done": true,
+        "seconds": 39.95
+      },
+      "fast": "won",
+      "jam": {
+        "status": "jammed",
+        "done": true,
+        "seconds": 7.016666666666667
+      }
+    }
+  },
+  {
+    "round": 68,
+    "slot": "ordinary",
+    "id": "loop-104",
+    "trap": null,
+    "feature": null,
+    "source": {
+      "family": "fam-l13e",
+      "archive": "S out of band",
+      "aim": "ordinary",
+      "recipe": {
+        "id": "fam-l13e",
+        "title": "A long queue",
+        "fr": "Une longue file",
+        "note": "One lane three deep beside two shorter ones.",
+        "colors": 5,
+        "lanes": [
+          3,
+          2,
+          2
+        ],
+        "segments": 3,
+        "capacity": 56,
+        "ringMax": 12,
+        "seed": 4,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false
+      },
+      "seed": 4,
+      "capacity": 24
+    },
+    "signature": "c5 [3,2,2] seg3 ring1-12 oval",
+    "game": "loop",
+    "hash": "799b8a788250c766",
+    "verified": {
+      "states": 34,
+      "orders": 204,
+      "winningOrders": 186,
+      "brisk": {
+        "status": "won",
+        "done": true,
+        "seconds": 55.68333333333333
+      },
+      "patient": {
+        "status": "won",
+        "done": true,
+        "seconds": 59.8
+      },
+      "fast": "won",
+      "jam": {
+        "status": "jammed",
+        "done": true,
+        "seconds": 7.15
+      }
+    }
+  },
+  {
+    "round": 69,
+    "slot": "ordinary",
+    "id": "loop-105",
+    "trap": null,
+    "feature": null,
+    "source": {
+      "family": "fam-l13e",
+      "archive": "S out of band",
+      "aim": "ordinary",
+      "recipe": {
+        "id": "fam-l13e",
+        "title": "A long queue",
+        "fr": "Une longue file",
+        "note": "One lane three deep beside two shorter ones.",
+        "colors": 5,
+        "lanes": [
+          3,
+          2,
+          2
+        ],
+        "segments": 3,
+        "capacity": 56,
+        "ringMax": 12,
+        "seed": 99,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false,
+        "shape": "eight"
+      },
+      "seed": 99,
+      "capacity": 24
+    },
+    "signature": "c5 [3,2,2] seg3 ring1-12 eight",
+    "game": "loop",
+    "hash": "7f2bc5011abbb171",
+    "verified": {
+      "states": 57,
+      "orders": 269,
+      "winningOrders": 210,
+      "brisk": {
+        "status": "won",
+        "done": true,
+        "seconds": 26.633333333333333
+      },
+      "patient": {
+        "status": "won",
+        "done": true,
+        "seconds": 30.983333333333334
+      },
+      "fast": "won",
+      "jam": {
+        "status": "jammed",
+        "done": true,
+        "seconds": 14.266666666666667
+      }
+    }
+  },
+  {
+    "round": 70,
+    "slot": "peak",
+    "id": "loop-106",
+    "trap": "CBBCB",
+    "feature": "latch",
+    "source": {
+      "family": "generated-latch",
+      "seed": 222,
+      "colors": 3,
+      "lanes": [
+        2,
+        2,
+        1
+      ],
+      "segments": 3,
+      "generationCapacity": 40,
+      "ringMax": 20,
+      "capacity": 24,
+      "latch": [
+        "0:0",
+        "2:0"
+      ],
+      "recipe": {
+        "id": "latch-candidate",
+        "title": "Latch practice",
+        "fr": "Le verrou",
+        "note": "",
+        "colors": 3,
+        "lanes": [
+          2,
+          2,
+          1
+        ],
+        "segments": 3,
+        "capacity": 40,
+        "ringMax": 20,
+        "seed": 222,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false
+      }
+    },
+    "signature": "c3 [2,2,1] seg3 ring0 oval rules[[[[\"0:0\",24,\"2:0\"],[\"0:1\",24,null]],[[\"1:0\",24,null],[\"1:1\",24,null]],[[\"2:0\",24,null]]],[]]",
+    "game": "loop",
+    "hash": "3f0733556f44263b",
+    "verified": {
+      "states": 17,
+      "orders": 15,
+      "winningOrders": 9,
+      "brisk": {
+        "status": "won",
+        "done": true,
+        "seconds": 21.333333333333332
+      },
+      "patient": {
+        "status": "won",
+        "done": true,
+        "seconds": 26.316666666666666
+      },
+      "fast": "won",
+      "jam": {
+        "status": "jammed",
+        "done": true,
+        "seconds": 14.333333333333334
+      }
+    }
+  },
+  {
+    "round": 71,
+    "slot": "ordinary",
+    "id": "loop-107",
+    "trap": null,
+    "feature": null,
+    "source": {
+      "family": "fam-l13f",
+      "archive": "S out of band",
+      "aim": "ordinary",
+      "recipe": {
+        "id": "fam-l13f",
+        "title": "A loaded loop",
+        "fr": "Un anneau chargé",
+        "note": "The loop starts busy.",
+        "colors": 4,
+        "lanes": [
+          2,
+          2,
+          2
+        ],
+        "segments": 3,
+        "capacity": 56,
+        "ringMax": 24,
+        "seed": 48,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false
+      },
+      "seed": 48,
+      "capacity": 22
+    },
+    "signature": "c4 [2,2,2] seg3 ring13-24 oval",
+    "game": "loop",
+    "hash": "b43ad875c02f8eb3",
+    "verified": {
+      "states": 25,
+      "orders": 47,
+      "winningOrders": 20,
+      "brisk": {
+        "status": "won",
+        "done": true,
+        "seconds": 46.233333333333334
+      },
+      "patient": {
+        "status": "won",
+        "done": true,
+        "seconds": 48.96666666666667
+      },
+      "fast": "won",
+      "jam": {
+        "status": "jammed",
+        "done": true,
+        "seconds": 12.533333333333333
+      }
+    }
+  },
+  {
+    "round": 72,
+    "slot": "relief",
+    "id": "loop-108",
+    "trap": "AACB",
+    "feature": "short",
+    "source": {
+      "family": "short-variant",
+      "base": "loop-201",
+      "baseHash": "d371f5aa831fe61c",
+      "from": 4,
+      "to": 5,
+      "units": 2,
+      "capacity": 20,
+      "archive": "campaign-41-60/loop/short-variants/latch-1.json",
+      "mutation": "shift-4-5-2:0:1"
+    },
+    "signature": "c3 [2,1,1] seg3 ring13-24 oval rules[[[[\"0:0\",12,null],[\"0:1\",24,null]],[[\"1:0\",24,null]],[[\"2:0\",24,null]]],[]]",
+    "game": "loop",
+    "hash": "60ecdf966f52eba6",
+    "verified": {
+      "states": 15,
+      "orders": 20,
+      "winningOrders": 7,
+      "brisk": {
+        "status": "won",
+        "done": true,
+        "seconds": 12.933333333333334
+      },
+      "patient": {
+        "status": "won",
+        "done": true,
+        "seconds": 17.516666666666666
+      },
+      "fast": "won",
+      "jam": {
+        "status": "jammed",
+        "done": true,
+        "seconds": 2.4833333333333334
+      }
+    }
+  },
+  {
+    "round": 73,
+    "slot": "ordinary",
+    "id": "loop-109",
+    "trap": null,
+    "feature": null,
+    "source": {
+      "family": "quay-run",
+      "recipe": {
+        "id": "quay-run",
+        "title": "Quay run",
+        "fr": "La tournée des quais",
+        "note": "",
+        "colors": 5,
+        "lanes": [
+          3,
+          3,
+          1
+        ],
+        "segments": 3,
+        "capacity": 44,
+        "ringMax": 12,
+        "seed": 1340,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false,
+        "shape": "kidney"
+      },
+      "seed": 1340,
+      "capacity": 24
+    },
+    "signature": "c5 [3,3,1] seg3 ring1-12 kidney",
+    "game": "loop",
+    "hash": "622dd1ebf4243aff",
+    "verified": {
+      "states": 50,
+      "orders": 346,
+      "winningOrders": 244,
+      "brisk": {
+        "status": "won",
+        "done": true,
+        "seconds": 34.483333333333334
+      },
+      "patient": {
+        "status": "won",
+        "done": true,
+        "seconds": 36.583333333333336
+      },
+      "fast": "won",
+      "jam": {
+        "status": "jammed",
+        "done": true,
+        "seconds": 6.2
+      }
+    }
+  },
+  {
+    "round": 74,
+    "slot": "ordinary",
+    "id": "loop-110",
+    "trap": null,
+    "feature": null,
+    "source": {
+      "family": "fam-l13e",
+      "archive": "S out of band",
+      "aim": "ordinary",
+      "recipe": {
+        "id": "fam-l13e",
+        "title": "A long queue",
+        "fr": "Une longue file",
+        "note": "One lane three deep beside two shorter ones.",
+        "colors": 5,
+        "lanes": [
+          3,
+          2,
+          2
+        ],
+        "segments": 3,
+        "capacity": 56,
+        "ringMax": 12,
+        "seed": 100,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false
+      },
+      "seed": 100,
+      "capacity": 32
+    },
+    "signature": "c5 [3,2,2] seg3 ring1-12 oval",
+    "game": "loop",
+    "hash": "208da0ecf3009dde",
+    "verified": {
+      "states": 81,
+      "orders": 459,
+      "winningOrders": 250,
+      "brisk": {
+        "status": "won",
+        "done": true,
+        "seconds": 24.966666666666665
+      },
+      "patient": {
+        "status": "won",
+        "done": true,
+        "seconds": 28.483333333333334
+      },
+      "fast": "won",
+      "jam": {
+        "status": "jammed",
+        "done": true,
+        "seconds": 21.016666666666666
+      }
+    }
+  },
+  {
+    "round": 75,
+    "slot": "lesson",
+    "id": "loop-111",
+    "trap": "AAC",
+    "feature": "coupling",
+    "source": {
+      "family": "coupling",
+      "aim": "lesson",
+      "recipe": {
+        "id": "island-link",
+        "title": "Linked tailboards",
+        "fr": "Ridelles attelées",
+        "note": "",
+        "colors": 3,
+        "lanes": [
+          2,
+          1,
+          1,
+          1
+        ],
+        "segments": 3,
+        "capacity": 40,
+        "ringMax": 20,
+        "seed": 108,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false,
+        "coupling": [
+          "0:0",
+          "1:0"
+        ]
+      },
+      "seed": 108,
+      "capacity": 24
+    },
+    "signature": "c3 [2,1,1,1] seg3 ring1-12 oval rules[[[[\"0:0\",24,null],[\"0:1\",24,null]],[[\"1:0\",24,null]],[[\"2:0\",24,null]],[[\"3:0\",24,null]]],[[\"0:0\",\"1:0\"]]]",
+    "game": "loop",
+    "hash": "477ea3e359e11fd3",
+    "verified": {
+      "states": 25,
+      "orders": 33,
+      "winningOrders": 12,
+      "brisk": {
+        "status": "won",
+        "done": true,
+        "seconds": 27.8
+      },
+      "patient": {
+        "status": "won",
+        "done": true,
+        "seconds": 31.283333333333335
+      },
+      "fast": "won",
+      "jam": {
+        "status": "jammed",
+        "done": true,
+        "seconds": 12.75
+      }
+    }
+  },
+  {
+    "round": 76,
+    "slot": "peak",
+    "id": "loop-112",
+    "trap": null,
+    "feature": null,
+    "source": {
+      "family": "fam-l31d",
+      "seed": 62,
+      "capacity": 22,
+      "recipe": {
+        "id": "fam-l31d",
+        "title": "One long lane",
+        "fr": "Une longue file",
+        "note": "A lane four deep beside two shorter ones.",
+        "colors": 5,
+        "lanes": [
+          4,
+          3,
+          2
+        ],
+        "segments": 3,
+        "capacity": 56,
+        "ringMax": 12,
+        "seed": 62,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false
+      }
+    },
+    "signature": "c5 [4,3,2] seg3 ring1-12 oval",
+    "game": "loop",
+    "hash": "8a34159f04d08508",
+    "verified": {
+      "states": 20,
+      "orders": 33,
+      "winningOrders": 12,
+      "brisk": {
+        "status": "won",
+        "done": true,
+        "seconds": 98.15
+      },
+      "patient": {
+        "status": "won",
+        "done": true,
+        "seconds": 100.7
+      },
+      "fast": "won",
+      "jam": {
+        "status": "jammed",
+        "done": true,
+        "seconds": 6.933333333333334
+      }
+    }
+  },
+  {
+    "round": 77,
+    "slot": "relief",
+    "id": "loop-113",
+    "trap": "CCAB",
+    "feature": "coupling",
+    "source": {
+      "recipe": {
+        "id": "loop-design",
+        "title": "Island run",
+        "fr": "Le tour de l’île",
+        "note": "",
+        "colors": 3,
+        "lanes": [
+          4,
+          3,
+          2
+        ],
+        "segments": 3,
+        "capacity": 40,
+        "ringMax": 20,
+        "seed": 100,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false,
+        "coupling": [
+          "0:0",
+          "1:0"
+        ]
+      },
+      "seed": 100,
+      "capacity": 32
+    },
+    "signature": "c3 [4,3,2] seg3 ring13-24 oval rules[[[[\"0:0\",24,null],[\"0:1\",24,null],[\"0:2\",24,null],[\"0:3\",24,null]],[[\"1:0\",24,null],[\"1:1\",24,null],[\"1:2\",24,null]],[[\"2:0\",24,null],[\"2:1\",24,null]]],[[\"0:0\",\"1:0\"]]]",
+    "game": "loop",
+    "hash": "d085bdddfce7266e",
+    "verified": {
+      "states": 25,
+      "orders": 162,
+      "winningOrders": 20,
+      "brisk": {
+        "status": "won",
+        "done": true,
+        "seconds": 42.516666666666666
+      },
+      "patient": {
+        "status": "won",
+        "done": true,
+        "seconds": 49.56666666666667
+      },
+      "fast": "won",
+      "jam": {
+        "status": "jammed",
+        "done": true,
+        "seconds": 11.683333333333334
+      }
+    }
+  },
+  {
+    "round": 78,
+    "slot": "ordinary",
+    "id": "loop-114",
+    "trap": null,
+    "feature": null,
+    "source": {
+      "family": "fam-l13f",
+      "archive": "gates: fam-l13f (round 13, ordinary): S 67.9 outside 44-58; S 67.9 off target",
+      "aim": "ordinary",
+      "recipe": {
+        "id": "fam-l13f",
+        "title": "A loaded loop",
+        "fr": "Un anneau chargé",
+        "note": "The loop starts busy.",
+        "colors": 4,
+        "lanes": [
+          2,
+          2,
+          2
+        ],
+        "segments": 3,
+        "capacity": 56,
+        "ringMax": 24,
+        "seed": 45,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false
+      },
+      "seed": 45,
+      "capacity": 30
+    },
+    "signature": "c4 [2,2,2] seg3 ring13-24 oval",
+    "game": "loop",
+    "hash": "3a8a29da9ae78f39",
+    "verified": {
+      "states": 24,
+      "orders": 26,
+      "winningOrders": 19,
+      "brisk": {
+        "status": "won",
+        "done": true,
+        "seconds": 34.43333333333333
+      },
+      "patient": {
+        "status": "won",
+        "done": true,
+        "seconds": 34.666666666666664
+      },
+      "fast": "won",
+      "jam": {
+        "status": "jammed",
+        "done": true,
+        "seconds": 5.15
+      }
+    }
+  },
+  {
+    "round": 79,
+    "slot": "ordinary",
+    "id": "loop-115",
+    "trap": "BB",
+    "feature": "short",
+    "source": {
+      "family": "short-wide",
+      "recipe": {
+        "id": "short-candidate",
+        "title": "Small bed, big job",
+        "fr": "Petite benne",
+        "note": "",
+        "colors": 3,
+        "lanes": [
+          2,
+          2,
+          1
+        ],
+        "capacities": [
+          [
+            12,
+            24
+          ],
+          [
+            24,
+            24
+          ],
+          [
+            24
+          ]
+        ],
+        "segments": 3,
+        "capacity": 40,
+        "ringMax": 20,
+        "seed": 427,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false,
+        "shape": "delta"
+      },
+      "seed": 427,
+      "capacity": 24,
+      "shift": {
+        "from": {
+          "l": 0,
+          "i": 0,
+          "j": 0,
+          "c": "red"
+        },
+        "to": {
+          "l": 0,
+          "i": 0,
+          "j": 2,
+          "c": "red"
+        },
+        "units": 2
+      }
+    },
+    "signature": "c3 [2,2,1] seg3 ring13-24 delta rules[[[[\"0:0\",12,null],[\"0:1\",24,null]],[[\"1:0\",24,null],[\"1:1\",24,null]],[[\"2:0\",24,null]]],[]]",
+    "game": "loop",
+    "hash": "30265af8b7cde8e4",
+    "verified": {
+      "states": 10,
+      "orders": 15,
+      "winningOrders": 2,
+      "brisk": {
+        "status": "won",
+        "done": true,
+        "seconds": 35.266666666666666
+      },
+      "patient": {
+        "status": "won",
+        "done": true,
+        "seconds": 35.6
+      },
+      "fast": "won",
+      "jam": {
+        "status": "jammed",
+        "done": true,
+        "seconds": 1.15
+      }
+    }
+  },
+  {
+    "round": 80,
+    "slot": "peak",
+    "id": "loop-116",
+    "trap": "DDAABB",
+    "feature": "coupling",
+    "source": {
+      "recipe": {
+        "id": "loop-design",
+        "title": "Island run",
+        "fr": "Le tour de l’île",
+        "note": "",
+        "colors": 3,
+        "lanes": [
+          2,
+          2,
+          2,
+          1
+        ],
+        "segments": 3,
+        "capacity": 40,
+        "ringMax": 14,
+        "seed": 127,
+        "win": [
+          0,
+          1
+        ],
+        "naiveJams": false,
+        "coupling": [
+          "0:0",
+          "1:0"
+        ]
+      },
+      "seed": 127,
+      "capacity": 20
+    },
+    "signature": "c3 [2,2,2,1] seg3 ring1-12 oval rules[[[[\"0:0\",24,null],[\"0:1\",24,null]],[[\"1:0\",24,null],[\"1:1\",24,null]],[[\"2:0\",24,null],[\"2:1\",24,null]],[[\"3:0\",24,null]]],[[\"0:0\",\"1:0\"]]]",
+    "game": "loop",
+    "hash": "374ad9c2f131afaf",
+    "verified": {
+      "states": 47,
+      "orders": 432,
+      "winningOrders": 34,
+      "brisk": {
+        "status": "won",
+        "done": true,
+        "seconds": 76.23333333333333
+      },
+      "patient": {
+        "status": "won",
+        "done": true,
+        "seconds": 80.23333333333333
+      },
+      "fast": "won",
+      "jam": {
+        "status": "jammed",
+        "done": true,
+        "seconds": 25.133333333333333
+      }
+    }
+  },
+  {
+    "id": "tube-94",
+    "round": 61,
+    "slot": "lesson",
+    "source": "output/current/island-expansion/tube/screen.ts cup3 seed 14",
+    "trap": {
+      "rule": "cup",
+      "prefix": [
+        {
+          "from": 0,
+          "to": 3
+        },
+        {
+          "from": 1,
+          "to": 4
+        }
+      ],
+      "move": {
+        "from": 4,
+        "to": 0
+      },
+      "rescue": [
+        {
+          "from": 1,
+          "to": 3
+        },
+        {
+          "from": 2,
+          "to": 1
+        },
+        {
+          "from": 1,
+          "to": 4
+        },
+        {
+          "from": 0,
+          "to": 1
+        },
+        {
+          "from": 2,
+          "to": 1
+        },
+        {
+          "from": 2,
+          "to": 3
+        },
+        {
+          "from": 0,
+          "to": 2
+        },
+        {
+          "from": 4,
+          "to": 2
+        }
+      ],
+      "foldsCup": true,
+      "graph": 204,
+      "winnable": 174,
+      "traps": 30
+    },
+    "game": "tube",
+    "hash": "9454690601a6a02d",
+    "verified": {
+      "graphStates": 204,
+      "winnable": 174,
+      "lostPositions": 30,
+      "cupNeeded": true
+    }
+  },
+  {
+    "id": "tube-95",
+    "round": 62,
+    "slot": "peak",
+    "source": "unused scored candidate levelling/expansion/candidates/fam-t25d.jsonl:36 (output/current/island-expansion/pool.json, hash 376b46f4cde5c51e)",
+    "game": "tube",
+    "hash": "11a314d2302d1e60",
+    "verified": {
+      "graphStates": 45,
+      "winnable": 32,
+      "lostPositions": 13,
+      "cupNeeded": null
+    }
+  },
+  {
+    "id": "tube-96",
+    "round": 63,
+    "slot": "ordinary",
+    "source": "output/current/island-expansion/tube/screen.ts cup3 seed 418",
+    "trap": {
+      "rule": "cup",
+      "prefix": [
+        {
+          "from": 0,
+          "to": 3
+        },
+        {
+          "from": 1,
+          "to": 4
+        }
+      ],
+      "move": {
+        "from": 4,
+        "to": 3
+      },
+      "rescue": [
+        {
+          "from": 0,
+          "to": 1
+        },
+        {
+          "from": 0,
+          "to": 4
+        },
+        {
+          "from": 1,
+          "to": 0
+        },
+        {
+          "from": 1,
+          "to": 4
+        },
+        {
+          "from": 1,
+          "to": 3
+        },
+        {
+          "from": 2,
+          "to": 0
+        },
+        {
+          "from": 2,
+          "to": 1
+        },
+        {
+          "from": 2,
+          "to": 3
+        },
+        {
+          "from": 4,
+          "to": 1
+        }
+      ],
+      "foldsCup": true,
+      "graph": 296,
+      "winnable": 237,
+      "traps": 35
+    },
+    "game": "tube",
+    "hash": "d1316287677ce860",
+    "verified": {
+      "graphStates": 296,
+      "winnable": 237,
+      "lostPositions": 59,
+      "cupNeeded": true
+    }
+  },
+  {
+    "id": "tube-97",
+    "round": 64,
+    "slot": "relief",
+    "source": "unused scored candidate levelling/expansion/candidates/fam-t33s.jsonl:133 (output/current/island-expansion/pool.json, hash ab04f055a542b507)",
+    "game": "tube",
+    "hash": "70172bf5af65b8d1",
+    "verified": {
+      "graphStates": 45,
+      "winnable": 34,
+      "lostPositions": 11,
+      "cupNeeded": null
+    }
+  },
+  {
+    "id": "tube-98",
+    "round": 65,
+    "slot": "ordinary",
+    "source": "unused scored candidate levelling/expansion/candidates/fam-t25d.jsonl:20 (output/current/island-expansion/pool.json, hash ffcc7e249ade7d1c)",
+    "game": "tube",
+    "hash": "ffcc7e249ade7d1c",
+    "verified": {
+      "graphStates": 27,
+      "winnable": 18,
+      "lostPositions": 9,
+      "cupNeeded": null
+    }
+  },
+  {
+    "id": "tube-99",
+    "round": 66,
+    "slot": "ordinary",
+    "source": "unused scored candidate levelling/expansion/candidates/fam-t25c.jsonl:44 (output/current/island-expansion/pool.json, hash 5de4a9fe6f44f686)",
+    "game": "tube",
+    "hash": "6466717c2d68dd61",
+    "verified": {
+      "graphStates": 3518,
+      "winnable": 3167,
+      "lostPositions": 351,
+      "cupNeeded": null
+    }
+  },
+  {
+    "id": "tube-100",
+    "round": 67,
+    "slot": "peak",
+    "source": "output/current/island-expansion/tube/screen.ts c6h4 seed 271",
+    "game": "tube",
+    "hash": "9081bf9402de0f86",
+    "verified": {
+      "graphStates": 97,
+      "winnable": 72,
+      "lostPositions": 25,
+      "cupNeeded": null
+    }
+  },
+  {
+    "id": "tube-101",
+    "round": 68,
+    "slot": "ordinary",
+    "source": "output/current/island-expansion/tube/screen.ts cap4h5 seed 90",
+    "trap": {
+      "rule": "cap",
+      "prefix": [
+        {
+          "from": 0,
+          "to": 4
+        }
+      ],
+      "move": {
+        "from": 3,
+        "to": 0
+      },
+      "rescue": [
+        {
+          "from": 2,
+          "to": 4
+        },
+        {
+          "from": 0,
+          "to": 5
+        },
+        {
+          "from": 1,
+          "to": 0
+        },
+        {
+          "from": 2,
+          "to": 5
+        },
+        {
+          "from": 2,
+          "to": 4
+        },
+        {
+          "from": 3,
+          "to": 1
+        },
+        {
+          "from": 3,
+          "to": 5
+        },
+        {
+          "from": 1,
+          "to": 3
+        }
+      ],
+      "foldsCup": false,
+      "graph": 35,
+      "winnable": 25,
+      "traps": 5
+    },
+    "game": "tube",
+    "hash": "9a2cc17353020882",
+    "verified": {
+      "graphStates": 35,
+      "winnable": 25,
+      "lostPositions": 10,
+      "cupNeeded": null
+    }
+  },
+  {
+    "id": "tube-102",
+    "round": 69,
+    "slot": "relief",
+    "source": "unused scored candidate levelling/expansion/candidates/fam-t25b.jsonl:169 (output/current/island-expansion/pool.json, hash 20168788c842e613)",
+    "game": "tube",
+    "hash": "20168788c842e613",
+    "verified": {
+      "graphStates": 68,
+      "winnable": 50,
+      "lostPositions": 18,
+      "cupNeeded": null
+    }
+  },
+  {
+    "id": "tube-103",
+    "round": 70,
+    "slot": "ordinary",
+    "source": "output/current/island-expansion/tube/screen.ts cup4 seed 128",
+    "trap": {
+      "rule": "cup",
+      "prefix": [
+        {
+          "from": 2,
+          "to": 4
+        },
+        {
+          "from": 3,
+          "to": 5
+        }
+      ],
+      "move": {
+        "from": 5,
+        "to": 4
+      },
+      "rescue": [
+        {
+          "from": 0,
+          "to": 4
+        },
+        {
+          "from": 1,
+          "to": 0
+        },
+        {
+          "from": 1,
+          "to": 2
+        },
+        {
+          "from": 1,
+          "to": 5
+        },
+        {
+          "from": 2,
+          "to": 1
+        },
+        {
+          "from": 2,
+          "to": 5
+        },
+        {
+          "from": 3,
+          "to": 1
+        },
+        {
+          "from": 5,
+          "to": 3
+        }
+      ],
+      "foldsCup": true,
+      "graph": 287,
+      "winnable": 179,
+      "traps": 22
+    },
+    "game": "tube",
+    "hash": "646ef7de162e556e",
+    "verified": {
+      "graphStates": 287,
+      "winnable": 179,
+      "lostPositions": 108,
+      "cupNeeded": true
+    }
+  },
+  {
+    "id": "tube-104",
+    "round": 71,
+    "slot": "ordinary",
+    "source": "unused scored candidate levelling/expansion/candidates/fam-t25a.jsonl:413 (output/current/island-expansion/pool.json, hash 0baccf2fd5125e04)",
+    "game": "tube",
+    "hash": "0baccf2fd5125e04",
+    "verified": {
+      "graphStates": 112,
+      "winnable": 87,
+      "lostPositions": 25,
+      "cupNeeded": null
+    }
+  },
+  {
+    "id": "tube-105",
+    "round": 72,
+    "slot": "peak",
+    "source": "output/current/island-expansion/tube/screen.ts c5h4 seed 211",
+    "game": "tube",
+    "hash": "1955425f34f34520",
+    "verified": {
+      "graphStates": 55,
+      "winnable": 38,
+      "lostPositions": 17,
+      "cupNeeded": null
+    }
+  },
+  {
+    "id": "tube-106",
+    "round": 73,
+    "slot": "ordinary",
+    "source": "output/current/island-expansion/tube/screen.ts c4h6 seed 332",
+    "game": "tube",
+    "hash": "eabcd0e618fce428",
+    "verified": {
+      "graphStates": 65,
+      "winnable": 43,
+      "lostPositions": 22,
+      "cupNeeded": null
+    }
+  },
+  {
+    "id": "tube-107",
+    "round": 74,
+    "slot": "relief",
+    "source": "unused scored candidate levelling/expansion/candidates/fam-t25k.jsonl:61 (output/current/island-expansion/pool.json, hash b8730b5bf15ccfe4)",
+    "game": "tube",
+    "hash": "33c9f207aa37dbb0",
+    "verified": {
+      "graphStates": 33,
+      "winnable": 24,
+      "lostPositions": 9,
+      "cupNeeded": null
+    }
+  },
+  {
+    "id": "tube-108",
+    "round": 75,
+    "slot": "ordinary",
+    "source": "unused scored candidate campaign-41-60/tube/taller.jsonl:3 (output/current/island-expansion/pool.json, hash dcd2c199078d6e4d)",
+    "trap": {
+      "rule": "cap",
+      "prefix": [
+        {
+          "from": 0,
+          "to": 3
+        },
+        {
+          "from": 2,
+          "to": 0
+        },
+        {
+          "from": 2,
+          "to": 3
+        },
+        {
+          "from": 0,
+          "to": 2
+        }
+      ],
+      "move": {
+        "from": 0,
+        "to": 3
+      },
+      "rescue": [
+        {
+          "from": 1,
+          "to": 0
+        },
+        {
+          "from": 1,
+          "to": 4
+        },
+        {
+          "from": 1,
+          "to": 0
+        },
+        {
+          "from": 1,
+          "to": 3
+        },
+        {
+          "from": 0,
+          "to": 1
+        },
+        {
+          "from": 2,
+          "to": 4
+        },
+        {
+          "from": 2,
+          "to": 3
+        }
+      ],
+      "foldsCup": false,
+      "graph": 75,
+      "winnable": 66,
+      "traps": 1
+    },
+    "game": "tube",
+    "hash": "dcd2c199078d6e4d",
+    "verified": {
+      "graphStates": 75,
+      "winnable": 66,
+      "lostPositions": 9,
+      "cupNeeded": null
+    }
+  },
+  {
+    "id": "tube-109",
+    "round": 76,
+    "slot": "ordinary",
+    "source": "output/current/island-expansion/tube/screen.ts cupcap4oBlue seed 28",
+    "trap": {
+      "rule": "cup",
+      "prefix": [
+        {
+          "from": 0,
+          "to": 4
+        },
+        {
+          "from": 1,
+          "to": 5
+        }
+      ],
+      "move": {
+        "from": 5,
+        "to": 0
+      },
+      "rescue": [
+        {
+          "from": 2,
+          "to": 0
+        },
+        {
+          "from": 3,
+          "to": 2
+        },
+        {
+          "from": 3,
+          "to": 0
+        },
+        {
+          "from": 1,
+          "to": 5
+        },
+        {
+          "from": 1,
+          "to": 4
+        },
+        {
+          "from": 1,
+          "to": 5
+        },
+        {
+          "from": 2,
+          "to": 1
+        },
+        {
+          "from": 3,
+          "to": 1
+        },
+        {
+          "from": 2,
+          "to": 3
+        },
+        {
+          "from": 5,
+          "to": 3
+        }
+      ],
+      "foldsCup": true,
+      "graph": 1833,
+      "winnable": 1673,
+      "traps": 44,
+      "second": {
+        "rule": "cap",
+        "prefix": [
+          {
+            "from": 0,
+            "to": 4
+          },
+          {
+            "from": 0,
+            "to": 5
+          },
+          {
+            "from": 3,
+            "to": 0
+          }
+        ],
+        "move": {
+          "from": 3,
+          "to": 5
+        },
+        "rescue": [
+          {
+            "from": 3,
+            "to": 0
+          },
+          {
+            "from": 1,
+            "to": 6
+          },
+          {
+            "from": 1,
+            "to": 3
+          },
+          {
+            "from": 1,
+            "to": 4
+          },
+          {
+            "from": 1,
+            "to": 3
+          },
+          {
+            "from": 2,
+            "to": 6
+          },
+          {
+            "from": 2,
+            "to": 0
+          },
+          {
+            "from": 2,
+            "to": 3
+          },
+          {
+            "from": 5,
+            "to": 6
+          }
+        ],
+        "foldsCup": false,
+        "graph": 1833,
+        "winnable": 1673,
+        "traps": 29
+      }
+    },
+    "game": "tube",
+    "hash": "42810962b6f918ed",
+    "verified": {
+      "graphStates": 1833,
+      "winnable": 1673,
+      "lostPositions": 160,
+      "cupNeeded": true
+    }
+  },
+  {
+    "id": "tube-110",
+    "round": 77,
+    "slot": "peak",
+    "source": "output/current/island-expansion/tube/screen.ts c6h5 seed 317",
+    "game": "tube",
+    "hash": "faf41961d05cea34",
+    "verified": {
+      "graphStates": 104,
+      "winnable": 79,
+      "lostPositions": 25,
+      "cupNeeded": null
+    }
+  },
+  {
+    "id": "tube-111",
+    "round": 78,
+    "slot": "ordinary",
+    "source": "output/current/island-expansion/tube/screen.ts cup3h5 seed 115",
+    "trap": {
+      "rule": "cup",
+      "prefix": [
+        {
+          "from": 0,
+          "to": 3
+        },
+        {
+          "from": 1,
+          "to": 4
+        }
+      ],
+      "move": {
+        "from": 4,
+        "to": 0
+      },
+      "rescue": [
+        {
+          "from": 0,
+          "to": 4
+        },
+        {
+          "from": 1,
+          "to": 0
+        },
+        {
+          "from": 2,
+          "to": 0
+        },
+        {
+          "from": 1,
+          "to": 2
+        },
+        {
+          "from": 1,
+          "to": 3
+        },
+        {
+          "from": 2,
+          "to": 1
+        },
+        {
+          "from": 2,
+          "to": 3
+        },
+        {
+          "from": 0,
+          "to": 2
+        },
+        {
+          "from": 4,
+          "to": 1
+        }
+      ],
+      "foldsCup": true,
+      "graph": 410,
+      "winnable": 292,
+      "traps": 56
+    },
+    "game": "tube",
+    "hash": "3a232131001d380d",
+    "verified": {
+      "graphStates": 410,
+      "winnable": 292,
+      "lostPositions": 118,
+      "cupNeeded": true
+    }
+  },
+  {
+    "id": "tube-112",
+    "round": 79,
+    "slot": "relief",
+    "source": "unused scored candidate levelling/expansion/candidates/fam-t25c.jsonl:203 (output/current/island-expansion/pool.json, hash f30334e677085e1c)",
+    "game": "tube",
+    "hash": "6c7587b1f4ab9e73",
+    "verified": {
+      "graphStates": 2732,
+      "winnable": 2409,
+      "lostPositions": 323,
+      "cupNeeded": null
+    }
+  },
+  {
+    "id": "tube-113",
+    "round": 80,
+    "slot": "ordinary",
+    "source": "unused scored candidate levelling/expansion/candidates/fam-t25a.jsonl:352 (output/current/island-expansion/pool.json, hash 6deaab3aa6c66cd0)",
+    "game": "tube",
+    "hash": "6deaab3aa6c66cd0",
+    "verified": {
+      "graphStates": 235,
+      "winnable": 169,
+      "lostPositions": 66,
+      "cupNeeded": null
+    }
+  }
+]

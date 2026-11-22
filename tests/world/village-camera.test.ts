@@ -1,3 +1,4 @@
+import { VILLAGE_SCENE_PLANS } from '../../src/world/village-plans';
 import { Box3, BoxGeometry, Mesh, MeshBasicMaterial, PerspectiveCamera, Vector3 } from 'three';
 import { expect, it } from 'vitest';
 import { occludingSurface, sphereFramed } from './village-camera-probe';
@@ -182,7 +183,7 @@ it('rejects opaque geometry across the actual camera-to-marble ray, but accepts 
   } finally { geometry.dispose(); material.dispose(); }
 });
 
-it.each([0, 1, 2, 3, 4, 5])('village %i: actual film keeps contacts and complete linkage travel visible in both modes and viewports', chapter => {
+it.each(VILLAGE_SCENE_PLANS.map(scene => scene.chapter))('village %i: actual film keeps contacts and complete linkage travel visible in both modes and viewports', chapter => {
   const { world, probe, resize, dispose } = villageWorld(chapter), center = new Vector3(), bound = new Box3();
   try {
     const moving = new Set(probe.machine.route.contacts.flatMap(contact => contact.moverIds));
@@ -220,7 +221,7 @@ it.each([0, 1, 2, 3, 4, 5])('village %i: actual film keeps contacts and complete
   } finally { dispose(); }
 }, 30_000);
 
-it.each([0, 1, 2, 3, 4, 5])('village %i: map targets and Workshop retain their complete touch areas through upright-phone orbit', chapter => {
+it.each(VILLAGE_SCENE_PLANS.map(scene => scene.chapter))('village %i: map targets and Workshop retain their complete touch areas through upright-phone orbit', chapter => {
   const { world, dispose } = villageWorld(chapter);
   try {
     for (let degrees = -15; degrees <= 15; degrees += 5) {

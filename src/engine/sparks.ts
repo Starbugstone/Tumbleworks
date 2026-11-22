@@ -10,13 +10,15 @@ const STREAK_GAIN = [1, 1.4, 1.8] as const;
 const GOLD = 0xffd76a;
 const WHITE = 0xfff8e0;
 
-const enum Kind { Glitter = 0, Glint = 1, Glow = 2, Trail = 3 }
+const enum Kind { Glitter = 0, Glint = 1, Glow = 2, Trail = 3, Comet = 4 }
 
 interface Particle {
-  kind: Kind; age: number; life: number;
+  kind: Kind; age: number; life: number; queued: boolean;
   x: number; y: number; z: number; vx: number; vy: number; vz: number;
   /** Glitter that has fallen back to this height is gone, so none of it settles on the piece below. */
-  floor: number; size: number; spin: number; seed: number;
+  acceleration?: THREE.Vector3;
+  headingX?: number; headingY?: number; fall?: number;
+  floor: number; size: number; spin: number; seed: number; r: number; g: number; b: number;
 }
 
 const VERTEX = /* glsl */`
@@ -35,7 +37,7 @@ void main() {
   at.xy += mat2(c, -s, s, c) * position.xy * aLook.x;
   gl_Position = projectionMatrix * at;
   // Glitter and glints stay in front of the piece that threw them; the glow sits behind it.
-  if (aLook.z < 1.5) gl_Position.z -= 0.004 * gl_Position.w;
+  if (aLook.z < 1.5 || aLook.z > 3.5) gl_Position.z -= 0.004 * gl_Position.w;
 }`;
 
 const FRAGMENT = /* glsl */`
@@ -53,6 +55,13 @@ void main() {
     // A four-point glint: two thin rays and a hot core, added to what is behind it.
     float rays = max(exp(-a.y * 16.0) * (1.0 - a.x), exp(-a.x * 16.0) * (1.0 - a.y));
     shape = clamp(rays + exp(-d * d * 22.0), 0.0, 1.0) * step(d, 1.0); cover = 0.0;
+  } else if (vKind.x > 3.5) {
+    // A pearl head flows into a taper of fine light along its own direction of travel.
+    float width = mix(.035, .17, smoothstep(-1.0, .60, vAcross.y));
+    float body = exp(-pow(vAcross.x / width, 2.0)) * smoothstep(-1.0,.65,vAcross.y);
+    float head = length(vec2(vAcross.x, vAcross.y - .62));
+    shape = max(body * (1.0 - smoothstep(.60,.86,vAcross.y)), 1.0 - smoothstep(.07,.25,head));
+    cover = 0.72;
   } else {
     float soft = max(0.0, 1.0 - d);
     shape = soft * soft; cover = 0.0;
@@ -79,8 +88,9 @@ export class Sparks {
   heat = 0;
   private readonly mesh: THREE.Mesh;
   private readonly particles: Particle[] = Array.from({ length: CAPACITY }, (_, index) => ({
-    kind: Kind.Glitter, age: 1, life: 0, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, floor: 0, size: 0, spin: 0, seed: index * 2.399,
+    kind: Kind.Glitter, queued: false, age: 1, life: 0, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, floor: 0, size: 0, spin: 0, r: 0, g: 0, b: 0, seed: index * 2.399,
   }));
+  private readonly live: Particle[] = [];
   private readonly color = new THREE.Color();
   private cursor = 0;
   private clock = 0;
@@ -98,8 +108,7 @@ export class Sparks {
     this.geometry.setAttribute('aAt', this.at);
     this.geometry.setAttribute('aLook', this.look);
     this.geometry.setAttribute('aTint', this.tint);
-    this.geometry.instanceCount = CAPACITY + HALOS;
-    for (let i = 0; i < HALOS; i++) this.tint.setXYZ(CAPACITY + i, 1, 0.93, 0.78);
+    this.geometry.instanceCount = 0;
     this.mesh = new THREE.Mesh(this.geometry, new THREE.ShaderMaterial({
       vertexShader: VERTEX, fragmentShader: FRAGMENT, transparent: true, depthWrite: false, toneMapped: false,
       blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
@@ -114,9 +123,20 @@ export class Sparks {
   private spawn(kind: Kind, at: Point3, hex: number, life: number, size: number, delay = 0): Particle {
     const index = this.cursor++ % CAPACITY;
     const particle = this.particles[index]!;
-    Object.assign(particle, { kind, age: -delay, life, x: at.x, y: at.y, z: at.z, vx: 0, vy: 0, vz: 0, floor: -Infinity, size, spin: 0 });
+    if (!particle.queued) {
+      particle.queued = true;
+      this.live.push(particle);
+    }
+    particle.kind = kind;
+    particle.age = -delay;
+    particle.life = life;
+    particle.x = at.x; particle.y = at.y; particle.z = at.z;
+    particle.vx = particle.vy = particle.vz = particle.spin = 0;
+    particle.acceleration = undefined;
+    particle.floor = -Infinity;
+    particle.size = size;
     this.color.setHex(hex);
-    this.tint.setXYZ(index, this.color.r, this.color.g, this.color.b);
+    particle.r = this.color.r; particle.g = this.color.g; particle.b = this.color.b;
     return particle;
   }
 
@@ -149,9 +169,9 @@ export class Sparks {
   }
 
   /** One fading dot left behind a marble in flight: a run of them draws the path it took. */
-  trail(at: Point3, color: number): void {
+  trail(at: Point3, color: number, size = 0.21, life = 0.26): void {
     if (this.reducedMotion) return;
-    this.spawn(Kind.Trail, at, color, 0.26, this.unit * 0.21);
+    this.spawn(Kind.Trail, at, color, life, this.unit * size);
     this.alive = this.mesh.visible = true;
   }
 
@@ -188,24 +208,50 @@ export class Sparks {
     const glints = Math.round(12 * gain);
     for (let i = 0; i < glints; i++) {
       const angle = i / glints * Math.PI * 2 + 0.5;
-      const reach = unit * (0.3 + (i % 4) * 0.2);
+      const reach = unit * (0.36 + (i % 4) * 0.34);
       const glint = this.spawn(Kind.Glint, { x: at.x + Math.cos(angle) * reach, y: at.y + unit * 0.12 + Math.abs(Math.sin(angle)) * reach * 0.7, z: at.z + Math.sin(angle) * reach * 0.35 },
         i % 3 === 0 ? GOLD : WHITE, 0.34, unit * (0.2 + (i % 3) * 0.07), i * 0.05);
       glint.spin = i % 2 ? 1.6 : -1.6;
       glint.vy = 0.5;
     }
-    this.glitter(at, color, Math.round(90 * gain), 4.7 * (1 + this.streak * 0.15), 2.6, 1.15, 0.055);
+    this.glitter(at, color, Math.round(66 * gain), 5.6 * (1 + this.streak * .15), 3.8, 1.12, .075);
     this.draw();
     return this.streak;
   }
 
-  /** One fountain for the end of a level, fired with the confetti. */
-  fountain(at: Point3, delay = 0, share = 1, color = GOLD): void {
+  /** Project the rise at each hull corner so its fountain reads consistently across board shapes. */
+  finish(corners: readonly Point3[], share: number, camera: THREE.Camera, width: number, height: number): void {
     if (this.reducedMotion) return;
-    const from = this.cursor;
-    this.glitter(at, color, Math.round(44 * share), 6.6, 1.6, 1.3, 0.06);
-    for (let i = from; i < this.cursor; i++) this.particles[i % CAPACITY]!.age = -delay;
-    this.spawn(Kind.Glint, { x: at.x, y: at.y + this.unit * 0.3, z: at.z }, WHITE, 0.5, this.unit * 0.35, delay).spin = 1.6;
+    const projected = corners.map(at => new THREE.Vector3(at.x, at.y, at.z).project(camera));
+    // Near corners have room for tall jets. Lead with both flanks while the last load is still in sight.
+    projected.sort((a,b) => a.y - b.y || a.x - b.x);
+    projected.forEach((point, corner) => {
+      const x = (point.x + 1) * width / 2, y = (1 - point.y) * height / 2;
+      const at = point.clone().unproject(camera);
+      const pixel = new THREE.Vector3(point.x, point.y + 2 / height, point.z).unproject(camera).sub(at);
+      const side = new THREE.Vector3(point.x + 2 / width, point.y, point.z).unproject(camera).sub(at);
+      const heightPx = Math.max(0, Math.min(height * .20 * share, y - 57));
+      const grains = Math.round(23 * share);
+      for (let jet = 0; jet < 2; jet++) {
+        for (let i = 0; i < grains; i++) {
+          const tail = i / (grains - 1), phase = i * 2.4 + corner;
+          const rise = heightPx * (1 - jet * .22 - tail * .26);
+          const span = (width * .5 - x) * (.67 + jet * .28 + Math.cos(phase) * tail * .20);
+          const life = .70 + jet * .06;
+          const delay = .04 + corner * .097 + jet * .045 + tail * .25;
+          const kind = i % 4 === 0 ? Kind.Comet : i % 7 === 0 ? Kind.Glint : Kind.Glitter;
+          const grain = this.spawn(kind, at,
+            i % 5 === 0 ? WHITE : jet ? 0xffb06a : GOLD, life * (.82 + .10 * tail),
+            pixel.length() * (kind === Kind.Comet ? 29 - tail * 9 : kind === Kind.Glint ? 12 : 5.2 - tail * 1.6), delay);
+          const velocity = pixel.clone().multiplyScalar(4 * rise / life).addScaledVector(side, span / life);
+          grain.vx = velocity.x; grain.vy = velocity.y; grain.vz = velocity.z;
+          grain.headingX = span / life;
+          grain.headingY = 4 * rise / life;
+          grain.fall = -8 * rise / (life * life);
+          grain.acceleration = pixel.clone().multiplyScalar(grain.fall);
+        }
+      }
+    });
     this.draw();
   }
 
@@ -217,9 +263,6 @@ export class Sparks {
     if (at) { halo.x = at.x; halo.y = at.y; halo.z = at.z; }
     if (this.reducedMotion && halo.level !== (halo.on ? 1 : 0)) { halo.level = halo.on ? 1 : 0; this.draw(); }
   }
-
-  /** The win: the belt takes one bright lap. */
-  boost(): void { if (!this.reducedMotion) this.heat = 1; }
 
   get active(): boolean { return this.alive || this.heat > 0 || this.halos.some((halo) => halo.level !== (halo.on ? 1 : 0)); }
 
@@ -235,35 +278,53 @@ export class Sparks {
       fading = true;
     }
     if (!this.alive && !fading && !this.halos.some((halo) => halo.on)) return;
-    for (const p of this.particles) {
-      if (p.age >= p.life) continue;
+    let remaining = 0;
+    for (const p of this.live) {
+      if (p.age >= p.life) { p.queued = false; continue; }
+      this.live[remaining++] = p;
       p.age += seconds;
       if (p.age <= 0) continue;
-      p.x += p.vx * seconds;
-      p.y += p.vy * seconds;
-      p.z += p.vz * seconds;
-      if (p.kind === Kind.Glitter) {
+      const travel = Math.min(seconds, p.age);
+      p.x += p.vx * travel;
+      p.y += p.vy * travel;
+      p.z += p.vz * travel;
+      if (p.acceleration) {
+        const halfSquare = .5 * travel * travel;
+        p.x += p.acceleration.x * halfSquare;
+        p.y += p.acceleration.y * halfSquare;
+        p.z += p.acceleration.z * halfSquare;
+        p.vx += p.acceleration.x * travel;
+        p.vy += p.acceleration.y * travel;
+        p.vz += p.acceleration.z * travel;
+      } else if (p.kind === Kind.Glitter) {
         // Dust, not gravel: it hangs and drifts down.
         p.vy -= 7 * seconds;
         if (p.vy < 0 && p.y < p.floor) p.age = p.life;
       }
     }
+    this.live.length = remaining;
     this.draw();
   }
 
   private draw(): void {
     let alive = false;
-    this.particles.forEach((p, index) => {
+    let visible = 0;
+    for (const p of this.live) {
       const t = p.age / p.life;
       // One still waiting for its moment keeps the pool running, unseen.
       if (p.age < 0) alive = true;
-      if (!(t >= 0 && t < 1)) { this.look.setXYZW(index, 0, 0, 0, 0); return; }
+      if (!(t >= 0 && t < 1)) continue;
       alive = true;
       let size = p.size, alpha = 1;
+      let angle = p.spin * p.age + p.seed * (p.kind === Kind.Glint ? 0 : 1);
       if (p.kind === Kind.Glitter) {
         // Flecks twinkle as they turn, and thin out as they fall.
-        alpha = (0.5 + 0.5 * Math.sin(p.age * 30 + p.seed * 3)) * Math.min(1, (1 - t) * 3);
+        alpha = (p.acceleration ? .9 : 0.5 + 0.5 * Math.sin(p.age * 30 + p.seed * 3)) * Math.min(1, (1 - t) * 3);
         size *= 0.6 + 0.4 * (1 - t);
+      } else if (p.kind === Kind.Comet) {
+        angle = Math.atan2(p.headingX!, p.headingY! + p.fall! * p.age);
+        size *= 1 - .42 * t;
+        alpha = Math.min(1, (1 - t) * 4);
       } else if (p.kind === Kind.Trail) {
         size *= 1 - t * 0.7;
         alpha = 0.8 * (1 - t);
@@ -275,23 +336,33 @@ export class Sparks {
         size *= 0.6 + 0.4 * t;
         alpha = 0.55 * (1 - t);
       }
+      const index = visible++;
+      this.tint.setXYZ(index, p.r, p.g, p.b);
       this.at.setXYZ(index, p.x, p.y, p.z);
-      this.look.setXYZW(index, size, p.spin * p.age + p.seed * (p.kind === Kind.Glint ? 0 : 1), p.kind === Kind.Trail ? Kind.Glitter : p.kind, alpha);
-    });
+      this.look.setXYZW(index, size, angle, p.kind === Kind.Trail ? Kind.Glitter : p.kind, alpha);
+    }
     this.alive = alive;
-    let lit = false;
-    this.halos.forEach((halo, i) => {
+    for (const halo of this.halos) {
+      if (!halo.level) continue;
       const eased = halo.level * halo.level * (3 - 2 * halo.level);
-      lit ||= halo.level > 0;
-      this.at.setXYZ(CAPACITY + i, halo.x, halo.y, halo.z);
-      this.look.setXYZW(CAPACITY + i, halo.level > 0 ? this.unit * 2.1 : 0, 0, Kind.Glow, 0.36 * eased);
-    });
-    this.mesh.visible = alive || lit;
-    this.at.needsUpdate = this.look.needsUpdate = this.tint.needsUpdate = true;
+      this.at.setXYZ(visible, halo.x, halo.y, halo.z);
+      this.tint.setXYZ(visible, 1, .93, .78);
+      this.look.setXYZW(visible++, this.unit * 2.1, 0, Kind.Glow, .36 * eased);
+    }
+    this.geometry.instanceCount = visible;
+    this.mesh.visible = visible > 0;
+    if (visible) {
+      for (const attribute of [this.at, this.look, this.tint]) {
+        attribute.clearUpdateRanges();
+        attribute.addUpdateRange(0, visible * attribute.itemSize);
+        attribute.needsUpdate = true;
+      }
+    }
   }
 
   clear(): void {
-    for (const p of this.particles) p.age = p.life = 1;
+    for (const p of this.live) p.queued = false;
+    this.live.length = 0;
     this.streak = 0;
     this.lastPayoff = -Infinity;
     this.last = null;

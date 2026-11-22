@@ -4,7 +4,7 @@ import { rapierInlineGzip } from './scripts/rapier-inline-gzip';
 // Films ship with authored motion. The earlier mechanical certificates remain
 // runnable research, including fixtures that require local archived receipts.
 const shippingWorldTests = [
-  'tropical-island', 'village-orbit', 'app-film-clock', 'assets', 'asset-surfaces', 'cooperative-diagnostics',
+  'harbour-shoreline', 'inland-settlements', 'island-hoists', 'tropical-island', 'village-orbit', 'app-film-clock', 'assets', 'asset-surfaces', 'cooperative-diagnostics',
   'film-lifecycle', 'film-progress', 'house-surfaces', 'overview-layout',
   'painted-land', 'painted-land-oracle', 'painted-land-resource',
   'progression', 'project-rewards', 'render-lifecycle', 'scene-3d',
@@ -17,7 +17,23 @@ const shippingWorldTests = [
 const research = process.env.TW_VILLAGE_RESEARCH === '1';
 
 export default defineConfig({
-  plugins: [rapierInlineGzip()],
+  plugins: [rapierInlineGzip(), {
+    name: 'demo-landing-page',
+    enforce: 'post',
+    configureServer(server) {
+      server.middlewares.use((request, _response, next) => {
+        if (request.url?.split('?')[0] === '/demo.html') request.url = request.url.replace('/demo.html', '/index.html');
+        next();
+      });
+    },
+    generateBundle: {
+      order: 'post',
+      handler(_options, bundle) {
+        const page = bundle['index.html'];
+        if (page?.type === 'asset') this.emitFile({ type: 'asset', fileName: 'demo.html', source: page.source });
+      },
+    },
+  }],
   server: {
     watch: { ignored: ['**/output/**'] },
     host: true,

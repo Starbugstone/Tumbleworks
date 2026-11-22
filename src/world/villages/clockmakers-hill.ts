@@ -1,3 +1,4 @@
+import { inlandSettlement } from './inland-settlements';
 import { villagePort } from '../village-plan';
 import type { VillageScenePlan } from '../village-plans';
 import type { VillageTerrainSpec } from '../village-terrain';
@@ -55,11 +56,12 @@ const connectors = stations.slice(0,-1).map((from,i) => from.stop===5 ? connectV
 const scenery = [piece('clock',[9,at(9,-10),-10],0,.8),piece('house-a',[-10,at(-10,10),10],.3,.65),piece('tree-a',[10,at(10,8),8],0,.75)];
 export const CLOCKMAKERS_HILL: VillageScenePlan = {
   chapter:3, construction:'swing', terrain, scenery,
+  cinematicScenery: [...scenery.filter(s => s.model !== 'clock'), ...inlandSettlement(3, at)],
   plan:{chapter:3,profile:'twinrail',stations,connectors,camera:shots([0,2.5,0],[
     {at:2.2,target:[0,6,-7],radius:30},{at:7.1,target:[4,4,-1],radius:28},
     {at:11,target:[2,3,7],radius:28},{at:15.7,target:[-6,3,3],radius:28},{at:21.4,target:[0,2.5,0],radius:66},
   ])},
   workshop:workshopSite({position:[-10,at(-10,-2),-2],scale:.7,yaw:Math.PI/2},[-12.5, 0.854, 0],{from:1,to:0}),
   rewards:[{project:'board-211',position:[10,at(10,-3),-3],yaw:0}],
-  overview:[piece('clock',[3.5,at(3.5,-7),-7],0,1),piece('mechanism-gear',[-3,at(-3,1),1],0,1.4),piece('house-a',[-6,at(-6,8),8],0,.8)],
+  overview:[piece('civic-clock',[3.5,at(3.5,-7),-7],0,1),piece('clock-court',[-3,at(-3,1),1],0,1.4),piece('dial-atelier',[-6,at(-6,8),8],0,.8)],
 };

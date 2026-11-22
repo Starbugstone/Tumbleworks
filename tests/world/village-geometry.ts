@@ -1,3 +1,5 @@
+import { footprintIndex } from './footprint-index';
+import { NativeRayTree } from './native-ray-tree';
 import { Box3, Matrix4, Mesh, Object3D, Ray, Triangle, Vector3 } from 'three';
 import { surfaceOverlaps, surfaceTriangles, type SurfaceTriangle } from './surface-overlap';
 import { capsulePenetrations, type TrackTriangle } from './triangle-clearance';
@@ -6,6 +8,7 @@ export interface SolidProbe {
   readonly mesh: Mesh;
   readonly bounds: Box3;
   readonly triangles: readonly TrackTriangle[];
+  readonly nearby: (point: Vector3) => readonly TrackTriangle[];
   readonly inverse: Matrix4;
   readonly scale: number;
 }
@@ -27,7 +30,7 @@ export function solidProbes(root: Object3D, radius: number): SolidProbe[] {
     identity.updateMatrix(); identity.matrixAutoUpdate = true;
     const triangles = surfaceTriangles(identity).map(surface => ({ triangle: new Triangle(surface.a, surface.b, surface.c),
       bounds: surface.bounds.expandByScalar(radius / scale.x), name: mesh.name || `${mesh.parent?.name}/${mesh.geometry.type}` }));
-    probes.push({ mesh, triangles, scale: scale.x,
+    probes.push({ mesh, triangles, nearby: footprintIndex(triangles, .003 / scale.x + 1e-12), scale: scale.x,
       bounds: new Box3().setFromBufferAttribute(mesh.geometry.getAttribute('position')).expandByScalar(radius / scale.x), inverse: new Matrix4() });
   });
   return probes;
@@ -41,7 +44,7 @@ export function sphereCollision(probes: readonly SolidProbe[], center: Vector3, 
     if (Math.max(Math.abs(scale.x - probe.scale), Math.abs(scale.y - probe.scale), Math.abs(scale.z - probe.scale)) > 1e-6) throw new Error(`Clearance cannot change cached scale: ${probe.mesh.name}`);
     local.copy(center).applyMatrix4(probe.inverse.copy(probe.mesh.matrixWorld).invert());
     if (!probe.bounds.containsPoint(local)) continue;
-    const collision = capsulePenetrations(local, local, probe.triangles, radius / scale.x);
+    const collision = capsulePenetrations(local, local, probe.nearby(local), radius / scale.x);
     if (collision) return { ...collision, surface: probe.mesh.name || probe.mesh.parent?.name || collision.surface };
   }
   return null;
@@ -55,7 +58,7 @@ export function sphereSupported(probes: readonly SolidProbe[], center: Vector3, 
     probe.mesh.updateWorldMatrix(true, false);
     local.copy(center).applyMatrix4(probe.inverse.copy(probe.mesh.matrixWorld).invert());
     if (probe.bounds.distanceToPoint(local) > 0.003 / probe.scale) continue;
-    for (const surface of probe.triangles) {
+    for (const surface of probe.nearby(local)) {
       if (surface.bounds.distanceToPoint(local) > 0.003 / probe.scale) continue;
       surface.triangle.closestPointToPoint(local, closest);
       if (Math.abs(local.distanceTo(closest) * probe.scale - radius) > 0.002) continue;
@@ -89,14 +92,17 @@ export function triangleCrossing(a: SurfaceTriangle, b: SurfaceTriangle, toleran
 }
 
 export function exposedOverlaps(surfaces: readonly SurfaceTriangle[]) {
-  return surfaceOverlaps(surfaces).filter(overlap => {
+  const tree = new NativeRayTree(surfaces);
+  return visibleOverlaps(surfaceOverlaps(surfaces, 1e-5, tree), [tree]);
+}
+
+export function visibleOverlaps(overlaps: ReturnType<typeof surfaceOverlaps>, blockers: readonly NativeRayTree[]) {
+  const hit = new Vector3();
+  return overlaps.filter(overlap => {
     const points = [overlap.point, ...overlap.polygon.map(vertex => vertex.clone().lerp(overlap.point, 0.05))];
     return points.some(point => {
       const ray = new Ray(point.clone().addScaledVector(overlap.a.normal, 0.0001), overlap.a.normal);
-      return !surfaces.some(surface => {
-        const hit = ray.intersectTriangle(surface.a, surface.b, surface.c, false, new Vector3());
-        return hit !== null && hit.distanceTo(ray.origin) > 0.0001;
-      });
+      return !blockers.some(index => index.occludes(ray, 0.0001, hit));
     });
   });
 }
@@ -125,6 +131,21 @@ export function trackCrossings(tracks: readonly SurfaceTriangle[], solids: reado
         break;
       }
     }
+  }
+  return failures;
+}
+
+export function indexedTrackCrossings(tracks: readonly SurfaceTriangle[], indices: readonly NativeRayTree[]) {
+  const failures: { track: string; solid: string; at: number[] }[] = [];
+  for (const track of tracks) {
+    let crossed = false;
+    for (const index of indices) index.visitBounds(track.bounds, solid => {
+      if (crossed || solid === track) return;
+      if (triangleCrossing(track, solid) || triangleCrossing(solid, track)) {
+        failures.push({ track: track.mesh.name, solid: solid.mesh.name, at: track.a.toArray() });
+        crossed = true;
+      }
+    });
   }
   return failures;
 }

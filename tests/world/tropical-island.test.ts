@@ -16,6 +16,62 @@ it('opens the harbour water to the continuous sea without moving any land', () =
   mesh.geometry.dispose(); material.dispose();
 });
 
+function raycastSurfaceHeight(mesh: Mesh, y: number) {
+  mesh.updateWorldMatrix(true, false);
+  const ray = new Raycaster(new Vector3(), new Vector3(0, -1, 0));
+  return (x: number, z: number) => {
+    ray.ray.origin.set(x, y, z);
+    return ray.intersectObject(mesh)[0]?.point.y ?? -Infinity;
+  };
+}
+
+function checkGardenBasin(mesh: Mesh): void {
+  const terrain = compileTerrain(villageScenePlan(1).terrain);
+  const height = raycastSurfaceHeight(mesh, 4);
+  // This is the outside corner of the raised fountain platform in the film close-up.
+  expect(terrainOccupancy(terrain, 7.6744, 2.8171)).toBe('water');
+  expect(height(7.6744, 2.8171), 'rounded fountain basin shoulder').toBeGreaterThan(terrain.spec.water + .002);
+  expect(height(6.4, 7.4), 'open irrigation water').toBeLessThan(terrain.spec.water);
+}
+
+function checkWillowBank(mesh: Mesh): void {
+  const { water } = villageScenePlan(2).terrain;
+  const surface = raycastSurfaceHeight(mesh, 12);
+  // The square exposed face in the film was the native cell edge at z=3.
+  for (const x of [-2.96, -2.82, -2.62]) {
+    const height = surface(x, 2.99);
+    expect(height, `Willow bank toe at x=${x}`).toBeGreaterThan(water);
+    expect(height, `Willow bank toe at x=${x}`).toBeLessThan(water + .20);
+  }
+  for (let i = 0; i <= 13; i++) {
+    const z = 3.3 + i / 10;
+    // The surveyed centre runs from (1.3,-.5) to (-2.5,5) here.
+    const centre = 1.3 - (z + .5) * 3.8 / 5.5;
+    expect(surface(centre, z), `open Willow river at z=${z}`).toBeLessThanOrEqual(water);
+    expect(surface(centre - 2.3, z), `dry Willow bank at z=${z}`).toBeGreaterThan(water);
+  }
+}
+
+it('keeps the Willow mill clear of the whole aqueduct, including its feet', async () => {
+  const { cinematicWorld } = await import('./cinematic-world-fixture');
+  const { WorldKitAssets } = await import('../../src/view/world-kit');
+  const { surfaceTriangles } = await import('./surface-overlap');
+  const { trackCrossings } = await import('./village-geometry');
+  const f = cinematicWorld(2, true), kit = new WorldKitAssets(true), material = new MeshBasicMaterial();
+  try {
+    const site = villageScenePlan(2).cinematicScenery?.find(piece => piece.model === 'mill');
+    if (!site) throw new Error('Missing surveyed mill');
+    const model = kit.model(site.model, material);
+    model.position.fromArray(site.position); model.rotation.y = site.yaw; model.scale.setScalar(site.scale);
+    f.machine.apply(2.75);
+    const machine = surfaceTriangles(f.machine.root);
+    expect(trackCrossings(machine, surfaceTriangles(model))).toEqual([]);
+    // This larger downstream shift leaves the rail clear but intersects its trestle.
+    model.position.z = .77;
+    expect(trackCrossings(machine, surfaceTriangles(model)).map(hit => hit.track)).toContain('village-stop-4-static-BoxGeometry-0');
+  } finally { f.dispose(); material.dispose(); kit.dispose(); }
+}, 30_000);
+
 it.each([0, 1, 2, 3, 4, 5])('keeps chapter %i coastal triangles outside authored land and protected structures', chapter => {
   const terrain = compileTerrain(villageScenePlan(chapter).terrain);
   const forbidden = new Box3(new Vector3(-30, -10, -30), new Vector3(-8, 40, 30));
@@ -90,6 +146,9 @@ it.each([0,1,2,3,4,5])('keeps chapter %i new shore faces separate from exposed l
   const f=cinematicWorld(chapter);
   try{
     const all=surfaceTriangles(f.world.scene),land=all.find(s=>s.mesh.geometry.userData['coastalDressing'])!.mesh;
+    // Reuse the delivered shore for the profile probes and overlap checks.
+    if (chapter === 1) checkGardenBasin(land);
+    if (chapter === 2) checkWillowBank(land);
     const first=land.geometry.userData['coastalDressing'].first/3;
     const dressing=all.filter(s=>s.mesh===land&&s.index>=first),newFaces=new Set(dressing);
     const foreign=all.filter(s=>s.mesh!==land&&s.mesh.name!=='village-sea'&&dressing.some(d=>d.bounds.intersectsBox(s.bounds)));

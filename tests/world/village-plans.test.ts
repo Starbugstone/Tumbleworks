@@ -37,15 +37,15 @@ function modelBox(assets: WorldKitAssets, material: THREE.Material, model: strin
   return new THREE.Box3().setFromObject(group);
 }
 
-describe('the six authored villages', () => {
+describe('the authored villages', () => {
   const assets = new WorldKitAssets(), material = new THREE.MeshBasicMaterial({ vertexColors: true });
   const report: Record<string, unknown> = {};
 
   it('registers one explicit plan per chapter and no fallback', () => {
-    expect(VILLAGE_SCENE_PLANS.map(scene => scene.chapter)).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(VILLAGE_SCENE_PLANS.map(scene => scene.chapter)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
     for (const scene of VILLAGE_SCENE_PLANS) expect(scene.plan.chapter).toBe(scene.chapter);
-    expect(() => villageScenePlan(6)).toThrow('no authored village plan');
-    expect(new Set(VILLAGE_SCENE_PLANS.map(scene => scene.plan.profile)).size).toBe(6);
+    expect(() => villageScenePlan(8)).toThrow('no authored village plan');
+    expect(new Set(VILLAGE_SCENE_PLANS.map(scene => scene.plan.profile)).size).toBe(8);
   });
 
   for (const scene of VILLAGE_SCENE_PLANS) describe(`chapter ${scene.chapter}`, () => {

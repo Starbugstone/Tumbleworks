@@ -23,3 +23,31 @@ test('boot skips an unseen canvas capture while later visible transitions still 
   expect((await captures()).length).toBeGreaterThan(0);
   expect((await captures()).every(row => row.bootHidden)).toBe(true);
 });
+
+
+test('offers Retry during a stalled boot and retries the same campaign URL', async ({ page }) => {
+  await page.clock.install();
+  const main = /\/(?:src\/main\.ts|assets\/main-[^/]+\.js)(?:\?.*)?$/;
+  let requested = 0;
+  let release!: () => void;
+  const stalled = new Promise<void>(resolve => { release = resolve; });
+  await page.route(main, async route => {
+    requested++;
+    await stalled;
+    await route.abort().catch(() => {});
+  });
+  try {
+    await page.goto('/?diagnostics=1', {waitUntil:'domcontentloaded'});
+    await expect.poll(() => requested).toBe(1);
+    const retry = page.locator('#boot-retry');
+    await expect(retry).toBeHidden();
+    await page.clock.fastForward(15_000);
+    await expect(retry).toBeVisible();
+    await expect(page.locator('#boot-message')).toHaveText('Still loading. You can wait or start over.');
+    await retry.tap();
+    await expect.poll(() => requested).toBe(2);
+    await expect(page).toHaveURL(/\/\?diagnostics=1$/);
+  } finally {
+    release();
+  }
+});

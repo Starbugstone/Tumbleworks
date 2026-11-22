@@ -1,6 +1,7 @@
+import { saveKey } from '../demo';
 import type { WorldChapter } from './progression';
 
-const KEY = 'tumbleworks.valley.v1';
+const KEY = saveKey('tumbleworks.valley.v1');
 interface FilmProgress { seen: string[]; chapter: number }
 let memory: FilmProgress = { seen: [], chapter: 0 };
 let unsaved = false;

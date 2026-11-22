@@ -6,7 +6,7 @@ import { fingerprintOf, type Replayable, type ReplayAction } from '../engine/rep
 import { MachineRules, type ReleaseResult } from '../sim/rules';
 import type { BoardDef, Color } from '../sim/types';
 import {
-  BOX, columnX, conveyorTrack, CRATE, dockX, entryDistanceFor, FLIGHT, FUNNEL, funnelFaces, funnelHalfWidth, GRAVITY, MARBLE_RADIUS,
+  BOX, columnX, conveyorTrack, CRATE, dockDistanceFor, dockX, entryDistanceFor, FLIGHT, FUNNEL, funnelFaces, funnelHalfWidth, GRAVITY, MARBLE_RADIUS,
   RACEWAY, RIDE_Y, STACK, TICK_SECONDS,
 } from './layout';
 
@@ -26,7 +26,7 @@ export type MachineEvent =
 
 export interface Pose { x: number; y: number; z: number; qx: number; qy: number; qz: number; qw: number }
 /** Read-only presentation data, written into the caller's reusable buffer. */
-export interface MarbleDelivery { dock: number; box: number; slot: number; fraction: number; landed: boolean }
+export interface MarbleDelivery { dock: number; box: number; slot: number; fraction: number; landed: boolean; release?: { x: number; y: number; z: number } }
 
 type CratePhase = 'waiting' | 'opening' | 'gone';
 interface CrateControl {
@@ -134,6 +134,8 @@ export class Machine implements Replayable {
   steps = 0;
   private readonly marbleHandles = new Map<number, number>();
   private readonly events: MachineEvent[] = [];
+  /** The physical winning capture stays on display. It has no presence in belt reservations or replay state. */
+  private readonly retained = new Map<number, number>();
   private readonly dockDistances: number[];
   lastRecovery = '';
 
@@ -156,7 +158,7 @@ export class Machine implements Replayable {
     this.slotPitch = this.track.length / board.beltCapacity;
     this.entryDistance = entryDistanceFor(this.track);
     this.world = this.physicsService.createWorld(GRAVITY);
-    this.dockDistances = board.docks.map((_, dock) => this.track.nearest(dockX(dock, board.docks.length), RACEWAY.centerZ + RACEWAY.radius).distance);
+    this.dockDistances = board.docks.map((_, dock) => dockDistanceFor(this.track, dockX(dock, board.docks.length)));
     this.control = {
       tick: 0, belt: 0, crates: [], marbles: [], boxes: [], lastEntryTick: 0, neckOpen: true,
       recoveries: { nudges: 0, teleports: 0, bounces: 0 }, endingReported: false,
@@ -309,9 +311,17 @@ export class Machine implements Replayable {
     const q = body.rotation();
     into.x = t.x; into.y = t.y; into.z = t.z;
     into.qx = q.x; into.qy = q.y; into.qz = q.z; into.qw = q.w;
+    const marble = this.control.marbles[id]!;
+    if (marble.phase === 'boxed' && this.retained.get(marble.dock) === marble.box) {
+      into.x = dockX(marble.dock, this.board.docks.length) + (marble.slot - 1) * BOX.slotSpacing;
+      into.y = BOX_REST_Y;
+      into.z = BOX.z;
+    }
     if (delivery) {
-      const marble = this.control.marbles[id]!;
       delivery.dock = marble.dock; delivery.box = marble.box; delivery.slot = marble.slot;
+      if (delivery.release && marble.phase === 'flying') {
+        delivery.release.x = marble.fromX; delivery.release.y = marble.fromY; delivery.release.z = marble.fromZ;
+      }
       delivery.landed = marble.phase === 'boxed';
       delivery.fraction = delivery.landed ? 1 : marble.phase === 'flying' ? Math.min(marble.time / FLIGHT.seconds, 1) : 0;
     }
@@ -322,11 +332,15 @@ export class Machine implements Replayable {
       open: crate.phase === 'opening' ? Math.min(crate.time / CRATE.openSeconds, 1) : 0, visible: crate.phase !== 'gone',
     }));
   }
-  readBoxes(): { dock: number; index: number; color: Color; x: number; y: number; z: number; scale: number; fill: number; visible: boolean; docked: boolean; departure: number | null }[] {
+  readBoxes(): { dock: number; index: number; color: Color; x: number; y: number; z: number; scale: number; fill: number; visible: boolean; docked: boolean; retained: boolean; departure: number | null }[] {
     return this.control.boxes.map((box) => {
+      const retained = this.retained.get(box.dock) === box.index;
+      if (retained) return { dock: box.dock, index: box.index, color: box.color,
+        x: dockX(box.dock, this.board.docks.length), y: 0, z: BOX.z, scale: 1,
+        fill: this.board.boxSize, visible: true, docked: false, retained, departure: null };
       const ahead = box.state === 'queued' ? this.control.boxes.filter((other) => other.dock === box.dock && other.index < box.index && other.state === 'queued').length : 0;
       return { dock: box.dock, index: box.index, color: box.color, x: box.x, y: box.y, z: box.z, scale: box.scale,
-        fill: this.rules.boxFill(box.dock, box.index), visible: box.state !== 'gone' && ahead < BOX.queueVisible, docked: box.state === 'docked',
+        fill: this.rules.boxFill(box.dock, box.index), visible: box.state !== 'gone' && ahead < BOX.queueVisible, docked: box.state === 'docked', retained,
         departure: box.state === 'leaving' ? box.time / box.duration : null };
     });
   }
@@ -359,6 +373,7 @@ export class Machine implements Replayable {
     this.world.free();
     this.world = RAPIER.World.restoreSnapshot(saved.world);
     this.world.timestep = TICK_SECONDS;
+    this.retained.clear();
     this.rules.restore(saved.rules);
     this.control = structuredClone(saved.control);
     this.actions.push({ step: this.steps, type: 'undo' });
@@ -401,6 +416,14 @@ export class Machine implements Replayable {
     this.world.step();
     this.detectImpacts();
     this.reportEnding();
+    if (this.rules.status === 'won' && !this.retained.size) {
+      for (const event of this.events) {
+        if (event.type !== 'captured' || event.fill !== this.board.boxSize) continue;
+        this.retained.set(event.dock, event.box);
+        const mate = palletMate(this.board.pallets, event.dock);
+        if (mate !== null) this.retained.set(mate, event.box);
+      }
+    }
     return this.events.splice(0);
   }
 

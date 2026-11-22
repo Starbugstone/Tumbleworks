@@ -1,4 +1,5 @@
-const KEY = 'tumbleworks.progress.v1';
+import { saveKey } from './demo';
+const KEY = saveKey('tumbleworks.progress.v1');
 interface Progress { completed: string[]; muted: boolean; current: string | null }
 let memory: Progress = { completed: [], muted: false, current: null };
 let unsaved = false;

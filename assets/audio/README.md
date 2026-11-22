@@ -1,27 +1,47 @@
-# Tumbleworks sound effects
+# Tumbleworks campaign sound suite
 
-The player bank combines **Kenney Impact Sounds 1.0** recordings with original offline wooden
-modal mallets. All sources and arrangements are **CC0 1.0**. Kenney's creator page is
-<https://kenney.nl/assets/impact-sounds>; its original notice remains in
-`sources/kenney-impact/License.txt`. The generated material's dedication is in `generated/License.txt`.
-The older Interface Sounds originals and notice remain archived in `sources/kenney-interface/`;
-none is used in the player bank. No new external download or non-CC0 sample was used.
+Short, dry workshop contacts leave space for the brighter recorded glass accents on box, truck
+and win cues. A stereo felt phrase marks the last load, and each island has its own quiet
+four-bar score. The Little Harbour bell has its own one-shot cue.
 
-The owner rejected the previous bank's air swishes and thin high bells after listening on a phone.
-This revision removes every air/swish layer and all reversed audio. Release is four rounded wood
-contacts over a soft low body; Undo is a descending damped wooden double note. Landing-light moves
-from D6 to G4 and shortens from 560 to 300 ms. Rewards have warm bodies with quiet upper accents.
-**Nobody has listened to this revision.** Measurements and browser decoding cannot establish taste,
-perceived loudness, phone-speaker character or the layered gameplay mix.
+The owner wanted harder impacts after auditioning the warm workshop bank. The arcade layer puts
+more of the hit near contact at the existing cue level. The puzzle cues avoid air swishes,
+reversed audio and piercing bell tones. The player still hears the established pitch steps.
 
-`manifest.json` records each cue's WAV/hash, recording inputs/hashes/creator page, generator hash,
-recipe, bitrate and encoded hash/size. `generated/provenance.json` pins all three recording inputs
-and the generator. Only MP3 files under `src/sounds/` reach the player; WAVs, originals, reports and
-notices do not.
+## Files and provenance
 
-## Reproduction and quality checks
+- `src/sounds/*.mp3`: twelve mono MP3s and one stereo win, imported with Vite `?no-inline`.
+  Routine files use 64 or 80 kb/s, box and truck use 160 kb/s, and win uses 192 kb/s.
+- `assets/audio/generated/*.wav`: deterministic 44.1 kHz 16-bit PCM masters.
+- `assets/audio/generated/provenance.json`: suite ID `campaign-workshop-arcade-v4`, fixed-seed policy,
+  generator hash, recording hashes, durations, recipes and surface-mode definitions.
+- `assets/audio/manifest.json`: exact recording inputs per cue, creators, CC0 notices, source and
+  generator hashes, bitrate, and encoded hashes/bytes.
+- `assets/audio/measurements.json`: source and actual FFmpeg-decoded MP3 measurements, pinned
+  to each encoded hash.
+- `output/current/sound/`: generated spectrograms, measurements and focused browser artifacts.
 
-Run from the project root, with Python 3 standard library and FFmpeg with libmp3lame:
+The contact recordings are **Kenney Impact Sounds 1.0**, CC0 1.0:
+<https://kenney.nl/assets/impact-sounds>. The original notice remains in
+`sources/kenney-impact/License.txt`. This suite uses the tracked light wood, glass and medium soft
+recordings. Completion and win also use Kenney's CC0 [Interface Sounds](https://kenney.nl/assets/interface-sounds)
+`glass_002` and `confirmation_004`, with their notice in `sources/kenney-interface/License.txt`.
+The two Earshot renders are stored in `sources/earshot/` alongside the Kenney sources.
+They were rendered from commit `7a7f7c5c70d4a763a1eca4b3666af7c77e313f97` with seed 42.
+
+- `glass-tap.wav` uses Earshot `glass/tap` in mono. Its source is CJspellsfish’s CC0
+  [Glass Tap 2](https://freesound.org/people/CJspellsfish/sounds/668383).
+- `wood-knock.wav` uses Earshot’s procedural `knock/wood` design. Earshot’s
+  [output terms](https://github.com/Leonxlnx/earshot/blob/7a7f7c5c70d4a763a1eca4b3666af7c77e313f97/README.md#licence)
+  allow rendered audio to be reused. Original synthesis and arrangements are dedicated to CC0 in
+  `generated/License.txt`.
+
+The manifest pins both render hashes. Rebuilding the player cues uses the tracked WAVs and does
+not require Earshot, CLAP or a download.
+
+## Reproduce
+
+Python standard library and FFmpeg 7.0.2 static / libmp3lame 3.100:
 
 ```sh
 export FFMPEG=/home/stone/.local/bin/ffmpeg
@@ -30,114 +50,202 @@ python3 scripts/generate-sounds.py
 python3 scripts/prepare-sounds.py
 ```
 
-The recorded encoder is FFmpeg 7.0.2 static / libmp3lame 3.100. No NumPy or runtime dependency is
-added. Fixed seeds produce 44.1 kHz mono 16-bit PCM. Marimba/kalimba bodies use frequency ratios
-1:2:3.93:9.24 and amplitudes 1:0.65:0.55:0.09. The second partial keeps low cues audible between
-400 and 900 Hz on phone speakers. Vibraphone accents use 1:2:3.9:5.4 and 1:0.32:0.36:0.10.
-Each partial has three resonances at −0.3%, centre and +0.3%, weighted 0.22:0.56:0.22, with slight
-seeded pitch/velocity variation. Higher notes decay slightly faster; upper partials decay faster too.
+After an intentional recipe change, use `prepare-sounds.py --update-manifest`, review measurements,
+then regenerate and prepare normally to prove the locked bytes reproduce. A normal preparation
+rejects source, recording, generator, encoded hash/size or measurement drift. Source recordings stay
+lossy Ogg; modal masters are lossless WAV. No metadata reaches the encoded MP3 files.
 
-Notes and recorded contacts have 5 ms raised-cosine attacks (glass also has a 6 ms onset).
-Six milliseconds of quiet 850 Hz low-passed strike excitation gives the mallets a felt attack.
-There is no sustained noise layer or frequency sweep. Marimba passes through 1800/2400 Hz low-pass
-stages; the quiet vibraphone accents use 2400 Hz. Recorded contacts have two low-pass stages at
-1250–1800 Hz. A shared warm room uses two 1400 Hz low-pass stages before early reflections at
-13–139 ms, with more room on rewards. Room tails are baked into each voice, so cancellation remains
-immediate and needs no runtime convolution.
+## Sound construction
 
-Gentle tanh saturation rounds transient crests. DC removal, a 6 ms overall onset and 35 ms ending
-taper follow; linear gain targets −22 dBFS RMS with a 0.63 peak ceiling for encoder headroom.
-There is no hard limiter. Mono **160 kb/s MP3** retains compatibility with older iPhones; metadata
-is removed. The three original Ogg recordings undergo a second lossy encode, while modal sources
-are lossless. Runtime decoding remains once per sample.
+The arcade release starts with a dry latch and closes the spacing between marble contacts.
+The glass strike uses a short hollow snap, while seating leads with a hard contact and
+decays into the cup body. Truck completion adds a low chassis hit, a latch and an answering A3/E4 flourish. Dock completion
+pairs a hard seat with a D4/A4 felt chord. A full win rises through four felt strikes to a longer
+D-major resolution. Glass strikes and confirmation excerpts are shaped into an upper register
+over the warm body. The win pans the recorded accents on either side of the centred phrase, which
+retains its harmony and recorded accents when folded to mono.
 
-A normal preparation rejects changed source, generator, recording, encoded hashes, sizes or
-measurements. After a deliberate recipe change, regenerate and run
-`python3 scripts/prepare-sounds.py --update-manifest`, then review the resulting measurements.
-Both PCM and decoded MP3 must have peak below −2 dBFS, RMS in −29…−19 dBFS, bank RMS spread below
-4 dB, endpoint step below 0.002, first-ms peak below 0.07, onset before 35 ms and strongest partial
-below 94% of energy. Repeated cues, Undo and rewards must have centroid below 1500 Hz. Landing-light
-must last 250–350 ms, retain a centroid below 1500 Hz at +4 semitones and keep at least 90% of its
-energy below 1587 Hz (2000 Hz after that pitch shift). Release must last 200–300 ms.
+Surface resonances use three slightly detuned modes (−0.25%, centre, +0.25%, weights 0.22/0.56/0.22)
+per partial, plus small seeded pitch/velocity variation. High notes and upper partials decay faster.
+The surface recipes are:
 
-Centroid is power weighted over Hann 4096-point FFT windows with 50% overlap. Partial share covers
-±2 bins around the strongest bin across those windows. These are technical spectral checks, not
-perceptual brightness or loudness measurements. The self-test rejects pure tones, stepped attacks
-and a bright long bell, and accepts the warm replacement mallet. Unit tests pin all files by hash,
-check actual PCM endpoints/levels, duration/brightness/phone-body measurements, gain separation,
-loading/failure silence, decode-once, voice limits and unchanged pitch steps. Preparation also writes
-per-cue spectrogram PNGs and a JSON report under `output/current/sound/`; this revision makes no
-claim of a visual spectrogram review or listening review.
+| Surface | Frequency ratios | Relative amplitudes | Base decay | Low-pass |
+| --- | --- | --- | --- | --- |
+| Wood | 1 / 2.01 / 3.87 / 6.2 | 1 / .72 / .35 / .05 | 47 ms | 1450 Hz |
+| Felt | 1 / 2 / 3.93 / 7.1 | 1 / .72 / .40 / .035 | 83 ms | 1700 Hz |
+| Enamel | 1 / 2.32 / 4.12 / 6.29 | 1 / .58 / .16 / .025 | 75 ms | 1600 Hz |
+| Harbour brass | 1 / 1.49 / 2.01 / 2.74 / 4.05 | 1 / .50 / .34 / .14 / .045 | 205 ms | 1800 Hz |
 
-## Cue recipes and measured player files
+Modal notes have 5 ms cosine attacks and a very quiet 6 ms, 850 Hz low-passed felt excitation.
+Recorded contacts have 5 ms attacks and two low-pass stages. The 220–330 Hz bodies carry a clear
+second partial around 440–660 Hz, helping phone audibility. Every body has a second 2400 Hz low-pass.
+The warm cues use a small bench room with double 1100 Hz damping and early reflections at 11–71 ms.
+The arcade cues use dry, close contacts. The contact fade takes 4.2 ms and the two longer
+completion cues use 6.8 ms to control MP3 pre-echo at the frame boundary. Both finishes use tanh saturation and DC removal, with a −22 dBFS source RMS target
+and a 0.63 source peak ceiling. The arcade tails taper over 24 ms.
 
-Measurements are decoded mono MP3, RMS in dBFS and power-weighted centroid in Hz.
+## Recipes and measured player files
+
+Values below are actual FFmpeg-decoded MP3 duration, RMS dBFS and power-weighted centroid Hz.
 
 | Cue | Recipe | Seconds | RMS dBFS | Centroid Hz | Bytes |
 | --- | --- | ---: | ---: | ---: | ---: |
-| tap | Kenney wood at 0.82x, double low-pass 1600 Hz, 5 ms felt onset | 0.14 | -22.45 | 321 | 4,223 |
-| release | Four rounded Kenney wood knocks at 0/32/71/118 ms, varied pitch, A3 wooden body; no air | 0.27 | -22.45 | 302 | 6,835 |
-| impact-wood | Kenney light wood at 0.94x, double low-pass 1800 Hz, 5 ms onset | 0.14 | -22.45 | 373 | 4,223 |
-| impact-glass | Kenney light glass at 0.87x, double low-pass 1800 Hz, 6 ms onset | 0.18 | -22.44 | 1206 | 4,746 |
-| landing-light | G4 (392 Hz) felt marimba/kalimba, detuned modes, 0.30 s, low-pass 1800 Hz | 0.30 | -22.45 | 466 | 7,358 |
-| landing-final | D4 (293.66 Hz) felt marimba with audible 587 Hz body partial, 0.40 s | 0.40 | -22.45 | 363 | 9,448 |
-| complete | D4 A4 D5 warm marimba triplet at 0/85/170 ms, quiet D6 vibraphone accent | 0.65 | -22.45 | 562 | 14,150 |
-| blocked | Kenney soft/wood at 0.78x/0.72x with D4/587 Hz muted body, low-pass 1250 Hz | 0.22 | -22.45 | 347 | 5,791 |
-| undo | D4 C4 damped wooden double note at 0/95 ms; no reverse or air | 0.32 | -22.45 | 362 | 7,880 |
-| jam | Muted marimba A4 D4 descent at 0/160 ms, warm room | 0.64 | -22.45 | 428 | 14,150 |
-| win | D4 F#4 A4 D5 marimba ascent at 0/120/240/360 ms; warm D-major vibraphone chord at 520 ms, quiet D6 accent | 1.28 | -22.45 | 490 | 26,688 |
+| tap | Walnut button: slowed real wood, felt B3 body, 5 ms onset, dry bench | 0.120 | -22.44 | 299 | 1,505 |
+| release | Arcade crate release: dry latch and a tightening cluster of marble contacts over Earshot wood | 0.239 | -22.44 | 663 | 3,179 |
+| impact-wood | Real maple contact at 0.91x with damped D4 bench resonance | 0.120 | -22.46 | 349 | 1,505 |
+| impact-glass | Arcade tube strike: Earshot glass tap over a short, hollow enamel snap | 0.156 | -22.52 | 983 | 1,714 |
+| landing-light | Arcade marble seat: hard contact over a low damped cup, with Earshot glass and wood | 0.282 | -22.44 | 526 | 2,759 |
+| landing-final | Full dock settles: D4 wood mass, A4 enamel rim and two quiet real wood contacts | 0.360 | -22.45 | 380 | 3,386 |
+| complete | Felt dock chord with two CC0 glass strikes opening into an enamel rim | 0.680 | -24.02 | 737 | 15,195 |
+| truck-complete | Low chassis and warm A3/E4 answer with a CC0 glass latch and recorded confirmation | 0.770 | -22.45 | 762 | 16,762 |
+| blocked | Rubber stop: real soft contact with muted B3 wood, no pitch warning | 0.180 | -22.45 | 206 | 1,923 |
+| undo | Wooden detent return: E4-D4 soft double contact at 0/75 ms, no reverse | 0.290 | -22.45 | 389 | 3,701 |
+| jam | Stopped mechanism: B3/A3 damped bodies at 0/135 ms with a dry wood stop | 0.480 | -22.45 | 315 | 4,431 |
+| win | Stereo D-major felt phrase and long resonant chord with panned CC0 glass and confirmation recordings | 1.960 | -22.39 | 732 | 48,944 |
+| harbour-bell | Little Harbour ship bell: F4 brass modes 1/1.49/2.01/2.74/4.05, felt striker and wooden mount, 720 ms | 0.720 | -22.45 | 375 | 6,312 |
 
-The bank totals **105,492 bytes**, **16,716 fewer** than the rejected 122,208-byte bank, within the
-unchanged **150,000-byte** sound ceiling. All compressed bytes count toward the unchanged
-**2,125,000-byte** first-download ceiling, even when fetched after a gesture. The current build is
-**1.973 MB / 2.125 MB**. No gzip saving is assumed for MP3. Vite `?no-inline` imports keep samples
-individually cacheable by content hash; Apache's immutable MP3 cache rule is unchanged.
+Total player audio is **111,316 / 150,000 bytes**. The
+procedural surf, gulls and scores add no audio file downloads. At the existing +4-semitone pitch
+ceiling, landing-light retains **99.25%** of its source-band energy below 2 kHz.
+Encoded cues remain part of the first-download budget even when fetched after a gesture.
 
-Decoded RMS spread is **0.01 dB**. Source endpoints are zero; the largest decoded endpoint step is
-**0.000125**, largest first-ms peak **0.00558** and latest onset **1.5 ms**.
-Landing-light keeps **99.99%** of measured energy below 1587 Hz; at the existing +4-semitone ceiling
-its centroid is approximately **587 Hz**, with that energy still below 2 kHz.
-`measurements.json` retains both source and decoded values, peaks and spectral energy fractions.
+Metrics integrate Hann-windowed 4096-point FFT power with 50% overlap. The dominant-partial guard
+covers ±2 bins around the strongest bin. Centroid and energy fractions are technical measurements,
+not perceptual brightness or loudness. Preparation verifies both source and decoded signals:
+−29…−19 dBFS RMS, peak below −2 dBFS, strongest partial below 94%, first-ms peak below .07,
+endpoint step below .002 and onset before 35 ms. Additional warmth, 250–350 ms seat and 200–300 ms
+tumble checks run in preparation and the pinned asset tests. The separate `review` readings use
+FFmpeg `volumedetect` before and after two cascaded `highpass=f=2000` filters over the entire decoded
+file, including its tail. Each rewritten reward measures at least −40 dBFS after the filters and has
+a delta of at least −18 dB. The self-test rejects pure tones,
+stepped attacks and a bright long bell, while accepting the damped replacement body.
 
-## Runtime mix and unchanged behavior
+## Runtime mapping and integration handoff
 
-Mix values live in `src/audio.ts`. Master gain remains 0.8. Tap gain is 0.36, release 0.38,
-Loop delivery 0.26, first/second landings 0.27/0.31, and impacts 0.05–0.15 before variation.
-Undo drops to 0.48. Final body/reward remain 0.8/0.4, box completion 0.7, blocked 0.5,
-jam 0.65 and win 0.95. Repeated cues are at least **4.8 dB** below standalone box completion,
-even at the loudest random variation. Equal file RMS leaves this hierarchy to the runtime mix.
-The shared compressor stays at −8 dB threshold, 12 dB knee, 2:1 ratio, 12 ms attack and 180 ms release.
-Its perceived behavior needs listening.
+Existing gameplay event integration requires no non-audio source change:
 
-Impacts remain throttled to one per 65 ms with at most four active voices before more impacts are
-suppressed; every fourth uses glass. Impact pitch varies ±4%, gain ±10%; tap/release pitch ±2%,
-gain ±6%. Ordinary cues leave four of twelve voices for rewards. Win/jam cancel old tails.
-All public methods and start-time semantics remain unchanged. Existing delivery, landing and chain
-pitch steps remain exactly as before. No new rising-per-marble or streak pitch progression was added.
-Fast-forward suppression remains in App's existing call sites.
+- `tap()` → walnut control; `release()` → packet tumble.
+- `impact()` → alternating quiet wood/enamel contacts with existing 65 ms throttle and voice floor.
+- `deliver()` and first/second `landing()` → arcade seat, with the existing pitch steps.
+- Third `landing()` → heavy full-dock body plus dry dock latch (`landing-final` + `complete`).
+- `boxFilled()` → separate heavier chassis/latch (`truck-complete`). This existing shared match method
+  serves Loop Sort completion and Tube Sort completion. Its existing chain pitch formula is unchanged.
+- `blocked()`, `undo()`, `jam()` and `win()` keep their existing callers and start-time behavior.
+- **New `sfx.harbourBell(): void`** plays the 720 ms soft-struck ship bell at gain 0.52, rate 1,
+  with reward voice priority. The owner owns the actual strike hook in `src/view/world.ts`; this audio
+  task leaves that file untouched. Call once when forward playback crosses the actual strike cue,
+  not continuously while the bell is in contact, and skip catch-up/seek/reverse playback. The method
+  follows shared mute/loading/cancellation behavior and never queues a stale strike. Use the existing
+  gesture unlock and cancellation paths around film playback/navigation.
 
-The first gesture starts asynchronous fetch/decode once per sample. Playback never waits;
-loading/failure is silent with no oscillator fallback or queued stale actions. Failed samples do
-not retry per tick. Mute delays loading and cancels voices. Undo, Restart, level changes, blur and
-hidden tabs retain their cancellation paths.
+Master gain remains 0.8. Runtime gains: tap .32, tumble .38, impacts .04–.14 before variation,
+Loop seat .24, first/second dock seats .25/.29, final body .8 plus latch .4, truck/match .7,
+blocked .4, undo .42, jam .65, win .95, Harbour .52. Repeated cues remain at least 4.8 dB below a
+standalone completion even at the loudest random variation. Small contacts retain existing gain and
+pitch variation; the compressor stays at −8 dB threshold, 12 dB knee, 2:1, 12 ms attack, 180 ms release.
 
-## Verification record — 14 November 2026, warm revision
+Each file fetches/decodes once after unlock. Loading/failure is silent; input never waits, failures
+never retry each tick, and no stale action plays after load. Ordinary cues leave four of twelve
+voices for rewards. Mute, Undo, Restart, navigation, blur and hidden tabs cancel voices, including
+the Harbour bell. The App's existing held-fast-forward suppression still skips per-marble contacts
+and retains completion rewards. Ambience uses generated buffers and timers outside the frame loop.
 
-- Before replacement, the new warmth regression failed on the old release: 4887 Hz source centroid.
-- `docker compose exec -T dev npm run typecheck`: passed.
-- `docker compose exec -T dev npm run lint`: passed, zero warnings/errors.
-- `docker compose exec -T dev npx vitest run tests/engine/audio.test.ts tests/engine/audio-assets.test.ts tests/engine/bundle-budget.test.ts`:
-  **20 tests passed**, including the new warmth/duration and mix-gain regressions.
-- `docker compose exec -T dev npm run build`: passed; audio **105,492/150,000 bytes**,
-  first download **1.973/2.125 MB**. Existing Vite configuration and chunk-size advisories remain.
-- `docker compose --profile e2e run --rm e2e npx playwright test tests/e2e/audio.spec.ts --project=game --output=output/current/sound/playwright`:
-  **three passed** on the final bank (29.6 s), including real touch-driven actions, Chromium MP3
-  decoding, failed downloads, cancellation and fast-forward suppression. The shared-output rerun
-  previously failed during `browserContext.close` because a Playwright trace file was missing
-  (`ENOENT`); the dedicated output directory avoids shared-artifact interference.
-- Generator self-test: passed. Regeneration followed by preparation without `--update-manifest`
-  reproduced all locked hashes, sizes and measurements, including the final A3 release body.
-- `git diff --check` for the audio files and sound paragraph: passed.
+## Little Harbour integration handoff
 
-No listening, physical-phone speaker check, perceived-loudness assessment or Safari decoding run
-has been performed on this revision. Browser checks do not establish physical-phone performance.
+`src/audio.ts` exports `sfx.harbourBell(): void`. It plays the dedicated 720 ms F4 ship-bell cue
+at gain 0.52, normal pitch, using a reserved reward voice. It does not interrupt existing voices.
+The village owner owns `src/view/world.ts`: call it once at the actual strike during forward film
+playback, never from each pose/render frame or on a seek past the cue. Use the shared `sfx.cancel()`
+when leaving or restarting playback so the tail cannot leak into another scene.
+
+Audio still needs `sfx.unlock()` from a gesture on the current page. A cold automatic film with no
+such gesture stays silent; this method does not bypass autoplay policy or replay a strike after
+loading completes. The browser tests invoke the bell after real touch-driven unlock and verify
+that it decodes and cancels through the shared audio system. Village event synchronization itself
+belongs to the trigger owner and is not claimed as verified by these audio tests.
+
+### Ambience hook
+
+`sfx.harbourAmbience(active: boolean, chapter = 0): void` selects the zero-based map or film island.
+Call `true` on entry and `false` on exit or teardown from a single view owner. Calls are idempotent
+and can precede unlock. The existing `sfx.unlock()` gesture enables the island score, with quiet
+surf and sparse gull calls in Little Harbour. Exiting fades the bed out. Muting or hiding the tab
+stops loops, calls and timers immediately. Showing the tab or unmuting restores an active bed.
+`sfx.cancel()` clears gameplay one-shots, including the bell. It leaves the requested ambience
+state to the view owner.
+
+The 12-second surf and the gull call are synthesized once into compact mono Web Audio buffers.
+The surf uses band-limited seeded noise and slow wave envelopes. The gull uses two short
+pitch-shaped calls. One surf node and at most one gull node share a quiet gain bus into the
+existing master. No ambience assets enter the MP3 manifest or first-download transfer.
+
+### Board ambience hook
+
+`sfx.boardAmbience(active: boolean, chapter = 0): void` takes a zero-based chapter. Chapter zero
+has a quieter coastal bed with occasional gulls. The inland bed uses a softer, steadier texture.
+Call on board entry, chapter changes and exit. Board ambience takes precedence over village
+ambience, sharing its decode-free buffers, gesture unlock, mute and visibility behavior. Changes
+fade the outgoing theme before starting the incoming one, so the beds do not stack.
+
+`sfx.boardFastForward(active: boolean): void` follows effective game speed above 1×. It ducks the
+environmental bed to 35%, lowers the music and clears pending gull calls. Leaving the board
+clears the fast-forward state. Completion and win cues duck the music for their audible duration.
+
+The original scores in `src/audio-music.ts` have eight bars over two phrases. Each uses a distinct
+chord progression and varies where the felt and mallet notes land. Cadence tails wrap across the
+loop seam. Loops run from 27.84 to 33.92 seconds at the existing music level.
+An on-demand worker synthesizes the score and transfers its PCM without blocking input. An island
+change, mute or hiding the tab discards unfinished work. Scores play through the same master and
+Sound setting as the effects. Only the current score is cached and a same-island handoff reuses it.
+
+### Film contacts and last load
+
+Call `sfx.harbourRouteCue(cue)` once per forward crossing of Little Harbour's authored markers.
+`'cruise'` is a pair of plank and enamel contacts at the first rollers. `'transfer'` is a dry
+latch and low wood body at the slipway. `'arrival'` seats the marble in the terminal shoe before
+the separate `harbourBell()` strike. Skip markers during seeking or skipped playback.
+
+Call `sfx.finalLoad()` once at the shared board finish, in place of `win()`. A lower, rounded
+load contact leads the 1.96-second stereo win phrase by 180 ms. This payoff still plays when the
+last load completes during fast forward. Normal box and truck completions keep their own cues.
+
+Both hooks use the existing bank, voice limits and mixer. Delayed contacts are scheduled on
+the audio clock and cancel with the rest of the one-shots. The film keeps the same quiet surf
+and gulls. No additional audio is downloaded or decoded.
+
+## Initial workshop-bank verification — 21 November 2026
+
+- Before audio integration, the new thirteen-buffer and distinct reward/bell regression failed
+  against the old eleven-file runtime (expected 13 decode calls, received 11).
+- `npm run typecheck`: passed.
+- `npm run lint`: passed.
+- `npx vitest run tests/engine/audio.test.ts tests/engine/audio-assets.test.ts tests/engine/bundle-budget.test.ts`:
+  **22 tests passed**.
+- `npm run build`: passed; **117,073/150,000 audio bytes**, **1.998/2.125 MB** first download.
+  Existing Vite configuration and large-chunk advisories remain.
+- Disposable Playwright 1.64.1 container, mounting only this checkout and starting/stopping its own
+  Vite test server, ran `npx playwright test tests/e2e/audio.spec.ts --project=game --output=output/current/sound/workshop-playwright`:
+  **three passed** (1.0 min) through the demo URLs. All thirteen files actually decoded in Chromium;
+  real touch pours, Undo, mute, restart, blur, corrupt downloads and held fast forward passed.
+- The test now waits past rule completion for the final seating/completion event. It measures
+  intake suppression while actual speed exceeds 1: winning automatically drops speed to normal,
+  where the final seating is allowed to sound. Both completion rewards must still be observed.
+- A first browser attempt could not reach the host server from Docker (`ERR_CONNECTION_REFUSED`);
+  the successful run kept Vite and Chromium inside the same disposable container.
+- Regeneration followed by normal preparation reproduced every source/encoded hash and metric.
+  All thirteen encoded cues differ from the previous bank. Generator self-test passed.
+- Final audio-scope `git diff --check`: passed. The last typecheck/build rerun passed after the
+  concurrent unused import in `src/view/tubes.ts` was fixed by its owner.
+
+The full performance suite, hosting and commits belong to the owner and were not performed here.
+No listening, physical-phone speaker assessment or Safari decoding check was performed.
+
+## Arcade cues and ambience verification
+
+- Typecheck and lint passed. The 24 focused audio, mixer and bundle tests passed.
+- The 13 WAVs, provenance and encoded MP3s reproduced byte-for-byte.
+- A separate Chromium run passed all four audio scenarios at 375 × 690. It covered actual MP3
+  decoding, touch, fast forward, corrupt downloads, and the ambience API with a real unlock gesture.
+  The unit tests cover hidden and visible transitions and timer cleanup.
+- The isolated production build passed at 112,894 audio bytes of 150,000 and 2.058 MB first download
+  of 2.125 MB. The ambience adds no audio files.

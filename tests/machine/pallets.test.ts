@@ -90,3 +90,15 @@ describe('shared receiving pallets',()=>{
     machine.world.free();replayed.world.free();
   });
 });
+
+it('holds both fully loaded boxes of the winning pallet, including the one that filled earlier', { timeout: 120_000 }, () => {
+  const machine = new Machine(board);
+  const actions = [0, 1, 2, 3];
+  for (let tick = 0; tick < 12000; tick++) {
+    machine.step();
+    if (actions.length && !machine.transferring && !machine.rules.canDrain()) expect(machine.tap(actions.shift()!).ok).toBe(true);
+    if (machine.rules.status === 'won' && !machine.transferring) break;
+  }
+  const visible = machine.readBoxes().filter(box => box.visible);
+  expect(visible.map(box => [box.dock, box.index, box.fill, box.retained])).toEqual([[0,1,3,true],[1,1,3,true]]);
+});

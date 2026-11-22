@@ -1,6 +1,76 @@
 # Verification
 
-## Current Blender world and Atelier integration — 7 November 2026
+## Rounded triangle and bean belts — 22 November 2026
+
+Eight campaign boards on Saltmere Pans and Potters’ Reach now use flat, non-crossing
+belts. Each island has both shapes in Funnel Sort and Loop Sort. The original
+figure-eights keep their raised crossings. Rounds and stable IDs are recorded in
+[the levelling guide](levelling.md#rounds-61-to-80).
+
+At 375×690 in touch-enabled Chromium, each revised board reached a win by tapping
+its recorded order through the game. The eight opening scenes used the same
+number of draw calls as the same boards on their original ovals (79–93).
+The joint campaign curve and the eight score hashes passed. All eight boards
+also retained a losing order, brisk and patient wins and a rapid-input win.
+The phone roster checks passed on both islands.
+The six browser checks for draw counts, shader reuse and idle rendering passed.
+
+The geometry tests cover lateral rail and marble clearance, including the inward
+bend, the Funnel Sort chute and delivery shoes, and truck mouths and departures.
+The first download measures 2,124,948 bytes against the existing 2,125,000-byte
+limit. The build uses the largest
+zlib compression memory setting for the embedded Rapier module. Its decompressed
+WASM matches the pinned binary byte for byte.
+
+The six gameplay frame-budget cases passed with 4× CPU throttling in Chromium
+using SwiftShader. The longest Funnel Sort belt exceeded its 21 ms median
+tick-plus-draw limit on the first run (22.1 ms) and passed on the idle-host
+rerun (17.8 ms). Physical-phone frame times remain unmeasured.
+
+## Saltmere Pans and Potters’ Reach — 22 November 2026
+
+The campaign adds 60 levels at rounds 61–80 on top of the game-feel rollout
+(`3e5bd23`). Every new Funnel Sort and Loop Sort puzzle has a winning machine
+replay, a jam, and a rapid-input win. Each Tube Sort puzzle includes a shortest
+solution. The [round fixtures](../tests/fixtures/campaign-61-80.json) record the
+layout hashes, slots and per-board evidence. The [difficulty checks](../tests/levelling/curve.test.ts)
+measure the interleaved campaign, including the transition from round 60.
+
+Seven Chromium navigation journeys passed against the 240-level campaign.
+Saves with 180 and 210 completions each recovered their pending film in the
+correct village, acknowledged it once, then resumed at level 181 or 211.
+The [navigation tests](../tests/e2e/world-navigation.spec.ts) cover both chart
+windows, label focus, French, cancelled gestures and entering a stop by touch
+at 375×690 CSS pixels. These runs used browser touch emulation.
+
+The production build passed at **2.123 MB of 2.125 MB** for the first download.
+Bundled world geometry measures 118,272 gzip bytes against the 120,000-byte
+limit. Both lift assemblies passed 60 Hz hardware checks, 120 Hz swept-marble
+clearance, full-width track checks, and visibility checks in four views.
+The [headframe regressions](../tests/world/island-hoists.test.ts) cover grounded
+feet and moving-shaft clearance, including a brace deliberately moved into the shaft.
+
+At gameplay commit `947d387`, 2,850 unit tests passed across 91 files. The
+Chromium game suite passed 172 of 178 cases in its initial three-worker run.
+All six affected cases then passed with one fresh worker on the frozen server.
+Two traces stopped during startup. Two campaign journeys and the island 8
+roster check ran with pre-freeze board expectations. The desktop map test
+expected all eight labels at once. Its corrected assertion checks six labels
+in each window and follows keyboard focus to island 8 and back to island 1.
+All four [touch journeys](../tests/e2e/journey.spec.ts) for levels 181–240
+completed and saved their progress, including `loop-108` at 215, `board-110`
+at 232 and `loop-115` at 236.
+
+Both new films completed in their own village at 375×690 on the natural clock,
+in normal and reduced motion (4/4). All ten isolated Chromium performance
+tests passed at their original limits, including six gameplay frame-budget
+cases and four World cases. These measurements used SwiftShader software
+rendering. Physical-phone performance remains unmeasured. The local run logs
+under `output/current/island-expansion/` are `final-unit-stable.log`,
+`full-game.log`, `serial-game.log`, `natural-films.log` and
+`isolated-performance.log`.
+
+## Blender world and Atelier integration — 7 November 2026
 
 The current 3D world passed 100 focused unit checks, 25 distinct UI journeys and
 four isolated realtime World measurements. After installing all seven actual
@@ -59,9 +129,9 @@ zero idle/gameplay work, and 72 additional presented video frames. See the
 uneven frame intervals and limits. The scoped checks above are complete; these
 browser results do not establish physical-phone performance.
 
-## Current scope — rounds 41–60, 6 November 2026
+## Rounds 41–60, 6 November 2026
 
-The registered campaign is **60 rounds, 180 levels**, with twenty new levels per
+This release registered **60 rounds, 180 levels**, with twenty new levels per
 game. The original 120 IDs, their order and their definitions are preserved.
 `PLAY_ORDER` in [src/campaign.ts](../src/campaign.ts) remains the order authority;
 the full target is 120 rounds and 360 levels. The new stretch introduces paired

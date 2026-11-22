@@ -202,6 +202,8 @@ export function villageChannelGeometry(points: readonly VillagePort[], style: Vi
   if (style === 'timber') profile = [[-0.65, 0.2], [-0.65, -0.14], [0.65, -0.14], [0.65, 0.2], [0.4, 0.2], [0.4, 0], [-0.4, 0], [-0.4, 0.2]];
   if (style === 'girder') profile = [[-0.5, 0.12], [-0.5, -0.16], [0.5, -0.16], [0.5, 0.12], [0.4, 0.12], [0.4, 0], [-0.4, 0], [-0.4, 0.12]];
   if (style === 'steel') profile = [[-0.48, 0.2], [-0.48, -0.06], [0.48, -0.06], [0.48, 0.2], [0.42, 0.2], [0.42, 0], [-0.42, 0], [-0.42, 0.2]];
+  if (style === 'brine') profile = [[-.53,.14],[-.44,-.1],[.44,-.1],[.53,.14],[.43,.14],[.38,0],[-.38,0],[-.43,.14]];
+  if (style === 'stoneware') profile = [[-.53,.18],[-.42,-.1],[.42,-.1],[.53,.18],[.44,.18],[.38,0],[-.38,0],[-.44,.18]];
   if (style === 'terracotta') profile = TERRACOTTA_CHANNEL_PROFILE;
   points.forEach((p, index) => {
     const side = new THREE.Vector3().crossVectors(vec(p.tangent), vec(p.normal)).normalize();
@@ -280,6 +282,8 @@ export function villageChannelGeometry(points: readonly VillagePort[], style: Vi
   }
   const geometry = new THREE.BufferGeometry(); geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geometry.setIndex(indices);
+  if (style === 'plank') geometry.userData.plankRingVertices = points.length * profile.length;
+  if (style === 'stoneware') geometry.userData.stonewareRingVertices = points.length * profile.length;
   if (lip) {
     try { trimChannelLip(geometry, points, points.map(p => originalPoints.indexOf(p)), originalPoints.length, lip, refineFloor); }
     catch (error) { geometry.dispose(); throw error; }
@@ -346,7 +350,7 @@ export function villageSpanGeometry(points: readonly VillagePort[], profile: Vil
     const side = new THREE.Vector3().crossVectors(vec(p.tangent), vec(p.normal)).normalize();
     // The rim shares the deck boundary, avoiding a second interpolation through
     // the interior of warped floor quads. Rails meet at their bottom vertices.
-    const half = p.width * (profile === 'twinrail' ? 0.275 : profile === 'timber' ? 0.65 : profile === 'steel' ? 0.48 : profile === 'terracotta' ? 0.4 : 0.5);
+    const half = p.width * (profile === 'twinrail' ? 0.275 : profile === 'timber' ? 0.65 : profile === 'steel' ? 0.48 : profile === 'terracotta' ? 0.4 : profile === 'stoneware' ? .42 : profile === 'brine' ? .44 : 0.5);
     const underside = profile === 'twinrail' ? Math.sqrt((VILLAGE_RADIUS + 0.055) ** 2 - half ** 2) + 0.055 - VILLAGE_RADIUS : depth;
     for (const [across, down] of [[-half, underside], [-half, underside + 0.2], [half, underside + 0.2], [half, underside]]) {
       vertices.push(p.position[0] + side.x * across! - p.normal[0] * (VILLAGE_RADIUS + down!),
@@ -360,6 +364,26 @@ export function villageSpanGeometry(points: readonly VillagePort[], profile: Vil
   });
   const geometry = new THREE.BufferGeometry(); geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
   geometry.setIndex(indices); geometry.computeVertexNormals(); return geometry;
+}
+
+/** A shallow masonry arch supports the pottery viaduct on either side of its lower crossing. */
+export function stonewareSpandrel(points: readonly VillagePort[]): THREE.BufferGeometry {
+  const first = vec(points[0]!.position), last = vec(points.at(-1)!.position);
+  const direction = last.clone().sub(first), length = Math.hypot(direction.x, direction.z);
+  const dx = direction.x/length, dz = direction.z/length;
+  const inset = .45, span = length - 2*inset;
+  const arch = new THREE.Shape();
+  arch.moveTo(0,0); arch.lineTo(span,0); arch.lineTo(span,-1.02);
+  arch.quadraticCurveTo(span/2,.84,0,-1.02); arch.closePath();
+  const geometry = new THREE.ExtrudeGeometry(arch,{depth:.47,curveSegments:24,bevelEnabled:false});
+  const vertices = geometry.getAttribute('position');
+  for (let i=0;i<vertices.count;i++) {
+    const along = inset+vertices.getX(i), across = vertices.getZ(i)-.235;
+    vertices.setXYZ(i,first.x+dx*along-dz*across,first.y+direction.y*along/length-.60+vertices.getY(i),
+      first.z+dz*along+dx*across);
+  }
+  geometry.computeVertexNormals();
+  return geometry;
 }
 
 /** A bearing cap whose roof is clipped from the rendered underside triangles. */

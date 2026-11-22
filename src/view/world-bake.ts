@@ -1,5 +1,8 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { ARTISAN_SURFACE } from './village-artisan';
+
+const worldAttributes = ['position', 'normal', 'color', 'grade', 'terrainSurface'];
 
 /** Merge scene-owned copies; cached Blender geometry stays with its asset owner. */
 export function bakeWorldGroup(group: THREE.Group, material: THREE.Material): THREE.Mesh | null {
@@ -10,17 +13,21 @@ export function bakeWorldGroup(group: THREE.Group, material: THREE.Material): TH
     if (!(object instanceof THREE.Mesh)) return;
     const part = object.geometry.index ? object.geometry.toNonIndexed() : object.geometry.clone();
     for (const attribute of Object.keys(part.attributes)) {
-      if (!['position', 'normal', 'color', 'grade'].includes(attribute)) part.deleteAttribute(attribute);
+      if (!worldAttributes.includes(attribute)) part.deleteAttribute(attribute);
     }
     if (!part.getAttribute('normal')) part.computeVertexNormals();
     if (!part.getAttribute('color')) {
       const colors = new Float32Array(part.getAttribute('position').count * 3); colors.fill(1);
       part.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     }
+    const artisanSurface = object.userData.artisanSurface, surface = part.getAttribute('terrainSurface');
+    if (typeof artisanSurface === 'number' && surface) {
+      for (let i=0;i<surface.count;i++) if (surface.getX(i) === ARTISAN_SURFACE) surface.setX(i,artisanSurface);
+    }
     parts.push(part.applyMatrix4(inverse.clone().multiply(object.matrixWorld))); meshes.push(object);
   });
   if (!parts.length) return null;
-  levelGrades(parts);
+  fillTerrainAttributes(parts);
   const geometry = mergeGeometries(parts); parts.forEach(part => part.dispose());
   if (!geometry) throw new Error('World geometry could not be merged');
   meshes.forEach(mesh => mesh.removeFromParent());
@@ -31,15 +38,19 @@ export function bakeWorldGroup(group: THREE.Group, material: THREE.Material): TH
 /** Append static dressing without changing the producer-owned terrain prefix or geometry identity. */
 export function appendWorldGeometry(mesh: THREE.Mesh, sources: readonly THREE.BufferGeometry[]): void {
   const parts=sources.map(source=>source.index?source.toNonIndexed():source.clone());
-  if(mesh.geometry.getAttribute('grade'))levelGrades(parts,true);
+  fillTerrainAttributes([mesh.geometry, ...parts]);
   const merged=mergeGeometries([mesh.geometry,...parts]);parts.forEach(part=>part.dispose());
   if(!merged)throw new Error('Island dressing could not be merged');
-  for(const name of ['position','normal','color','grade'])if(merged.getAttribute(name))mesh.geometry.setAttribute(name,merged.getAttribute(name));
+  for (const name of worldAttributes) if (merged.getAttribute(name)) mesh.geometry.setAttribute(name, merged.getAttribute(name));
   mesh.geometry.computeBoundingBox();mesh.geometry.computeBoundingSphere();merged.dispose();
 }
 
-/** Slope grades ride along with the land; every other part reads level, so merged attribute sets match. */
-function levelGrades(parts: readonly THREE.BufferGeometry[], force = false): void {
-  if (!force && !parts.some(part => part.getAttribute('grade'))) return;
-  for (const part of parts) if (!part.getAttribute('grade')) part.setAttribute('grade', new THREE.BufferAttribute(new Float32Array(part.getAttribute('position').count), 1));
+/** Props sharing a terrain mesh have a level grade and no terrain surface type. */
+function fillTerrainAttributes(parts: readonly THREE.BufferGeometry[]): void {
+  for (const [name, Storage] of [['grade', Float32Array], ['terrainSurface', Uint8Array]] as const) {
+    if (!parts.some(part => part.getAttribute(name))) continue;
+    for (const part of parts) {
+      if (!part.getAttribute(name)) part.setAttribute(name, new THREE.BufferAttribute(new Storage(part.getAttribute('position').count), 1));
+    }
+  }
 }

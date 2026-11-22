@@ -2,7 +2,7 @@ import type { VillageMotionTimeline } from '../world/village-motion';
 import type { VillageCameraShot } from '../world/village-plan';
 
 export type VillageCameraTimeline = Pick<VillageMotionTimeline,
-  'duration' | 'authoredPlan' | 'plan' | 'contacts' | 'boundaries' | 'transfers'>;
+  'duration' | 'finale' | 'authoredPlan' | 'plan' | 'contacts' | 'boundaries' | 'transfers'>;
 
 const REST_ELEVATION = 50 * Math.PI / 180;
 
@@ -57,7 +57,7 @@ export function villageFilmShots(timeline: VillageCameraTimeline): readonly Vill
 
   const groups = [{ start: 0, shot: first }];
   for (const shot of authored.slice(1)) {
-    const start = physicalTime(shot.start);
+    const start = shot === last && timeline.finale ? timeline.finale.pullback : physicalTime(shot.start);
     // Removing a cut merges compositions without changing any physical sample time.
     if (start - groups[groups.length - 1]!.start < 2 || duration - start < 2 || protectedCut(start)) continue;
     groups.push({ start, shot });

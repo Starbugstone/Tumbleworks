@@ -21,7 +21,6 @@ interface Pose extends Orientation {
 }
 
 const RATE = 30;
-const CARGO_MARGIN = 2.5;
 const REST_ELEVATION = 50 * Math.PI / 180;
 const FOLLOW_ELEVATION = 40 * Math.PI / 180;
 const VERTICAL_TAN = Math.tan(34 * Math.PI / 360);
@@ -65,14 +64,18 @@ export class VillageFilmCamera {
   private logRestDistance = 0;
   private logFollowDistance = 0;
   private aspect = 0;
+  private readonly cargoMargin: number;
+  private readonly finaleShot: number;
 
   constructor(machine: VillageCameraMachine, timeline: VillageCameraTimeline,
     private readonly framing:'envelope'|'cargo'='envelope') {
+    this.cargoMargin = framing === 'cargo' && timeline.plan.chapter === 0 ? 1.85 : 2.5;
     this.shots = villageFilmShots(timeline);
+    this.finaleShot = timeline.finale ? this.shots.length - 2 : -1;
     this.duration = timeline.duration;
     this.entrySeconds = Math.min(4, this.duration / 3);
     const lastTransfer = Math.max(0, ...timeline.transfers.map(transfer => transfer.end));
-    this.exitSeconds = Math.min(this.duration / 3, Math.max(3, Math.min(4, this.duration - lastTransfer)));
+    this.exitSeconds = framing === 'cargo' && timeline.finale ? timeline.duration - timeline.finale.pullback : Math.min(this.duration / 3, Math.max(3, Math.min(4, this.duration - lastTransfer)));
     this.routeSteps = Math.ceil(this.duration * 120);
     this.poseSteps = Math.ceil(this.duration * RATE);
     this.restTarget = new Vector3(...this.shots[0]!.target);
@@ -97,6 +100,13 @@ export class VillageFilmCamera {
     this.shotPoints = this.shots.map((shot, index) => {
       if (index === 0 || index === this.shots.length - 1) return this.allPoints;
       const points = this.route.slice(Math.floor(shot.start / this.duration * this.routeSteps), Math.ceil(shot.end / this.duration * this.routeSteps) + 1);
+      if (timeline.finale && index === this.shots.length-2) {
+        // The final fixed composition holds the whole approach, receiving cradle and bell together.
+        // A conservative sphere around a linkage far from its local origin would include the whole pier twice.
+        const berth = new Box3().setFromPoints(points).expandByScalar(1.85);
+        this.fixedPoses[index]!.target.copy(berth.getCenter(new Vector3()));
+        return corners(berth);
+      }
       for (const contact of this.contacts) if (contact.start - 0.3 <= shot.end && contact.end >= shot.start) points.push(...contact.points);
       return points;
     });
@@ -134,7 +144,7 @@ export class VillageFilmCamera {
     for (let index = 0; index < this.shots.length; index++) {
       const shot = this.fixedPoses[index]!;
       shot.distance = index === 0 || index === this.shots.length - 1 ? this.restDistance
-        : this.fit(shot, this.shotPoints[index]!, this.shots[index]!.radius);
+        : this.fit(shot, this.shotPoints[index]!, index === this.finaleShot ? 14 : this.shots[index]!.radius);
     }
     let followDistance = 0;
     for (let index = 0; index < this.followTargets.length; index++) {
@@ -207,7 +217,7 @@ export class VillageFilmCamera {
       const point=this.route[at]!;this.fittingWindow.expandByPoint(point);
       distance = this.fitPoint(pose,point,distance);
     }
-    this.fittingWindow.expandByScalar(CARGO_MARGIN);
+    this.fittingWindow.expandByScalar(this.cargoMargin);
     for (const contact of this.contacts) if (time >= contact.start - 0.9 && time <= contact.end + 0.6) {
       if(this.framing==='envelope')distance = this.fit(pose,contact.points,distance);
       else {

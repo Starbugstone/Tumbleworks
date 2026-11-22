@@ -1,7 +1,7 @@
 import { QUEUED_LOOP as LOOP_1, CONGESTED_LOOP } from './fixtures';
 import { describe, expect, it } from 'vitest';
 import { LOOP_BOARDS } from '../../src/loop/boards';
-import { bays, bedSpans, DECK_TOP, RoundedTrack, sharePercent, TRUCK } from '../../src/loop/layout';
+import { bays, bedSpans, DECK_TOP, LOOP, MARBLE_RADIUS, RIDE_Y, RoundedTrack, sharePercent, TRUCK } from '../../src/loop/layout';
 import { LoopMachine, type UnitPose } from '../../src/loop/machine';
 import type { LoopBoardDef } from '../../src/loop/types';
 import { LoopRuntime } from '../../src/gameplays/loop';
@@ -45,6 +45,25 @@ describe('the rounded loop track', () => {
 });
 
 describe('the Loop Sort machine agrees with the rules', () => {
+  it('plays delivery and departure feedback on contact with the receiving truck', () => {
+    const machine = new LoopMachine(LOOP_1);
+    let delivered = 0;
+    for (let frame = 0; frame < 3000; frame++) {
+      for (const event of machine.step()) {
+        if (event.type === 'absorb') {
+          expect(machine.rules.state.marbles[event.unit]?.status).toBe('in-truck');
+          delivered++;
+        }
+        if (event.type === 'complete') {
+          expect(delivered).toBe(12);
+          expect(machine.readTrucks().find(truck => truck.lane === event.lane && truck.index === event.truck)?.departing).toBe(true);
+          return;
+        }
+      }
+    }
+    throw new Error('The yellow truck never departed');
+  });
+
   for (const board of LOOP_BOARDS.slice(0, 2)) {
     it(`${board.id}: the introductory exchange never waits for belt capacity`, () => {
       const machine = new LoopMachine(board);
@@ -96,7 +115,7 @@ describe('the Loop Sort machine agrees with the rules', () => {
     expect(machine.readTrucks().find((truck) => truck.lane === 1 && truck.docked)?.finalColor).toBe('yellow');
   });
 
-  it('dispatches above the deck and shrinks away before disappearing', { timeout: 300_000 }, () => {
+  it('dispatches ordinary trucks above the deck and parks only the terminal full cohort', { timeout: 300_000 }, () => {
     for (const board of LOOP_BOARDS) {
       const machine = new LoopMachine(board);
       const taps = [...(LOOP_WITNESSES[board.id] ?? '')].map((letter) => letter.charCodeAt(0) - 65);
@@ -119,7 +138,12 @@ describe('the Loop Sort machine agrees with the rules', () => {
         const lane = taps[next];
         if (lane !== undefined && machine.rules.pending === 0 && !machine.rules.canDrain() && tick % 10 === 0 && machine.tap(lane).ok) next++;
       }
-      expect(finished.size).toBe(board.lanes.reduce((sum, lane) => sum + lane.length, 0));
+      const retained = machine.readTrucks().filter(truck => truck.retained);
+      for (const truck of retained) {
+        expect(truck.visible && !truck.departing && !finished.has(truck.lane + ':' + truck.index)).toBe(true);
+        expect(truck.blocks).toEqual([{ color: truck.finalColor, units: truck.capacity, pouring: false }]);
+      }
+      expect(finished.size + retained.length).toBe(board.lanes.reduce((sum, lane) => sum + lane.length, 0));
     }
   });
 
@@ -132,7 +156,7 @@ describe('the Loop Sort machine agrees with the rules', () => {
     const full = CONGESTED_LOOP;
     expect(full.loop.reduce((sum, entry) => sum + entry.count, 0)).toBe(full.loopCapacity);
     const machine = new LoopMachine(full);
-    const poses: UnitPose[] = Array.from({ length: machine.marblesPerUnit }, () => ({ x: 0, y: 0, z: 0, roll: 0, visible: false }));
+    const poses: UnitPose[] = Array.from({ length: machine.marblesPerUnit }, () => ({ x: 0, y: 0, z: 0, roll: 0, visible: false, flight: 0 }));
     const centres = machine.rules.state.marbles.filter((marble) => marble.status === 'on-loop').map((marble) => {
       machine.readUnit(marble.id, poses);
       const middle = poses[Math.floor(machine.marblesPerUnit / 2)]!;
@@ -267,7 +291,8 @@ describe('the rules and the machine tell the same story', () => {
   it('takes marbles along the mouths in lane order on every oval', () => {
     for (const board of LOOP_BOARDS.filter((candidate) => !candidate.trackShape || candidate.trackShape === 'oval')) {
       const machine = new LoopMachine(board);
-      const mouths = board.lanes.map((_, lane) => machine.track.nearest(machine.bays[lane]!.x, -machine.track.halfDepth).distance);
+      const track = machine.track as RoundedTrack;
+      const mouths = board.lanes.map((_, lane) => track.nearest(machine.bays[lane]!.x, -track.halfDepth).distance);
       expect(mouths).toEqual([...mouths].sort((a, b) => a - b));
     }
   });
@@ -294,4 +319,50 @@ describe('the rules and the machine tell the same story', () => {
       expect(machine.rules.status).toBe('jammed');
     });
   }
+});
+
+describe('marbles ride between the belt walls', () => {
+  // The per-marble wobble is lopsided, so the outer row at negative offsets used to sit 0.52 from the centre line and
+  // sink into its wall: the plateau of an oval, the matching wall of an eight and the rim of a flat belt.
+  it.each(['loop-44', 'loop-98', 'loop-102', 'loop-100'])('%s: both outer rows run close to their wall and clear of it, all the way round', (id) => {
+    const board = LOOP_BOARDS.find((candidate) => candidate.id === id)!;
+    const machine = new LoopMachine(board);
+    const { track } = machine;
+    // The centre line in three dimensions, so the upper and lower pass of an eight are told apart at the crossing.
+    const centre = Array.from({ length: 4000 }, (_, i) => track.point(i / 4000 * track.length));
+    const poses: UnitPose[] = Array.from({ length: machine.marblesPerUnit }, () => ({ x: 0, y: 0, z: 0, roll: 0, visible: false, flight: 0 }));
+    const riding = machine.rules.state.marbles.filter((marble) => marble.status === 'on-loop');
+    expect(riding.length).toBeGreaterThan(3);
+    let negative = 0, positive = 0;
+    for (let tick = 0; tick < 60 * 8; tick++) {
+      machine.step();
+      if (tick % 5) continue;
+      for (const marble of riding) {
+        if (machine.rules.state.marbles[marble.id]!.status !== 'on-loop') continue;
+        machine.readUnit(marble.id, poses);
+        for (const pose of poses) {
+          if (!pose.visible || pose.flight > 0) continue;
+          const nearest = centre.reduce((best, point) => {
+            const gap = Math.hypot(pose.x - point.x, pose.y - RIDE_Y - point.y, pose.z - point.z);
+            return gap < best.gap ? { gap, point } : best;
+          }, { gap: Infinity, point: centre[0]! }).point;
+          const lateral = (pose.x - nearest.x) * nearest.tz - (pose.z - nearest.z) * nearest.tx;
+          negative = Math.min(negative, lateral);
+          positive = Math.max(positive, lateral);
+        }
+      }
+    }
+    const clear = LOOP.channelHalf - MARBLE_RADIUS;
+    expect(-negative).toBeGreaterThan(0.4);
+    expect(-negative).toBeLessThan(clear);
+    expect(positive).toBeGreaterThan(0.4);
+    expect(positive).toBeLessThan(clear);
+  });
+});
+
+it('replays a pre-workshop bug report captured while a Loop marble was landing', () => {
+  const machine = new LoopMachine(LOOP_BOARDS.find(board => board.id === 'loop-44')!);
+  expect(machine.tap(0).ok).toBe(true);
+  for (let tick = 0; tick < 38; tick++) machine.step();
+  expect(machine.fingerprint()).toBe('4da526c1');
 });

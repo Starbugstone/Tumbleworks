@@ -17,8 +17,12 @@ export class LoopRuntime implements GameRuntime {
     this.view = new LoopScene(services.stage);
     this.view.setMachine(this.machine);
   }
+  get still(): boolean { return this.view.restingWin; }
   get game() { return this.machine; }
+  advanceCelebration(seconds: number): void { this.view.advanceCelebration(seconds); }
+  finishCelebration(): void { this.view.finishCelebration(); }
   celebrate(clean = 1): void { this.view.celebrate(clean); }
+  pace(speed: number): void { this.view.pace(speed); }
   get status() { return this.machine.rules.status; }
   get busy() { return this.machine.transferring; }
   get canUndo() { return this.machine.canUndo; }
@@ -27,6 +31,7 @@ export class LoopRuntime implements GameRuntime {
   }
   readonly preview = [];
   readonly previewLabel = '';
+  get jamSummary() { return t('No truck can take a marble', 'Aucun camion ne peut charger'); }
   get jamReason() {
     const wanted = [...new Set(this.board.lanes.map((_, lane) => this.machine.rules.wants(lane)).filter((want): want is Exclude<typeof want, null | 'any'> => want !== null && want !== 'any'))];
     const names = wanted.map((color) => marbleName(color).toLowerCase());
@@ -141,7 +146,7 @@ export class LoopRuntime implements GameRuntime {
   guide() {
     const first = this.machine.rules.front(0);
     const second = this.machine.rules.front(1);
-    if (first && first.segments.length > 1 && !first.unloading.length) return { target: 'lane0', text: t('This cab needs blue diamonds. Tap to unload the red at the open end.', 'Cette cabine demande du bleu à losange. Touchez pour décharger le rouge au bout de la benne.') };
+    if (first && first.segments.length > 1 && !first.unloading.length) return { prompt: t('Tap the truck', 'Touchez le camion'), target: 'lane0', text: t('This cab needs blue diamonds. Tap to unload the red at the open end.', 'Cette cabine demande du bleu à losange. Touchez pour décharger le rouge au bout de la benne.') };
     if (second && second.segments.length > 1 && !second.unloading.length) return { target: 'lane1', text: t('Tap this truck too. It needs red rings, so send its blue onto the belt.', 'Touchez aussi ce camion. Il veut du rouge à anneau : envoyez son bleu sur le tapis.') };
     return { done: !first || !second, text: t('The trucks collect matching marbles automatically. A full truck leaves!', 'Les camions prennent automatiquement leur couleur. Une fois plein, le camion part !') };
   }

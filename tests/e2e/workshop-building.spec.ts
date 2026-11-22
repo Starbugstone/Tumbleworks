@@ -6,26 +6,30 @@ import type { Object3D } from 'three';
 type FilmWorld = { filmTime: number; scene: { workshopPass: number; scene: { getObjectByName(name: string): Object3D | undefined } } };
 type GameWindow = Window & { tumbleworks: { app: App } };
 
-test('the map hammer opens the current village projects and leaves construction targets independent', async ({ page }) => {
+test('the labelled Workshop footer opens the current island projects and keeps Back in reach', async ({ page }) => {
   await page.addInitScript(ids => localStorage.setItem('tumbleworks.progress.v1', JSON.stringify({ completed: ids, muted: true })), CAMPAIGN.slice(0, 30).map(level => level.id));
   await page.goto('/');
   await expect(page.locator('#boot')).toBeHidden({ timeout: 120_000 });
   await expect(page.locator('#journey-transition')).toBeHidden();
-  const hammer = page.locator('[data-world-workshop]');
-  await expect(hammer).toBeVisible(); await expect(hammer).toHaveAccessibleName('Workshop');
+  const workshop = page.locator('[data-world-workshop]');
+  await expect(workshop).toBeVisible(); await expect(workshop).toHaveAccessibleName('Workshop');
   await expect(page.locator('.map-stop')).toHaveCount(10);
-  const box = (await hammer.boundingBox())!;
-  expect(box.width).toBe(44); expect(box.height).toBe(44);
-  await page.touchscreen.tap(box.x + 22, box.y + 22);
+  const box = (await workshop.boundingBox())!;
+  expect(box.width).toBeGreaterThanOrEqual(44); expect(box.height).toBeGreaterThanOrEqual(44);
+  await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
   await expect(page.locator('body')).toHaveAttribute('data-screen', 'workshop');
-  await expect(page.locator('#journey-transition')).toBeHidden(); await expect(hammer).toBeHidden();
+  await expect(page.locator('#journey-transition')).toBeHidden(); await expect(workshop).toBeHidden();
   await expect(page.locator('.wv-project-group[data-chapter="1"] h2')).toBeInViewport();
-  await page.getByRole('button', { name: 'Back to the village' }).tap();
-  await expect(page.locator('#journey-transition')).toBeHidden(); await expect(hammer).toBeVisible();
+  const back = page.getByRole('button', { name: 'Back to the village' });
+  const beforeScroll = (await back.boundingBox())!;
+  await page.locator('.wv-panel').evaluate(panel => { panel.scrollTop = panel.scrollHeight; });
+  expect(await back.boundingBox()).toEqual(beforeScroll);
+  await back.tap();
+  await expect(page.locator('#journey-transition')).toBeHidden(); await expect(workshop).toBeVisible();
   await page.addStyleTag({ content: '#world, #scene { filter: grayscale(1); }' });
   await page.screenshot({ path: 'output/current/world-3d/workshop-hammer-phone-gray.png' });
   await page.locator('.map-stop[data-round="10"]').tap();
-  await expect(page.locator('body')).toHaveAttribute('data-screen', 'game'); await expect(hammer).toBeHidden();
+  await expect(page.locator('body')).toHaveAttribute('data-screen', 'game'); await expect(workshop).toBeHidden();
 });
 
 test('the visible 3D hammer sign responds to the passing marble in both motion modes', async ({ page }) => {
@@ -37,6 +41,7 @@ test('the visible 3D hammer sign responds to the passing marble in both motion m
   for (const reduced of [false, true]) {
     await page.emulateMedia({ reducedMotion: reduced ? 'reduce' : 'no-preference' });
     await page.getByRole('button', { name: 'Watch your machine' }).tap();
+    await expect(page.locator('#scene')).toHaveAttribute('data-world-film', 'ready', { timeout: 30_000 });
     if (reduced) await page.getByRole('button', { name: 'Play film', exact: true }).tap();
     const pass = await page.evaluate(() => ((window as unknown as GameWindow).tumbleworks.app as unknown as { world: FilmWorld }).world.scene.workshopPass);
     const angles: number[] = [];

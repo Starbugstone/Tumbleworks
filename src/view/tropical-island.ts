@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { fuse, tinted } from './arcade';
 import { distanceToPolygon, pointInPolygon, terrainHeightAt, terrainOccupancy, type VillageTerrain } from '../world/village-terrain';
-import { landFaceColour, sunny } from './village-terrain';
+import { landFaceColour, TERRAIN_SURFACE } from './village-terrain';
 
 type Edge = readonly [number, number, number, number, number, number];
 /** Cell edges are shared with the authored terrain; only the unused sea-facing side gains a beach. */
@@ -79,6 +79,14 @@ function mostProud(edges: readonly Edge[], proud: Float64Array, x: number, z: nu
   return most;
 }
 interface Staircase { readonly proud: Float64Array; readonly step: number }
+interface CoastShape { readonly run: number; readonly swell: number; readonly phase: number }
+const inlandCoasts: readonly CoastShape[] = [
+  { run: 3.6, swell: .74, phase: .7 }, // Gardens: a broad bank curls around the terraces.
+  { run: 3.15, swell: .72, phase: 1.9 }, // Mill: low meadow margins on both sides of the river.
+  { run: 3.05, swell: .69, phase: 3.1 }, // Hill: round shingle coves below the stone shoulder.
+  { run: 2.8, swell: .66, phase: 4.3 }, // Bridge: exposed stone above a narrow wave-cut shelf.
+  { run: 2.9, swell: .56, phase: 5.5 }, // Glassworks: wider banks in front of the works, rock behind.
+];
 const staircases = new WeakMap<readonly Edge[], Staircase>();
 /** Per cell edge, how far it stands outside the outline; and the longest step, which bounds a stair's reach. */
 function staircase(edges: readonly Edge[], outside: (x: number, z: number) => number): Staircase {
@@ -94,7 +102,7 @@ function staircase(edges: readonly Edge[], outside: (x: number, z: number) => nu
  * outline leaves the land as a staircase of cells, the beach fills each step flush with the bank, so the
  * coast reads as the drawn line rather than the grid. It is 0 on every cell edge, so the bank stays sealed.
  */
-export function coastSample(edges: readonly Edge[], water: number, x: number, z: number, outline?: readonly (readonly [number, number])[]): { distance: number; shore: number; height: number } {
+export function coastSample(edges: readonly Edge[], water: number, x: number, z: number, outline?: readonly (readonly [number, number])[], shape?: CoastShape): { distance: number; shore: number; height: number; bank: number } {
   const { distance, bank } = nearestEdge(edges, x, z);
   let shore = distance;
   if (outline && edges.length) {
@@ -104,9 +112,14 @@ export function coastSample(edges: readonly Edge[], water: number, x: number, z:
     const { proud, step } = staircase(edges, outside);
     shore = Math.min(distance, Math.max(0, outside(x, z) - mostProud(edges, proud, x, z, distance + Math.SQRT2 * step)));
   }
-  const width = 2.8 + .55 * Math.sin(x * .47 + z * .29) + .35 * Math.cos(z * .71 - x * .23);
-  const fall = THREE.MathUtils.smoothstep(shore / width, 0, 1);
-  return { distance, shore, height: bank + (water - .35 - bank) * fall };
+  const width = shape
+    ? shape.run + shape.swell * Math.sin(x * .33 + z * .23 + shape.phase) + .37 * Math.cos(z * .57 - x * .28)
+    : 2.8 + .55 * Math.sin(x * .47 + z * .29) + .35 * Math.cos(z * .71 - x * .23);
+  // Let the bank start to turn down before the edge of a coarse terrace's outermost grid step.
+  if (shape) shore = .7 * shore + .3 * distance;
+  const u = THREE.MathUtils.clamp(shore / width, 0, 1);
+  const fall = shape ? u * u * (2.5 - 1.5 * u) : THREE.MathUtils.smoothstep(u, 0, 1);
+  return { distance, shore, height: bank + (water - .35 - bank) * fall, bank };
 }
 
 /**
@@ -162,6 +175,7 @@ type ShoreSample = { distance: number; shore: number; height: number; land?: num
 interface Shore {
   /** The terrain cells it may occupy. */
   readonly host: 'void' | 'water';
+  readonly surface?: typeof TERRAIN_SURFACE[keyof typeof TERRAIN_SURFACE];
   /** Whether a candidate cell at this centre gets dressing at all. */
   accepts(x: number, z: number, sample: ShoreSample): boolean;
   /** Cells that must stay open water: they lie on the sea floor and their neighbours slope down to them. */
@@ -277,26 +291,45 @@ function shoreSurface(t: VillageTerrain, protectedBounds: readonly THREE.Box3[],
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
   geometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
-  const smooth=mergeVertices(geometry);geometry.dispose();smooth.computeVertexNormals();smooth.computeBoundingBox();return smooth;
+  const smooth=mergeVertices(geometry);geometry.dispose();smooth.computeVertexNormals();smooth.computeBoundingBox();
+  const surface = new Uint8Array(smooth.getAttribute('position').count).fill(shore.surface ?? TERRAIN_SURFACE.bank);
+  smooth.setAttribute('terrainSurface', new THREE.BufferAttribute(surface, 1));
+  return smooth;
 }
 
 /** No beach is allowed inside an inlet or any protected swept structure bounds. */
-export function tropicalCoast(t: VillageTerrain, protectedBounds: readonly THREE.Box3[]): THREE.BufferGeometry {
-  const edges = coastalEdges(t), grass = new THREE.Color(0x60a95c), sand = new THREE.Color(0xf6dfac), wet = new THREE.Color(0xc6bd8a);
+export function tropicalCoast(t: VillageTerrain, protectedBounds: readonly THREE.Box3[], cinematicChapter?: number): THREE.BufferGeometry {
+  const edges = coastalEdges(t);
+  const grass = new THREE.Color(t.spec.palette.grass);
+  const sand = new THREE.Color(t.spec.palette.shore).lerp(new THREE.Color(0xf6dfac), .30);
+  const wet = sand.clone().multiplyScalar(.73);
+  const stone = new THREE.Color(t.spec.palette.rock);
+  const shape = cinematicChapter ? inlandCoasts[cinematicChapter - 1] : undefined;
   return shoreSurface(t, protectedBounds, {
     host: 'void',
-    accepts: (_x, _z, sample) => sample.distance <= 3.5,
+    accepts: (_x, _z, sample) => shape ? sample.shore < shape.run + shape.swell + .55 : sample.distance <= (t.spec.beachWidth ? .75 : 3.5),
     // Inlet mouths stay open water.
     sinks: (x, z) => t.spec.features.some(f => f.kind === 'hole' && distanceToPolygon(f.polygon,x,z) < 1.1),
-    coarse: sample => sample.distance >= .8,
-    sample: (x, z) => coastSample(edges, t.spec.water, x, z, t.spec.outline),
+    coarse: sample => sample.distance >= (t.spec.beachWidth || shape ? .45 : .8),
+    sample: (x, z) => coastSample(edges, t.spec.water, x, z, t.spec.outline, shape),
     paint(p, sample, floor, color) {
       const d=sample.shore,y0=sample.height;
       // Grass belongs to the bank's top; the sides of a dip are sand, never green slabs over the water.
       const kept=y0>floor?THREE.MathUtils.smoothstep((p.y-floor)/(y0-floor),.55,.95):1;
       color.copy(sand).lerp(grass,(1-THREE.MathUtils.smoothstep(d,.05,1.4))*kept);
+      if (shape) {
+        const rise = (sample.bank ?? y0) - t.spec.water;
+        const shelf = p.y - t.spec.water;
+        const stoneBand = THREE.MathUtils.smoothstep(rise, 1.25, 2.7)
+          * THREE.MathUtils.smoothstep(shelf, .23, 1.25)
+          * THREE.MathUtils.smoothstep(d, .18, 1.0);
+        color.lerp(stone, stoneBand);
+      }
       color.lerp(wet,(1-THREE.MathUtils.smoothstep(p.y-t.spec.water,0,.35))*.4);
     },
+    // The surveyed Garden terrace grid is only 18×14. Its narrow coastal mesh needs its own sampling.
+    subdivide: shape && cinematicChapter === 1 ? 2 : 1,
+    submergedDrop: !!shape,
   });
 }
 
@@ -318,15 +351,53 @@ function bankEdges(t: VillageTerrain): { edges: Edge[]; cells: number[] } {
   }
   return { edges, cells };
 }
+
+/** Blend perpendicular wall shoulders only near corners of the irrigation basin. */
+function basinShoulder(edges: readonly Edge[], edge: number, distance: number, x: number, z: number): number {
+  const radius = .82;
+  if (distance < 1e-6 || distance > 1.1) return distance;
+  const vertical = (e: Edge) => e[0] === e[3];
+  const side = vertical(edges[edge]!);
+  let other = Infinity;
+  indexOf(edges).near(x, z, distance + radius, i => {
+    const candidate = edges[i]!;
+    if (vertical(candidate) !== side) other = Math.min(other, edgeDistance(candidate, x, z).d);
+  });
+  const overlap = Math.max(0, radius - (other - distance));
+  return Math.max(0, distance - overlap * overlap / (4 * radius));
+}
+
+/** Keep each native bank seam exact and give its new shoulder a continuous crest between grid steps. */
+function millCrest(edges: readonly Edge[], nearest: { distance: number; bank: number }, x: number, z: number): number {
+  const { distance, bank } = nearest;
+  if (distance < 1e-6) return bank;
+  const reach = distance + .68;
+  let total = 0, weights = 0;
+  indexOf(edges).near(x, z, reach, i => {
+    const edge = edges[i]!;
+    const { d, u } = edgeDistance(edge, x, z);
+    if (d >= reach) return;
+    const weight = (1 - d / reach) ** 2 / (d * d);
+    total += (edge[1] + (edge[4] - edge[1]) * u) * weight;
+    weights += weight;
+  });
+  return weights ? total / weights : bank;
+}
 /**
  * Where a river or inlet is drawn at an angle across the grid, its banks are staircases of little cliffs.
  * A bank dressing in the water cells fills every step flush with the land, out to the staircase's outermost
  * corner, then falls steeply under the water, so the bank follows the drawn line and the river keeps its
  * width. Banks drawn along the grid keep their plain cliff. Land, physics and supports are untouched.
  */
-export function riverBanks(t: VillageTerrain, protectedBounds: readonly THREE.Box3[]): THREE.BufferGeometry | null {
+export function riverBanks(t: VillageTerrain, protectedBounds: readonly THREE.Box3[], cinematicChapter?: number): THREE.BufferGeometry | null {
   const { edges, cells } = bankEdges(t), holes = t.spec.features.flatMap(f => f.kind === 'hole' ? [f.polygon] : []);
   if (!edges.length || !holes.length) return null;
+  const garden = cinematicChapter === 1;
+  const mill = cinematicChapter === 2;
+  const rounded = garden || mill;
+  // A mixed land/water cell edge can extend at most half a grid diagonal into the surveyed river.
+  // A single allowance keeps the wetted edge parallel to the authored river through the stair steps.
+  const millRim = Math.hypot(t.cellWidth, t.cellDepth) / 2;
   const floor = t.spec.water - .35, inWater = (x: number, z: number) => Math.max(0, ...holes.map(h => pointInPolygon(h, x, z) ? distanceToPolygon(h, x, z) : 0));
   const { proud, step } = staircase(edges, inWater);
   /** The drawn bank nearest a point runs at an angle across the grid. */
@@ -339,18 +410,26 @@ export function riverBanks(t: VillageTerrain, protectedBounds: readonly THREE.Bo
     }
     return slant;
   };
-  // The face never takes more than BANK_RUN of the river: a high bank stands steeper rather than wider.
-  const drop = (bank: number) => Math.min(BANK_RUN, 1.5 * Math.max(0, bank - floor) / BANK_SLOPE);
-  const reach = Math.max(...edges.map((e, i) => proud[i]! + drop(Math.max(e[1], e[4])))) + Math.SQRT2 * step;
-  const rock = sunny(t.spec.palette.rock, new THREE.Color()), top = new THREE.Color(), wet = new THREE.Color(0xe4dcb4);
+  // A high bank stands steeper rather than filling the river. The Garden's broad pool leaves more room for its shoulder.
+  const drop = (bank: number) => rounded
+    ? Math.min(.80, (mill ? .43 : .29) + .16 * Math.max(0, bank - floor))
+    : Math.min(BANK_RUN, 1.5 * Math.max(0, bank - floor) / BANK_SLOPE);
+  const subdivide = garden ? 3 : 2;
+  const reach = Math.max(...edges.map((e, i) => (garden ? 0 : proud[i]!) + drop(Math.max(e[1], e[4]))))
+    + Math.SQRT2 * step / (garden ? subdivide : 1);
+  const rock = new THREE.Color(t.spec.palette.rock), grass = new THREE.Color(t.spec.palette.grass), top = new THREE.Color(), wet = new THREE.Color(0xc9b99a);
   const geometry = shoreSurface(t, protectedBounds, {
     host: 'water',
-    // A high cliff keeps its own wall: a near-vertical face over metres of rock shades as streaks.
-    accepts: (x, z, sample) => sample.distance <= reach && (sample.bank ?? floor) - t.spec.water <= BANK_HIGHEST && slanted(x, z),
+    surface: garden ? TERRAIN_SURFACE.basin : TERRAIN_SURFACE.bank,
+    accepts: (x, z, sample) => sample.distance <= reach && (rounded || (sample.bank ?? floor) - t.spec.water <= BANK_HIGHEST && slanted(x, z)),
     sample(x, z) {
-      const { distance, bank, edge } = nearestEdge(edges, x, z), land = cells[edge] ?? -1;
-      const most = mostProud(edges, proud, x, z, distance + Math.SQRT2 * step);
-      const shore = Math.min(distance, Math.max(0, inWater(x, z) - most)), width = drop(bank);
+      const nearest = nearestEdge(edges, x, z);
+      const { distance, edge } = nearest, land = cells[edge] ?? -1;
+      const bank = mill ? millCrest(edges, nearest, x, z) : nearest.bank;
+      // The assembled pool is a union of adjoining cuts. Only its real land edges can contribute a bank.
+      const shore = garden ? basinShoulder(edges, edge, distance, x, z)
+        : Math.min(distance, Math.max(0, inWater(x, z) - (mill ? millRim : mostProud(edges, proud, x, z, distance + Math.SQRT2 * step))));
+      const width = drop(bank);
       const height = width > 0 ? bank + (floor - bank) * THREE.MathUtils.smoothstep(shore / width, 0, 1) : floor;
       return { distance, shore, height, land, bank };
     },
@@ -358,8 +437,8 @@ export function riverBanks(t: VillageTerrain, protectedBounds: readonly THREE.Bo
     // so both run as clean lines instead of a row of little teeth.
     snap(x, z, sample, reach) {
       const depth = inWater(x, z);
-      if (depth <= 0 || sample.shore >= sample.distance) return undefined;
-      const most = mostProud(edges, proud, x, z, sample.distance + Math.SQRT2 * step), f = depth - most;
+      if (garden || depth <= 0 || sample.shore >= sample.distance) return undefined;
+      const most = mill ? millRim : mostProud(edges, proud, x, z, sample.distance + Math.SQRT2 * step), f = depth - most;
       let best = Infinity, px = 0, pz = 0;
       for (const h of holes) for (let i = 0; i < h.length; i++) {
         const a = h[i]!, b = h[(i + 1) % h.length]!, dx = b[0] - a[0], dz = b[1] - a[1];
@@ -367,14 +446,22 @@ export function riverBanks(t: VillageTerrain, protectedBounds: readonly THREE.Bo
         if (d < best) { best = d; px = qx; pz = qz; }
       }
       if (!(best > 1e-9)) return undefined;
-      const moves = [0, drop(sample.bank ?? floor)].map(target => target - f).filter(move => Math.abs(move) < reach);
+      const bank = sample.bank ?? floor, width = drop(bank);
+      const contours = [0, width];
+      if (mill && bank > t.spec.water) {
+        const submerged = (bank - t.spec.water) / (bank - floor);
+        contours.push(width * (.5 - Math.sin(Math.asin(1 - 2 * submerged) / 3)));
+      }
+      const moves = contours.map(target => target - f).filter(move => Math.abs(move) < reach);
       if (!moves.length) return undefined;
       const move = moves.reduce((m, n) => Math.abs(n) < Math.abs(m) ? n : m);
       return [x + (x - px) / best * move, z + (z - pz) / best * move];
     },
     paint(p, sample, floor, color) {
       const bank = sample.bank ?? floor, land = sample.land ?? -1;
-      if (land >= 0) landFaceColour(t, land % t.columns, Math.floor(land / t.columns), top); else top.copy(rock);
+      if (mill) top.copy(grass);
+      else if (land >= 0) landFaceColour(t, land % t.columns, Math.floor(land / t.columns), top);
+      else top.copy(rock);
       // The flush top continues the land beside it; the steep face below is the cliff's own rock.
       const ratio = bank > floor ? (p.y - floor) / (bank - floor) : 0;
       color.copy(rock).lerp(top, THREE.MathUtils.smoothstep(ratio, .8, .97));
@@ -385,7 +472,7 @@ export function riverBanks(t: VillageTerrain, protectedBounds: readonly THREE.Bo
     },
     // A bank ends at the river mouth as a cliff, like the land beside it, not as a ramp.
     endSlope: 8,
-    subdivide: 2,
+    subdivide,
     submergedDrop: true,
   });
   if (!geometry.getAttribute('position').count) { geometry.dispose(); return null; }

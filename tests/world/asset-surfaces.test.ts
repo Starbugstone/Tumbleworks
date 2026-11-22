@@ -19,7 +19,7 @@ function overlaps(group: THREE.Object3D) {
   }));
 }
 
-for (const model of ['house-a', 'house-b', 'tree-a', 'mill', 'clock', 'greenhouse', 'bridge', 'boat', 'glassworks',
+for (const model of ['house-a', 'house-b', 'harbour-beacon', 'tree-a', 'mill', 'clock', 'greenhouse', 'bridge', 'boat', 'glassworks',
   'mechanism-wheel', 'mechanism-seesaw', 'mechanism-channel', 'mechanism-funnel', 'mechanism-gear', 'warehouse', 'willow']) {
   it(`${model}: authored faces do not expose the same surface twice, including same-colour joints`, () => {
     const assets = kit(), material = new THREE.MeshBasicMaterial();

@@ -8,8 +8,8 @@ type GameWindow = Window & { tumbleworks: { app: App } };
 for (const level of ['board-1', 'loop-1', 'tube-1']) {
   test(`${level}: the puzzle and picker cancel Safari gesture events`, async ({ page }) => {
     await page.goto(`/?try=${level}`);
+    await page.locator('#boot').waitFor({ state: 'hidden' });
     await expect(page.locator('body')).toHaveAttribute('data-screen', 'game');
-    await expect(page.locator('#boot')).toBeHidden();
     await page.evaluate(() => { (window as unknown as GameWindow).tumbleworks.app.manualClock = true; });
 
     const gestures = async (selector: string) => page.locator(selector).evaluate((element) =>

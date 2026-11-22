@@ -14,6 +14,8 @@ function site(files: Record<string, number>, page = '<script src="/assets/index.
   const root = mkdtempSync(join(tmpdir(), 'tumbleworks-budget-'));
   made.push(root);
   mkdirSync(join(root, 'assets'));
+  writeFileSync(join(root, 'village-shell.js'), '');
+  writeFileSync(join(root, 'village-themes.json'), '[{}]');
   writeFileSync(join(root, 'index.html'), page);
   writeFileSync(join(root, 'assets/static-proof.worker-fixture.js'), 'self.onmessage=()=>{};');
   for (const [name, size] of Object.entries(files)) writeFileSync(join(root, 'assets', name), randomBytes(size));
@@ -34,6 +36,20 @@ describe('the first-download budget', () => {
   it('counts the Latin font but not the ones the game never shows', () => {
     expect(check(site({ 'index.js': 60_000, 'fredoka-latin-500-normal-abc.woff2': 60_000 })).status).toBe(1);
     expect(check(site({ 'index.js': 60_000, 'fredoka-hebrew-500-normal-abc.woff2': 60_000, 'fredoka-latin-ext-500-normal-abc.woff2': 60_000 })).status).toBe(0);
+  });
+  it('counts the game bundle deferred by the cold demo menu', () => {
+    expect(check(site({ 'index.js': 10_000, 'main-dynamic.js': 95_000 })).status).toBe(1);
+  });
+  it('counts the chosen island poster and its launcher thumbnails once', () => {
+    const root = site({ 'index.js': 40_000 });
+    writeFileSync(join(root, 'poster.webp'), randomBytes(30_000));
+    writeFileSync(join(root, 'tile.webp'), randomBytes(35_000));
+    writeFileSync(join(root, 'village-themes.json'), JSON.stringify([
+      { print: 'poster.webp', demo: [{ image: 'tile.webp' }, { image: 'tile.webp' }] },
+      { print: 'poster.webp' },
+    ]));
+    expect(check(root).status).toBe(1);
+    expect(check(root, '115000').status).toBe(0);
   });
   it('counts any WASM file', () => {
     expect(check(site({ 'index.js': 60_000, 'physics.wasm': 60_000 })).status).toBe(1);

@@ -3,13 +3,13 @@ import { fingerprintOf, type Replayable, type ReplayAction } from '../engine/rep
 import { LoopRules, type LoopEvent, type TapResult } from './rules';
 import type { LoopBoardDef } from './types';
 import type { Color } from '../sim/types';
-import { type Bay, bays, DECK_TOP, LIFT_OFF, LOOP, RIDE_Y, ROW_PITCH, ROW_WIDTH, sharePercent, STREAM, TICK_SECONDS, trackFor, TRUCK, unitLength } from './layout';
+import { type Bay, bays, CrownTrack, DECK_TOP, LIFT_OFF, LOOP, RIDE_Y, ROW_PITCH, ROW_REACH, ROW_WIDTH, sharePercent, STREAM, TICK_SECONDS, trackFor, TRUCK, TUB, MARBLE_RADIUS, unitLength } from './layout';
 
 export type LoopMachineEvent =
   | { readonly type: 'pour'; readonly lane: number; readonly color: Color }
   | { readonly type: 'enter'; readonly unit: number }
-  | { readonly type: 'absorb'; readonly unit: number; readonly lane: number; readonly fill: number }
-  | { readonly type: 'complete'; readonly lane: number; readonly color: Color }
+  | { readonly type: 'absorb'; readonly unit: number; readonly truck: number; readonly lane: number; readonly fill: number }
+  | { readonly type: 'complete'; readonly truck: number; readonly lane: number; readonly color: Color }
   | { readonly type: 'gone'; readonly lane: number; readonly truck: number }
   | { readonly type: 'won' }
   | { readonly type: 'jammed' };
@@ -27,6 +27,7 @@ interface UnitControl {
   fromX: number;
   fromY: number;
   fromZ: number;
+  reservedFill?: number;
   /** Per-marble wobble, so three abreast never look like a grid. */
   readonly jitter: readonly number[];
   lane: number;
@@ -60,7 +61,8 @@ interface Control {
 
 interface Saved { readonly rules: ReturnType<LoopRules['snapshot']>; readonly control: Control }
 
-export interface UnitPose { x: number; y: number; z: number; roll: number; visible: boolean }
+/** `flight` runs from 0 to 1 while a marble is thrown from the loop into its truck, and is 0 at every other time. */
+export interface UnitPose { x: number; y: number; z: number; roll: number; visible: boolean; flight: number }
 
 /** A truck's bed as whole percentages of its capacity: colours from the loop end back, then what is free. */
 export interface TruckLoad { readonly shares: readonly { readonly color: Color; readonly percent: number }[]; readonly freePercent: number }
@@ -81,8 +83,12 @@ export class LoopMachine implements Replayable {
   readonly actions: ReplayAction[] = [];
   steps = 0;
   private readonly events: LoopMachineEvent[] = [];
+  /** Winning trucks are still drawn in their bays after their normal dispatch has completed. */
+  private readonly retained = new Map<number, number>();
   private readonly mouthDistance: number[];
   private readonly mouthZs: number[];
+  /** Where each lane's leaving lorry has shrunk away: the far rim of the last belt it passes over. */
+  private readonly exitZs: number[];
 
   constructor(readonly board: LoopBoardDef) {
     this.rules = new LoopRules(board);
@@ -93,8 +99,14 @@ export class LoopMachine implements Replayable {
     this.marblesPerUnit = this.rowsPerUnit * ROW_WIDTH;
     // Mouths open on the back straight of an oval, whose travel runs from lane 0 up, the order the rules take marbles
     // in. An eight lies above its columns, so they open on its near edge, where the lower pass wins the crossing.
-    const eight = board.trackShape !== undefined && board.trackShape !== 'oval';
-    this.mouthDistance = this.bays.map((bay) => this.track.nearest(bay.x, eight ? this.track.halfDepth + 3 : -this.track.halfDepth).distance);
+    // A delta and a kidney lie above them too, and open on their one straight, which also runs from lane 0 up.
+    const { track } = this;
+    const eight = board.trackShape === 'eight' || board.trackShape === 'wide-eight';
+    this.mouthDistance = this.bays.map((bay) => track.nearest(bay.x,
+      track instanceof CrownTrack ? track.mouthLine : eight ? track.halfDepth + 3 : -track.halfDepth).distance);
+    this.exitZs = this.bays.map((bay) => track instanceof CrownTrack
+      ? track.farZ(bay.x) - LOOP.channelHalf - LOOP.wallThickness
+      : -(track.halfDepth + LOOP.channelHalf + LOOP.wallThickness));
     this.mouthZs = this.mouthDistance.map((distance) => this.track.point(distance).z + TRUCK.mouthGap);
     const units: UnitControl[] = this.rules.state.marbles.map((marble) => ({
       id: marble.id, color: marble.color, phase: marble.status === 'on-loop' ? 'riding' : 'truck', slot: -1, offset: 0, time: 0, fromX: 0, fromY: 0, fromZ: 0,
@@ -126,7 +138,7 @@ export class LoopMachine implements Replayable {
   facing(_lane: number): number { return -1; }
 
   /** A truck's bed, front (loop end) first, as colour blocks in rules units, plus its position. */
-  readTrucks(): { lane: number; index: number; x: number; y: number; z: number; scale: number; visible: boolean; docked: boolean; departing: boolean; capacity: number; bedLength: number; latchColor: Color | null; latchLane: number | null; coupledWith: string | null; finalColor: Color; unloading: 'pouring' | 'waiting' | null;
+  readTrucks(): { lane: number; index: number; x: number; y: number; z: number; scale: number; visible: boolean; docked: boolean; departing: boolean; retained: boolean; capacity: number; bedLength: number; latchColor: Color | null; latchLane: number | null; coupledWith: string | null; finalColor: Color; unloading: 'pouring' | 'waiting' | null;
     /** Its place in the lane's waiting line, 0 next; null once it has left the line. */
     queueSlot: number | null;
     blocks: { color: Color; units: number; pouring: boolean }[] }[] {
@@ -151,10 +163,15 @@ export class LoopMachine implements Replayable {
         const own = this.control.units.filter((unit) => this.rules.state.marbles[unit.id]?.truck === truck.index && this.rules.state.marbles[unit.id]?.lane === truck.lane && unit.phase !== 'flying');
         if (own.length) blocks.push({ color: own[0]!.color, units: own.length, pouring: false });
       }
-      return { lane: truck.lane, index: truck.index, x: this.bays[truck.lane]!.x, y: truck.y, z: truck.z, scale: truck.scale,
-        visible: truck.phase !== 'gone' && truck.phase !== 'queued', docked: truck.phase === 'docked',
-        departing: truck.phase === 'leaving', queueSlot,
-        capacity: this.capacity(truck.lane, truck.index), bedLength: this.bedLength(truck.lane, truck.index),
+      const retained = this.retained.get(truck.lane) === truck.index;
+      const bedLength = this.bedLength(truck.lane, truck.index);
+      return { lane: truck.lane, index: truck.index, x: this.bays[truck.lane]!.x,
+        y: retained ? DECK_TOP : truck.y,
+        z: retained ? this.mouthZ(truck.lane) - this.facing(truck.lane) * bedLength / 2 : truck.z,
+        scale: retained ? 1 : truck.scale,
+        visible: retained || (truck.phase !== 'gone' && truck.phase !== 'queued'), docked: truck.phase === 'docked',
+        departing: !retained && truck.phase === 'leaving', retained, queueSlot,
+        capacity: this.capacity(truck.lane, truck.index), bedLength,
         latchColor: prerequisite?.color ?? null, latchLane: prerequisite?.lane ?? null,
         coupledWith: state?.coupledWith ?? null,
         unloading: state?.unloading.length ? (this.rules.free === 0 ? 'waiting' : 'pouring') : null,
@@ -171,18 +188,33 @@ export class LoopMachine implements Replayable {
     };
   }
 
+  /** The open end of the actual growing block. A short bed and a long bed use the same cargo unit length. */
+  intakeSeat(lane: number, truck: number, fill: number): { x: number; y: number; z: number } {
+    const empty = this.capacity(lane, truck) - fill;
+    const clearance = MARBLE_RADIUS + .025;
+    const inside = Math.min(this.bedLength(lane, truck) - clearance, Math.max(clearance, (empty + .5) * this.unitLength));
+    return { x: this.bays[lane]!.x, y: DECK_TOP + TRUCK.bedHeight + TUB.cargo + MARBLE_RADIUS,
+      z: this.mouthZ(lane) - this.facing(lane) * inside };
+  }
+
   /** World poses of every drawn marble of a unit: rows of three along its stretch of the loop. */
   readUnit(id: number, into: UnitPose[]): void {
     const unit = this.control.units[id];
     if (!unit) return;
+    const truck = this.rules.state.marbles[id]!.truck;
+    const seat = unit.phase === 'flying' ? this.intakeSeat(unit.lane, truck!, unit.reservedFill!) : null;
+    // Three abreast on the belt, two abreast at the narrow tail: the middle bead takes a staggered seat.
+    const middleOffset = seat && seat.z - this.mouthZ(unit.lane) + .31 >
+      this.bedLength(unit.lane, truck!) - MARBLE_RADIUS ? -.31 : .31;
     for (let k = 0; k < this.marblesPerUnit; k++) {
       const pose = into[k];
       if (!pose) continue;
       pose.visible = unit.phase !== 'truck' && unit.phase !== 'landed';
+      pose.flight = 0;
       if (!pose.visible) continue;
       const across = k % ROW_WIDTH;
       const rowIndex = Math.floor(k / ROW_WIDTH);
-      const row = (across - (ROW_WIDTH - 1) / 2) * LOOP.rowOffset + (unit.jitter[k]! - 0.5) * 0.08;
+      const row = Math.max(-ROW_REACH, Math.min(ROW_REACH, (across - (ROW_WIDTH - 1) / 2) * LOOP.rowOffset + (unit.jitter[k]! - 0.5) * 0.08));
       const along = (rowIndex - (this.rowsPerUnit - 1) / 2) * (this.unitSpacing / this.rowsPerUnit) + (unit.jitter[k + this.marblesPerUnit]! - 0.5) * 0.1;
       const distance = this.control.belt + unit.offset + along;
       const point = this.track.point(distance, row);
@@ -199,11 +231,24 @@ export class LoopMachine implements Replayable {
         pose.y = mouthY + (RIDE_Y + point.y - mouthY) * t * t + sin(t * Math.PI) * 0.25;
         pose.z = mouthZ + (point.z - mouthZ) * t;
       } else {
+        // Clear the belt wall and cross the real tail roller, then fan the rows into their reserved cargo edge.
         const t = Math.max(0, Math.min((unit.time / STREAM.absorbSeconds - stagger) / (1 - stagger), 1));
-        const fromX = unit.fromX + (across - 1) * 0.26;
-        pose.x = fromX + (mouthX - fromX) * t;
-        pose.y = unit.fromY + (mouthY - unit.fromY) * t + sin(t * Math.PI) * 0.35;
-        pose.z = unit.fromZ + (mouthZ - unit.fromZ) * t;
+        const from = this.track.point(distance - LOOP.speed * unit.time, row);
+        const rollerX = seat!.x + (across - 1) * .18;
+        const staggerZ = across === 1 ? middleOffset : 0;
+        const rollerZ = mouthZ - .045 + staggerZ, rollerY = DECK_TOP + TRUCK.bedHeight + .11 + MARBLE_RADIUS;
+        if (t < .55) {
+          const u = t / .55, across = u * u * (3 - 2 * u);
+          pose.x = from.x + (rollerX - from.x) * across;
+          pose.z = from.z + (rollerZ - from.z) * across;
+          pose.y = RIDE_Y + from.y + (rollerY - RIDE_Y - from.y) * u * (2 - u) + .32 * sin(Math.PI * u);
+        } else {
+          const u = (t - .55) / .45, roll = u * (2 - u);
+          pose.x = rollerX;
+          pose.z = rollerZ + (seat!.z + staggerZ - rollerZ) * roll;
+          pose.y = rollerY + (seat!.y - rollerY) * roll + .19 * sin(Math.PI * u);
+        }
+        pose.flight = t;
       }
     }
   }
@@ -222,6 +267,7 @@ export class LoopMachine implements Replayable {
     if (!this.canUndo) return false;
     const saved = this.history.pop();
     if (!saved) return false;
+    this.retained.clear();
     this.rules.restore(saved.rules);
     this.control = structuredClone(saved.control);
     this.events.length = 0;
@@ -235,7 +281,9 @@ export class LoopMachine implements Replayable {
   }
 
   fingerprint(): string {
-    return fingerprintOf(JSON.stringify(this.rules.state), JSON.stringify(this.control));
+    // The reserved seat only controls the drawn arrival. Older replay logs hash the same simulation without it.
+    const control = JSON.stringify(this.control, (key, value: unknown) => key === 'reservedFill' ? undefined : value);
+    return fingerprintOf(JSON.stringify(this.rules.state), control);
   }
 
   step(): LoopMachineEvent[] {
@@ -246,6 +294,11 @@ export class LoopMachine implements Replayable {
     this.stream();
     for (const unit of control.units) this.updateUnit(unit);
     this.updateTrucks();
+    // Rules can win at reservation. Only the final dispatch tick has no later physical arrival in any bay.
+    if (this.rules.status === 'won' && !this.retained.size &&
+        control.trucks.every(truck => truck.phase === 'leaving' || truck.phase === 'gone')) {
+      for (const event of this.events) if (event.type === 'complete') this.retained.set(event.lane, event.truck);
+    }
     if (this.rules.status !== 'playing' && !control.endingReported) {
       control.endingReported = true;
       this.events.push(this.rules.status === 'won' ? { type: 'won' } : { type: 'jammed' });
@@ -299,6 +352,8 @@ export class LoopMachine implements Replayable {
       if (unit.time >= STREAM.absorbSeconds) {
         unit.phase = 'landed';
         this.rules.captured(unit.id);
+        this.events.push({ type: 'absorb', unit: unit.id, lane: unit.lane, truck: this.rules.state.marbles[unit.id]!.truck!, fill: unit.reservedFill! });
+        delete unit.reservedFill;
       }
       return;
     }
@@ -315,7 +370,7 @@ export class LoopMachine implements Replayable {
       unit.time = 0;
       unit.lane = lane;
       unit.fromX = point.x; unit.fromY = RIDE_Y + point.y; unit.fromZ = point.z;
-      this.events.push({ type: 'absorb', unit: unit.id, lane, fill: result.fill });
+      unit.reservedFill = result.fill;
       for (const event of result.events) this.afterRulesEvent(event);
       return;
     }
@@ -325,7 +380,6 @@ export class LoopMachine implements Replayable {
     if (event.type !== 'complete') return;
     const truck = this.control.trucks.find((candidate) => candidate.lane === event.lane && candidate.index === event.truck);
     if (truck) truck.complete = true;
-    this.events.push({ type: 'complete', lane: event.lane, color: event.color });
   }
 
   /** Bed centre for a lane's docked truck; a leaving truck lifts away over the belt; a new one rises into place. */
@@ -333,7 +387,7 @@ export class LoopMachine implements Replayable {
     const facing = this.facing(truck.lane);
     const docked = this.mouthZ(truck.lane) - facing * this.bedLength(truck.lane, truck.index) / 2;
     if (truck.phase === 'docked' || truck.phase === 'arriving') return { z: docked, y: DECK_TOP, scale: 1 };
-    if (truck.phase === 'leaving') return { z: -(this.track.halfDepth + LOOP.channelHalf + LOOP.wallThickness), y: DECK_TOP, scale: 0 };
+    if (truck.phase === 'leaving') return { z: this.exitZs[truck.lane]!, y: DECK_TOP, scale: 0 };
     return { z: docked, y: DECK_TOP - 1.4, scale: 0.3 };
   }
 
@@ -342,7 +396,11 @@ export class LoopMachine implements Replayable {
       const docked = this.control.trucks.find((truck) => truck.lane === lane && truck.phase === 'docked');
       if (docked?.complete) {
         const landing = this.control.units.some((unit) => unit.phase === 'flying' && unit.lane === lane);
-        if (!landing) this.startMotion(docked, 'leaving', TRUCK.leaveSeconds);
+        if (!landing) {
+          const color = this.board.lanes[lane]![docked.index]!.segments.at(-1)!.color;
+          this.events.push({ type: 'complete', lane, truck: docked.index, color });
+          this.startMotion(docked, 'leaving', TRUCK.leaveSeconds);
+        }
       }
       if (!this.control.trucks.some((truck) => truck.lane === lane && (truck.phase === 'docked' || truck.phase === 'arriving'))) {
         const next = this.control.trucks.find((truck) => truck.lane === lane && truck.phase === 'queued');

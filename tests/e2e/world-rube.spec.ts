@@ -1,3 +1,4 @@
+import { STOPS_PER_CHAPTER, LEVELS_PER_STOP } from '../../src/world/progression';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 import { CAMPAIGN } from '../../src/campaign';
@@ -31,7 +32,11 @@ async function snapshot(page: Page) {
     }
     let actorPoint: number[] | null = null;
     if (actor) actorPoint = actor.mesh.getWorldPosition(actor.mesh.position.clone()).project(scene.camera).toArray();
-    return { chapter: scene.chapter, time: world.filmTime, contacts, shots: scene.filmShots, duration: probe.machine.route.duration,
+    const stations = probe.machine.route.authoredPlan.stations.map(station => ({
+      stop: station.stop, releasePin: Boolean(station.releasePin), retained: Boolean(station.retention),
+    }));
+    return { chapter: scene.chapter, time: world.filmTime, contacts, stations, sourceRelease: probe.machine.route.handoff.causeTime,
+      shots: scene.filmShots, duration: probe.machine.route.duration,
       transfers: probe.machine.route.transfers, motionStatus: probe.machine.route.motionStatus, transforms,
       actorPosition: actor?.mesh.position.toArray() ?? null, actorVisible: actor?.mesh.visible ?? false, actorPoint,
       entities: app.stage.marbles.count,
@@ -44,7 +49,7 @@ type Snapshot = Awaited<ReturnType<typeof snapshot>>;
 
 async function seedAndOpen(page: Page, chapter: number, reduced = false) {
   await page.emulateMedia({ reducedMotion: reduced ? 'reduce' : 'no-preference' });
-  // Presentation fixture only: this does not claim that the test won 180 puzzles.
+  // Seed completed campaign progress to exercise the finished machines.
   await page.addInitScript(ids => localStorage.setItem('tumbleworks.progress.v1', JSON.stringify({ completed: ids, muted: true })), CAMPAIGN.map(level => level.id));
   await page.goto('/');
   await expect(page.locator('#boot')).toBeHidden({ timeout: 120_000 });
@@ -80,10 +85,8 @@ async function advanceTo(page: Page, target: number) {
     const app = (window as unknown as GameWindow).tumbleworks.app;
     const world = (app as unknown as { world: FilmWorld }).world;
     if (target < world.filmTime - 1e-8) throw new Error('Film probes must advance monotonically');
-    for (let tick = 0; target - world.filmTime > 1e-8; tick++) {
-      if (tick > 1000 || app.debugState().screen !== 'film') throw new Error(`Film stopped before ${target}s`);
-      app.advance(Math.min(1 / 30, target - world.filmTime));
-    }
+    if (target - world.filmTime > 1e-8) app.advance(target - world.filmTime);
+    if (app.debugState().screen !== 'film' || Math.abs(target - world.filmTime) > 1e-8) throw new Error(`Film stopped before ${target}s`);
   }, target);
   return snapshot(page);
 }
@@ -109,32 +112,45 @@ async function back(page: Page, baselineEntities: number) {
 test.use({ viewport: PHONE, deviceScaleFactor: 1 });
 test.beforeAll(() => mkdirSync(output, { recursive: true }));
 
-for (let chapter = 0; chapter < 6; chapter++) {
+for (let chapter = 0; chapter < CAMPAIGN.length / (STOPS_PER_CHAPTER * LEVELS_PER_STOP); chapter++) {
   test(`village ${chapter + 1}: its actual marble causes its own mechanisms and replay is identical`, async ({ page }) => {
     test.setTimeout(240_000);
     const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
     const baseline = await seedAndOpen(page, chapter);
     const initial = await snapshot(page), contacts = [...initial.contacts].sort((a, b) => a.contact - b.contact);
-    expect(initial.chapter).toBe(chapter); expect(contacts).toHaveLength(10);
+    expect(initial.chapter).toBe(chapter);
+    expect(contacts.map(contact => contact.stop)).toEqual(initial.stations.map(station => station.stop).sort((a, b) => b - a));
+    const beforeCause = (time: number) => Math.max(0, time - 0.001);
+    const endSample = (contact: Snapshot['contacts'][number]) => Math.min(contact.end, initial.duration - 0.000001);
+    const starts = new Map<string, number>();
+    for (const contact of contacts) for (const id of contact.moverIds) {
+      const station = initial.stations.find(station => station.stop === contact.stop)!;
+      // The pin releases the source. Retained heads and forks can align during the lead-in to a catch.
+      const startsEarly = station.retained && /-(fork|capture-head|head-frame)$/.test(id);
+      starts.set(id, station.releasePin && id.endsWith('-pin') ? initial.sourceRelease : startsEarly ? contact.start : contact.contact);
+    }
     const times = [...new Set([0, ...contacts.flatMap(contact => [Math.max(0, contact.contact - 0.001), contact.contact,
-      contact.contact + (contact.end - contact.contact) * 0.4, Math.min(contact.end, initial.duration - 0.000001)]), Math.max(0, initial.duration - 0.4)])].sort((a, b) => a - b);
+      contact.contact + (contact.end - contact.contact) * 0.4, endSample(contact)]),
+      ...[...starts.values()].map(beforeCause), Math.max(0, initial.duration - 0.4)])].sort((a, b) => a - b);
     const frames: Snapshot[] = [];
     for (const time of times) {
       const value = await advanceTo(page, time); frames.push(value); unchangedGame(value, baseline);
       expect(value.films).toBe(initial.films); actorFramed(value);
-      for (const future of contacts) if (time < future.contact) for (const id of future.moverIds) {
-        expect(value.transforms[id], `${id} remains still until its causal contact`).toEqual(initial.transforms[id]);
+      for (const [id, start] of starts) if (time < start) {
+        expect(value.transforms[id], `${id} remains still before its authored motion time ${start}`).toEqual(initial.transforms[id]);
       }
       const contact = contacts.find(contact => time === contact.contact + (contact.end - contact.contact) * 0.4);
       if (contact) await page.screenshot({ path: `${output}/phone-village-${chapter + 1}-contact-${contact.stop}.png` });
     }
     const at = (time: number) => frames[times.indexOf(time)]!;
     for (const contact of contacts) {
-      const before = at(Math.max(0, contact.contact - 0.001));
+      const before = at(beforeCause(contact.contact));
       const after = at(contact.contact + (contact.end - contact.contact) * 0.4);
-      for (const id of contact.moverIds) expect(before.transforms[id], `${id} waits for its cause`).toEqual(initial.transforms[id]);
-      if (contact.moverIds.length) expect(contact.moverIds.some(id => JSON.stringify(after.transforms[id]) !== JSON.stringify(before.transforms[id])),
-        `stop ${contact.stop} visibly responds after marble contact`).toBe(true);
+      const end = at(endSample(contact));
+      if (contact.moverIds.length) expect(contact.moverIds.some(id => {
+        const rest = at(beforeCause(starts.get(id)!)).transforms[id]!;
+        return [after, end].some(frame => frame.transforms[id]!.some((value, index) => value !== rest[index]));
+      }), `stop ${contact.stop} visibly responds by the end of its contact`).toBe(true);
       expect(after.actorPosition).not.toEqual(before.actorPosition);
     }
     writeFileSync(`${output}/phone-village-${chapter + 1}-causal-snapshots.json`, JSON.stringify(frames, null, 2));

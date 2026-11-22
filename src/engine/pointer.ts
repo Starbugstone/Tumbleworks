@@ -3,6 +3,7 @@ import type { ScreenPoint } from './contracts';
 interface PointerActions {
   pick(point: ScreenPoint): string | null;
   tap(target: string): void;
+  press?(target: string | null): void;
   start(target: string, point: ScreenPoint): boolean;
   move(point: ScreenPoint, target: string | null): void;
   end(target: string | null): void;
@@ -20,6 +21,7 @@ export class BoardPointer {
       const origin = { x: event.clientX, y: event.clientY };
       this.gesture = { id: event.pointerId, origin, target: actions.pick(origin), moved: false, dragging: false };
       canvas.setPointerCapture(event.pointerId);
+      actions.press?.(this.gesture.target);
     });
     canvas.addEventListener('pointermove', (event) => {
       const gesture = this.gesture;
@@ -35,6 +37,7 @@ export class BoardPointer {
       const gesture = this.gesture;
       if (!gesture || event.pointerId !== gesture.id) return;
       this.gesture = null;
+      actions.press?.(null);
       if (gesture.dragging) actions.end(actions.pick({ x: event.clientX, y: event.clientY }));
       else if (gesture.target && (!gesture.moved || actions.pick({ x: event.clientX, y: event.clientY }) === gesture.target)) actions.tap(gesture.target);
       if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
@@ -49,6 +52,7 @@ export class BoardPointer {
     const gesture = this.gesture;
     this.gesture = null;
     if (!gesture) return;
+    this.actions.press?.(null);
     if (gesture.dragging) this.actions.cancel();
     if (this.canvas.hasPointerCapture(gesture.id)) this.canvas.releasePointerCapture(gesture.id);
   }

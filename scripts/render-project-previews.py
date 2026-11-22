@@ -1,7 +1,7 @@
 """Render actual shared-kit reward compositions as transparent Atelier card previews.
 Blender --background --threads 2 --python scripts/render-project-previews.py
 """
-import bpy, json, os, math, struct, zlib
+import bpy, json, os, math, struct, sys, zlib
 from collections import Counter
 from mathutils import Matrix, Vector, Euler
 
@@ -57,6 +57,22 @@ color=material.node_tree.nodes.new('ShaderNodeVertexColor');color.layer_name='Co
 material.node_tree.links.new(color.outputs['Color'],shader.inputs['Base Color'])
 # Three Y-up => Blender Z-up, a proper rotation retaining triangle winding.
 conversion=Matrix(((1,0,0,0),(0,0,-1,0),(0,1,0,0),(0,0,0,1)))
+# Printed project illustrations use terracotta masonry, warm timber and petrol enamel.
+# Keep the actual reward meshes and their per-vertex material boundaries.
+PRINT_COLOURS = {2: 0x503529, 3: 0x865239, 4: 0xC3905A, 5: 0xB8553C, 6: 0x418D87,
+               7: 0x406579, 9: 0xD99D4F, 10: 0x283F48, 11: 0x659089,
+               12: 0xB8694D, 13: 0x8E4F3E, 14: 0xE4B98D}
+
+def print_colour(source, index):
+    if source.get('model') == 'mechanism-funnel' and index == 11:
+        colour = 0xD6A255
+    else:
+        colour = PRINT_COLOURS.get(index)
+    if colour is None:
+        return kit['palette'][index]
+    rgb = [((colour >> shift) & 255)/255 for shift in (16, 8, 0)]
+    return [x/12.92 if x <= .04045 else ((x+.055)/1.055)**2.4 for x in rgb]
+
 templates={}
 for source in kit['meshes']:
     positions=source['positions']; indices=source['indices'];scale=kit['positionScale']
@@ -64,7 +80,7 @@ for source in kit['meshes']:
     faces=[indices[i:i+3]for i in range(0,len(indices),3)]
     mesh=bpy.data.meshes.new(source['name']);mesh.from_pydata(vertices,[],faces);mesh.update();mesh.materials.append(material)
     attr=mesh.color_attributes.new(name='Color',type='FLOAT_COLOR',domain='POINT')
-    for index,palette_index in enumerate(source['colors']):attr.data[index].color=(*kit['palette'][palette_index],1)
+    for index,palette_index in enumerate(source['colors']):attr.data[index].color=(*print_colour(source, palette_index),1)
     # Preserve exported smooth/flat corner normals exactly as the runtime sees them.
     normals=source['normals']; ns=kit['normalScale']
     authored=[Vector((normals[i]/ns,-normals[i+2]/ns,normals[i+1]/ns)).normalized()for i in range(0,len(normals),3)]
@@ -75,7 +91,7 @@ scene=bpy.context.scene;scene.render.engine='CYCLES';scene.cycles.samples=32;sce
 scene.render.threads_mode='FIXED';scene.render.threads=2;scene.render.film_transparent=True
 scene.render.resolution_x=128;scene.render.resolution_y=128;scene.render.resolution_percentage=100
 scene.render.image_settings.file_format='PNG';scene.render.image_settings.color_mode='RGBA';scene.render.image_settings.compression=100
-scene.world.color=(.2,.24,.25);scene.view_settings.view_transform='AgX'
+scene.world.color=(.2,.24,.25);scene.view_settings.view_transform='Standard'
 bpy.ops.object.camera_add(location=(4,-6,4));camera=bpy.context.object;scene.camera=camera;camera.data.type='ORTHO';camera.data.ortho_scale=3.0
 for location,power,size in [((-3,-4,7),650,5),((4,2,5),450,4)]:
     bpy.ops.object.light_add(type='AREA',location=location);light=bpy.context.object;light.data.energy=power;light.data.size=size
@@ -96,7 +112,12 @@ for reward,pieces in recipes.items():
     coords=[obj.matrix_world @ Vector(corner)for obj in collection.objects for corner in obj.bound_box]
     low=Vector(tuple(min(c[i]for c in coords)for i in range(3)));high=Vector(tuple(max(c[i]for c in coords)for i in range(3)))
     center=(low+high)*.5;camera.location=center+Vector((4,-6,4.7));camera.rotation_euler=(center-camera.location).to_track_quat('-Z','Y').to_euler()
-    camera.data.ortho_scale=max(high.z-low.z,high.x-low.x,high.y-low.y)*1.45
+    basis = camera.rotation_euler.to_quaternion()
+    projected = [basis.inverted() @ (point-center) for point in coords]
+    left, right = min(p.x for p in projected), max(p.x for p in projected)
+    bottom, top = min(p.y for p in projected), max(p.y for p in projected)
+    camera.location += basis @ Vector(((left+right)/2, (bottom+top)/2, 0))
+    camera.data.ortho_scale = max(right-left, top-bottom) * 1.08
     scene.render.filepath=os.path.join(output,reward+'.png');bpy.ops.render.render(write_still=True);compact_png(scene.render.filepath)
     collection.hide_render=True
     report.append(dict(reward=reward,bytes=os.path.getsize(scene.render.filepath),triangles=sum(len(p.vertices)-2 for obj in collection.objects for p in obj.data.polygons),bounds=[list(low),list(high)]))
@@ -104,6 +125,7 @@ for collection in all_groups:collection.hide_render=False
 # Separate the editable compositions for inspection, without changing saved shared recipes.
 for index,collection in enumerate(all_groups):
     for obj in collection.objects:obj.location.x+=(index%4)*3.5;obj.location.y+=(index//4)*4
-bpy.ops.wm.save_as_mainfile(filepath=os.path.join(ROOT,'assets','world-3d','projects.blend'))
+if '--previews-only' not in sys.argv:
+    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(ROOT,'assets','world-3d','projects.blend'))
 with open(os.path.join(ROOT,'output','current','world-3d','project-preview-report.json'),'w')as file:json.dump(report,file,indent=2)
 print('PROJECT_PREVIEWS '+json.dumps(report))

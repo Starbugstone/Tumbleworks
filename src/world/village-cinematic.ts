@@ -210,6 +210,7 @@ export class VillageCinematic implements VillageRoute {
     state: "authoring" as const,
     reason: "Cinematic playback has no physical certificate",
   };
+  readonly finale?: VillageRoute['finale'];
   readonly authoredPlan: VillagePlan;
   readonly plan: VillagePlan;
   readonly duration: number;
@@ -221,6 +222,7 @@ export class VillageCinematic implements VillageRoute {
   readonly phases: Phase[] = [];
   private readonly clips = new Map<number, Clip>();
   private readonly terminals = new Map<number, VillageTerminalPath>();
+  private readonly terminalBrakeTimes = new Map<number, number>();
   private readonly matrix = new Matrix4();
   private readonly scratch = new Vector3();
   private readonly quaternions: Quaternion[] = [];
@@ -315,6 +317,8 @@ export class VillageCinematic implements VillageRoute {
           p.authoredEnd,
         );
         if (p.kind === "contact") {
+          const terminal = this.terminals.get(p.stop);
+          if (terminal) this.terminalBrakeTimes.set(p.stop, start + run.timeAt(p.a + terminal.startDistance));
           const station=plan.stations.find(s=>s.stop===p.stop)!;
           this.contacts.push({
             stop: p.stop,
@@ -593,8 +597,9 @@ export class VillageCinematic implements VillageRoute {
     this.contacts.sort((a, b) => a.start - b.start);
     this.segments.sort((a, b) => a.start - b.start);
     this.boundaries.sort((a, b) => a.start - b.start);
+    if (plan.pierBell) this.finale = { seat: time, strike: time + .24, pullback: time + .94 };
     this.duration = Math.max(
-      time + 1.2,
+      this.finale ? this.finale.pullback + 3.6 : time + 1.2,
       ...[...this.clips.values()].map((c) => c.returnEnd),
     );
     this.plan = {
@@ -781,8 +786,10 @@ export class VillageCinematic implements VillageRoute {
       : undefined;
   }
   terminalHeadPose(stop: number, t: number, M: Matrix4) {
-    const path = this.terminals.get(stop);
-    if (!path) throw Error("Unknown terminal");
+    const path = this.terminals.get(stop), brakeTime = this.terminalBrakeTimes.get(stop);
+    if (!path || brakeTime === undefined) throw Error("Unknown terminal");
+    // Only a marble that has entered the brake can drive its head.
+    if (t <= brakeTime) { path.headPose(path.startDistance, M); return; }
     const p = new Vector3(),
       origin = new Vector3(),
       tangent = new Vector3();
