@@ -1,6 +1,29 @@
 # Verification
 
-## Current Blender world and Atelier integration — 7 November 2026
+## Saltmere Pans and Potters’ Reach — 22 November 2026
+
+The campaign adds 60 levels at rounds 61–80 on top of the game-feel rollout
+(`3e5bd23`). Every new Funnel Sort and Loop Sort puzzle has a winning machine
+replay, a jam, and a rapid-input win. Each Tube Sort puzzle includes a shortest
+solution. The [round fixtures](../tests/fixtures/campaign-61-80.json) record the
+layout hashes, slots and per-board evidence. The [difficulty checks](../tests/levelling/curve.test.ts)
+measure the interleaved campaign, including the transition from round 60.
+
+Seven Chromium navigation journeys passed against the 240-level campaign.
+Saves with 180 and 210 completions each recovered their pending film in the
+correct village, acknowledged it once, then resumed at level 181 or 211.
+The [navigation tests](../tests/e2e/world-navigation.spec.ts) cover both chart
+windows, label focus, French, cancelled gestures and entering a stop by touch
+at 375×690 CSS pixels. These runs used browser touch emulation.
+
+The production build passed at **2.123 MB of 2.125 MB** for the first download.
+Bundled world geometry measures 118,272 gzip bytes against the 120,000-byte
+limit. Both lift assemblies passed 60 Hz hardware checks, 120 Hz swept-marble
+clearance, full-width track checks, and visibility checks in four views.
+The [headframe regressions](../tests/world/island-hoists.test.ts) cover grounded
+feet and moving-shaft clearance, including a brace deliberately moved into the shaft.
+
+## Blender world and Atelier integration — 7 November 2026
 
 The current 3D world passed 100 focused unit checks, 25 distinct UI journeys and
 four isolated realtime World measurements. After installing all seven actual
@@ -59,9 +82,9 @@ zero idle/gameplay work, and 72 additional presented video frames. See the
 uneven frame intervals and limits. The scoped checks above are complete; these
 browser results do not establish physical-phone performance.
 
-## Current scope — rounds 41–60, 6 November 2026
+## Rounds 41–60, 6 November 2026
 
-The registered campaign is **60 rounds, 180 levels**, with twenty new levels per
+This release registered **60 rounds, 180 levels**, with twenty new levels per
 game. The original 120 IDs, their order and their definitions are preserved.
 `PLAY_ORDER` in [src/campaign.ts](../src/campaign.ts) remains the order authority;
 the full target is 120 rounds and 360 levels. The new stretch introduces paired

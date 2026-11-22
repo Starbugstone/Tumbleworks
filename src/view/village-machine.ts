@@ -34,7 +34,8 @@ import { VillageProgram } from '../world/village-program';
 import { VillageTerminalPath } from '../world/village-terminal';
 import type { VillageAuxiliary, VillageAuxiliaryPose } from '../world/village-motion';
 import { VILLAGE_RADIUS, villagePort, type VillagePlan, type VillagePort, type VillageStation, type VillageProfile, type VillageVec3 } from '../world/village-plan';
-import { carrierContact, hasVillageCarrier, isVillageTrack, mechanismMatrix, villageEase, villageChannelGeometry, villageSpanGeometry, villageFloorDepth, villageBearingCap } from './machine-primitives';
+import { islandHoist } from './island-hoists';
+import { carrierContact, hasVillageCarrier, isVillageTrack, mechanismMatrix, villageEase, villageChannelGeometry, villageSpanGeometry, stonewareSpandrel, villageFloorDepth, villageBearingCap } from './machine-primitives';
 
 type Assets = { model(name: string, material: THREE.Material): THREE.Group };
 interface Mover { readonly group: THREE.Group; readonly station: VillageStation; readonly auxiliary?: VillageAuxiliary; readonly carrierLocal?: boolean; rest?: THREE.Matrix4; }
@@ -325,6 +326,13 @@ export class VillageMachine {
         if (i >= end || i % 8 === 5 || i % 8 === 6) enamel.toArray(values, i * 3);
       }
     }
+    if (geometry.userData.stonewareRingVertices) {
+      const glaze = new THREE.Color(0x537986);
+      const rimVertices = [0,3,4,7];
+      for (let ring = 0; ring < geometry.userData.stonewareRingVertices; ring += 8) {
+        for (const edge of rimVertices) glaze.toArray(values, (ring + edge) * 3);
+      }
+    }
     geometry.setAttribute('color', new THREE.BufferAttribute(values, 3)); this.geometries.add(geometry);
     const mesh = new THREE.Mesh(geometry, this.material); mesh.name = `${parent.name}-${geometry.type}-${parent.children.length}`; parent.add(mesh); return mesh;
   }
@@ -608,6 +616,9 @@ export class VillageMachine {
         this.box(pin, [.34, .15, 0], [.08, .5, .12], 0xb5925a);
       }
       if (station.span) this.mesh(fixed, villageSpanGeometry(mechanism.points, this.plan.profile), 0x657578).name = `village-span-${station.stop}`;
+      if (station.span === 'girder' && this.plan.profile === 'stoneware') {
+        this.mesh(fixed,stonewareSpandrel(mechanism.points),0xbc9272).name='pottery-viaduct-arch';
+      }
       const trackMesh=this.mesh(fixed, villageChannelGeometry(mechanism.points, mechanism.kind === 'loop' ? 'twinrail' : this.plan.profile,undefined,mechanism.kind==='bowl'&&this.plan.profile==='terracotta'&&!!station.terminalCapture&&!!new VillageTerminalPath(station).pad,station.channelLip?{lip:station.channelLip,staticFloor:true,protectedOriginalFrames:station.terminalCapture?[mechanism.points.length-2,mechanism.points.length-1]:[]}:undefined,this.staticConstruction!==undefined), station.color);trackMesh.name=`village-track-${mechanism.kind}-${station.stop}`;this.staticConstruction?.track({kind:'station',station},trackMesh);if(this.plan.stations.some(s=>s.mechanism.kind==='wheelbucket'&&s.mechanism.axleCarry&&station.stop===s.stop-1))this.axleNeighbours.set(station.stop,trackMesh);
       const supportFrames=station.supportIndices?.map(i=>mechanism.points[i]!)??(mechanism.kind==='loop'?[.03,.97]:mechanism.kind==='bowl'?[.35,.65]:[.15,.85])
         .map(fraction=>mechanism.points[Math.round(fraction*(mechanism.points.length-1))]!);
@@ -641,6 +652,14 @@ export class VillageMachine {
       // Its cable/guide at z=-.96 remains inside the beam, with .02 separation
       // from the collar's nearest outer face at z=-1.07.
       this.box(fixed, source.beam.centre, source.beam.size, 0x82694c);
+      const travel = 'travel' in mechanism && typeof mechanism.travel !== 'number' ? mechanism.travel : undefined;
+      if ((this.plan.profile === 'brine' || this.plan.profile === 'stoneware') && travel && Math.hypot(travel[0], travel[2]) < 1e-6 && travel[1] > 0) {
+        // The island lifts stand in a themed headframe whose sheave sits on this pulley beam.
+        const weightBounds = new THREE.Box3().setFromObject(weight), z = source.weight[2];
+        const hoist = islandHoist(this.plan.profile, { post: [station.anchor[0], z], guideX: source.weight[0],
+          beamTop: source.beam.centre[1] + source.beam.size[1] / 2, movingBack: Math.min(weightBounds.min.z, z - .14) }, this.groundHeightAt);
+        for (const part of hoist ?? []) this.mesh(fixed, part.geometry, part.color).name = `village-hoist-${station.stop}-${part.name}`;
+      }
     }
     if (station.retention) {
       const fork = new THREE.Group(); fork.name = `village-${station.stop}-fork`;
@@ -700,6 +719,16 @@ export class VillageMachine {
         contact[0] + (vertices.getX(i) < 0 ? 1.15 : 1.25),
         vertices.getY(i) + contact[1] - 0.12, vertices.getZ(i) + contact[2]);
       this.mesh(group, wall, station.color);
+      if (this.plan.profile === 'stoneware') {
+        // The finishing marble takes the open place beside the glazed ware on the drying bench.
+        for (const x of [-.55,.89]) this.box(group,[x,-.46,-.44],[.13,.12,1.48],0x795f49);
+        this.box(group,[.17,-.35,-.86],[1.90,.10,.58],0xb89468);
+        const jar = [[.14,-.30],[.20,-.23],[.20,-.01],[.12,.12],[.13,.17],[.09,.17],[.08,.09]];
+        for (const [i,x] of [-.40,.17,.74].entries()) {
+          const body = new THREE.LatheGeometry(jar.map(([radius,y])=>new THREE.Vector2(radius,y)),12);
+          this.mesh(group,body.translate(x,0,-.86),[0x608893,0xbd825a,0xc9aa83][i]!);
+        }
+      }
     }
     if ('pivot' in mechanism) {
       const p = mechanism.pivot;
@@ -717,6 +746,19 @@ export class VillageMachine {
         .applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(...mechanism.axis)))
         .translate(station.anchor[0] + p[0], station.anchor[1] + p[1], station.anchor[2] + p[2]), 0x657578);
       this.support(station,[station.anchor[0]+p[0],station.anchor[1]+p[1]+0.2,station.anchor[2]+p[2]],false,undefined,undefined,this.plan.profile,undefined,this.staticConstruction?{kind:'anchor',station,site:'pivot'}:undefined);
+      }
+      if (mechanism.kind === 'turntable' && this.plan.profile === 'stoneware') {
+        // A hollow throwing wheel seats against the rotating crossbeam and clears the fixed spindle.
+        const rim = [[.115,-.66],[.71,-.66],[.75,-.56],[.71,-.52],[.115,-.52],[.115,-.66]];
+        const wheel = new THREE.LatheGeometry(rim.map(([radius,y]) => new THREE.Vector2(radius,y)),24);
+        this.mesh(group,wheel,0xb38c69).name = 'potters-throwing-wheel';
+        // The larger kick wheel runs below the approach and exit even at the top of the docking stroke.
+        const kick = [[.50,-1.18],[1.15,-1.18],[1.20,-1.12],[1.16,-1.06],[.50,-1.06],[.50,-1.18]];
+        this.mesh(group,new THREE.LatheGeometry(kick.map(([r,y])=>new THREE.Vector2(r,y)),24),0x986e51).name='potters-kick-wheel';
+        for (const angle of [0,2*Math.PI/3,4*Math.PI/3]) {
+          const dowel = new THREE.CylinderGeometry(.055,.055,.40,8).translate(.60*Math.cos(angle),-.86,.60*Math.sin(angle));
+          this.mesh(group,dowel,0xc4a179);
+        }
       }
       if (mechanism.kind === 'launcher') this.box(group, [p[0] - 0.7, p[1] - 0.8, p[2]], [0.5, 0.5, 0.5], 0x596f70);
       if (station.retention) {
@@ -900,33 +942,46 @@ export class VillageMachine {
             const x = station.anchor[0] + .36 + stroke + .12 * Math.cos(angle) - .95 * Math.sin(angle);
             const y = station.anchor[1] + .12 * Math.sin(angle) + .95 * Math.cos(angle);
             const z = station.anchor[2] - 2 * stroke - .19;
-            this.box(fixed, [x, y, z], [.65, .45, .08], 0xb5925a);
+            this.box(fixed, [x, y, z], [.65, .45, .08], this.plan.profile === 'stoneware' ? 0x638b95 : 0xb5925a);
             const ground = this.groundHeightAt(x, z);
             if (ground === undefined || ground >= y - .225) throw new Error('Striker anvil requires a real footing');
             this.box(fixed, [x, (ground + y - .225) / 2, z], [.08, y - .225 - ground, .08], 0x657578);
           }
         } else {
           const cinematic=this.route.mode==='cinematic';
-          this.box(driven, [0, cinematic?.3675:.325, 0], [0.1, cinematic?.655:.57, 0.75], station.color);
+          const sluice = this.plan.profile === 'brine';
+          if (sluice) {
+            for (let board=0;board<3;board++) this.box(driven,[0,.149+board*.218,0],[.10,.209,.75],board%2?0xb3976e:0xc1a782);
+            for (const side of [-1,1]) this.box(driven,[.061,.368,side*.285],[.022,.63,.06],0x546667);
+          } else this.box(driven, [0, cinematic?.3675:.325, 0], [0.1, cinematic?.655:.57, 0.75], station.color);
           if(cinematic)this.mesh(driven,cinematicClockFollower(),0x657578);
           else this.box(driven, [-0.3, 0.65, -0.5], [0.7, 0.08, 0.08], 0x657578);
           const gear = new THREE.Group(); gear.name = `village-${station.stop}-gear`;
           gear.position.set(station.anchor[0] + (cinematic?.5:.7), station.anchor[1] + (cinematic?.875:.65), station.anchor[2] - (cinematic?.8:.65));
           this.groups[station.stop]!.add(gear); this.movers.push({ group: gear, station, auxiliary: 'gear' });
           const roller=cinematic?cinematicClockWheel():new THREE.CylinderGeometry(.18,.18,.12,12).rotateX(Math.PI/2);
-          this.mesh(gear,roller,0xb5925a);
+          this.mesh(gear,roller,sluice?0x627477:0xb5925a);
           const top = new THREE.Group(); top.name = `village-${station.stop}-top`;
           top.position.set(station.anchor[0] + 0.4, station.anchor[1], station.anchor[2] - (cinematic?.8:.65));
           this.groups[station.stop]!.add(top); this.movers.push({ group: top, station, auxiliary: 'top' });
-          const topBody = this.mesh(top, new THREE.CylinderGeometry(0.3, 0.04, 0.5, 12).translate(0, -0.55, 0), station.color);
-          const bodyVertices = topBody.geometry.getAttribute('position'), bodyColors = topBody.geometry.getAttribute('color');
-          const stripe = new THREE.Color(0x405356);
-          for (let i = 0; i < bodyVertices.count; i++) {
-            const angle = Math.atan2(bodyVertices.getZ(i), bodyVertices.getX(i));
-            if (Math.abs(angle) < Math.PI / 6 + 1e-6) bodyColors.setXYZ(i, stripe.r, stripe.g, stripe.b);
+          if (sluice) {
+            // The four timber paddles share the trip spindle below the gate's iron friction roller.
+            this.mesh(top,new THREE.CylinderGeometry(.083,.063,.28,8).translate(0,-.66,0),0x756449);
+            for (let blade=0;blade<4;blade++) {
+              const paddle = new THREE.BoxGeometry(.215,.26,.05).translate(.181,-.59,0).rotateY(blade*Math.PI/2);
+              this.mesh(top,paddle,blade%2?0x978367:0xb99e72);
+            }
+          } else {
+            const topBody = this.mesh(top, new THREE.CylinderGeometry(0.3, 0.04, 0.5, 12).translate(0, -0.55, 0), station.color);
+            const bodyVertices = topBody.geometry.getAttribute('position'), bodyColors = topBody.geometry.getAttribute('color');
+            const stripe = new THREE.Color(0x405356);
+            for (let i = 0; i < bodyVertices.count; i++) {
+              const angle = Math.atan2(bodyVertices.getZ(i), bodyVertices.getX(i));
+              if (Math.abs(angle) < Math.PI / 6 + 1e-6) bodyColors.setXYZ(i, stripe.r, stripe.g, stripe.b);
+            }
           }
-          this.mesh(top, new THREE.CylinderGeometry(0.055, 0.055, 1.35, 10).translate(0, 0.05, 0), 0xb5925a);
-          this.mesh(top, new THREE.CylinderGeometry(0.23, 0.23, 0.09, 12).translate(0, 0.65, 0), 0xb5925a);
+          this.mesh(top, new THREE.CylinderGeometry(0.055, 0.055, 1.35, 10).translate(0, 0.05, 0), sluice?0x646d64:0xb5925a);
+          this.mesh(top, new THREE.CylinderGeometry(0.23, 0.23, 0.09, 12).translate(0, 0.65, 0), sluice?0x826c53:0xb5925a);
           for (let tooth = 0; tooth < (cinematic?0:8); tooth++) {
             const angle = tooth * Math.PI / 4;
             this.box(top, [Math.cos(angle) * 0.2, 0.72, Math.sin(angle) * 0.2], [0.065, 0.06, 0.065], tooth === 0 ? 0x405356 : 0xb5925a);

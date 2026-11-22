@@ -26,8 +26,9 @@ for (const village of VILLAGE_SCENE_PLANS.slice(1)) {
       ...(s.supports ?? []), ...('points' in s.mechanism ? s.mechanism.points.map(frame=>frame.position) : [])])
       .concat(village.plan.connectors.flatMap(c=>c.points.map(frame=>frame.position)));
     try {
+      const scenery = village.cinematicScenery ?? village.scenery;
       const sites = [{...village.workshop.house, model:'house-a'},
-        ...village.rewards.map(s=>({...s, model:s.project, scale:1})), ...village.cinematicScenery!];
+        ...village.rewards.map(s=>({...s, model:s.project, scale:1})), ...scenery];
       for (const site of sites) {
         const reward = workshopProject(site.model)?.reward;
         const model = reward ? createProjectReward(reward,kit,material) : kit.model(site.model,material);
@@ -35,7 +36,7 @@ for (const village of VILLAGE_SCENE_PLANS.slice(1)) {
         const bounds = new Box3().setFromObject(model);
         const name = site.model+' at '+site.position[0]+', '+site.position[2];
         // Existing doors, tree canopies and installable projects are blockers too.
-        const added = village.cinematicScenery!.includes(site) && !village.scenery.includes(site);
+        const added = scenery.includes(site) && (!village.cinematicScenery || !village.scenery.includes(site));
         if (added) {
           expect(bounds.isEmpty(),name).toBe(false);
           for(const other of obstacles) expect(bounds.intersectsBox(other.bounds),name+' touches '+other.name).toBe(false);

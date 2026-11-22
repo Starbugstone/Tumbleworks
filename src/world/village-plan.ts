@@ -104,7 +104,7 @@ export interface VillageCameraShot {
   readonly elevation: number;
   readonly radius: number;
 }
-export type VillageProfile = 'plank' | 'terracotta' | 'timber' | 'twinrail' | 'girder' | 'steel';
+export type VillageProfile = 'plank' | 'terracotta' | 'timber' | 'twinrail' | 'girder' | 'steel' | 'brine' | 'stoneware';
 export interface VillagePlan {
   readonly pierBell?: { readonly launchStop: number; readonly slipwayStop: number };
   readonly staticSupports?:'harbour-static-112';

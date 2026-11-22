@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { LOOP_BOARDS } from '../../src/loop/boards';
-import { cardNeed, placeLane, ROSTER, rosterLayout } from '../../src/loop/roster-layout';
+import { cardNeed, placeLane, ROSTER, rosterChips, rosterLayout } from '../../src/loop/roster-layout';
 
 const linesOf = (board: (typeof LOOP_BOARDS)[number]): number[][] => board.lanes.map((line) => line.map((truck) => truck.segments.length + (truck.segments.reduce((sum, s) => sum + s.count, 0) < (truck.capacity ?? board.truckCapacity) ? 1 : 0)));
 /** Levels that do not exist yet: later levels will have more lanes and longer queues. */
 const invented = (lanes: number, depth: number, stretches: number): number[][] => Array.from({ length: lanes }, () => Array.from({ length: depth }, () => stretches));
 const phone = { width: 375, height: 690 };
-/** The game reserves a chip slot on every card when any truck is latched or linked (LoopRoster.hasRuleChips). */
-const chips = (board: (typeof LOOP_BOARDS)[number]): boolean => Boolean(board.couplings?.length) || board.lanes.flat().some((truck) => Boolean(truck.pourAfter));
+/** The game reserves a chip slot only on the cards of lorries that own a latch or a link (LoopRoster.levelChips). */
+const chips = (board: (typeof LOOP_BOARDS)[number]): boolean[][] => rosterChips(board);
 
 describe('the lorry card layout', () => {
-  const shapes: [string, number[][], boolean][] = [...LOOP_BOARDS.map((board): [string, number[][], boolean] => [board.id, linesOf(board), chips(board)]), ['6 lanes of 4', invented(6, 4, 4), false], ['8 lanes of 5', invented(8, 5, 4), false], ['8 lanes of 8', invented(8, 8, 5), false]];
+  const shapes: [string, number[][], boolean[][]][] = [...LOOP_BOARDS.map((board): [string, number[][], boolean[][]] => [board.id, linesOf(board), chips(board)]), ['6 lanes of 4', invented(6, 4, 4), []], ['8 lanes of 5', invented(8, 5, 4), []], ['8 lanes of 8', invented(8, 8, 5), []]];
 
   for (const [name, lines, ruleChips] of shapes) {
     it(`${name}: fits the player's phone with the toy, readable numbers and a real tap target`, () => {
@@ -20,8 +20,8 @@ describe('the lorry card layout', () => {
       expect(layout.toy.height).toBeGreaterThanOrEqual(ROSTER.toyFloor);
       expect(layout.panel.y + layout.panel.height).toBeLessThanOrEqual(phone.height - ROSTER.bottom);
       expect(layout.toy.y + layout.toy.height).toBeLessThanOrEqual(layout.panel.y);
-      for (const line of lines) {
-        const placed = placeLane(line, layout);
+      for (const [lane, line] of lines.entries()) {
+        const placed = placeLane(line, layout, [], ruleChips[lane]);
         // The docked lorry and the next one always keep their numbers; the rest may fold, and none is lost.
         expect(placed.cards.length).toBe(Math.min(line.length, Math.max(2, placed.cards.length)));
         const folded = placed.foldedFrom === null ? 0 : line.length - placed.foldedFrom;
@@ -36,17 +36,17 @@ describe('the lorry card layout', () => {
   it('folds lorries on the player’s phone only in lanes four or more deep', () => {
     for (const board of LOOP_BOARDS) {
       const layout = rosterLayout(linesOf(board), phone.width, phone.height, chips(board));
-      for (const line of linesOf(board)) if (line.length < 4) expect(placeLane(line, layout).foldedFrom, board.id).toBeNull();
+      for (const [lane, line] of linesOf(board).entries()) if (line.length < 4) expect(placeLane(line, layout, [], chips(board)[lane]).foldedFrom, `${board.id} lane ${lane + 1}`).toBeNull();
     }
   });
 
   it('gives cards room for their numbers on every current level', () => {
     for (const board of LOOP_BOARDS) {
       const layout = rosterLayout(linesOf(board), phone.width, phone.height, chips(board));
-      for (const line of linesOf(board)) {
-        for (const card of placeLane(line, layout).cards) {
+      for (const [lane, line] of linesOf(board).entries()) {
+        for (const card of placeLane(line, layout, [], chips(board)[lane]).cards) {
           const stretches = line[card.truck]!;
-          expect(card.width + 0.5, board.id).toBeGreaterThanOrEqual(cardNeed(stretches, card.truck === 0 ? ROSTER.cabNow : ROSTER.cabWaiting));
+          expect(card.width - card.rule + 0.5, board.id).toBeGreaterThanOrEqual(cardNeed(stretches, card.truck === 0 ? ROSTER.cabNow : ROSTER.cabWaiting));
         }
       }
     }
@@ -75,15 +75,15 @@ describe('the lorry card layout', () => {
   });
 });
 
-// Latches reserve a separate badge column; percentages keep their minimum width.
-it('feature lessons reserve latch room without shrinking card numbers or tap targets', () => {
-  for (const board of LOOP_BOARDS.filter((candidate) => Number(candidate.id.slice(5)) >= 200)) {
-    const lines = linesOf(board);
-    const latch = board.lanes.flat().some((truck) => Boolean(truck.pourAfter));
-    const layout = rosterLayout(lines, 375, 690, latch);
-    expect(layout.ruleWidth).toBe(latch ? 26 : 0);
-    for (const line of lines) for (const card of placeLane(line, layout).cards) {
-      expect(card.width - layout.ruleWidth).toBeGreaterThanOrEqual(cardNeed(line[card.truck]!, card.truck ? ROSTER.cabWaiting : ROSTER.cabNow));
+// Latches and links reserve a chip column on their own cards; percentages keep their minimum width.
+it('rule boards reserve chip room on the marked cards without shrinking card numbers or tap targets', () => {
+  for (const board of LOOP_BOARDS.filter((candidate) => candidate.couplings?.length || candidate.lanes.flat().some((truck) => truck.pourAfter))) {
+    const lines = linesOf(board), marks = chips(board);
+    const layout = rosterLayout(lines, 375, 690, marks);
+    expect(layout.ruleWidth, board.id).toBe(ROSTER.chipSlot);
+    for (const [lane, line] of lines.entries()) for (const card of placeLane(line, layout, [], marks[lane]).cards) {
+      expect(card.rule, `${board.id} lane ${lane + 1} lorry ${card.truck + 1}`).toBe(marks[lane]![card.truck] ? ROSTER.chipSlot : 0);
+      expect(card.width - card.rule).toBeGreaterThanOrEqual(cardNeed(line[card.truck]!, card.truck ? ROSTER.cabWaiting : ROSTER.cabNow));
     }
     expect(layout.numberSize).toBe(13);
     expect(layout.rowHeight).toBeGreaterThanOrEqual(40);
@@ -107,4 +107,22 @@ it('never latches a linked truck: the padlock and the coupling bar would meet on
       expect(Boolean(truck.pourAfter && linked.has(id)), `${board.id} ${id}`).toBe(false);
     }));
   }
+});
+
+it('marks chip slots by the board identity of a lorry, never by its lane neighbours', () => {
+  const board = { lanes: [[{ segments: [] }, { id: 'tail', segments: [] }], [{ segments: [], pourAfter: '0:0' }, { segments: [] }]], couplings: [['0:0', 'tail']] as const };
+  expect(rosterChips(board as never)).toEqual([[true, true], [true, false]]);
+  expect(rosterChips({ lanes: [[{ segments: [] }]] } as never)).toEqual([[false]]);
+});
+
+// loop-113's three-deep lane folded its last lorry when every card paid for a chip only its front lorry carries.
+it('keeps the coupled practice lane three deep on the phone, which the old every-card chip reservation folded', () => {
+  const board = LOOP_BOARDS.find((candidate) => candidate.id === 'loop-113')!, lines = linesOf(board), marks = chips(board);
+  const everyCard = lines.map((line) => line.map(() => true));
+  const deep = lines.findIndex((line) => line.length === 3);
+  expect(deep).toBeGreaterThanOrEqual(0);
+  expect(placeLane(lines[deep]!, rosterLayout(lines, 375, 690, everyCard), [], everyCard[deep]).foldedFrom).not.toBeNull();
+  const placed = placeLane(lines[deep]!, rosterLayout(lines, 375, 690, marks), [], marks[deep]);
+  expect(placed.foldedFrom).toBeNull();
+  expect(placed.cards.map((card) => card.rule)).toEqual(marks[deep]!.map((mark) => mark ? ROSTER.chipSlot : 0));
 });

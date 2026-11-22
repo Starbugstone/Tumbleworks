@@ -1,4 +1,5 @@
-import {it,expect}from'vitest';
+import {VILLAGE_SCENE_PLANS} from '../../src/world/village-plans';
+import {afterAll,it,expect}from'vitest';
 import {Box3,PerspectiveCamera,Vector3,type Matrix4}from'three';
 import {writeFileSync}from'node:fs';
 import {cinematicMachine,cinematicWorld}from'./cinematic-world-fixture';
@@ -12,9 +13,8 @@ function expectSameMatrix(actual: Matrix4, expected: Matrix4, context: string): 
  }
 }
 
-it('keeps complete-map/reduced/physical framing while the cinematic cargo stays trackable',()=>{
- const report=[];
- for(let chapter=0;chapter<6;chapter++){
+const report: {chapter: number; before: number; after: number; phoneDiameter: {min: number; max: number}}[] = [];
+it.each(VILLAGE_SCENE_PLANS)('keeps complete-map/reduced/physical framing while the cinematic cargo stays trackable in chapter $chapter', ({chapter}) => {
   const f=cinematicMachine(chapter),r=f.machine.route,env=new VillageFilmCamera(f.machine,r),cargo=new VillageFilmCamera(f.machine,r,'cargo'),previous=new PreviousCamera(f.machine,r),a=new PerspectiveCamera(),b=new PerspectiveCamera(),p=new Vector3(),right=new Vector3(),left=new Vector3(),upper=new Vector3(),box=new Box3();
   try{
    expect(env.followDistance).toBe(previous.followDistance);expect(env.restDistance).toBe(previous.restDistance);
@@ -48,8 +48,10 @@ it('keeps complete-map/reduced/physical framing while the cinematic cargo stays 
    f.machine.bounds(box);expect(box.isEmpty()).toBe(false);
    env.resize(375/690);cargo.resize(375/690);report.push({chapter,before:env.followDistance,after:cargo.followDistance,phoneDiameter:minmax});
   }finally{f.dispose();}
- }
- if(process.env.CINE_CAMERA_REPORT)writeFileSync(process.env.CINE_CAMERA_REPORT,JSON.stringify({scope:'Actual camera projection; not frame-time or physical-phone performance',report},null,2));
+});
+
+afterAll(() => {
+ if(process.env.CINE_CAMERA_REPORT && report.length)writeFileSync(process.env.CINE_CAMERA_REPORT,JSON.stringify({scope:'Actual camera projection; not frame-time or physical-phone performance',report},null,2));
 });
 
 it('a 16m carry no longer forces a panorama throughout a cinematic film',()=>{

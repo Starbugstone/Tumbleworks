@@ -197,42 +197,66 @@
     ]
   },
   {
-    "id": "orchard-steps",
+    "id": "saltmere-pans",
     "name": [
-      "Orchard Steps",
-      "Les terrasses du verger"
+      "Saltmere Pans",
+      "Les marais salants"
     ],
     "creation": [
-      "The seesaw orchard",
-      "Le verger à bascules"
+      "The tide weighbridge",
+      "La bascule des marais"
     ],
-    "terrain": "#8b9d76",
-    "roof": "#b16b52",
-    "accent": "#f0c477",
-    "kind": "garden",
+    "terrain": "#839589",
+    "roof": "#586c75",
+    "accent": "#e4cca0",
+    "kind": "saltworks",
+    "backdropFocus": [
+      -2,
+      4
+    ],
     "counter": {
       "stock": "timber",
-      "stain": "#877a6e"
-    }
+      "stain": "#706d64"
+    },
+    "print": "islands/saltmere-pans/workshop.webp",
+    "demo": [
+      {
+        "level": "village",
+        "name": "Saltmere Pans",
+        "image": "islands/saltmere-pans/workshop.webp"
+      }
+    ]
   },
   {
-    "id": "copper-village",
+    "id": "potters-reach",
     "name": [
-      "Copper Village",
-      "Le village de cuivre"
+      "Potters’ Reach",
+      "Les coteaux des potiers"
     ],
     "creation": [
-      "The counterweight dance",
-      "La danse des contrepoids"
+      "The kiln crossing",
+      "La traversée du four"
     ],
-    "terrain": "#82978a",
-    "roof": "#b78261",
-    "accent": "#f3c77c",
-    "kind": "mill",
+    "terrain": "#a38b71",
+    "roof": "#47677b",
+    "accent": "#f2c187",
+    "kind": "pottery",
+    "backdropFocus": [
+      2,
+      3
+    ],
     "counter": {
       "stock": "tile",
-      "stain": "#75847a"
-    }
+      "stain": "#806f65"
+    },
+    "print": "islands/potters-reach/workshop.webp",
+    "demo": [
+      {
+        "level": "village",
+        "name": "Potters’ Reach",
+        "image": "islands/potters-reach/workshop.webp"
+      }
+    ]
   },
   {
     "id": "windward-ridge",

@@ -35,6 +35,14 @@ const SCORES: Record<MusicTheme, Score> = {
     [[55, 62, 71, 74, 'steady'], [52, 59, 67, 71, 'hold'], [48, 59, 67, 76, 'lilt'], [50, 60, 69, 74, 'steady']],
     [[57, 64, 72, 71, 'lilt'], [48, 64, 67, 76, 'hold'], [47, 55, 64, 71, 'steady'], [50, 60, 66, 69, 'cadence']],
   ] },
+  saltworks: { beat: 1.10, phrases: [
+    [[46, 53, 65, 70, 'hold'], [46, 55, 65, 67, 'steady'], [43, 53, 62, 67, 'hold'], [41, 53, 60, 65, 'lilt']],
+    [[48, 55, 67, 70, 'hold'], [43, 55, 62, 65, 'lilt'], [39, 51, 63, 67, 'hold'], [41, 53, 60, 69, 'cadence']],
+  ] },
+  pottery: { beat: .93, phrases: [
+    [[50, 57, 65, 69, 'lilt'], [53, 60, 69, 72, 'lilt'], [48, 55, 64, 67, 'steady'], [50, 57, 65, 62, 'hold']],
+    [[55, 62, 70, 74, 'lilt'], [53, 60, 69, 65, 'steady'], [48, 55, 67, 72, 'lilt'], [45, 57, 64, 61, 'cadence']],
+  ] },
 };
 
 const ENTRANCES: Record<Rhythm, readonly [inner: number, top: number, answer: number, echo: number]> = {

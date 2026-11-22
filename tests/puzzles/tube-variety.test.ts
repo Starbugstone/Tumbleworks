@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { checkTubeVariety } from '../../docs/models/tube-variety/check';
 import { replayLog, replayOnto } from '../../src/engine/replay';
 import { cloneTubeState, completedTube, moveTubeState, solveTubeSearch, tubeKey, TubeRules, validateTubeDef } from '../../src/puzzles/rules';
+import { TUBE_ISLAND_BOARDS } from '../../src/puzzles/island-boards';
 import type { TubeDef } from '../../src/puzzles/types';
 import { TUBE_210, TUBE_211, TUBE_VARIETY_BOARDS } from '../../src/puzzles/variety-boards';
 import { TUBE_VARIETY_JAMS } from './tube-variety-fixtures';
@@ -73,13 +74,15 @@ describe('Tube Sort Workshop boards', () => {
     // The previous board's exchange: the red pair left the cup and finished the home in one move.
     const simultaneous: TubeDef = { ...TUBE_210, tubes: [['red', 'red', 'blue', 'green'], ['green', 'blue', 'green', 'red'], ['blue', 'green', 'blue', 'red'], [], []], solution: [] };
     const both = (board: TubeDef): number => {
+      const cup = board.containers!.findIndex(container => container.role === 'cup');
+      const cap = board.containers!.findIndex(container => container.role === 'capped');
       const start = new TubeRules(board).snapshot();
       const seen = new Set([tubeKey(board, start)]), queue = [start];
       let count = 0;
       for (const state of queue) for (const [from] of state.tubes.entries()) for (const [to] of state.tubes.entries()) {
         const next = cloneTubeState(state);
         if (from === to || !moveTubeState(board, next, from, to).ok) continue;
-        if (!state.spent[3] && next.spent[3] && !state.opened[4] && next.opened[4]) count++;
+        if (!state.spent[cup] && next.spent[cup] && !state.opened[cap] && next.opened[cap]) count++;
         const key = tubeKey(board, next);
         if (!seen.has(key)) { seen.add(key); queue.push(next); }
       }
@@ -87,6 +90,8 @@ describe('Tube Sort Workshop boards', () => {
     };
     expect(both(simultaneous)).toBeGreaterThan(0);
     expect(both(TUBE_210)).toBe(0);
+    const campaignExchange = TUBE_ISLAND_BOARDS.find(board => board.id === 'tube-109')!;
+    expect(both(campaignExchange)).toBe(0);
   });
 });
 

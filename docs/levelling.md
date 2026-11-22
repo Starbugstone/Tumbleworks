@@ -59,7 +59,7 @@ All games share one table of S. No band builds in a ranking of the games.
 | 111-118 | 76-92 | 60-74 | 99 | 30 | 50% |
 | 119-120 | 80-94 | 64-76 | 100 | 30 | 50% |
 
-The registered campaign has 60 rounds, 180 levels. The target is 120 rounds, 360 levels: rounds 1-40 continue the accepted
+The registered campaign has 80 rounds, 240 levels. The target is 120 rounds, 360 levels: rounds 1-40 continue the accepted
 opening's feel and rounds 41-120 climb to the ending (see the tracked [3 November decision](levelling-decision-2026-11-03.md)). Bands
 from round 41 are provisional until the strong planner's H is calibrated. From round 13 a lesson is held to the +20 rise like
 any other level, G stops at 30, and Funnel Sort's ceiling binds spam as well as cheese.
@@ -211,7 +211,7 @@ so an old completed save still has sixty additions to play.
 
 Each introduction has practice two rounds later when that round is in this
 release, and the earlier rules return in changed contexts. Short-truck practice
-at round 61 belongs to the next expansion. The older short fixture `loop-201`
+opens Saltmere Pans at round 61. The older short fixture `loop-201`
 remains in the bank: its S44.06 breaks the five-round progression limit at 59.
 The replacement lesson scores S63.36 without changing the gate.
 
@@ -227,27 +227,40 @@ The acceptance checks preserve the first forty rounds and exercise a completed
 old save continuing into level 121. Browser evidence, machine runs, download
 budget and performance results are recorded in [verification](verification.md).
 
-## Proposed later combinations
+## Rounds 61 to 80
 
-The approved variety boards may enter the main campaign after their difficulty,
-causal traps, real-machine witnesses, hint and undo checks pass. These are
-teaching-order proposals, not registered slots or accepted score rows. The
-current campaign remains sixty rounds; adding these placements also requires
-complete interleaved rounds and the same progression gates.
+Saltmere Pans and Potters’ Reach each add ten construction stops. Every stop
+contains Funnel Sort, Loop Sort and Tube Sort in that order. IDs and board
+definitions from the first sixty rounds stay fixed. Workshop projects keep
+their own completion IDs, including when a campaign puzzle combines the same rules.
 
-| Proposed round | Board | Teaching role |
+| Round | Island | What the player learns |
 | --- | --- | --- |
-| 63 | `board-210` | Forked shelves with mixed six/nine crates, after shelves at 57 |
-| 65 | `loop-210` | Short trucks with receiving latches, after short trucks at 59 |
-| 67 | `tube-210` | Closing-cup/capped-spare exchange, after the planned cup lesson at 61 |
-| 77 | `board-211` | Paired release with a sealed dock, after the planned seal lesson at 73 |
-| 79 | `loop-211` | Unequal capacities with coupled unloads, after the planned coupling lesson at 75 |
-| 81 | `tube-211` | First mixed-height-home lesson; simple practice must follow |
-| 83 | `board-212` | First shared-pallet lesson; simple practice must follow |
+| 61 | Saltmere Pans | Return to short trucks in Loop Sort. Tube Sort introduces the two-place closing cup on `tube-94`. Emptying the cup folds it for the rest of the puzzle. |
+| 62 | Saltmere Pans | Loop Sort introduces its first figure eight on `loop-98`. It returns at round 69 on `loop-105`. |
+| 63 | Saltmere Pans | Practise spending the cup on `tube-96` and plan a forked shelf with mixed six- and nine-marble crates on `board-96`. |
+| 64 | Saltmere Pans | Funnel Sort routes the released marbles over a figure-eight belt on `board-97`. |
+| 72 | Potters’ Reach | A short 12-unit truck returns alongside full 24-unit trucks on `loop-108`. |
+| 73 | Potters’ Reach | Open the sealed dock in Funnel Sort on `board-202` by filling the box with the matching key. |
+| 75 | Potters’ Reach | Practise the sealed dock. Loop Sort introduces coupled unloading on `loop-111`, so one tap can send cargo from two trucks onto the loop. |
+| 76 | Potters’ Reach | `tube-109` combines a closing cup and a capped spare. Opening the spare and spending the cup are separate decisions. |
+| 77 | Potters’ Reach | Combine paired release and a sealed dock on `board-109`, and practise coupled unloading on `loop-113`. Tube Sort gives six colours five places each on `tube-110`. |
+| 78 | Potters’ Reach | Open a sealed dock with a different crate order on `board-110`. |
+| 80 | Potters’ Reach | Finish Loop Sort’s run with a coupled-unload peak on `loop-116`. |
 
-Workshop access can expose proven bank boards before that campaign stretch is
-assembled. Workshop completion must not unlock unrelated campaign rounds. The
-first 120 IDs and the calibrated rounds 41–60 remain unchanged by this proposal.
+The [placement fixture](../tests/fixtures/campaign-61-80.json) records every
+round, slot, source and board hash. Five Funnel Sort levels revisit earlier cargo layouts at different belt capacities. Each capacity variant was scored and replayed independently. The score table contains each board’s measurements. Funnel Sort and Loop Sort retain winning, losing and rapid-action
+replays in [the witness table](../tests/witnesses.ts). Tube Sort keeps the
+shortest solution beside each board. The closing-cup lesson and its practice
+boards each have a reachable move that spends the cup and makes the board
+unwinnable.
+
+## Later combinations
+
+Round 81 is the proposed mixed-height-home lesson in Tube Sort, followed by
+practice. Round 83 is the proposed shared-pallet lesson in Funnel Sort. The
+Workshop examples are `tube-211` and `board-212`. A campaign version needs its
+own completion ID and must pass the slot and joint-curve checks.
 
 ## Retirements, confirmed at n=200
 
@@ -343,9 +356,9 @@ substitute for rescoring changed rules or scoring semantics.
 
 ## Tube Sort commitments (bank lessons)
 
-The capped spare is planned for round 45; the closing cup for round 61.
+The capped spare enters at round 45 and the closing cup at round 61.
 `tube-200` now teaches the capped spare at campaign round 45, with practice at
-47 and 55 and changed contexts at 50 and 58. The closing cup `tube-201` remains
+47 and 55 and changed contexts at 50 and 58. The campaign teaches the cup on `tube-94`. The earlier cup fixture `tube-201` remains
 in the bank, available in development at `/?try=tube-201`.
 
 - **Capped spare:** an empty full-size tube with a cap bearing another colour's
@@ -494,7 +507,7 @@ visible for its intended duration even when frame capture is slow.
 
 `board-200` and `board-201` now teach paired release and forked shelves at
 campaign rounds 41 and 57, with practice two rounds after each lesson.
-`board-202` remains a bank lesson for round 73, playable at `/?try=board-202`.
+`board-202` teaches sealed docks at round 73, with practice at round 75.
 Existing saved IDs are unchanged.
 
 - **Paired release:** `pairs` lists disjoint pairs of stable crate IDs. The

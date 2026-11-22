@@ -12,6 +12,8 @@ import { GLASSHOUSE_GARDENS } from './villages/glasshouse-gardens';
 import { WILLOW_MILL } from './villages/willow-mill';
 import { CLOCKMAKERS_HILL } from './villages/clockmakers-hill';
 import { CLOUD_BRIDGE } from './villages/cloud-bridge';
+import { SALTWORKS } from './villages/saltworks';
+import { POTTERS_REACH } from './villages/potters-reach';
 import { HIGH_GLASSWORKS } from './villages/high-glassworks';
 
 /** One kit template instance. Only uniform scale, so corrected proportions and surface gaps survive. */
@@ -51,7 +53,7 @@ export interface VillageScenePlan {
 }
 
 export const VILLAGE_SCENE_PLANS: readonly VillageScenePlan[] = [
-  LITTLE_HARBOUR, GLASSHOUSE_GARDENS, WILLOW_MILL, CLOCKMAKERS_HILL, CLOUD_BRIDGE, HIGH_GLASSWORKS,
+  LITTLE_HARBOUR, GLASSHOUSE_GARDENS, WILLOW_MILL, CLOCKMAKERS_HILL, CLOUD_BRIDGE, HIGH_GLASSWORKS, SALTWORKS, POTTERS_REACH,
 ];
 
 /** Explicit lookup by registered chapter index. There is no modulo or kind fallback. */

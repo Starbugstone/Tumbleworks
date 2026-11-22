@@ -7,7 +7,7 @@ const slate = 0x454c61, brick = 0x9d5139, cream = 0xe6dfbd;
 type Section = readonly [radius: number, height: number, paint: number];
 
 class WorkshopFaces extends PaintedFaces {
-  movingArm = Infinity;
+  movingStart = Infinity;
   private readonly curved: {start:number; end:number; x:number; y:number; z:number; rx:number; ry:number; rz:number}[]=[];
   /** Shape the coarse silhouette and shade each crown as continuous foliage. */
   crown(x:number,y:number,z:number,rx:number,ry:number,rz:number,paint:number) {
@@ -32,9 +32,9 @@ class WorkshopFaces extends PaintedFaces {
         (positions.getZ(i)-c.z)/(c.rz*c.rz)).normalize();
       normals.setXYZ(i,normal.x,normal.y,normal.z);
     }
-    if(Number.isFinite(this.movingArm)) {
+    if(Number.isFinite(this.movingStart)) {
       const parts = new Uint8Array(positions.count);
-      parts.fill(ARTISAN_SURFACE,this.movingArm);
+      parts.fill(ARTISAN_SURFACE,this.movingStart);
       g.setAttribute('terrainSurface',new Uint8BufferAttribute(parts,1));
     }
     return g;
@@ -340,15 +340,85 @@ function scree(g:WorkshopFaces) {
   g.crown(-.35,1.35,-.28,.48,.42,.37,0x728365);
 }
 
+function saltShed(g: WorkshopFaces) {
+  g.block(0,-.28,0,2.6,.54,1.48,stone);
+  g.block(0,.26,0,2.48,1.08,1.39,0x454f4e);
+  g.roof(0,0,2.78,1.68,1.34,.48,0x626969,0x384344);
+  g.block(.36,.26,.707,.72,.86,.034,0xbca486);
+  for (const x of [-1.12,-.62,.86]) g.block(x,.26,.713,.048,.99,.046,0x77817a);
+  g.casement(-.77,.72,.72,.47,.32);
+}
+
+function saltMound(g: WorkshopFaces) {
+  g.turn(0,0,[[1.12,-.16,stone],[1.09,.045,0xd8cbb2],[.52,.54,0xebdcca],
+    [0,1.02,0xffedd2]],11);
+}
+
+function saltWindpump(g: WorkshopFaces) {
+  g.turn(0,0,[[.90,-.25,stone],[.83,.41,stone],[.64,.49,0xbba98a],
+    [.43,3.09,0x6e6554],[.51,3.16,cream],[.38,3.66,0x516775],[0,3.84,slate]],8);
+  g.block(0,.49,.61,.41,.95,.055,0x454540);
+  g.block(0,3.07,.53,.18,.18,.23,0x63513d);
+  g.movingStart=g.vertices.length/3;
+  const hubY=3.16;
+  for(let blade=0;blade<4;blade++){
+    const angle=.53+blade*Math.PI/2, dx=Math.cos(angle), dy=Math.sin(angle);
+    const point=(radius:number,across:number,z:number): [number,number,number] =>
+      [radius*dx-across*dy,hubY+radius*dy+across*dx,z];
+    g.quad(point(.08,-.045,.62),point(1.65,-.045,.62),point(1.65,.045,.62),point(.08,.045,.62),oak);
+    for(let slat=0;slat<6;slat++){
+      const radial=.49+slat*.19;
+      g.quad(point(radial,.042,.635),point(radial+.15,.042,.635),
+        point(radial+.15,.30,.67),point(radial,.30,.67),0xd1c09a);
+    }
+  }
+}
+
+function beehiveKiln(g: WorkshopFaces) {
+  g.turn(0,0,[[1.48,-.28,stone],[1.48,.20,stone],[1.41,.28,0xa37555],[1.39,.86,0xbd8667],
+    [1.32,1.18,0xcfaf8b],[1.15,1.49,0xe1cdab],[.90,1.72,0xe7d7b8],
+    [.53,1.90,0xebddc4],[.27,1.94,0xae7959],[.25,2.10,brick],[.14,2.10,0x62473d]],16);
+  const mouth=(radius:number,angle:number,z:number): [number,number,number] =>
+    [radius*Math.cos(angle),.19+radius*Math.sin(angle),z];
+  for(let arch=0;arch<10;arch++){
+    const a=arch*Math.PI/10,b=(arch+1)*Math.PI/10;
+    g.triangle([0,.19,1.409],mouth(.56,a,1.409),mouth(.56,b,1.409),0x3d3331);
+    g.quad(mouth(.71,a,1.425),mouth(.71,a,1.07),mouth(.71,b,1.07),mouth(.71,b,1.425),0xa67759);
+    g.quad(mouth(.56,a,1.425),mouth(.71,a,1.425),mouth(.71,b,1.425),mouth(.56,b,1.425),arch%2?0xae7452:0xc58961);
+  }
+}
+
+function jar(g:WorkshopFaces,x:number,z:number,y:number,colour:number) {
+  g.turn(x,z,[[.12,y,stone],[.19,y+.06,colour],[.25,y+.28,colour],[.21,y+.43,colour],
+    [.115,y+.52,colour],[.125,y+.57,0x41617a],[.08,y+.57,cream],[.073,y+.51,0x523d36]],10);
+}
+
+function wareRack(g: WorkshopFaces) {
+  for(const x of [-1.01,1.01])for(const z of [-.32,.32])g.block(x,-.19,z,.11,1.55,.11,oak);
+  for(const y of [.17,.83]){
+    g.block(0,y,0,2.16,.09,.77,0x8a694d);
+    for(const [index,x] of [-.68,0,.68].entries()) jar(g,x,.015,y+.09,[0xb5724a,0x729598,0xcb9e75][index]!);
+  }
+}
+
+function potteryShed(g: WorkshopFaces) {
+  g.block(0,-.26,0,2.18,.52,1.64,0x836d58);
+  g.block(0,.26,0,2.08,1.05,1.54,0xe3d2ac);
+  g.roof(0,0,2.34,1.83,1.31,.56,0x435e85,0x617990);
+  g.block(.49,.26,.782,.53,.81,.03,0x665545);
+  g.casement(-.51,.62,.785,.69,.46);
+  jar(g,.86,1.03,0,0xbd805d);
+}
+
 /** One work gesture per island, driven by the existing village frame. The feet remain planted. */
 function artisan(job:number,g:WorkshopFaces) {
-  const coat=[0x6f8861,0xd3b57d,0x6b8491,0x947558,0x637f83][job]!;
+  const coat=[0x6f8861,0xd3b57d,0x6b8491,0x947558,0x637f83,0x7c8f88,0xa16b52][job]!;
   for(const x of [-.085,.085])g.block(x,-.04,0,.12,.35,.17,0x3f4645);
   g.block(0,.31,0,.32,.34,.21,coat);
   g.block(0,.65,.02,.20,.17,.17,0xb98059);
   g.turn(0,.02,[[.16,.82,0],[.16,.85,oak],[.11,.86,oak],[.09,.94,coat],[0,.96,coat]],8);
   g.block(-.187,.36,.016,.08,.24,.11,coat);
-  g.movingArm=g.vertices.length/3;
+  g.movingStart=g.vertices.length/3;
   g.block(.178,.51,.11,.085,.085,.25,coat);
   g.block(.178,.49,.25,.08,.08,.10,0xbc8661);
   if(job===0){
@@ -356,6 +426,11 @@ function artisan(job:number,g:WorkshopFaces) {
     g.block(.18,.43,.49,.065,.062,.18,0x678e7c);
   } else if(job===1){
     g.crown(.16,.47,.38,.18,.26,.15,0xcab084);
+  } else if(job===5){
+    g.block(.18,.10,.40,.043,.71,.043,oak);
+    g.block(.18,.08,.40,.48,.035,.08,0x665d51);
+  } else if(job===6){
+    g.turn(.19,.36,[[.055,.45,0],[.075,.50,0xc98c64],[.052,.58,0xb67856],[.035,.59,0x665444]],8);
   } else if(job===3) {
     g.block(.186,.03,.24,.045,.85,.045,oak);
   } else {
@@ -373,6 +448,9 @@ function glassRack(g:WorkshopFaces) {
   }
 }
 export const inlandCraft = {
+  'salt-shed':saltShed, 'salt-mound':saltMound, 'salt-windpump':saltWindpump,
+  'beehive-kiln':beehiveKiln, 'pottery-shed':potteryShed, 'ware-rack':wareRack,
+  'salt-raker':artisan.bind(null,5), potter:artisan.bind(null,6),
   gardener:artisan.bind(null,0), miller:artisan.bind(null,1), horologist:artisan.bind(null,2),
   shepherd:artisan.bind(null,3), glassworker:artisan.bind(null,4), 'glass-rack':glassRack,
   'pollard':pollard, 'clock-court':court, 'fell-scrub':scree, 'glass-packing-house':packhouse,

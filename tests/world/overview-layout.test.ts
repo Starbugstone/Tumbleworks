@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { worldLayout } from '../../src/world/overview-layout';
 
 describe('the valley window', () => {
-  it('shows all six registered places without row navigation', () => {
+  it('shows a six-island valley without row navigation', () => {
     const layout = worldLayout(6, { width: 375, height: 690 });
     expect(layout.maxFirstRow).toBe(0);
     expect(layout.villages.map(village => village.chapter)).toEqual([0, 1, 2, 3, 4, 5]);

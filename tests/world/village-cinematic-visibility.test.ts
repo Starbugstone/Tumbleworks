@@ -1,3 +1,4 @@
+import {VILLAGE_SCENE_PLANS} from '../../src/world/village-plans';
 import {it,expect} from 'vitest';
 import {Ray,Vector3} from 'three';
 import {writeFileSync} from 'node:fs';
@@ -7,7 +8,7 @@ import type {VillageCinematic} from '../../src/world/village-cinematic';
 
 interface Episode {start:number;end:number;firstFrame:number;lastFrame:number;duration:number;minVisible:number;occluders:string[]}
 const report:unknown[]=[];
-for(let chapter=0;chapter<6;chapter++)it(`cinematic ${chapter}: the marble stays trackable in four actual views`,()=>{
+for(const {chapter} of VILLAGE_SCENE_PLANS)it(`cinematic ${chapter}: the marble stays trackable in four actual views`,()=>{
  const f=cinematicWorld(chapter,true),r=f.machine.route as VillageCinematic,p=new Vector3(),target=new Vector3(),right=new Vector3(),up=new Vector3();
  try{
   const names=new Set((f.machine as unknown as{movers:{group:import('three').Object3D}[]}).movers.map(m=>m.group.name));names.add('workshop-hammer-sign');

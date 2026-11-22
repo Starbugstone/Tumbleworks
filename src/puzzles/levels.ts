@@ -1,3 +1,4 @@
+import { TUBE_ISLAND_BOARDS } from './island-boards';
 import { TUBE_VARIETY_BOARDS } from './variety-boards';
 import type { TubeDef } from './types';
 
@@ -1682,4 +1683,5 @@ export const TUBE_BOARDS: readonly TubeDef[] = [
     ],
   },
   ...TUBE_VARIETY_BOARDS,
+  ...TUBE_ISLAND_BOARDS,
 ];

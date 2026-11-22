@@ -1,3 +1,4 @@
+import { VILLAGE_SCENE_PLANS } from '../../src/world/village-plans';
 import { MeshBasicMaterial, Raycaster, Vector3 } from 'three';
 import { expect, it } from 'vitest';
 import { compileTerrain, terrainFieldHeight, terrainHeightAt, terrainOccupancy, type VillageTerrainSpec } from '../../src/world/village-terrain';
@@ -68,7 +69,7 @@ it('keeps the overview coarse while retaining real holes, height and independent
   } finally { full.geometry.dispose(); overview.geometry.dispose(); material.dispose(); }
 });
 
-it.each([0, 1, 2, 3, 4, 5])('faces every chapter %i cliff skirt outward, so the single-sided land never shows the sea through it', chapter => {
+it.each(VILLAGE_SCENE_PLANS.map(scene => scene.chapter))('faces every chapter %i cliff skirt outward, so the single-sided land never shows the sea through it', chapter => {
   const terrain = compileTerrain(villageScenePlan(chapter).terrain), material = new MeshBasicMaterial();
   const mesh = createVillageTerrain(terrain, material, 'full', true), p = mesh.geometry.getAttribute('position');
   const rank = { void: 0, water: 1, land: 2 } as const, wrong: number[][] = [];
@@ -87,7 +88,7 @@ it.each([0, 1, 2, 3, 4, 5])('faces every chapter %i cliff skirt outward, so the 
   mesh.geometry.dispose(); material.dispose();
 });
 
-it.each([0, 1, 2, 3, 4, 5])('draws chapter %i rock along each slope contour, never along a cell edge between two slopes', async chapter => {
+it.each(VILLAGE_SCENE_PLANS.map(scene => scene.chapter))('draws chapter %i rock along each slope contour, never along a cell edge between two slopes', async chapter => {
   const { ROCK_GRADE } = await import('../../src/view/village-terrain');
   const base = compileTerrain(villageScenePlan(chapter).terrain), terrain = { ...base, spec: { ...base.spec, rockContour: true } }, material = new MeshBasicMaterial();
   const mesh = createVillageTerrain(terrain, material, 'full', true), p = mesh.geometry.getAttribute('position'), g = mesh.geometry.getAttribute('grade');

@@ -96,4 +96,6 @@ export const VILLAGE_SHAPES: Readonly<
   },
   "4": {"9":{sourceX:3}},
   "5": {},
+  "6": {},
+  "7": {},
 };

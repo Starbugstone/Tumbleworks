@@ -1,3 +1,4 @@
+import { STOPS_PER_CHAPTER, LEVELS_PER_STOP } from '../../src/world/progression';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 import { CAMPAIGN } from '../../src/campaign';
@@ -48,7 +49,7 @@ type Snapshot = Awaited<ReturnType<typeof snapshot>>;
 
 async function seedAndOpen(page: Page, chapter: number, reduced = false) {
   await page.emulateMedia({ reducedMotion: reduced ? 'reduce' : 'no-preference' });
-  // Presentation fixture only: this does not claim that the test won 180 puzzles.
+  // Seed completed campaign progress to exercise the finished machines.
   await page.addInitScript(ids => localStorage.setItem('tumbleworks.progress.v1', JSON.stringify({ completed: ids, muted: true })), CAMPAIGN.map(level => level.id));
   await page.goto('/');
   await expect(page.locator('#boot')).toBeHidden({ timeout: 120_000 });
@@ -111,7 +112,7 @@ async function back(page: Page, baselineEntities: number) {
 test.use({ viewport: PHONE, deviceScaleFactor: 1 });
 test.beforeAll(() => mkdirSync(output, { recursive: true }));
 
-for (let chapter = 0; chapter < 6; chapter++) {
+for (let chapter = 0; chapter < CAMPAIGN.length / (STOPS_PER_CHAPTER * LEVELS_PER_STOP); chapter++) {
   test(`village ${chapter + 1}: its actual marble causes its own mechanisms and replay is identical`, async ({ page }) => {
     test.setTimeout(240_000);
     const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));

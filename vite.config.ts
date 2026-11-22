@@ -4,7 +4,7 @@ import { rapierInlineGzip } from './scripts/rapier-inline-gzip';
 // Films ship with authored motion. The earlier mechanical certificates remain
 // runnable research, including fixtures that require local archived receipts.
 const shippingWorldTests = [
-  'harbour-shoreline', 'inland-settlements', 'tropical-island', 'village-orbit', 'app-film-clock', 'assets', 'asset-surfaces', 'cooperative-diagnostics',
+  'harbour-shoreline', 'inland-settlements', 'island-hoists', 'tropical-island', 'village-orbit', 'app-film-clock', 'assets', 'asset-surfaces', 'cooperative-diagnostics',
   'film-lifecycle', 'film-progress', 'house-surfaces', 'overview-layout',
   'painted-land', 'painted-land-oracle', 'painted-land-resource',
   'progression', 'project-rewards', 'render-lifecycle', 'scene-3d',

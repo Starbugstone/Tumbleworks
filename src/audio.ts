@@ -217,8 +217,9 @@ class Sfx {
   }
 
   private get requestedBed(): BedTheme | null {
-    if (this.boardTheme) return this.boardTheme === 'harbour' ? 'coast' : 'inland';
-    return this.islandTheme === 'harbour' ? 'coast' : null;
+    const theme = this.boardTheme ?? this.islandTheme;
+    if (theme === 'harbour' || theme === 'saltworks') return 'coast';
+    return this.boardTheme ? 'inland' : null;
   }
 
   private get requestedMusic(): MusicTheme | null {

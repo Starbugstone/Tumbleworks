@@ -45,20 +45,21 @@ it('rejects degenerate and mismatched spatial inputs instead of declaring them d
 
 it('requires an explicit independent plan for every registered chapter, with no fallback for unknown chapters', () => {
   const chapters = worldProgress(CAMPAIGN, new Set()).chapters;
-  expect(chapters).toHaveLength(6); expect(VILLAGE_SCENE_PLANS).toHaveLength(chapters.length);
+  expect(chapters).toHaveLength(8); expect(VILLAGE_SCENE_PLANS).toHaveLength(chapters.length);
   const plans = chapters.map(chapter => villageScenePlan(chapter.index));
   expect(new Set(plans).size).toBe(chapters.length);
   expect(new Set(plans.map(scene => scene.plan)).size).toBe(chapters.length);
-  expect(new Set(plans.map(scene => scene.plan.profile))).toEqual(new Set(['plank', 'terracotta', 'timber', 'twinrail', 'girder', 'steel']));
+  expect(new Set(plans.map(scene => scene.plan.profile))).toEqual(new Set(['plank', 'terracotta', 'timber', 'twinrail', 'girder', 'steel', 'brine', 'stoneware']));
   for (const chapter of chapters) {
     const scene = villageScenePlan(chapter.index);
     expect(scene.chapter).toBe(chapter.index); expect(scene.plan.chapter).toBe(chapter.index);
     expect([...scene.plan.stations].map(station => station.stop).sort((a, b) => a - b)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
   }
-  for (const chapter of [-1, 6, 12, NaN, Infinity]) expect(() => villageScenePlan(chapter)).toThrow('no authored village plan');
+  for (const chapter of [-1, chapters.length, 12, NaN, Infinity]) expect(() => villageScenePlan(chapter)).toThrow('no authored village plan');
 });
 
-const pairs = Array.from({ length: 6 }, (_, left) => Array.from({ length: 5 - left }, (_, offset) => [left, left + offset + 1] as const)).flat();
+const pairs = VILLAGE_SCENE_PLANS.flatMap((left, index) =>
+  VILLAGE_SCENE_PLANS.slice(index + 1).map(right => [left.chapter, right.chapter] as const));
 it.each(pairs)('villages %i and %i differ in both actual spatial arrangement and ordered mechanisms', (left, right) => {
   const a = [...villageScenePlan(left).plan.stations].sort((a, b) => b.stop - a.stop);
   const b = [...villageScenePlan(right).plan.stations].sort((a, b) => b.stop - a.stop);
@@ -73,4 +74,23 @@ it('rejects a transformed copy of a real authored village even if its chapter an
   const transformed = anchors.map(({ x, y, z }) => ({ x: 17 + z * 2.7, y: 8 + y * 2.7, z: -4 + x * 2.7 }));
   expect(spatialDistance(anchors, transformed)).toBeLessThan(1e-6);
   expect(spatialDistance(anchors, transformed)).toBeLessThan(MIN_SPATIAL_DISTANCE);
+});
+
+it('carries the pottery return across the earlier run with room for the marble below', () => {
+  const { stations } = villageScenePlan(7).plan;
+  const low = stations.find(station => station.stop === 7)!;
+  const high = stations.find(station => station.span === 'girder')!;
+  // Intersect both finite straight runs in plan view, then compare their elevations there.
+  const start = low.entry.position, end = high.entry.position;
+  const ax = low.exit.position[0]-start[0], az = low.exit.position[2]-start[2];
+  const bx = high.exit.position[0]-end[0], bz = high.exit.position[2]-end[2];
+  const dx = end[0]-start[0], dz = end[2]-start[2], det = ax*bz-az*bx;
+  const u = (dx*bz-dz*bx)/det, v = (dx*az-dz*ax)/det;
+  for (const fraction of [u,v]) {
+    expect(fraction).toBeGreaterThan(0);
+    expect(fraction).toBeLessThan(1);
+  }
+  const lower = start[1]+u*(low.exit.position[1]-start[1]);
+  const upper = end[1]+v*(high.exit.position[1]-end[1]);
+  expect(upper-lower).toBeGreaterThan(1);
 });

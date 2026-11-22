@@ -35,7 +35,7 @@ function assets(): WorldAssets {
 }
 
 describe('the 3D valley overview', () => {
-  for (const [width, height] of [[375, 690], [1280, 900]] as const) for (const chapters of [1, 6]) {
+  for (const [width, height] of [[375, 690], [1280, 900]] as const) for (const chapters of [1, 6, 8]) {
     it(`keeps ${chapters} village labels separate and reachable in ${width}×${height}`, () => {
       const { stage } = rig(width, height);
       const overview = new ValleyOverview(stage, progress(chapters), assets());
@@ -96,7 +96,7 @@ describe('the 3D valley overview', () => {
   it('rejects an unauthored chapter instead of recycling an existing miniature', () => {
     const { stage } = rig(375, 690);
     const source = assets();
-    try { expect(() => new ValleyOverview(stage, progress(7), source)).toThrow('no authored village plan'); }
+    try { expect(() => new ValleyOverview(stage, progress(9), source)).toThrow('no authored village plan'); }
     finally { source.dispose(); }
   });
 

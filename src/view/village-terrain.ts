@@ -1,3 +1,4 @@
+import { SALTMERE_DIKE } from '../world/villages/saltworks';
 import * as THREE from 'three';
 import{mergePaintedFlatLand}from'./village-painted-land';
 import{mergeFlatLand,type LandFace}from'./village-flat-land';
@@ -248,6 +249,24 @@ const inlandFinish = [
   vec3 ash = mix(vec3(.157,.157,.145),vec3(.221,.200,.176),.18*cinder+.82*broad)*(.89+.34*grain);
   land = mix(land,ash,1.-smoothstep(-.16,.25,traffic));
   land = mix(land,cobbles*(1.-.27*smoothstep(-.45,-.15,court)),1.-smoothstep(-.13,.22,court));`,
+  // Crust collects in the worked pans. The dry bunds keep their limestone grain.
+  `if (plot) land = vColor.rgb * (.89 + .30*grain + .09*terrainRows((p.x+p.y)*2.4));`,
+  // Cut clay shows the potter's rake on flat yards and bedding in the hillsides.
+  `float leftBank = length((p-vec2(-8.,-6.))*vec2(.136,.148));
+   float rightBank = length((p-vec2(7.,-6.8))*vec2(.138,.132));
+   float court = length((p-vec2(-2.5,6.7))*vec2(.19,.31));
+   float beds = min(min(leftBank,rightBank),court);
+   float edge = beds + (broad-.35)*.085;
+   float westLane = abs(p.x+7.+1.45*sin(p.y*.24));
+   float eastLane = abs(p.x-5.8-.95*sin(p.y*.38+.5));
+   float lane = min(max(westLane,abs(p.y-.25)-7.4),max(eastLane,abs(p.y+.45)-7.1));
+   float wash = min(lane,max(abs(p.y+7.1-.052*p.x*p.x),abs(p.x)-8.1));
+   vec3 clay = mix(vec3(.43,.285,.17),vec3(.51,.38,.235),.50*grain+.5*broad);
+   clay *= .91+.15*terrainRows(y*2.1+p.y*.25+broad*.40);
+   vec3 brickYard = vec3(.342,.241,.167)*(.92+.23*grain-.36*stoneJoints(p*vec2(1.2,1.6)));
+   land = mix(land,clay,1.-smoothstep(.91,1.12,edge));
+   land = mix(land,brickYard,1.-smoothstep(.66,.74,edge));
+   land = mix(land,clay*(.91+.21*grain),1.-smoothstep(.35,.74,wash+(broad-.35)*.24));`,
 ] as const;
 
 /** Illustrate only geometry marked as terrain. Other pieces can share this material and its cached draw. */
@@ -312,6 +331,27 @@ export function illustrateInlandTerrain(material: THREE.Material, terrain: Villa
             float damp = 1.-smoothstep(.19,.88,y-uWaterline);
             land = mix(land,vec3(.26,.239,.200)*(.86+.29*grain),damp*.40);
           }
+          ` : ''}
+          ${chapter === 6 ? `
+          if (!bank) {
+            vec2 normal = vec2(${SALTMERE_DIKE.normal.map(n => n.toFixed(5)).join(',')});
+            vec2 delta = p - vec2(${SALTMERE_DIKE.origin.map(n => n.toFixed(5)).join(',')});
+            float crossDike = abs(dot(delta,normal));
+            float along = dot(delta,vec2(-normal.y,normal.x));
+            float toe = ${SALTMERE_DIKE.toe.toFixed(2)};
+            float crest = ${SALTMERE_DIKE.halfWidth.toFixed(2)};
+            vec3 grass = mix(uTurf,uTurfAlt,broad)*(.86+.38*grain);
+            vec3 blocks = vec3(.30,.277,.226)*(.91+.26*grain-.27*stoneJoints(vec2(along*1.7,y*3.7)));
+            vec3 path = vec3(.46,.402,.312)*(.89+.29*grain-.16*stoneJoints(vec2(along*1.4,dot(delta,normal)*2.1)));
+            vec3 embankment = mix(path,blocks,smoothstep(crest-.13,crest+.06,crossDike));
+            embankment = mix(embankment,grass,smoothstep(toe-.45,toe-.10,crossDike));
+            land = mix(embankment,land,smoothstep(toe-.04,toe+.06,crossDike));
+          }
+          ` : ''}
+          ${chapter === 7 ? `
+          float dry = smoothstep(.15,1.08,y-uWaterline+.15*(broad-.35));
+          vec3 beach = vec3(.49,.397,.286)*(.92+.25*grain);
+          land = mix(beach,land,dry);
           ` : ''}
           ${chapter === 1 ? `
           if (vTerrainSurface > 4.5) {

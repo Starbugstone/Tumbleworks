@@ -128,7 +128,7 @@ export class WorldScene {
     const landscape = new THREE.Group(); landscape.name = `village-landscape-${chapter}`;
     // The land as drawn: dressing beside it (river banks) continues these colours.
     const drawn = { ...terrain, spec: { ...terrain.spec, mergeFlatLand: true, rockContour: true,
-      smoothLandNormals: chapter === 2 && options.motion === 'cinematic', palette: villageSurfacePalette(terrain.spec.palette, chapter) } };
+      smoothLandNormals: terrain.spec.smoothLandNormals ?? (chapter === 2 && options.motion === 'cinematic'), palette: villageSurfacePalette(terrain.spec.palette, chapter) } };
     if (chapter === 0) rockContour(this.material, sunny(drawn.spec.palette.rock, new THREE.Color()), sunny(drawn.spec.palette.grass, new THREE.Color()));
     else illustrateInlandTerrain(this.material, drawn.spec, chapter);
     const ground = createVillageTerrain(drawn, this.material, 'full', true); landscape.add(ground);
@@ -139,7 +139,7 @@ export class WorldScene {
     for (const piece of scenery) {
       const model = this.model(piece.model);
       model.position.fromArray(piece.position); model.rotation.y = piece.yaw; model.scale.setScalar(piece.scale);
-      if (chapter > 0 && ['gardener','miller','horologist','shepherd','glassworker'].includes(piece.model) && typeof Image !== 'undefined') {
+      if (chapter > 0 && ['gardener','miller','horologist','shepherd','glassworker','salt-raker','potter','salt-windpump'].includes(piece.model) && typeof Image !== 'undefined') {
         markVillageArtisan(model, artisans.length);
         artisans.push(piece);
       }

@@ -35,8 +35,9 @@ const SOURCE_FILES = [
   'src/view/world-kit.ts', 'src/view/world-bake.ts', 'src/view/village-machine.ts', 'src/view/village-film-camera.ts',
   'src/view/machine-primitives.ts', 'src/view/village-terrain.ts', 'src/world/village-terrain.ts',
   'src/world/village-plan.ts', 'src/world/village-program.ts', 'src/world/village-plans.ts',
+  'src/view/island-hoists.ts', 'src/view/inland-craft.ts', 'src/view/village-artisan.ts', 'src/world/village-themes.json',
   'src/world/villages/author.ts', 'src/world/village-motion.ts', 'src/world/village-rolling.ts', 'src/view/village-film-shots.ts',
-  ...['little-harbour', 'glasshouse-gardens', 'willow-mill', 'clockmakers-hill', 'cloud-bridge', 'high-glassworks'].map(name => `src/world/villages/${name}.ts`),
+  ...['little-harbour', 'glasshouse-gardens', 'willow-mill', 'clockmakers-hill', 'cloud-bridge', 'high-glassworks', 'saltworks', 'potters-reach'].map(name => `src/world/villages/${name}.ts`),
 ];
 const sourceHashes = () => Object.fromEntries(SOURCE_FILES.map(path => [path, createHash('sha256').update(readFileSync(path)).digest('hex')]));
 const SOURCES = sourceHashes();

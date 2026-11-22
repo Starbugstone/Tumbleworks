@@ -140,13 +140,109 @@ test('French overview labels wrap without clipping on the phone and existing des
   await page.goto('/'); await ready(page);
   await page.locator('#levels-toggle').click(); await openMenuSettings(page); await page.getByRole('button', { name: 'Français', exact: true }).click();
   if (await page.locator('#levels').isVisible()) await page.locator('#levels-toggle').click();
+  await expect(page.getByRole('navigation', { name: 'Étapes de construction' })).toHaveCount(1);
   await overview(page, 'fr');
   await labelsFit(page);
   await expect(page.locator('.wv-location[data-chapter="0"]')).toContainText('Le petit port');
   await page.screenshot({ path: 'output/current/world/navigation-phone-fr.png' });
+  const touch = await page.context().newCDPSession(page);
+  const label = (chapter: number) => page.locator(`.wv-location[data-chapter="${chapter}"]`);
+  const swipe = async (dx: number, dy: number, end: 'touchEnd' | 'touchCancel'): Promise<void> => {
+    const box = (await label(4).boundingBox())!;
+    const x = box.x + box.width / 2, y = box.y + box.height / 2;
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y, id: 1 }] });
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x + dx, y: y + dy, id: 1 }] });
+    await touch.send('Input.dispatchTouchEvent', { type: end, touchPoints: [] });
+  };
+  await label(0).focus();
+  await swipe(0, 90, 'touchCancel');
+  await expect(label(0)).toBeFocused();
+  await swipe(75, 12, 'touchEnd');
+  await expect(label(0)).toBeFocused();
+  await expect(page.locator('.wv-heading p')).toBeEmpty();
+  await swipe(0, 90, 'touchEnd');
+  await touch.detach();
+  await expect(label(2)).toBeFocused();
+  await expect(label(6)).toHaveAccessibleName('Les marais salants, verrouillée');
+  await expect(label(7)).toHaveAccessibleName('Les coteaux des potiers, verrouillée');
+  await labelsFit(page);
+  await label(7).focus();
   await page.setViewportSize(DESKTOP);
   await labelsFit(page);
+  await expect(label(7)).toBeFocused();
+  await label(7).hover();
+  await page.mouse.wheel(0, 120);
+  await expect(label(5)).toBeFocused();
+  await label(5).hover();
+  await page.mouse.wheel(0, -120);
+  await expect(label(5)).toBeFocused();
+  await expect(label(7)).toBeVisible();
+  // Space and Enter retain native button activation after dragging a label.
+  await label(7).focus();
+  await page.keyboard.press('Space');
+  await expect(page.locator('.wv-heading p')).toContainText('Les marais salants');
   await page.screenshot({ path: 'output/current/world/navigation-desktop-fr.png' });
   await page.getByRole('button', { name: 'Retour au village' }).click();
   await expect(page.locator('.wv-heading h1')).toHaveText('Le petit port');
+});
+
+test('returning players can pan the island chart and enter the new campaign stops', async ({ page }) => {
+  await page.addInitScript(completed => localStorage.setItem('tumbleworks.progress.v1', JSON.stringify({ completed, muted: true })), CAMPAIGN.slice(0, 180).map(level => level.id));
+  await page.goto('/');
+  await ready(page);
+  await expect(page.locator('.wv-heading h1')).toHaveText('Saltmere Pans');
+  await overview(page);
+  const chart = () => page.evaluate(() => {
+    const valley = (window as unknown as GameWindow).tumbleworks.app.world.valley!;
+    return (valley.scene.background as import('three').CanvasTexture).image.toDataURL();
+  });
+  await page.locator('.wv-location[data-chapter="2"]').focus();
+  await page.keyboard.press('ArrowDown');
+  await expect(page.locator('.wv-location[data-chapter="0"]')).toBeFocused();
+  const first = await chart();
+  await page.locator('.wv-location[data-chapter="4"]').focus();
+  await page.keyboard.press('ArrowUp');
+  await expect(page.locator('.wv-location[data-chapter="6"]')).toBeFocused();
+  expect(await chart()).not.toBe(first);
+  await labelsFit(page);
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.wv-heading h1')).toHaveText('Saltmere Pans');
+  await page.getByRole('button', { name: 'Play next level' }).tap();
+  await expect(page.locator('#journey-transition')).toBeHidden();
+  expect(await state(page)).toMatchObject({ screen: 'game', source: 'campaign', levelIndex: 180 });
+});
+
+for (const [wins, previous, next] of [
+  [180, 'high-glassworks', 'saltmere-pans'], [210, 'saltmere-pans', 'potters-reach'],
+] as const) test(`a returning player with ${wins} wins can finish the pending film and resume the next island`, async ({ page }) => {
+  const completed = CAMPAIGN.slice(0, wins).map(level => level.id);
+  const filmKeys = completed.filter((_, i) => i % 30 === 0).map((first, chapter) => `valley:${first}:${completed[chapter * 30 + 29]}`);
+  await page.addInitScript(({ completed, seen }) => {
+    if (localStorage.getItem('tumbleworks.progress.v1')) return;
+    localStorage.setItem('tumbleworks.progress.v1', JSON.stringify({ completed, muted: true }));
+    localStorage.setItem('tumbleworks.valley.v1', JSON.stringify({ seen, chapter: seen.length }));
+  }, { completed, seen: filmKeys.slice(0, -1) });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  const film = async () => {
+    await expect(page.locator('#boot')).toBeHidden({ timeout: 120_000 });
+    await expect(page.locator('body')).toHaveAttribute('data-screen', 'film');
+    await expect(page.locator('html')).toHaveAttribute('data-village', previous);
+    await expect(page.locator('#scene')).toHaveAttribute('data-world-film', 'ready', { timeout: 60_000 });
+  };
+  await film();
+  await page.reload();
+  await film();
+  await page.locator('#film-skip').tap();
+  await ready(page);
+  await expect(page.locator('html')).toHaveAttribute('data-village', next);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('tumbleworks.valley.v1')!).seen)).toEqual(filmKeys);
+  await page.reload(); await ready(page);
+  await expect(page.locator('html')).toHaveAttribute('data-village', next);
+  await page.locator('#world-workshop').tap();
+  await expect(page.locator('.wv-project-group')).toHaveCount(6);
+  await expect(page.locator('.wv-project-group').first().getByRole('button').first()).toBeInViewport();
+  await page.getByRole('button', { name: 'Back to the village' }).tap();
+  await page.getByRole('button', { name: 'Play next level' }).tap();
+  expect(await state(page)).toMatchObject({ screen: 'game', source: 'campaign', levelIndex: wins });
 });

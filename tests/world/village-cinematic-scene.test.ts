@@ -1,3 +1,4 @@
+import {VILLAGE_SCENE_PLANS} from '../../src/world/village-plans';
 import {describe,it,expect,vi} from 'vitest';
 import {Mesh,Vector3} from 'three';
 import {cinematicWorld} from './cinematic-world-fixture';
@@ -9,7 +10,7 @@ import {villageChannelGeometry} from '../../src/view/machine-primitives';
 import {CLOUD_BRIDGE} from '../../src/world/villages/cloud-bridge';
 import {connect} from '../../src/world/villages/author';
 
-for(let chapter=0;chapter<6;chapter++)describe(`cinematic scene ${chapter}`,()=>{
+for(const {chapter} of VILLAGE_SCENE_PLANS)describe(`cinematic scene ${chapter}`,()=>{
  it('plays immediately with all earned additions and fits the fixed geometry budgets',()=>{
   const f=cinematicWorld(chapter);try{
    expect(f.machine.program).toBeUndefined();expect(f.world.filmReadiness()).toBe('ready');

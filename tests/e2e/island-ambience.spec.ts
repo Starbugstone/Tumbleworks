@@ -1,8 +1,9 @@
+import { STOPS_PER_CHAPTER, LEVELS_PER_STOP } from '../../src/world/progression';
 import { expect, test } from '@playwright/test';
 import { CAMPAIGN } from '../../src/campaign';
 
 /** Observe the real mixer requests while going through the campaign map and film controls. */
-test('map and film keep the current island soundtrack on all six islands', async ({ page }) => {
+test('map and film keep the current island soundtrack on every registered island', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.addInitScript(completed => {
     localStorage.setItem('tumbleworks.progress.v1', JSON.stringify({ completed, muted: true }));
@@ -22,7 +23,7 @@ test('map and film keep the current island soundtrack on all six islands', async
     };
     return requests;
   });
-  for (let chapter = 5; chapter >= 0; chapter--) {
+  for (let chapter = CAMPAIGN.length / (STOPS_PER_CHAPTER * LEVELS_PER_STOP) - 1; chapter >= 0; chapter--) {
     await expect(page.locator('#journey-transition')).toBeHidden();
     await page.getByRole('button', { name: 'Watch your machine' }).tap();
     await expect(page.locator('#scene')).toHaveAttribute('data-world-film', 'ready', { timeout: 30_000 });

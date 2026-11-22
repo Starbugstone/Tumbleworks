@@ -3,7 +3,7 @@ import { makeMusic, type MusicTheme } from '../../src/audio-music';
 
 const tempos = [
   ['harbour', .95], ['garden', 1.02], ['mill', .91],
-  ['clock', .87], ['bridge', 1.06], ['glass', .97],
+  ['clock', .87], ['bridge', 1.06], ['glass', .97], ['saltworks', 1.10], ['pottery', .93],
 ] satisfies [MusicTheme, number][];
 
 it.each(tempos)('renders two distinct, level-matched phrases for %s', (theme, beat) => {

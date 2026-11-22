@@ -74,7 +74,8 @@ export class WorldView {
   private playing = false;
   private valley: ValleyOverview | null = null;
   private valleyAssets: WorldKitAssets | null = null;
-  private gesture: { id: number; x: number; y: number; moved: boolean } | null = null;
+  private gesture: { id: number; x: number; y: number; moved: boolean; target: HTMLElement; focus: HTMLElement | null } | null = null;
+  private draggedLabel: HTMLElement | null = null;
   private readonly mapPointers = new Map<number, { x:number; y:number; startX:number; startY:number }>();
   private mapMoved = false;
   private suppressMapClick = false;
@@ -90,7 +91,7 @@ export class WorldView {
 
   constructor(private readonly stage: Stage, private readonly actions: WorldActions) {
     this.element.id = 'world'; this.element.hidden = true;
-    this.nodes.id = 'world-stops'; this.nodes.setAttribute('aria-label', t('Construction stops', 'Étapes de construction'));
+    this.nodes.id = 'world-stops';
     this.heading.className = 'wv-heading'; this.footer.className = 'wv-footer';
     this.panel.className = 'wv-panel'; this.panel.hidden = true;
     this.filmControls.className = 'wv-film-controls'; this.filmControls.hidden = true;
@@ -118,6 +119,7 @@ export class WorldView {
     sfx.harbourAmbience(true, this.chapter);
     this.actions.screen(this.view);
     this.heading.hidden = this.nodes.hidden = this.footer.hidden = false;
+    this.nodes.setAttribute('aria-label', t('Construction stops', 'Étapes de construction'));
     const current = progress.chapters[this.chapter];
     // Switching villages: the old view stays, dimmed, until the new one is drawn (reduced motion: plain backdrop).
     if (fromMap && this.scene && this.scene.chapter !== this.chapter && !this.reduced.matches) { this.cover(); this.holdBuildCover = true; this.curtain.classList.add('wv-building'); this.curtain.style.opacity = '0.4'; }
@@ -242,16 +244,21 @@ export class WorldView {
     this.panel.querySelector<HTMLButtonElement>('[aria-current="location"]')?.focus({ preventScroll: true });
   }
 
-  private valleyLabels(): void {
+  private valleyLabels(focusChapter?: number): void {
     if (!this.progress || !this.valley) return;
-    this.panel.querySelector('.wv-locations')?.remove();
+    const oldList = this.panel.querySelector('.wv-locations');
+    const focused = document.activeElement;
+    if (focusChapter === undefined && focused instanceof HTMLButtonElement && oldList?.contains(focused)) {
+      focusChapter = Number(focused.dataset['chapter']);
+    }
+    oldList?.remove();
     const list = document.createElement('nav'); list.className = 'wv-locations'; list.setAttribute('aria-label', t('Islands', 'Îles'));
     for (const target of this.valley.targets()) {
       const chapter = this.progress.chapters[target.chapter]!;
       const item = makeButton('', () => this.enterVillage(chapter.index), 'wv-location');
       item.dataset['chapter'] = String(chapter.index); item.setAttribute('aria-disabled', String(!chapter.available));
       item.setAttribute('aria-current', chapter.index === this.chapter ? 'location' : 'false');
-      item.style.cssText = `left:${target.x}px;top:${target.y}px;width:${target.width}px`;
+      item.style.cssText = `touch-action:none;left:${target.x}px;top:${target.y}px;width:${target.width}px`;
       const name = document.createElement('strong'); name.textContent = worldLocation(chapter.index).name;
       if (!chapter.available) item.prepend(lockIcon());
       else if (chapter.complete) {
@@ -261,14 +268,22 @@ export class WorldView {
       list.append(item);
       item.addEventListener('keydown', event => {
         if (event.key === 'Escape') { event.preventDefault(); this.show(this.progress!, this.chapter); return; }
-        const delta = ({ ArrowLeft: -1, ArrowRight: 1, ArrowUp: -2, ArrowDown: 2 } as Record<string, number>)[event.key];
+        const delta = ({ ArrowLeft: -(chapter.index % 2), ArrowRight: 1 - chapter.index % 2, ArrowUp: 2, ArrowDown: -2 } as Record<string, number>)[event.key];
         if (delta === undefined) return;
-        event.preventDefault(); const next = Math.max(0, Math.min(chapter.index + delta, this.progress!.chapters.length - 1));
-        this.valley!.update(this.progress!, next); this.valleyLabels(); this.valley!.draw();
-        this.panel.querySelector<HTMLButtonElement>(`[data-chapter="${next}"]`)?.focus({ preventScroll: true });
+        event.preventDefault();
+        const next = chapter.index + delta;
+        if (next === chapter.index || !this.progress!.chapters[next]) return;
+        this.valley!.update(this.progress!, next); this.valleyLabels(next); this.valley!.draw();
       });
     }
     this.panel.append(list);
+    if (focusChapter !== undefined) {
+      const buttons = Array.from(list.querySelectorAll('button'));
+      const column = buttons.filter(button => Number(button.dataset['chapter']) % 2 === focusChapter % 2);
+      const nearest = column.sort((a, b) =>
+        Math.abs(Number(a.dataset['chapter']) - focusChapter) - Math.abs(Number(b.dataset['chapter']) - focusChapter))[0];
+      (nearest ?? buttons[0])?.focus({ preventScroll: true });
+    }
   }
   private enterVillage(index: number): void {
     const chapter = this.progress?.chapters[index]; if (!chapter) return;
@@ -277,7 +292,7 @@ export class WorldView {
     sfx.blocked();
     this.heading.querySelector('p')!.textContent = t(`Finish ${worldLocation(Math.max(0, index - 1)).name} to open this island.`, `Terminez ${worldLocation(Math.max(0, index - 1)).name} pour ouvrir cette île.`);
   }
-  private disposeValley(): void { this.valley?.dispose(); this.valley = null; this.valleyAssets = null; }
+  private disposeValley(): void { this.cancelOverviewGesture(); this.draggedLabel = null; this.valley?.dispose(); this.valley = null; this.valleyAssets = null; }
 
   workshop(levels: readonly GameLevel[], progress: WorldProgress, focusId?: string): void {
     this.disposeValley(); this.panel.classList.remove('wv-overview-panel');
@@ -329,7 +344,7 @@ export class WorldView {
         }
         group.append(article);
       }
-      list.append(group);
+      if (group.querySelector('article')) list.append(group);
     }
     this.footer.classList.add('wv-workshop-footer');
     this.footer.replaceChildren(back); this.panel.replaceChildren(list); this.panel.scrollTop = 0;
@@ -419,7 +434,7 @@ export class WorldView {
     this.scene?.stopFilm(); this.filmNote.remove();
     delete this.stage.canvas.dataset['worldPlayback']; delete this.stage.canvas.dataset['worldFilm']; this.filmControls.hidden = true;
   }
-  hide(): void { sfx.harbourAmbience(false); this.releaseBuildCover(); this.stopFilm(); this.ownership.leave('hidden'); this.disposeValley(); this.gesture = null; this.clearMapPointers(); this.element.hidden = true; }
+  hide(): void { sfx.harbourAmbience(false); this.releaseBuildCover(); this.stopFilm(); this.ownership.leave('hidden'); this.disposeValley(); this.clearMapPointers(); this.element.hidden = true; }
   resize(): void { this.scene?.resize(); this.valley?.resize(); this.playback?.resize(); if (this.view === 'overview') this.valleyLabels(); else this.positions(); this.dirty = true; }
   private positions(): void {
     const pins = this.scene?.targets() ?? [];
@@ -493,7 +508,7 @@ export class WorldView {
       }, 280);
     });
   }
-  get currentChapter(): number { return this.chapter; }
+  get currentChapter(): number { return this.view === 'film' ? this.filmIndex : this.chapter; }
   get mode(): string { return this.view; }
 
   private mapChanged(): void {
@@ -502,6 +517,15 @@ export class WorldView {
   private clearMapPointers():void {
     for(const id of this.mapPointers.keys())if(this.stage.canvas.hasPointerCapture(id))this.stage.canvas.releasePointerCapture(id);
     this.mapPointers.clear();this.mapMoved=false;this.element.classList.remove('wv-inspecting');
+  }
+  private cancelOverviewGesture(): void {
+    const gesture = this.gesture;
+    if (!gesture) return;
+    this.gesture = null;
+    this.draggedLabel = gesture.target;
+    if (gesture.target.hasPointerCapture(gesture.id)) gesture.target.releasePointerCapture(gesture.id);
+    if (gesture.focus === document.body && document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    else if (gesture.focus?.isConnected) gesture.focus.focus({ preventScroll: true });
   }
   private bindWorldPointer(): void {
     const canvas = this.stage.canvas;
@@ -541,27 +565,64 @@ export class WorldView {
     document.addEventListener('click',event=>{
       if(this.suppressMapClick&&mapTarget(event.target)){event.preventDefault();event.stopImmediatePropagation();}
     },true);
-    window.addEventListener('blur',()=>this.clearMapPointers());
-    document.addEventListener('visibilitychange',()=>{if(document.hidden)this.clearMapPointers();});
-    canvas.addEventListener('pointerdown',event=>{
-      if(this.element.hidden||this.view!=='overview'||event.button!==0||this.gesture)return;
-      this.gesture={id:event.pointerId,x:event.clientX,y:event.clientY,moved:false};canvas.setPointerCapture(event.pointerId);
-    });
-    canvas.addEventListener('pointermove',event=>{if(this.gesture?.id===event.pointerId&&Math.abs(event.clientY-this.gesture.y)>=30)this.gesture.moved=true;});
-    const release=(event:PointerEvent):void=>{
-      const gesture=this.gesture;if(!gesture||gesture.id!==event.pointerId)return;this.gesture=null;
-      if(this.view==='overview'){
-        if(gesture.moved&&this.valley?.panRows(Math.sign(gesture.y-event.clientY))){this.valleyLabels();this.dirty=true;}
-        else if(!gesture.moved&&event.type==='pointerup'){const hit=this.valley?.pick(event.clientX,event.clientY);if(hit!==null&&hit!==undefined)this.enterVillage(hit);}
-      }
-      if(canvas.hasPointerCapture(event.pointerId))canvas.releasePointerCapture(event.pointerId);
+    const cancelPointers = (): void => { this.clearMapPointers(); this.cancelOverviewGesture(); };
+    window.addEventListener('blur', cancelPointers);
+    document.addEventListener('visibilitychange', () => { if (document.hidden) cancelPointers(); });
+    const overviewTarget = (target: EventTarget | null): HTMLElement | null => {
+      if (target === canvas) return canvas;
+      return target instanceof Element ? target.closest<HTMLButtonElement>('.wv-location') : null;
     };
-    canvas.addEventListener('pointerup',release);canvas.addEventListener('pointercancel',release);
-    canvas.addEventListener('wheel',event=>{
-      if(this.element.hidden)return;
-      if(this.view==='map'&&this.scene){event.preventDefault();this.scene.orbit.magnify(Math.exp(-event.deltaY*.001));this.mapChanged();}
-      else if(this.view==='overview'){event.preventDefault();if(this.valley?.panRows(Math.sign(event.deltaY))){this.valleyLabels();this.dirty=true;}}
-    },{passive:false});
+    document.addEventListener('pointerdown', event => {
+      const target = overviewTarget(event.target);
+      if (!target || this.view !== 'overview' || this.element.hidden || event.button !== 0 || this.gesture) return;
+      this.draggedLabel = null;
+      this.gesture = { id: event.pointerId, x: event.clientX, y: event.clientY, moved: false, target,
+        focus: document.activeElement instanceof HTMLElement ? document.activeElement : null };
+      target.setPointerCapture(event.pointerId);
+    }, true);
+    document.addEventListener('pointermove', event => {
+      const gesture = this.gesture;
+      if (gesture?.id === event.pointerId && Math.hypot(event.clientX - gesture.x, event.clientY - gesture.y) >= 9) gesture.moved = true;
+    }, true);
+    const pan = (delta: number): void => {
+      if (this.valley?.panRows(Math.sign(delta))) { this.valleyLabels(); this.dirty = true; }
+    };
+    document.addEventListener('pointerup', event => {
+      const gesture = this.gesture;
+      if (!gesture || gesture.id !== event.pointerId) return;
+      const dx = event.clientX - gesture.x, dy = event.clientY - gesture.y;
+      if (gesture.moved || Math.hypot(dx, dy) >= 9) {
+        this.cancelOverviewGesture();
+        if (Math.abs(dy) >= 30 && Math.abs(dy) > Math.abs(dx)) pan(dy);
+        return;
+      }
+      this.gesture = null;
+      if (gesture.target === canvas) {
+        const hit = this.valley?.pick(event.clientX, event.clientY);
+        if (hit !== null && hit !== undefined) this.enterVillage(hit);
+      }
+      // The browser releases capture and activates a tapped label with its native click.
+    }, true);
+    const cancelled = (event: PointerEvent): void => {
+      if (this.gesture?.id === event.pointerId) this.cancelOverviewGesture();
+    };
+    document.addEventListener('pointercancel', cancelled, true);
+    document.addEventListener('lostpointercapture', cancelled, true);
+    document.addEventListener('click', event => {
+      if (event.detail && this.draggedLabel && this.draggedLabel.contains(event.target as Node)) {
+        event.preventDefault(); event.stopImmediatePropagation();
+        this.draggedLabel = null;
+      }
+    }, true);
+    document.addEventListener('wheel', event => {
+      if (this.element.hidden) return;
+      if (event.target === canvas && this.view === 'map' && this.scene) {
+        event.preventDefault(); this.scene.orbit.magnify(Math.exp(-event.deltaY * .001)); this.mapChanged();
+      } else if (this.view === 'overview' && overviewTarget(event.target)) {
+        event.preventDefault();
+        if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) pan(-event.deltaY);
+      }
+    }, { passive: false });
     document.addEventListener('keydown',event=>{
       if(this.element.hidden||this.view!=='map'||!this.scene||!this.panel.hidden||!this.curtain.hidden)return;
       if(event.target instanceof HTMLElement&&event.target.closest('#levels,input,textarea,select'))return;

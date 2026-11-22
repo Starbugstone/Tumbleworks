@@ -125,7 +125,7 @@ export class ValleyOverview {
       village.add(ground);
       for (const piece of source.overview) {
         const model = this.assets.model(piece.model, material);
-        model.position.fromArray(piece.position); model.rotation.y = piece.yaw; const landmark = ['harbour-beacon','mill','palm-house','civic-clock','bridge','bottle-kiln'].includes(piece.model);
+        model.position.fromArray(piece.position); model.rotation.y = piece.yaw; const landmark = ['harbour-beacon','mill','palm-house','civic-clock','bridge','bottle-kiln','salt-windpump','beehive-kiln'].includes(piece.model);
         model.scale.setScalar(piece.scale * (landmark ? 1.93 : 1.26));
         if (piece.model !== 'boat') {
           const foot=seatMiniature(model,ground,material);if(foot)feet.push(foot);
@@ -202,7 +202,7 @@ export class ValleyOverview {
     if (selectedChapter >= 0) {
       const row = Math.floor(selectedChapter / 2);
       const first = row < this.layout.firstRow ? row : row >= this.layout.firstRow + 3 ? row - 2 : this.layout.firstRow;
-      this.applyLayout(first);
+      this.panRows(first - this.layout.firstRow);
     }
   }
 
@@ -241,6 +241,8 @@ export class ValleyOverview {
     const elevation = 50 * Math.PI / 180;
     this.camera.position.set(0, 2.6 + this.layout.cameraDistance * Math.sin(elevation), -0.8 + this.layout.cameraDistance * Math.cos(elevation));
     this.camera.lookAt(0, 2.6, -0.8);
+    // Reserve the same footer clearance when a broad shoreline enters the front row.
+    if (this.layout.maxFirstRow > 0) this.camera.setViewOffset(width,height,0,8,width,height);
     this.camera.updateProjectionMatrix(); this.camera.updateMatrixWorld();
     this.paintChart();
   }

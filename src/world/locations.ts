@@ -8,7 +8,7 @@ export interface WorldLocation {
   readonly backdropFocus: readonly [number,number];
   readonly roof: number;
   readonly accent: number;
-  readonly kind: 'harbour' | 'garden' | 'mill' | 'clock' | 'bridge' | 'glass';
+  readonly kind: 'harbour' | 'garden' | 'mill' | 'clock' | 'bridge' | 'glass' | 'saltworks' | 'pottery';
 }
 
 export function worldLocation(chapter: number): WorldLocation {

@@ -1,3 +1,4 @@
+import { STOPS_PER_CHAPTER, LEVELS_PER_STOP } from '../../src/world/progression';
 import { expect, test, type Page } from '@playwright/test';
 import { CAMPAIGN } from '../../src/campaign';
 import type { WorldScene } from '../../src/view/world-scene';
@@ -73,7 +74,7 @@ test('native touch orbits from a marker, pinches, pans, cancels and resets witho
   await expect(page.locator('body')).toHaveAttribute('data-screen','game');expect(errors).toEqual([]);
 });
 
-test('all six islands and earned buildings render through an orbit sweep',async({page}, testInfo)=>{
+test('all campaign islands and earned buildings render through an orbit sweep',async({page}, testInfo)=>{
   test.setTimeout(360_000);
   const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
   // Three.js reports failed GPU programs through the console. A map may still draw its sea and pins.
@@ -82,11 +83,11 @@ test('all six islands and earned buildings render through an orbit sweep',async(
   });
   await page.addInitScript(completed=>localStorage.setItem('tumbleworks.progress.v1',JSON.stringify({completed,muted:true})),[...CAMPAIGN.map(l=>l.id),...WORKSHOP_PROJECTS.map(p=>p.id)]);
   await page.goto('/?fx=0');await ready(page);
-  for(let chapter=5;chapter>=0;chapter--){
+  for(let chapter = CAMPAIGN.length / (STOPS_PER_CHAPTER * LEVELS_PER_STOP) - 1;chapter>=0;chapter--){
     await ready(page);await draw(page);await expect(page.getByRole('button',{name:'Reset village view'})).toBeHidden();
     const blockedPins=await page.locator('.map-stop[data-status="built"]:visible').evaluateAll(buttons=>buttons.filter(button=>{const r=button.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('button')!==button;}).map(button=>button.getAttribute('data-round')));
     expect(blockedPins).toEqual([]);
-    const landmark = ['harbour-beacon', 'palm-house', 'grain-barn', 'civic-clock', 'fell-cottage', 'bottle-kiln'][chapter]!;
+    const landmark = ['harbour-beacon', 'palm-house', 'grain-barn', 'civic-clock', 'fell-cottage', 'bottle-kiln', 'salt-windpump', 'beehive-kiln'][chapter]!;
     const projects = WORKSHOP_PROJECTS.filter(project => project.chapter === chapter).map(project => `project-${project.id}`);
     const census = await page.evaluate(({ chapter, landmark, projects }) => {
       const app = (window as unknown as InspectionWindow).tumbleworks.app;

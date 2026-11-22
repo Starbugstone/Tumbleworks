@@ -1,6 +1,6 @@
 import { bedSpans, sharePercent } from '../loop/layout';
 import type { LoopMachine } from '../loop/machine';
-import { type LanePlacement, placeLane, ROSTER, type Rect, rosterLayout, type RosterLayout } from '../loop/roster-layout';
+import { type LanePlacement, placeLane, ROSTER, type Rect, rosterChips, rosterLayout, type RosterLayout } from '../loop/roster-layout';
 import type { Color } from '../sim/types';
 import { COLORS, cargoInk, drawSymbol } from './art';
 
@@ -72,7 +72,7 @@ const STYLE = `
 const CHAIN = '<svg viewBox="0 0 12 12" fill="none" stroke="#fff7e5" stroke-width="1.6" aria-hidden="true"><rect x="0.8" y="3.5" width="6.5" height="5" rx="2.5"/><rect x="4.7" y="3.5" width="6.5" height="5" rx="2.5"/></svg>';
 
 interface Stretch { readonly color: Color | null; readonly units: number }
-interface Lorry { readonly capacity: number; readonly latchColor: Color | null; readonly latchLane: number | null; readonly linkLane: number | null; readonly truck: number; readonly finalColor: Color; readonly stretches: readonly Stretch[]; readonly state: 'pouring' | 'waiting' | null }
+interface Lorry { readonly chip: boolean; readonly capacity: number; readonly latchColor: Color | null; readonly latchLane: number | null; readonly linkLane: number | null; readonly truck: number; readonly finalColor: Color; readonly stretches: readonly Stretch[]; readonly state: 'pouring' | 'waiting' | null }
 interface CardView { readonly element: HTMLElement; readonly cab: HTMLElement; readonly rail: HTMLElement; readonly numbers: HTMLElement; signature: string; truckKey: string }
 export interface RosterPick { readonly lane: number; readonly kind: 'now' | 'waiting' | 'more' }
 const CHEVRONS = 'data:image/svg+xml,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12"><path fill="none" stroke="${INK}" stroke-width="2" d="M2 2l4 4-4 4M6.5 2l4 4-4 4"/></svg>`);
@@ -89,6 +89,8 @@ export class LoopRoster {
   private readonly folds: HTMLElement[] = [];
   private readonly pins: HTMLElement[] = [];
   private readonly levelLines: number[][];
+  /** Which lorries keep a latch/link chip slot, by board identity: [lane][original truck index]. */
+  private readonly levelChips: boolean[][];
   private layoutNow: RosterLayout;
   private key = '';
   private peek: { lane: number; element: HTMLElement } | null = null;
@@ -103,7 +105,8 @@ export class LoopRoster {
     document.body.insertBefore(this.element, document.getElementById('hud'));
     // The level's own shape sets the sizes, so they hold still for the whole level.
     this.levelLines = machine.board.lanes.map((line) => line.map((truck) => truck.segments.length + (truck.segments.reduce((sum, s) => sum + s.count, 0) < (truck.capacity ?? machine.board.truckCapacity) ? 1 : 0)));
-    this.layoutNow = rosterLayout(this.levelLines, window.innerWidth, window.innerHeight, this.hasRuleChips);
+    this.levelChips = rosterChips(machine.board);
+    this.layoutNow = rosterLayout(this.levelLines, window.innerWidth, window.innerHeight, this.levelChips);
     machine.board.lanes.forEach((_, lane) => {
       const tag = document.createElement('span');
       tag.className = 'lr-tag'; tag.textContent = String(lane + 1);
@@ -116,11 +119,9 @@ export class LoopRoster {
     });
   }
 
-  private get hasRuleChips(): boolean { return Boolean(this.machine.board.couplings?.length) || this.machine.board.lanes.flat().some((truck) => Boolean(truck.pourAfter)); }
-
   /** Sizes everything for the viewport and answers with the rectangle the toy may fill. */
   layout(width: number, height: number): Rect {
-    this.layoutNow = rosterLayout(this.levelLines, width, height, this.hasRuleChips);
+    this.layoutNow = rosterLayout(this.levelLines, width, height, this.levelChips);
     const { panel } = this.layoutNow;
     const lip = ROSTER.seam / 2;
     Object.assign(this.backplate.style, {
@@ -153,7 +154,7 @@ export class LoopRoster {
         const load = stretches.reduce((sum, stretch) => sum + stretch.units, 0);
         if (load < capacity) stretches.push({ color: null, units: capacity - load });
         const linkLane = truck.coupledWith ? this.machine.truckReference(truck.coupledWith)?.lane ?? null : null;
-        return { capacity, latchColor: truck.latchColor, latchLane: truck.latchLane, linkLane, truck: truck.index, finalColor: truck.finalColor, stretches, state: truck === docked ? truck.unloading : null };
+        return { chip: this.levelChips[lane]?.[truck.index] ?? false, capacity, latchColor: truck.latchColor, latchLane: truck.latchLane, linkLane, truck: truck.index, finalColor: truck.finalColor, stretches, state: truck === docked ? truck.unloading : null };
       });
     });
   }
@@ -176,7 +177,7 @@ export class LoopRoster {
       const tag = this.tags[lane]!;
       tag.style.left = `${layout.panel.x + ROSTER.margin - 3}px`;
       tag.style.top = `${y + (layout.rowHeight - 18) / 2}px`;
-      const placed = placeLane(line.map((lorry) => lorry.stretches.length), layout, line.map((lorry) => lorry.capacity / this.machine.board.truckCapacity));
+      const placed = this.place(line);
       this.placeCards(lane, line, placed, y, live);
       const fold = this.folds[lane]!;
       fold.hidden = placed.foldedFrom === null;
@@ -195,7 +196,13 @@ export class LoopRoster {
       view.element.style.left = `${Number.parseFloat(view.element.style.left) - 40}px`;
       window.setTimeout(() => view.element.remove(), 260);
     }
-    if (this.peek) { const lane = this.peek.lane; this.closePeek(); if (placeLane(lines[lane]!.map((lorry) => lorry.stretches.length), layout).foldedFrom !== null) this.openPeek(lane, lines[lane]!); }
+    if (this.peek) { const lane = this.peek.lane; this.closePeek(); if (this.place(lines[lane]!).foldedFrom !== null) this.openPeek(lane, lines[lane]!); }
+  }
+
+  /** One lane's cards as the layout places them, each with its own capacity and chip slot. */
+  private place(line: readonly Lorry[]): LanePlacement {
+    return placeLane(line.map((lorry) => lorry.stretches.length), this.layoutNow,
+      line.map((lorry) => lorry.capacity / this.machine.board.truckCapacity), line.map((lorry) => lorry.chip));
   }
 
   private clearDeliveries(): void {
@@ -263,7 +270,7 @@ export class LoopRoster {
       view.element.style.top = `${y}px`;
       view.element.style.width = `${box.width}px`;
       view.element.style.height = `${layout.rowHeight}px`;
-      this.paint(view, lorry, box.width, kind);
+      this.paint(view, lorry, box.width, kind, box.rule);
     }
   }
 
@@ -278,7 +285,7 @@ export class LoopRoster {
     return { element, cab, rail, numbers, signature: '', truckKey: '' };
   }
 
-  private paint(view: CardView, lorry: Lorry, width: number, kind: 'now' | 'waiting'): void {
+  private paint(view: CardView, lorry: Lorry, width: number, kind: 'now' | 'waiting', rule: number): void {
     const layout = this.layoutNow;
     const capacity = lorry.capacity;
     const cab = kind === 'now' ? ROSTER.cabNow : ROSTER.cabWaiting;
@@ -305,7 +312,7 @@ export class LoopRoster {
         return number;
       }));
     }
-    const inner = Math.max(0, width - cab - ROSTER.chrome - layout.ruleWidth - (stretches.length - 1) * ROSTER.stretchGap);
+    const inner = Math.max(0, width - cab - ROSTER.chrome - rule - (stretches.length - 1) * ROSTER.stretchGap);
     const spans = bedSpans(stretches.map((stretch) => stretch.units), capacity, inner, Math.min(ROSTER.stretchLeast, inner / stretches.length));
     stretches.forEach((stretch, index) => {
       const fill = view.rail.children.item(index) as HTMLElement | null;
@@ -364,7 +371,7 @@ export class LoopRoster {
   /** The lorries folded behind a lane's "+n" tile, one gesture away, numbers and all. */
   private openPeek(lane: number, line: readonly Lorry[]): void {
     const layout = this.layoutNow;
-    const placed = placeLane(line.map((lorry) => lorry.stretches.length), layout, line.map((lorry) => lorry.capacity / this.machine.board.truckCapacity));
+    const placed = this.place(line);
     if (placed.foldedFrom === null) return;
     const panel = document.createElement('div');
     panel.className = 'lr-peek';
@@ -374,7 +381,7 @@ export class LoopRoster {
       view.element.className = 'lr-card waiting';
       view.element.style.width = `${width}px`;
       view.element.style.height = `${layout.rowHeight}px`;
-      this.paint(view, lorry, width, 'waiting');
+      this.paint(view, lorry, width, 'waiting', lorry.chip ? layout.ruleWidth : 0);
       panel.append(view.element);
     }
     const count = line.length - placed.foldedFrom;

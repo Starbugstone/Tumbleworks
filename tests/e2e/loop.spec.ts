@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 import { CAMPAIGN } from '../../src/campaign';
 import { LEVELS_PER_STOP, STOPS_PER_CHAPTER } from '../../src/world/progression';
 import { LOOP_BOARDS } from '../../src/loop/boards';
-import { placeLane, rosterLayout } from '../../src/loop/roster-layout';
+import { placeLane, rosterChips, rosterLayout } from '../../src/loop/roster-layout';
 import { LOOP_JAMS, LOOP_WITNESSES } from '../witnesses';
 import type { App } from '../../src/view/App';
 import { openMenuSettings, chooseLevel } from '../fixtures/picker';
@@ -62,8 +62,8 @@ const linesOf = (board: (typeof LOOP_BOARDS)[number]): number[][] => board.lanes
 /** Lorries that fold behind the +n tile at a size: lanes four or more deep, on the player's phone. */
 const foldedAt = (board: (typeof LOOP_BOARDS)[number], width: number, height: number): number[] => {
   const lines = linesOf(board);
-  const layout = rosterLayout(lines, width, height);
-  return lines.map((line) => { const from = placeLane(line, layout).foldedFrom; return from === null ? 0 : line.length - from; });
+  const marks = rosterChips(board), layout = rosterLayout(lines, width, height, marks);
+  return lines.map((line, lane) => { const from = placeLane(line, layout, [], marks[lane]).foldedFrom; return from === null ? 0 : line.length - from; });
 };
 /** The Loop Sort levels in the campaign; a level outside it has no chip to open. */
 const CHAPTER_LEVELS = LEVELS_PER_STOP * STOPS_PER_CHAPTER;

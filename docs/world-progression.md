@@ -60,8 +60,8 @@ hammer sign responds near the marble's route-derived closest approach. This is
 a restrained proximity response, without a physical cord or invented impact;
 reduced motion uses a smaller swing without overshoot.
 
-**Integration:** the calibrated campaign expansion owns the 180 registered levels
-(60 rounds, six locations). The seven approved variety boards have separate stable
+**Integration:** the calibrated campaign expansion owns the 240 registered levels
+(80 rounds, eight locations). The seven approved variety boards have separate stable
 Workshop IDs. Their winning fixtures, hints and undo use the same runtime contract.
 No campaign difficulty ceiling is raised to fit an optional experiment.
 
