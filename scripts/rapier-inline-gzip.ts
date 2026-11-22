@@ -16,7 +16,7 @@ export function gzipRapierInlineWasm(source: string): string {
   if (matches.length !== 1 || !match?.[1]) throw new Error('Rapier inline gzip: expected exactly one embedded WASM payload');
   const raw = Buffer.from(match[1], 'base64');
   if (raw.length !== WASM_BYTES || sha256(raw) !== WASM_SHA256) throw new Error('Rapier inline gzip: WASM preimage changed');
-  const compressed = gzipSync(raw, { level: 9 }).toString('base64');
+  const compressed = gzipSync(raw, { level: 9, memLevel: 9 }).toString('base64');
   if (!gunzipSync(Buffer.from(compressed, 'base64')).equals(raw)) throw new Error('Rapier inline gzip: compressed WASM round-trip failed');
   // FC is already an async generator wrapper. This yield must finish before the existing EI loader.
   const decoded = `(yield new Response(new Blob([oC.toByteArray("${compressed}")]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer())`;

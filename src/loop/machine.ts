@@ -3,7 +3,7 @@ import { fingerprintOf, type Replayable, type ReplayAction } from '../engine/rep
 import { LoopRules, type LoopEvent, type TapResult } from './rules';
 import type { LoopBoardDef } from './types';
 import type { Color } from '../sim/types';
-import { type Bay, bays, DECK_TOP, LIFT_OFF, LOOP, RIDE_Y, ROW_PITCH, ROW_WIDTH, sharePercent, STREAM, TICK_SECONDS, trackFor, TRUCK, TUB, MARBLE_RADIUS, unitLength } from './layout';
+import { type Bay, bays, CrownTrack, DECK_TOP, LIFT_OFF, LOOP, RIDE_Y, ROW_PITCH, ROW_REACH, ROW_WIDTH, sharePercent, STREAM, TICK_SECONDS, trackFor, TRUCK, TUB, MARBLE_RADIUS, unitLength } from './layout';
 
 export type LoopMachineEvent =
   | { readonly type: 'pour'; readonly lane: number; readonly color: Color }
@@ -87,6 +87,8 @@ export class LoopMachine implements Replayable {
   private readonly retained = new Map<number, number>();
   private readonly mouthDistance: number[];
   private readonly mouthZs: number[];
+  /** Where each lane's leaving lorry has shrunk away: the far rim of the last belt it passes over. */
+  private readonly exitZs: number[];
 
   constructor(readonly board: LoopBoardDef) {
     this.rules = new LoopRules(board);
@@ -97,8 +99,14 @@ export class LoopMachine implements Replayable {
     this.marblesPerUnit = this.rowsPerUnit * ROW_WIDTH;
     // Mouths open on the back straight of an oval, whose travel runs from lane 0 up, the order the rules take marbles
     // in. An eight lies above its columns, so they open on its near edge, where the lower pass wins the crossing.
-    const eight = board.trackShape !== undefined && board.trackShape !== 'oval';
-    this.mouthDistance = this.bays.map((bay) => this.track.nearest(bay.x, eight ? this.track.halfDepth + 3 : -this.track.halfDepth).distance);
+    // A delta and a kidney lie above them too, and open on their one straight, which also runs from lane 0 up.
+    const { track } = this;
+    const eight = board.trackShape === 'eight' || board.trackShape === 'wide-eight';
+    this.mouthDistance = this.bays.map((bay) => track.nearest(bay.x,
+      track instanceof CrownTrack ? track.mouthLine : eight ? track.halfDepth + 3 : -track.halfDepth).distance);
+    this.exitZs = this.bays.map((bay) => track instanceof CrownTrack
+      ? track.farZ(bay.x) - LOOP.channelHalf - LOOP.wallThickness
+      : -(track.halfDepth + LOOP.channelHalf + LOOP.wallThickness));
     this.mouthZs = this.mouthDistance.map((distance) => this.track.point(distance).z + TRUCK.mouthGap);
     const units: UnitControl[] = this.rules.state.marbles.map((marble) => ({
       id: marble.id, color: marble.color, phase: marble.status === 'on-loop' ? 'riding' : 'truck', slot: -1, offset: 0, time: 0, fromX: 0, fromY: 0, fromZ: 0,
@@ -206,7 +214,7 @@ export class LoopMachine implements Replayable {
       if (!pose.visible) continue;
       const across = k % ROW_WIDTH;
       const rowIndex = Math.floor(k / ROW_WIDTH);
-      const row = (across - (ROW_WIDTH - 1) / 2) * LOOP.rowOffset + (unit.jitter[k]! - 0.5) * 0.08;
+      const row = Math.max(-ROW_REACH, Math.min(ROW_REACH, (across - (ROW_WIDTH - 1) / 2) * LOOP.rowOffset + (unit.jitter[k]! - 0.5) * 0.08));
       const along = (rowIndex - (this.rowsPerUnit - 1) / 2) * (this.unitSpacing / this.rowsPerUnit) + (unit.jitter[k + this.marblesPerUnit]! - 0.5) * 0.1;
       const distance = this.control.belt + unit.offset + along;
       const point = this.track.point(distance, row);
@@ -379,7 +387,7 @@ export class LoopMachine implements Replayable {
     const facing = this.facing(truck.lane);
     const docked = this.mouthZ(truck.lane) - facing * this.bedLength(truck.lane, truck.index) / 2;
     if (truck.phase === 'docked' || truck.phase === 'arriving') return { z: docked, y: DECK_TOP, scale: 1 };
-    if (truck.phase === 'leaving') return { z: -(this.track.halfDepth + LOOP.channelHalf + LOOP.wallThickness), y: DECK_TOP, scale: 0 };
+    if (truck.phase === 'leaving') return { z: this.exitZs[truck.lane]!, y: DECK_TOP, scale: 0 };
     return { z: docked, y: DECK_TOP - 1.4, scale: 0.3 };
   }
 

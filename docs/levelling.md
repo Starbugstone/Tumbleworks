@@ -248,6 +248,19 @@ their own completion IDs, including when a campaign puzzle combines the same rul
 | 78 | Potters’ Reach | Open a sealed dock with a different crate order on `board-110`. |
 | 80 | Potters’ Reach | Finish Loop Sort’s run with a coupled-unload peak on `loop-116`. |
 
+Both islands have a rounded triangle and a concave bean in each conveyor game.
+On the triangle, the long straight serves all the docks or truck mouths. On the
+bean, the belt bends inward between two unequal lobes.
+
+| Island | Funnel Sort | Loop Sort |
+| --- | --- | --- |
+| Saltmere Pans | Triangle at 61 (`board-94`), bean at 66 (`board-99`) | Bean at 64 (`loop-100`), triangle at 66 (`loop-102`) |
+| Potters’ Reach | Bean at 75 (`board-107`), triangle at 80 (`board-112`) | Bean at 73 (`loop-109`), triangle at 79 (`loop-115`) |
+
+The Funnel Sort bean at round 66 has 22 slots. The original 19-slot layout
+exceeded the relief band on its new route. In Loop Sort, these four boards
+keep two rows of marbles per slot so a nearly full belt looks nearly full.
+
 The [placement fixture](../tests/fixtures/campaign-61-80.json) records every
 round, slot, source and board hash. Five Funnel Sort levels revisit earlier cargo layouts at different belt capacities. Each capacity variant was scored and replayed independently. The score table contains each board’s measurements. Funnel Sort and Loop Sort retain winning, losing and rapid-action
 replays in [the witness table](../tests/witnesses.ts). Tube Sort keeps the

@@ -3,9 +3,9 @@
     "round": 61,
     "slot": "relief",
     "id": "board-94",
-    "source": "output/current/campaign-41-60/funnel/extra-wide.jsonl:4 (seed 1004, capacity 16)",
+    "source": "output/current/campaign-41-60/funnel/extra-wide.jsonl:4 (seed 1004, capacity 16); requalified as delta in output/current/island-expansion/funnel-belt-layouts/board-94-delta.json",
     "game": "funnel",
-    "hash": "3183eb63fc3b44f7",
+    "hash": "3e274cb6a5fa2669",
     "verified": {
       "states": 18,
       "winning": 4,
@@ -13,21 +13,21 @@
       "brisk": {
         "status": "won",
         "clean": true,
-        "seconds": 49.95
+        "seconds": 49.483333333333334
       },
       "patient": {
         "status": "won",
         "clean": true,
-        "seconds": 54.68333333333333
+        "seconds": 51.65
       },
       "fast": {
         "gap": 2,
-        "fingerprint": "82918cb5"
+        "fingerprint": "48f39f6d"
       },
       "jam": {
         "status": "jammed",
         "clean": true,
-        "seconds": 24.133333333333333
+        "seconds": 24.216666666666665
       },
       "jitter": 1,
       "naive": [
@@ -246,31 +246,31 @@
     "round": 66,
     "slot": "relief",
     "id": "board-99",
-    "source": "output/current/levelling/expansion/candidates/fam-f21b.jsonl:12 (seed 5, capacity 19)",
+    "source": "output/current/levelling/expansion/candidates/fam-f21b.jsonl:12 (seed 5, capacity 19); requalified as kidney in output/current/island-expansion/funnel-belt-layouts/board-99-kidney-22.json",
     "game": "funnel",
-    "hash": "5420aaa7be66bd72",
+    "hash": "f1968ea66e7d81ae",
     "verified": {
-      "states": 37,
-      "winning": 42,
-      "orders": 104,
+      "states": 45,
+      "winning": 58,
+      "orders": 145,
       "brisk": {
         "status": "won",
         "clean": true,
-        "seconds": 47.21666666666667
+        "seconds": 42.4
       },
       "patient": {
         "status": "won",
         "clean": true,
-        "seconds": 59.016666666666666
+        "seconds": 58.11666666666667
       },
       "fast": {
-        "gap": 1,
-        "fingerprint": "cb235e1c"
+        "gap": 3,
+        "fingerprint": "53faff9d"
       },
       "jam": {
         "status": "jammed",
         "clean": true,
-        "seconds": 15.733333333333333
+        "seconds": 14.05
       },
       "jitter": 1,
       "naive": [
@@ -281,7 +281,7 @@
     },
     "generation": {
       "seed": 5,
-      "capacity": 19
+      "capacity": 22
     }
   },
   {
@@ -642,10 +642,10 @@
     "round": 75,
     "slot": "ordinary",
     "id": "board-107",
-    "source": "output/current/island-expansion/funnel/authored.jsonl:4 (seed 3, capacity 19)",
+    "source": "output/current/island-expansion/funnel/authored.jsonl:4 (seed 3, capacity 19); requalified as kidney in output/current/island-expansion/funnel-belt-layouts/board-107-kidney.json",
     "trap": 2,
     "game": "funnel",
-    "hash": "7dd53794ad367a51",
+    "hash": "16153bf6399ff4ff",
     "verified": {
       "states": 23,
       "winning": 6,
@@ -653,21 +653,21 @@
       "brisk": {
         "status": "won",
         "clean": true,
-        "seconds": 55.85
+        "seconds": 55.9
       },
       "patient": {
         "status": "won",
         "clean": true,
-        "seconds": 63.05
+        "seconds": 63.083333333333336
       },
       "fast": {
         "gap": 1,
-        "fingerprint": "9c2a8552"
+        "fingerprint": "2e17279e"
       },
       "jam": {
         "status": "jammed",
         "clean": true,
-        "seconds": 11.383333333333333
+        "seconds": 11.2
       },
       "jitter": 1,
       "naive": [
@@ -912,9 +912,9 @@
     "round": 80,
     "slot": "relief",
     "id": "board-112",
-    "source": "output/current/campaign-41-60/funnel/tube-help-nine-three.jsonl:6 (seed 1001, capacity 20)",
+    "source": "output/current/campaign-41-60/funnel/tube-help-nine-three.jsonl:6 (seed 1001, capacity 20); requalified as delta in output/current/island-expansion/funnel-belt-layouts/board-112-delta.json",
     "game": "funnel",
-    "hash": "ed0a07501da4a551",
+    "hash": "3faa28364a755989",
     "verified": {
       "states": 63,
       "winning": 99,
@@ -922,7 +922,7 @@
       "brisk": {
         "status": "won",
         "clean": true,
-        "seconds": 40.53333333333333
+        "seconds": 40.516666666666666
       },
       "patient": {
         "status": "won",
@@ -931,7 +931,7 @@
       },
       "fast": {
         "gap": 3,
-        "fingerprint": "e5e09599"
+        "fingerprint": "b8766349"
       },
       "jam": {
         "status": "jammed",
@@ -1196,14 +1196,15 @@
           0,
           1
         ],
-        "naiveJams": false
+        "naiveJams": false,
+        "shape": "kidney"
       },
       "seed": 56,
       "capacity": 28
     },
-    "signature": "c4 [2,2,2] seg3 ring1-12 oval",
+    "signature": "c4 [2,2,2] seg3 ring1-12 kidney",
     "game": "loop",
-    "hash": "2ada3df210207877",
+    "hash": "f95448963e366f9f",
     "verified": {
       "states": 26,
       "orders": 107,
@@ -1211,18 +1212,18 @@
       "brisk": {
         "status": "won",
         "done": true,
-        "seconds": 64.48333333333333
+        "seconds": 51.666666666666664
       },
       "patient": {
         "status": "won",
         "done": true,
-        "seconds": 66
+        "seconds": 52.35
       },
       "fast": "won",
       "jam": {
         "status": "jammed",
         "done": true,
-        "seconds": 7.116666666666666
+        "seconds": 5.783333333333333
       }
     }
   },
@@ -1317,14 +1318,15 @@
           0,
           1
         ],
-        "naiveJams": false
+        "naiveJams": false,
+        "shape": "delta"
       },
       "seed": 152,
       "capacity": 26
     },
-    "signature": "c5 [3,3,2] seg3 ring1-12 oval",
+    "signature": "c5 [3,3,2] seg3 ring1-12 delta",
     "game": "loop",
-    "hash": "5fc73253e155b198",
+    "hash": "e89dfa82cffeab83",
     "verified": {
       "states": 30,
       "orders": 58,
@@ -1332,18 +1334,18 @@
       "brisk": {
         "status": "won",
         "done": true,
-        "seconds": 61.483333333333334
+        "seconds": 45.53333333333333
       },
       "patient": {
         "status": "won",
         "done": true,
-        "seconds": 65.41666666666667
+        "seconds": 49.3
       },
       "fast": "won",
       "jam": {
         "status": "jammed",
         "done": true,
-        "seconds": 11.25
+        "seconds": 8.766666666666667
       }
     }
   },
@@ -1723,14 +1725,15 @@
           0,
           1
         ],
-        "naiveJams": false
+        "naiveJams": false,
+        "shape": "kidney"
       },
       "seed": 1340,
       "capacity": 24
     },
-    "signature": "c5 [3,3,1] seg3 ring1-12 oval",
+    "signature": "c5 [3,3,1] seg3 ring1-12 kidney",
     "game": "loop",
-    "hash": "08852043442419c5",
+    "hash": "622dd1ebf4243aff",
     "verified": {
       "states": 50,
       "orders": 346,
@@ -1738,18 +1741,18 @@
       "brisk": {
         "status": "won",
         "done": true,
-        "seconds": 43.166666666666664
+        "seconds": 34.483333333333334
       },
       "patient": {
         "status": "won",
         "done": true,
-        "seconds": 45.36666666666667
+        "seconds": 36.583333333333336
       },
       "fast": "won",
       "jam": {
         "status": "jammed",
         "done": true,
-        "seconds": 4.55
+        "seconds": 6.2
       }
     }
   },
@@ -2091,7 +2094,8 @@
           0,
           1
         ],
-        "naiveJams": false
+        "naiveJams": false,
+        "shape": "delta"
       },
       "seed": 427,
       "capacity": 24,
@@ -2111,9 +2115,9 @@
         "units": 2
       }
     },
-    "signature": "c3 [2,2,1] seg3 ring13-24 oval rules[[[[\"0:0\",12,null],[\"0:1\",24,null]],[[\"1:0\",24,null],[\"1:1\",24,null]],[[\"2:0\",24,null]]],[]]",
+    "signature": "c3 [2,2,1] seg3 ring13-24 delta rules[[[[\"0:0\",12,null],[\"0:1\",24,null]],[[\"1:0\",24,null],[\"1:1\",24,null]],[[\"2:0\",24,null]]],[]]",
     "game": "loop",
-    "hash": "ed1e188ca5379fab",
+    "hash": "30265af8b7cde8e4",
     "verified": {
       "states": 10,
       "orders": 15,
@@ -2121,18 +2125,18 @@
       "brisk": {
         "status": "won",
         "done": true,
-        "seconds": 47.71666666666667
+        "seconds": 35.266666666666666
       },
       "patient": {
         "status": "won",
         "done": true,
-        "seconds": 48.45
+        "seconds": 35.6
       },
       "fast": "won",
       "jam": {
         "status": "jammed",
         "done": true,
-        "seconds": 1.3166666666666667
+        "seconds": 1.15
       }
     }
   },

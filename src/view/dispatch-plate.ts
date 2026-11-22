@@ -2,8 +2,8 @@ import type { Sparks } from '../engine/sparks';
 import type { Point3 } from '../engine/physics';
 import type { WinWave } from './win-wave';
 import * as THREE from 'three';
-import { type Track } from '../machine/layout';
-import { funnelChute } from './funnel-transfer';
+import type { BeltPath } from '../engine/belt-path';
+import { funnelChute, FUNNEL_SHOE } from './funnel-transfer';
 import type { Color } from '../sim/types';
 import { COLORS, decal } from './art';
 import { ARCADE, bodyPlastic, fuse, plate, tinted } from './arcade';
@@ -81,7 +81,7 @@ export function jamShutter(x: number, y: number, z: number, width: number): THRE
 }
 
 /** A dark runway and two cast lips sit on a bracket. Its pitch and endpoints also drive the marble. */
-export function transferRails(track: Pick<Track, 'nearest' | 'point'>, x: number): THREE.BufferGeometry[] {
+export function transferRails(track: BeltPath, x: number): THREE.BufferGeometry[] {
   const { head, nose, length, yaw } = funnelChute(track, x);
   const centerX = (head.x + nose.x) / 2, centerZ = (head.z + nose.z) / 2;
   const centerY = (head.y + nose.y) / 2;
@@ -95,9 +95,9 @@ export function transferRails(track: Pick<Track, 'nearest' | 'point'>, x: number
   const bracket = new THREE.BoxGeometry(.32, centerY + .22, Math.max(.10, length * .40));
   bracket.rotateY(yaw).translate(centerX, (centerY - .22) / 2, centerZ);
   return [
-    strip(.84, .13, 0, -.065, ARCADE.lane),
-    strip(.095, .19, -.44, .005, ARCADE.shell),
-    strip(.095, .19, .44, .005, ARCADE.shell),
+    strip(FUNNEL_SHOE.halfFloor * 2, .13, 0, -.065, ARCADE.lane),
+    strip(FUNNEL_SHOE.lipWidth, .19, -FUNNEL_SHOE.lipX, .005, ARCADE.shell),
+    strip(FUNNEL_SHOE.lipWidth, .19, FUNNEL_SHOE.lipX, .005, ARCADE.shell),
     tinted(bracket, ARCADE.trim),
   ];
 }

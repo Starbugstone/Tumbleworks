@@ -1,7 +1,7 @@
 import { QUEUED_LOOP as LOOP_1, CONGESTED_LOOP } from './fixtures';
 import { describe, expect, it } from 'vitest';
 import { LOOP_BOARDS } from '../../src/loop/boards';
-import { bays, bedSpans, DECK_TOP, RoundedTrack, sharePercent, TRUCK } from '../../src/loop/layout';
+import { bays, bedSpans, DECK_TOP, LOOP, MARBLE_RADIUS, RIDE_Y, RoundedTrack, sharePercent, TRUCK } from '../../src/loop/layout';
 import { LoopMachine, type UnitPose } from '../../src/loop/machine';
 import type { LoopBoardDef } from '../../src/loop/types';
 import { LoopRuntime } from '../../src/gameplays/loop';
@@ -291,7 +291,8 @@ describe('the rules and the machine tell the same story', () => {
   it('takes marbles along the mouths in lane order on every oval', () => {
     for (const board of LOOP_BOARDS.filter((candidate) => !candidate.trackShape || candidate.trackShape === 'oval')) {
       const machine = new LoopMachine(board);
-      const mouths = board.lanes.map((_, lane) => machine.track.nearest(machine.bays[lane]!.x, -machine.track.halfDepth).distance);
+      const track = machine.track as RoundedTrack;
+      const mouths = board.lanes.map((_, lane) => track.nearest(machine.bays[lane]!.x, -track.halfDepth).distance);
       expect(mouths).toEqual([...mouths].sort((a, b) => a - b));
     }
   });
@@ -318,6 +319,45 @@ describe('the rules and the machine tell the same story', () => {
       expect(machine.rules.status).toBe('jammed');
     });
   }
+});
+
+describe('marbles ride between the belt walls', () => {
+  // The per-marble wobble is lopsided, so the outer row at negative offsets used to sit 0.52 from the centre line and
+  // sink into its wall: the plateau of an oval, the matching wall of an eight and the rim of a flat belt.
+  it.each(['loop-44', 'loop-98', 'loop-102', 'loop-100'])('%s: both outer rows run close to their wall and clear of it, all the way round', (id) => {
+    const board = LOOP_BOARDS.find((candidate) => candidate.id === id)!;
+    const machine = new LoopMachine(board);
+    const { track } = machine;
+    // The centre line in three dimensions, so the upper and lower pass of an eight are told apart at the crossing.
+    const centre = Array.from({ length: 4000 }, (_, i) => track.point(i / 4000 * track.length));
+    const poses: UnitPose[] = Array.from({ length: machine.marblesPerUnit }, () => ({ x: 0, y: 0, z: 0, roll: 0, visible: false, flight: 0 }));
+    const riding = machine.rules.state.marbles.filter((marble) => marble.status === 'on-loop');
+    expect(riding.length).toBeGreaterThan(3);
+    let negative = 0, positive = 0;
+    for (let tick = 0; tick < 60 * 8; tick++) {
+      machine.step();
+      if (tick % 5) continue;
+      for (const marble of riding) {
+        if (machine.rules.state.marbles[marble.id]!.status !== 'on-loop') continue;
+        machine.readUnit(marble.id, poses);
+        for (const pose of poses) {
+          if (!pose.visible || pose.flight > 0) continue;
+          const nearest = centre.reduce((best, point) => {
+            const gap = Math.hypot(pose.x - point.x, pose.y - RIDE_Y - point.y, pose.z - point.z);
+            return gap < best.gap ? { gap, point } : best;
+          }, { gap: Infinity, point: centre[0]! }).point;
+          const lateral = (pose.x - nearest.x) * nearest.tz - (pose.z - nearest.z) * nearest.tx;
+          negative = Math.min(negative, lateral);
+          positive = Math.max(positive, lateral);
+        }
+      }
+    }
+    const clear = LOOP.channelHalf - MARBLE_RADIUS;
+    expect(-negative).toBeGreaterThan(0.4);
+    expect(-negative).toBeLessThan(clear);
+    expect(positive).toBeGreaterThan(0.4);
+    expect(positive).toBeLessThan(clear);
+  });
 });
 
 it('replays a pre-workshop bug report captured while a Loop marble was landing', () => {

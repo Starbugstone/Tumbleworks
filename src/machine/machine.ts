@@ -6,7 +6,7 @@ import { fingerprintOf, type Replayable, type ReplayAction } from '../engine/rep
 import { MachineRules, type ReleaseResult } from '../sim/rules';
 import type { BoardDef, Color } from '../sim/types';
 import {
-  BOX, columnX, conveyorTrack, CRATE, dockX, entryDistanceFor, FLIGHT, FUNNEL, funnelFaces, funnelHalfWidth, GRAVITY, MARBLE_RADIUS,
+  BOX, columnX, conveyorTrack, CRATE, dockDistanceFor, dockX, entryDistanceFor, FLIGHT, FUNNEL, funnelFaces, funnelHalfWidth, GRAVITY, MARBLE_RADIUS,
   RACEWAY, RIDE_Y, STACK, TICK_SECONDS,
 } from './layout';
 
@@ -158,7 +158,7 @@ export class Machine implements Replayable {
     this.slotPitch = this.track.length / board.beltCapacity;
     this.entryDistance = entryDistanceFor(this.track);
     this.world = this.physicsService.createWorld(GRAVITY);
-    this.dockDistances = board.docks.map((_, dock) => this.track.nearest(dockX(dock, board.docks.length), RACEWAY.centerZ + RACEWAY.radius).distance);
+    this.dockDistances = board.docks.map((_, dock) => dockDistanceFor(this.track, dockX(dock, board.docks.length)));
     this.control = {
       tick: 0, belt: 0, crates: [], marbles: [], boxes: [], lastEntryTick: 0, neckOpen: true,
       recoveries: { nudges: 0, teleports: 0, bounces: 0 }, endingReported: false,

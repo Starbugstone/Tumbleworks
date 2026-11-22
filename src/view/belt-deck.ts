@@ -3,6 +3,31 @@ import { candy } from '../engine/candy';
 import type { BeltPath } from '../engine/belt-path';
 import { ARCADE } from './arcade';
 
+/** Sample a flat belt at a signed lateral offset in the plane used by ExtrudeGeometry. */
+export function beltOutline(path: BeltPath, offset: number): THREE.Shape {
+  const samples = 320;
+  const points = Array.from({ length: samples }, (_, i) => {
+    const { x, z } = path.point(i * path.length / samples, offset);
+    return new THREE.Vector2(x, -z);
+  });
+  return new THREE.Shape(points);
+}
+
+export function ring(outer: THREE.Shape, inner: THREE.Shape): THREE.Shape {
+  outer.holes.push(inner);
+  return outer;
+}
+
+export function slab(shape: THREE.Shape, bottom: number, top: number, side: THREE.Material, face: THREE.Material): THREE.Mesh {
+  const geometry = new THREE.ExtrudeGeometry(shape, { depth: top - bottom, bevelEnabled: false });
+  geometry.rotateX(-Math.PI / 2);
+  geometry.translate(0, bottom, 0);
+  const mesh = new THREE.Mesh(geometry, [face, side]);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  return mesh;
+}
+
 /** Sample the same elevated path as transport, including both separated passes at the crossing. */
 export function beltDeck(path: BeltPath, halfWidth: number, floorY: number, wallHeight: number): THREE.Group {
   const group = new THREE.Group();

@@ -1,7 +1,8 @@
 import { WinWave } from './win-wave';
-import { funnelChute, funnelTransferPose, type FunnelChute } from './funnel-transfer';
+import { funnelChute, funnelFeed, funnelTransferPose, type FunnelChute } from './funnel-transfer';
 import { dispatchPlates, jamShutter, transferRails } from './dispatch-plate';
-import { beltDeck } from './belt-deck';
+import { beltDeck, beltOutline, ring, slab } from './belt-deck';
+import { RoundedCircuit } from '../engine/belt-path';
 import { BeltSurface } from './belt-surface';
 import * as THREE from 'three';
 import { bakeOcclusion, candy, moulded } from '../engine/candy';
@@ -17,7 +18,7 @@ import { frameBoard } from '../engine/framing';
 import { focusOn } from '../engine/finish';
 import type { Stage } from '../engine/stage';
 import type { Machine, MachineEvent, MarbleDelivery, Pose } from '../machine/machine';
-import { BOX, CRATE, FUNNEL, funnelFaces, funnelHalfWidth, MARBLE_RADIUS, RACEWAY, RIDE_Y, STACK, Track, dockX } from '../machine/layout';
+import { BOX, CRATE, FUNNEL, funnelFaces, funnelHalfWidth, MARBLE_RADIUS, RACEWAY, STACK, Track, dockX } from '../machine/layout';
 import { shelfMarks, type ShelfMarks } from '../sim/shelf-marks';
 import type { Color } from '../sim/types';
 import { COLORS, decal } from './art';
@@ -69,27 +70,6 @@ function stadium(track: Track, radius: number): THREE.Shape {
   shape.lineTo(-s, -cz - radius);
   shape.absarc(-s, -cz, radius, -Math.PI / 2, Math.PI / 2, true);
   return shape;
-}
-function ring(track: Track, outer: number, inner: number): THREE.Shape {
-  const shape = stadium(track, outer);
-  const hole = new THREE.Path();
-  const { straightHalf: s, centerZ: cz } = track;
-  hole.moveTo(-s, -cz + inner);
-  hole.lineTo(s, -cz + inner);
-  hole.absarc(s, -cz, inner, Math.PI / 2, -Math.PI / 2, true);
-  hole.lineTo(-s, -cz - inner);
-  hole.absarc(-s, -cz, inner, -Math.PI / 2, Math.PI / 2, true);
-  shape.holes.push(hole);
-  return shape;
-}
-function slab(shape: THREE.Shape, bottom: number, top: number, side: THREE.Material, face: THREE.Material): THREE.Mesh {
-  const geometry = new THREE.ExtrudeGeometry(shape, { depth: top - bottom, bevelEnabled: false });
-  geometry.rotateX(-Math.PI / 2);
-  geometry.translate(0, bottom, 0);
-  const mesh = new THREE.Mesh(geometry, [face, side]);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  return mesh;
 }
 /** Only floors receive shadows: sampling them on every crate and box cost a tenth of a frame. */
 function rounded(width: number, height: number, depth: number, material: THREE.Material, radius = 0.1, floor = false): THREE.Mesh {
@@ -232,8 +212,22 @@ export class MachineScene {
     // Plates are long enough that three ticks per frame at 30 fps still reads as forward travel,
     // and a whole number of them closes the loop, so no seam jumps at the join.
     const track = this.machine.track;
-    this.belt = new BeltSurface(track, RACEWAY.channelHalf - 0.03, DECK_TOP, this.machine.slotPitch * 3);
+    const plateLength = track instanceof RoundedCircuit
+      ? track.length / Math.round(this.machine.board.beltCapacity / 3)
+      : this.machine.slotPitch * 3;
+    this.belt = new BeltSurface(track, RACEWAY.channelHalf - 0.03, DECK_TOP, plateLength);
     this.level.add(this.belt.mesh);
+    if (track instanceof RoundedCircuit) {
+      const { channelHalf, wallThickness } = RACEWAY;
+      const base = beltOutline(track, channelHalf + wallThickness);
+      const rim = ring(base.clone(), beltOutline(track, channelHalf));
+      const island = beltOutline(track, -channelHalf);
+      const side = plastic(PLATFORM_DARK);
+      this.level.add(slab(base, 0, DECK_TOP, side, plastic(CHANNEL, 0.55)),
+        slab(rim, DECK_TOP, RIM_TOP, side, shiny(ARCADE.rim)),
+        slab(island, DECK_TOP, RIM_TOP, side, shiny(PLATFORM)));
+      return;
+    }
     if (!(track instanceof Track)) {
       this.level.add(beltDeck(track, RACEWAY.channelHalf, DECK_TOP, RACEWAY.wallHeight));
       return;
@@ -242,17 +236,17 @@ export class MachineScene {
     const inner = track.radius - RACEWAY.channelHalf;
     const side = plastic(PLATFORM_DARK);
     const deck = slab(stadium(track, outer), 0, DECK_TOP, side, plastic(CHANNEL, 0.55));
-    const rim = slab(ring(track, outer, track.radius + RACEWAY.channelHalf), DECK_TOP, RIM_TOP, side, shiny(ARCADE.rim));
+    const rim = slab(ring(stadium(track, outer), stadium(track, track.radius + RACEWAY.channelHalf)), DECK_TOP, RIM_TOP, side, shiny(ARCADE.rim));
     const island = slab(stadium(track, inner), DECK_TOP, RIM_TOP, side, shiny(PLATFORM));
     this.level.add(deck, rim, island);
   }
 
   /** A clear pipe from the neck to the belt entry: the one place marbles join the belt, on every track shape. */
   private buildChute(machine: Machine): void {
-    const { neck, neckY, chuteRadius, chuteClearance } = FUNNEL;
-    const land = machine.track.point(machine.entryDistance);
-    const top = new THREE.Vector3(0, neckY - 0.04, neck.z);
-    const bottom = new THREE.Vector3(land.x, RIDE_Y + land.y + MARBLE_RADIUS + chuteClearance, land.z);
+    const { top: neck, bottom: exit } = funnelFeed(machine.track, machine.entryDistance);
+    const top = new THREE.Vector3(neck.x, neck.y, neck.z);
+    const bottom = new THREE.Vector3(exit.x, exit.y, exit.z);
+    const { chuteRadius } = FUNNEL;
     const axis = bottom.clone().sub(top);
     const length = axis.length();
     const pipe = this.chuteGlass.mesh(new THREE.CylinderGeometry(chuteRadius, chuteRadius, length, 24, 1, true), 1);

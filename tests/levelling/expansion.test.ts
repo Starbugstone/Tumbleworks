@@ -26,6 +26,17 @@ describe('the next twenty rounds', () => {
     }
   });
 
+  it('gives each new island a triangular and a concave belt in both conveyor games', () => {
+    for (const [kind, bank] of [['conveyor', BOARDS], ['loop', LOOP_BOARDS]] as const) {
+      const shapes = PLAY_ORDER[kind].map(id => bank.find(board => board.id === id)!.trackShape ?? 'oval');
+      for (const first of [60, 70]) {
+        const island = shapes.slice(first, first + 10);
+        expect(island, `${kind} rounds ${first + 1}–${first + 10}`).toEqual(expect.arrayContaining(['delta', 'kidney']));
+      }
+      expect(shapes.slice(60, 70)).toContain('eight');
+    }
+  });
+
   it('teaches the new rules on schedule and returns to them two rounds later', () => {
     const funnel = PLAY_ORDER.conveyor.map(id => BOARDS.find(board => board.id === id)!);
     const loop = PLAY_ORDER.loop.map(id => LOOP_BOARDS.find(board => board.id === id)!);

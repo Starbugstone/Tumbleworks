@@ -1,5 +1,32 @@
 # Verification
 
+## Rounded triangle and bean belts — 22 November 2026
+
+Eight campaign boards on Saltmere Pans and Potters’ Reach now use flat, non-crossing
+belts. Each island has both shapes in Funnel Sort and Loop Sort. The original
+figure-eights keep their raised crossings. Rounds and stable IDs are recorded in
+[the levelling guide](levelling.md#rounds-61-to-80).
+
+At 375×690 in touch-enabled Chromium, each revised board reached a win by tapping
+its recorded order through the game. The eight opening scenes used the same
+number of draw calls as the same boards on their original ovals (79–93).
+The joint campaign curve and the eight score hashes passed. All eight boards
+also retained a losing order, brisk and patient wins and a rapid-input win.
+The phone roster checks passed on both islands.
+The six browser checks for draw counts, shader reuse and idle rendering passed.
+
+The geometry tests cover lateral rail and marble clearance, including the inward
+bend, the Funnel Sort chute and delivery shoes, and truck mouths and departures.
+The first download measures 2,124,948 bytes against the existing 2,125,000-byte
+limit. The build uses the largest
+zlib compression memory setting for the embedded Rapier module. Its decompressed
+WASM matches the pinned binary byte for byte.
+
+The six gameplay frame-budget cases passed with 4× CPU throttling in Chromium
+using SwiftShader. The longest Funnel Sort belt exceeded its 21 ms median
+tick-plus-draw limit on the first run (22.1 ms) and passed on the idle-host
+rerun (17.8 ms). Physical-phone frame times remain unmeasured.
+
 ## Saltmere Pans and Potters’ Reach — 22 November 2026
 
 The campaign adds 60 levels at rounds 61–80 on top of the game-feel rollout

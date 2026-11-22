@@ -107,7 +107,8 @@ export const LOOP_ISLAND_BOARDS: readonly LoopBoardDef[] = [
         {"segments": [{"color": "black", "count": 22}, {"color": "red", "count": 2}]}
       ]
     ],
-    "loop": [{"color": "blue", "count": 6}]
+    "loop": [{"color": "blue", "count": 6}],
+    "trackShape": "kidney"
   },
   {
     "id": "loop-101",
@@ -163,7 +164,8 @@ export const LOOP_ISLAND_BOARDS: readonly LoopBoardDef[] = [
         }
       ]
     ],
-    "loop": [{"color": "orange", "count": 12}]
+    "loop": [{"color": "orange", "count": 12}],
+    "trackShape": "delta"
   },
   {
     "id": "loop-103",
@@ -361,7 +363,8 @@ export const LOOP_ISLAND_BOARDS: readonly LoopBoardDef[] = [
         }
       ]
     ],
-    "loop": [{"color": "blue", "count": 12}]
+    "loop": [{"color": "blue", "count": 12}],
+    "trackShape": "kidney"
   },
   {
     "id": "loop-110",
@@ -535,7 +538,8 @@ export const LOOP_ISLAND_BOARDS: readonly LoopBoardDef[] = [
         }
       ]
     ],
-    "loop": [{"color": "blue", "count": 18}]
+    "loop": [{"color": "blue", "count": 18}],
+    "trackShape": "delta"
   },
   {
     "id": "loop-116",

@@ -1,6 +1,6 @@
 import { WinWave } from './win-wave';
 import { dispatchPlates, jamShutter } from './dispatch-plate';
-import { beltDeck } from './belt-deck';
+import { beltDeck, beltOutline, ring, slab } from './belt-deck';
 import { BeltSurface } from './belt-surface';
 import * as THREE from 'three';
 import { bakeOcclusion, candy } from '../engine/candy';
@@ -15,7 +15,7 @@ import { frameBoard } from '../engine/framing';
 import { focusOn } from '../engine/finish';
 import type { Stage } from '../engine/stage';
 import type { LoopMachine, LoopMachineEvent, UnitPose } from '../loop/machine';
-import { DECK_TOP, LOOP, MARBLE_RADIUS, TRUCK, TICK_SECONDS } from '../loop/layout';
+import { CrownTrack, DECK_TOP, LOOP, MARBLE_RADIUS, RoundedTrack, trackBounds, TRUCK, TICK_SECONDS } from '../loop/layout';
 import type { Color } from '../sim/types';
 import { COLORS, containerSymbolTexture } from './art';
 import { ARCADE, ArcadeYard, bodyPlastic, fuse, hull, tinted } from './arcade';
@@ -46,21 +46,6 @@ function roundedRect(halfWidth: number, halfDepth: number, radius: number): THRE
   shape.lineTo(-halfWidth, halfDepth - r);
   shape.absarc(-halfWidth + r, halfDepth - r, r, Math.PI, Math.PI / 2, true);
   return shape;
-}
-function ring(outer: THREE.Shape, inner: THREE.Shape): THREE.Shape {
-  const hole = new THREE.Path();
-  hole.curves = inner.curves;
-  outer.holes.push(hole);
-  return outer;
-}
-function slab(shape: THREE.Shape, bottom: number, top: number, side: THREE.Material, face: THREE.Material): THREE.Mesh {
-  const geometry = new THREE.ExtrudeGeometry(shape, { depth: top - bottom, bevelEnabled: false });
-  geometry.rotateX(-Math.PI / 2);
-  geometry.translate(0, bottom, 0);
-  const mesh = new THREE.Mesh(geometry, [face, side]);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  return mesh;
 }
 /** Only floors receive shadows: sampling them on every lorry part cost a tenth of a frame. */
 function rounded(width: number, height: number, depth: number, material: THREE.Material, radius = 0.08, floor = false): THREE.Mesh {
@@ -126,45 +111,54 @@ export class LoopScene {
 
   private buildPlatform(machine: LoopMachine): void {
     const { track } = machine;
-    const outerW = track.halfWidth + LOOP.channelHalf + LOOP.wallThickness;
-    const outerD = track.halfDepth + LOOP.channelHalf + LOOP.wallThickness;
-    const cornerOut = track.corner + LOOP.channelHalf + LOOP.wallThickness;
-    const innerW = track.halfWidth - LOOP.channelHalf;
-    const innerD = track.halfDepth - LOOP.channelHalf;
-    const eight = machine.board.trackShape && machine.board.trackShape !== 'oval';
+    const bounds = trackBounds(track);
+    const reach = LOOP.channelHalf + LOOP.wallThickness;
+    const outerW = Math.max(-bounds.minX, bounds.maxX) + reach;
+    const outerD = bounds.maxZ + reach;
+    // An oval is the toy's own body, round the row. Every other belt lies above the row, on a hull.
+    const raised = !(track instanceof RoundedTrack);
     // Long enough that five ticks per frame at 30 fps still reads as forward travel.
     this.belt = new BeltSurface(track, LOOP.channelHalf - 0.03, LOOP.floorY, MARBLE_RADIUS * 13);
     this.level.add(this.belt.mesh);
     // The parking deck is a pale lilac, so every lorry's shadow shows on it. No cargo is ever read against it.
     const top = plastic(BAY, 0.5);
     const lip = shiny(ARCADE.rim);
-    if (!eight) {
+    if (track instanceof RoundedTrack) {
       const side = plastic(PLATFORM_DARK);
+      const cornerOut = track.corner + reach;
       const deck = slab(roundedRect(outerW, outerD, cornerOut), 0, LOOP.floorY, side, plastic(CHANNEL, 0.55));
       const rim = slab(ring(roundedRect(outerW, outerD, cornerOut), roundedRect(track.halfWidth + LOOP.channelHalf, track.halfDepth + LOOP.channelHalf, track.corner + LOOP.channelHalf)), LOOP.floorY, DECK_TOP, side, lip);
-      const plateau = slab(roundedRect(innerW, innerD, Math.max(0.2, track.corner - LOOP.channelHalf)), LOOP.floorY, DECK_TOP, side, top);
+      const plateau = slab(roundedRect(track.halfWidth - LOOP.channelHalf, track.halfDepth - LOOP.channelHalf, Math.max(0.2, track.corner - LOOP.channelHalf)), LOOP.floorY, DECK_TOP, side, top);
       this.level.add(deck, rim, plateau);
+    } else if (track instanceof CrownTrack) {
+      // A flat belt is one solid moulding like the oval: a floor, the rim round it and the island it goes round.
+      const side = plastic(PLATFORM_DARK);
+      const deck = slab(beltOutline(track, -reach), 0, LOOP.floorY, side, plastic(CHANNEL, 0.55));
+      const rim = slab(ring(beltOutline(track, -reach), beltOutline(track, -LOOP.channelHalf)), LOOP.floorY, DECK_TOP, side, lip);
+      const island = slab(beltOutline(track, LOOP.channelHalf), LOOP.floorY, DECK_TOP, side, top);
+      this.level.add(deck, rim, island);
     } else this.level.add(beltDeck(track, LOOP.channelHalf, LOOP.floorY, LOOP.wallHeight));
     // One slab under the belt and every column: the toy, with no decorative margin.
     const ends = machine.bays.map((_, lane) => this.columnEnd(machine, lane));
-    const front = Math.max(eight ? Math.max(...ends) : 0, outerD) + 0.2;
+    const front = Math.max(raised ? Math.max(...ends) : 0, outerD) + 0.2;
     const width = Math.max(outerW * 2 + 0.3, (machine.bays.at(-1)!.x - machine.bays[0]!.x) + TRUCK.bedWidth + 0.6);
     // The loop's own lilac rim is this toy's rail, so the hull adds none and stays within the old base's outline.
-    const halfWidth = width / 2 - 0.2, back = -outerD - 0.1, edge = front - 0.05;
-    // The hull, every lane's dark tray, its gold stop and an eight's raised strips are one fused body: one draw.
-    const parts: THREE.BufferGeometry[] = eight ? hull(halfWidth, (edge - back) / 2, (edge + back) / 2, 0.7, false) : [];
+    const halfWidth = width / 2 - 0.2, back = bounds.minZ - reach - 0.1, edge = front - 0.05;
+    // The hull, every lane's dark tray, its gold stop and a raised belt's strips are one fused body: one draw.
+    const parts: THREE.BufferGeometry[] = raised ? hull(halfWidth, (edge - back) / 2, (edge + back) / 2, 0.7, false) : [];
     const part = (width: number, height: number, depth: number, radius: number, hex: number, x: number, y: number, z: number): void => {
       parts.push(tinted(new RoundedBoxGeometry(width, height, depth, 3, Math.min(radius, height / 2)).translate(x, y, z), hex));
     };
-    this.yard = new ArcadeYard(this.scene, halfWidth, back, edge, eight ? -.61 : .006);
+    this.yard = new ArcadeYard(this.scene, halfWidth, back, edge, raised ? -.61 : .006);
     machine.bays.forEach((bay, lane) => {
       const mouth = machine.mouthZ(lane);
       const stop = jamShutter(bay.x,DECK_TOP+.66,mouth-.12,TRUCK.bedWidth*.93);
       this.jamStops.push(stop); this.level.add(stop);
       const end = ends[lane]!;
-      if (eight) {
-        // An eight has no plateau: its columns stand on raised strips running from its near edge.
-        const start = mouth - TRUCK.mouthGap + LOOP.channelHalf;
+      if (raised) {
+        // A belt above the row has no plateau: its columns stand on raised strips running from its near edge. A flat
+        // belt's strips meet the outer face of its solid rim, so no two tops share a plane.
+        const start = mouth - TRUCK.mouthGap + (track instanceof CrownTrack ? reach : LOOP.channelHalf);
         part(TRUCK.bedWidth + 0.14, DECK_TOP, end - start, 0.05, PLATFORM, bay.x, DECK_TOP / 2, (end + start) / 2);
       }
       part(TRUCK.bedWidth + 0.12, 0.04, end - mouth + 0.2, 0.02, PLATFORM, bay.x, DECK_TOP + 0.015, (end + mouth - 0.2) / 2);
@@ -254,10 +248,11 @@ export class LoopScene {
       this.hitTargets.push(target);
     });
     const { track } = machine;
-    const w = track.halfWidth + LOOP.channelHalf + LOOP.wallThickness + 0.05;
-    const d = track.halfDepth + LOOP.channelHalf + LOOP.wallThickness;
-    this.framing = [{ x: -w, y: DECK_TOP, z: -d }, { x: w, y: DECK_TOP, z: -d }, { x: -w, y: DECK_TOP + 0.4, z: -d }, { x: w, y: DECK_TOP + 0.4, z: -d }];
-    if (!machine.board.trackShape || machine.board.trackShape === 'oval') this.framing.push({ x: -w, y: 0, z: d + 0.2 }, { x: w, y: 0, z: d + 0.2 });
+    const bounds = trackBounds(track);
+    const reach = LOOP.channelHalf + LOOP.wallThickness;
+    const left = bounds.minX - reach - 0.05, right = bounds.maxX + reach + 0.05, back = bounds.minZ - reach, near = bounds.maxZ + reach;
+    this.framing = [{ x: left, y: DECK_TOP, z: back }, { x: right, y: DECK_TOP, z: back }, { x: left, y: DECK_TOP + 0.4, z: back }, { x: right, y: DECK_TOP + 0.4, z: back }];
+    if (track instanceof RoundedTrack) this.framing.push({ x: left, y: 0, z: near + 0.2 }, { x: right, y: 0, z: near + 0.2 });
     for (const [lane, bay] of machine.bays.entries()) {
       const z = this.columnEnd(machine, lane);
       for (const x of [bay.x - 0.5, bay.x + 0.5]) this.framing.push({ x, y: 0, z: z + 0.2 }, { x, y: DECK_TOP + 0.9, z });

@@ -1,5 +1,5 @@
 import { atan2, cos, hypot, sin } from '../engine/exact-math';
-import { FigureEightTrack, type BeltShape } from '../engine/belt-path';
+import { FigureEightTrack, RoundedCircuit, type BeltPath, type BeltShape } from '../engine/belt-path';
 /**
  * Funnel Sort geometry, in world units: x right, y up, z toward the viewer. Physics and drawing
  * both read this file, so what you see is what the marbles hit.
@@ -90,10 +90,10 @@ export const RIDE_Y = RACEWAY.floorY + MARBLE_RADIUS;
 export const RIDER_SPACING = MARBLE_RADIUS * 2 * 1.08;
 /**
  * The belt is sized to its capacity: capacity slots at this pitch close the loop, so a full belt is a
- * full string of marbles with no gaps. The two limits are the smallest tracks that still draw cleanly.
+ * full string of marbles with no gaps. The floors are the smallest tracks that still draw cleanly.
  */
 export const SLOT_PITCH = RIDER_SPACING * 1.02;
-export const MIN_CAPACITY: Readonly<Record<BeltShape, number>> = { oval: 14, eight: 26, 'wide-eight': 30 };
+export const MIN_CAPACITY: Readonly<Record<BeltShape, number>> = { oval: 14, eight: 26, 'wide-eight': 30, delta: 16, kidney: 19 };
 /** Marbles drop onto the belt here, at the back centre. */
 export const ENTRY_DISTANCE = 0;
 export const OUTER_FRONT_Z = TRACK.frontZ + RACEWAY.channelHalf + RACEWAY.wallThickness;
@@ -101,7 +101,8 @@ export const OUTER_FRONT_Z = TRACK.frontZ + RACEWAY.channelHalf + RACEWAY.wallTh
 /** Docks along the front, in the order the belt passes them: it travels toward -x there, so dock 0 is rightmost. */
 export const DOCK_SPACING = 2.4;
 export const dockX = (dock: number, count: number): number => ((count - 1) / 2 - dock) * DOCK_SPACING;
-export const dockDistance = (dock: number, count: number): number => TRACK.nearest(dockX(dock, count), TRACK.frontZ).distance;
+export const dockDistanceFor = (track: BeltPath, x: number): number => track.nearest(x, TRACK.frontZ).distance;
+export const dockDistance = (dock: number, count: number): number => dockDistanceFor(TRACK, dockX(dock, count));
 
 export const COLUMN_SPACING = 2.5;
 export const columnX = (index: number, count: number): number => (index - (count - 1) / 2) * COLUMN_SPACING;
@@ -169,10 +170,10 @@ export const BOX = {
 export const FLIGHT = { seconds: 0.22, arc: 0.95, hopSeconds: 0.14, hopHeight: 0.16, mergeSeconds: 0.12 } as const;
 
 /**
- * Where the chute meets the belt. The oval takes the point straight below the neck. An eight joins the
+ * Where the chute meets the belt. A flat track uses the nearest point to the neck. An eight joins the
  * lower pass a little before it dives under the bridge, so the chute never ends beneath the deck.
  */
-export function entryDistanceFor(track: Track | FigureEightTrack): number {
+export function entryDistanceFor(track: BeltPath): number {
   if (track instanceof FigureEightTrack) {
     const a = 0.35;
     return track.nearest(track.halfWidth * sin(a), track.centerZ - track.halfDepth * sin(2 * a)).distance;
@@ -183,10 +184,23 @@ export function entryDistanceFor(track: Track | FigureEightTrack): number {
 const EIGHT_DEPTH: Readonly<Record<'eight' | 'wide-eight', number>> = { eight: 1.2, 'wide-eight': 1.65 };
 const EIGHT_MIN_HALF_WIDTH = 3;
 
+// A straight dispatch edge keeps the shoe mounts aligned to the rack. The chute meets the rounded back.
+const FLAT_CIRCUITS = {
+  delta: { vertices: [[4, 1.5], [-4, 1.5], [0, -2.5]], radius: 1.1, x: 0, z: 0.25 },
+  kidney: { vertices: [[3.7, 1.5], [-3.5, 1.5], [-2.9, -2.4], [0.65, -0.35], [2.75, -2]], radius: 1.02, x: 0.22, z: -0.2 },
+} as const;
+
+function flatCircuit(shape: keyof typeof FLAT_CIRCUITS, length: number): RoundedCircuit {
+  const { vertices, radius, x, z } = FLAT_CIRCUITS[shape];
+  const scale = length / new RoundedCircuit(vertices, radius).length;
+  return new RoundedCircuit(vertices.map(([vx, vz]) => [x + vx * scale, z + vz * scale]), radius * scale);
+}
+
 /** The track for a belt of this capacity. The oval keeps its corners and depth, so the chute and docks stay put. */
-export function conveyorTrack(shape: BeltShape = 'oval', capacity: number = MIN_CAPACITY.oval): Track | FigureEightTrack {
+export function conveyorTrack(shape: BeltShape = 'oval', capacity: number = MIN_CAPACITY[shape]): Track | FigureEightTrack | RoundedCircuit {
   const length = capacity * SLOT_PITCH;
   if (shape === 'oval') return new Track(Math.max(0, (length - 2 * Math.PI * RACEWAY.radius) / 4), RACEWAY.radius, RACEWAY.centerZ);
+  if (shape === 'delta' || shape === 'kidney') return flatCircuit(shape, length);
   const depth = EIGHT_DEPTH[shape];
   const build = (halfWidth: number): FigureEightTrack => new FigureEightTrack(halfWidth, depth, RACEWAY.centerZ, false);
   let low = EIGHT_MIN_HALF_WIDTH;

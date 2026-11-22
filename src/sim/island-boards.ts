@@ -16,7 +16,8 @@ export const FUNNEL_ISLAND_BOARDS: readonly BoardDef[] = [
       ["yellow", "red", "yellow", "orange", "red", "red", "red", "red"],
       ["green", "yellow", "red", "yellow", "red", "blue", "blue", "orange"],
       ["green", "yellow", "green", "blue", "red", "orange", "red", "yellow"]
-    ]
+    ],
+    "trackShape": "delta"
   },
   {
     "id": "board-95",
@@ -115,7 +116,7 @@ export const FUNNEL_ISLAND_BOARDS: readonly BoardDef[] = [
   {
     "id": "board-99",
     "title": "Small loads first",
-    "beltCapacity": 19,
+    "beltCapacity": 22,
     "boxSize": 3,
     "supplies": [
       [{"color": "yellow", "count": 9}, {"color": "orange", "count": 9}, {"color": "yellow", "count": 9}],
@@ -126,7 +127,8 @@ export const FUNNEL_ISLAND_BOARDS: readonly BoardDef[] = [
       ["yellow", "green", "blue", "orange", "blue", "green", "red", "green", "yellow"],
       ["orange", "yellow", "blue", "yellow", "red", "yellow", "yellow", "red", "blue"],
       ["red", "yellow", "orange", "blue", "red", "yellow", "blue", "yellow", "red"]
-    ]
+    ],
+    "trackShape": "kidney"
   },
   {
     "id": "board-100",
@@ -265,7 +267,8 @@ export const FUNNEL_ISLAND_BOARDS: readonly BoardDef[] = [
       ["green", "blue", "orange", "orange", "blue", "yellow", "blue", "green", "yellow", "red", "red", "red"],
       ["yellow", "green", "blue", "blue", "blue", "red", "orange", "blue", "blue", "blue", "red"]
     ],
-    "seals": [{"dock": 0, "after": {"dock": 1, "box": 0}}]
+    "seals": [{"dock": 0, "after": {"dock": 1, "box": 0}}],
+    "trackShape": "kidney"
   },
   {
     "id": "board-108",
@@ -351,6 +354,7 @@ export const FUNNEL_ISLAND_BOARDS: readonly BoardDef[] = [
       ["yellow", "yellow", "blue", "yellow", "orange", "green", "red", "blue", "blue"],
       ["red", "blue", "red", "red", "yellow", "red", "orange", "red", "blue"],
       ["blue", "green", "yellow", "red", "yellow", "green", "red", "red", "orange"]
-    ]
+    ],
+    "trackShape": "delta"
   }
 ];
